@@ -1,127 +1,116 @@
-# Per-Head KV Pruning for Llama
+# Additive KV Cache Pruning for Llama
 
-Experiments comparing standard Llama inference against a per-head importance
-filter that prunes the KV cache during prefill, allowing a context of length x
-to be processed with the memory/compute footprint of x/2.
-
-Supports Llama 2 and Llama 3.
+Prefill-time KV cache pruning that retains a fixed fraction of token slots
+while preserving model quality on long-context tasks. Evaluated on LongBench
+with Llama-3.1-8B at 65% retention.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `head_filter.py` | Core algorithm — per-head importance scoring and mask generation |
-| `llama_pruned.py` | Modified Llama inference engine — swaps attention layers (Llama 2 + 3) |
-| `needle_test.py` | Needle-in-a-haystack evaluation |
-| `eval.py` | Full three-way evaluation harness (needle / QA / summarization) |
+| `llama_pruned.py` | Core pruning module — patches Llama attention layers |
+| `longbench_eval.py` | Resumable LongBench evaluation harness (full + naive + pruned) |
+| `mode_compare.py` | Quick mode/alpha/retention sweep without reloading the model |
+| `paper.md` | Conference-style paper describing the method and results |
+| `needle_test.py` | Needle-in-a-haystack sanity check |
+| `eval.py` | Earlier evaluation harness (needle / QA / summarization) |
 
 ## Installation
 
 ```bash
 pip install torch transformers accelerate
-pip install sacrebleu rouge-score          # metrics
-pip install sentence-transformers          # optional: semantic similarity
+pip install rouge-score datasets huggingface_hub
 ```
 
-You will need a HuggingFace account with access to `meta-llama/Llama-2-7b-hf`.
-Set your token:
+Set your HuggingFace token:
 ```bash
 export HF_TOKEN=your_token_here
-huggingface-cli login
 ```
 
-## Quick Start — Needle Test
+## Quick Start — LongBench
 
-Runs 50 trials with context_len=1024, budget=512 (x/2 retention):
+Download LongBench data (one-time):
+```bash
+python -c "
+from huggingface_hub import hf_hub_download
+import zipfile, pathlib
+p = hf_hub_download(repo_id='THUDM/LongBench', filename='data.zip', repo_type='dataset')
+with zipfile.ZipFile(p) as z:
+    z.extractall('lb_data_raw')
+"
+```
+
+Run the full evaluation (takes ~12 hours on V100 32GB):
+```bash
+python longbench_eval.py \
+    --model meta-llama/Llama-3.1-8B \
+    --budget_fraction 0.65 \
+    --score_mode additive \
+    --score_alpha 0.65 \
+    --max_seq_len 7168 \
+    --output lb_results
+```
+
+Resume after interruption: re-run the same command. Completed examples are
+checkpointed to `lb_results/checkpoint.json` and skipped on restart.
+
+## Quick Mode Comparison (no model reload)
 
 ```bash
-python eval.py \
-    --task needle \
-    --model meta-llama/Llama-2-7b-hf \
-    --context_len 1024 \
-    --budget 512 \
-    --num_samples 50 \
-    --budget_strategy entropy \
-    --decay_fn exponential \
-    --output needle_results.json
+python mode_compare.py \
+    --model meta-llama/Llama-3.2-3B-Instruct \
+    --tasks passage_retrieval_en,hotpotqa,2wikimqa,gov_report,qmsum,multi_news \
+    --max_examples 30 \
+    --modes vn_decay,kq_only,additive \
+    --alphas 0.6,0.65,0.7,0.9 \
+    --retentions 0.50,0.65,0.80
 ```
 
-## QA Evaluation
+## Key Parameters (PrunedLlamaConfig)
 
-Expects a JSONL file with records: `{"context": "...", "question": "...", "answer": "..."}`
-
-```bash
-python eval.py \
-    --task qa \
-    --data my_qa.jsonl \
-    --context_len 1024 \
-    --budget 512 \
-    --use_sbert \
-    --output qa_results.json
-```
-
-## Key Parameters
-
-| Parameter | Default | Description |
+| Parameter | Best value | Description |
 |---|---|---|
-| `--context_len` | 1024 | Full context length fed to the model |
-| `--budget` | 512 | Retained token count (target = context_len/2) |
-| `--budget_strategy` | entropy | `equal` or `entropy` (entropy-weighted per head) |
-| `--decay_fn` | exponential | `linear` or `exponential` distance decay |
-| `--decay_rate` | 0.002 | Steepness of distance decay |
-| `--q_buffer` | 64 | Tail Q vectors tracked per head |
-| `--always_keep` | 16 | Unconditionally retain this many tail tokens |
+| `budget_fraction` | 0.65 | Fraction of tokens to retain per sequence |
+| `score_mode` | additive | Scoring: `vn_decay`, `kq_only`, or `additive` |
+| `score_alpha` | 0.65 | Weight on KQ in additive mode (0=vn only, 1=kq only) |
+| `min_decay` | 0.7 | Distance decay value at position 0 (auto-scales with T) |
+| `q_buffer_size` | 128 | Tail Q vectors used for KQ alignment |
+| `always_keep_first` | 16 | Unconditionally retained prefix tokens |
+| `always_keep_last` | 16 | Unconditionally retained suffix tokens |
+| `decay_fn` | linear | `linear` or `exponential` |
 
-## How It Works
-
-### Scoring (head_filter.py)
-
-For each token j and each attention head h:
+## Scoring Function
 
 ```
-score(h, j) = kq_alignment(h, j)
-            × v_norm(h, j)
-            × distance_decay(j)
+score_i = α · kq_i + (1 − α) · vn_i · decay_i
 ```
 
-- **KQ alignment**: max dot product of K_h(j) against a rolling buffer of
-  the last `q_buffer` Q vectors from the tail of the sequence
-- **V-norm**: ||V_h(j)||, the maximum possible contribution of this token
-- **Distance decay**: linear `1 - λ·dist` or exponential `e^{-λ·dist}`
+- **kq_i**: max-pooled pre-RoPE dot product of tail Q-vectors against K_i (normalized)
+- **vn_i**: L2 norm of V_i normalized by layer max
+- **decay_i**: linear ramp from min_decay (oldest) to 1.0 (newest)
 
-### Budget Allocation
+Pre-RoPE keys are used so position does not artificially suppress early tokens.
 
-- **equal**: every head gets `total_budget / num_heads` slots
-- **entropy**: heads with higher attention entropy (broader, more diffuse
-  attention patterns) get proportionally more budget
+## LongBench Results (Llama-3.1-8B, 65% retention)
 
-### Inference (llama_pruned.py)
+| Task | Full | Naive (4K) | Pruned (65%) |
+|---|---|---|---|
+| NarrativeQA | 5.5 | 19.5 | 3.1 |
+| Qasper | 11.1 | 11.4 | 10.1 |
+| MultifieldQA | 28.9 | 28.5 | 27.1 |
+| HotpotQA | 9.9 | 10.9 | 9.9 |
+| 2WikiMQA | 14.1 | 14.2 | 11.3 |
+| MuSiQue | 6.9 | 6.7 | 5.1 |
+| GovReport | 20.4 | 20.2 | 17.5 |
+| QMSum | 10.3 | 14.6 | 8.1 |
+| MultiNews | 1.1 | 0.8 | 1.4 |
+| TREC | 70.0 | 71.0 | 65.0 |
+| TriviaQA | 17.4 | 17.8 | 17.7 |
+| SAMSum | 16.0 | 16.4 | 15.6 |
+| PassageCount | 3.0 | 1.0 | 2.0 |
+| **PassageRetrieval** | **44.0** | **18.0** | **27.0** |
+| LCC | 68.1 | 66.5 | 57.4 |
+| RepoBench-P | 55.6 | 54.7 | 49.0 |
+| **Average** | **23.9** | **23.3** | **20.5** |
 
-Patches each `LlamaAttention` layer in-place (shared weights, no retraining).
-During prefill:
-1. Stream all tokens through the filter
-2. Per head, gather only retained K and V vectors
-3. Run standard attention against the gathered (smaller) KV
-
-During generation: standard KV cache, unmodified.
-
-## Expected Results
-
-On a V100 32GB with Llama2-7b-hf:
-
-| Condition | VRAM | Needle accuracy (approx) |
-|---|---|---|
-| Full context x=1024 | ~16 GB | ~85-95% |
-| Naive truncation x/2 | ~14 GB | ~40-60% (loses early needles) |
-| Per-head filter x/2 | ~14 GB | ~70-90% (goal) |
-
-Actual numbers will depend on needle position — early needles are the stress test.
-
-## Tuning Tips
-
-1. Start with `--decay_fn exponential --budget_strategy entropy` (the defaults)
-2. If early-position accuracy is low, increase `--q_buffer` (64→128)
-3. If recent context is suffering, increase `--always_keep` (16→32)
-4. `--decay_rate 0.001` gives a flatter decay — better for long-range dependencies
-5. Compare `equal` vs `entropy` budget strategy — the gap tells you how much
-   head specialization matters for your task
+Key win: PassageRetrieval 27 vs naive 18 (+9 pts). Main regression: code tasks.

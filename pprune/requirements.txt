@@ -1,0 +1,12 @@
+# Core
+torch>=2.0.0
+datasets>=2.14.0          # HuggingFace datasets (for LongBench)
+transformers>=4.36.0     # 4.36+ required for Cache API (Llama 3 support)
+accelerate>=0.26.0       # required for device_map in from_pretrained
+
+# Evaluation metrics
+sacrebleu>=2.0.0
+rouge-score>=0.1.2
+
+# Optional: semantic similarity scoring (--use_sbert flag in eval.py)
+# sentence-transformers>=2.0.0
