@@ -270,10 +270,17 @@ def run_task(task, examples, model, tokenizer, press, max_seq_len, device):
                     do_sample=False,
                     pad_token_id=tokenizer.eos_token_id,
                 )
-        except Exception as e:
-            print(f"  WARNING: {task} example failed: {e}")
+        except torch.cuda.OutOfMemoryError:
+            torch.cuda.empty_cache()
             scores.append(0.0)
             continue
+        except Exception as e:
+            print(f"  WARNING: {task} example failed: {e}")
+            torch.cuda.empty_cache()
+            scores.append(0.0)
+            continue
+        finally:
+            torch.cuda.empty_cache()
 
         pred = tokenizer.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
         scores.append(score_example(task, pred, answers))
@@ -297,7 +304,7 @@ def parse_args():
     p.add_argument("--q_buffer_size",    type=int,   default=128)
     p.add_argument("--always_keep_first",type=int,   default=16)
     p.add_argument("--always_keep_last", type=int,   default=16)
-    p.add_argument("--max_seq_len",      type=int,   default=7168)
+    p.add_argument("--max_seq_len",      type=int,   default=6144)
     p.add_argument("--device",           default="cuda")
     p.add_argument("--data_dir",         default="lb_data_raw/data")
     p.add_argument("--output",           default="kvpress_benchmark_results.json")
