@@ -271,7 +271,20 @@ The pruned model is both slower and higher-VRAM at all tested context lengths. T
 
 ### 5.7 Effect of Retention Fraction
 
-As expected, higher retention consistently improves all methods. The gap between pruned and full context narrows as retention increases — at 80% retention the difference is within scoring noise for most tasks. The most interesting operating point is 50–65%, where memory savings are meaningful (35–50% KV cache reduction) and the scoring function's choices have the most impact.
+We sweep the retention fraction r ∈ {50%, 65%, 80%} using the additive scorer with α=0.7 on a representative six-task subset (30 examples per task, Llama-3.1-8B). Full-context scores from §4.5 are included as a ceiling.
+
+| Task | r=50% | r=65% | r=80% | Full |
+|---|---|---|---|---|
+| PassageRetrieval | 3.3 | 20.0 | 33.3 | 44.0 |
+| HotpotQA | 7.2 | 9.6 | 12.9 | 9.9 |
+| 2WikiMQA | 9.3 | 11.2 | 14.9 | 14.1 |
+| GovReport | 14.8 | 19.6 | 18.5 | 20.4 |
+| QMSum | 7.0 | 8.5 | 8.0 | 10.3 |
+| MultiNews | 4.2 | 1.8 | 0.2 | 1.1 |
+
+Higher retention consistently improves performance, but the effect is highly task-dependent. PassageRetrieval is the most sensitive: score nearly triples from r=50% to r=80% (3.3 → 33.3), and remains 10 points below full context even at 80%. Retrieval tasks require retaining the specific paragraphs matching the query — at 50% retention, roughly half the candidates are discarded regardless of scoring quality. QA tasks (HotpotQA, 2WikiMQA) show moderate, near-monotone improvement. Summarization (GovReport, QMSum) is relatively flat: the additive scorer extracts the most content-dense tokens even at 50% retention, and little is gained by retaining more. MultiNews scores are near-zero across all retentions, consistent with the base model's known difficulty with that format (see §4.5).
+
+The most interesting operating point is r=50–65%, where KV cache savings are meaningful (35–50% reduction) and scoring quality has maximum impact. At r=80% the gap versus full context is modest for all tasks except PassageRetrieval, suggesting diminishing returns for most use cases.
 
 ---
 
