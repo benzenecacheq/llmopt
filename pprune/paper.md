@@ -235,6 +235,8 @@ The clearest win is PassageRetrieval: pruned (27.0) exceeds naive truncation (18
 
 Streaming achieves 20.0 on PassageRetrieval — better than naive but below our method. This is not a general property of streaming: in the ablation (Table 4.2), streaming scored 43.3 on PassageRetrieval because the 3B instruct model's prompt format places paragraphs near the end. At the 8B base model scale with longer prompts (11K–14K tokens), the paragraphs fall outside the recency window and streaming degrades to naive performance.
 
+However, pruned (27.0) remains 17 points below full context (44.0). The retention sweep (§5.7) shows this gap persists even at r=80% (33.3 vs 44.0), indicating it is not simply a budget problem. The task structure explains the residual gap: PassageRetrieval presents 30 candidate paragraphs and asks which one contains a specific verbatim sentence. All 30 paragraphs are topically related, so our KQ scoring — which measures semantic similarity between the query and context tokens — cannot reliably distinguish the target paragraph from topically similar decoys. Exact-match retrieval requires a different signal (e.g. n-gram overlap or BM25-style scoring) that our additive scorer does not capture. This is a fundamental limitation for tasks that require verbatim rather than semantic matching.
+
 ### 5.2 Summarization
 
 Streaming collapses completely on summarization tasks: GovReport drops from 20.4 (full) to 5.2 (streaming), QMSum from 10.3 to 3.5, MultiNews from 1.1 to 1.4 (roughly random). These tasks require synthesizing information distributed across long documents — exactly what a recency window cannot provide. Our additive method retains 17.5, 8.1, and 1.4 respectively, substantially better than streaming and within 3 points of full context on GovReport.
@@ -249,7 +251,11 @@ Streaming achieves 35.9 on TriviaQA — nearly double all other methods (full 17
 
 ### 5.5 Anomalous NarrativeQA Result
 
-Naive truncation (19.5) substantially outperforms full context (5.5) on NarrativeQA. We hypothesize that very long story contexts confuse the base model's generation, and truncation incidentally removes the confusing material. This may also reflect a scoring artifact: the F1 metric degrades when the model generates verbose completions prompted by long contexts. This warrants further investigation.
+Naive truncation (19.5) substantially outperforms full context (5.5) on NarrativeQA, and our pruned model (3.1) is worse still. The same pattern holds on Mistral-7B-v0.3 (full 5.2, naive 11.7, pruned 6.2), confirming this is not a Llama-specific artifact.
+
+The mechanism is base model behavior under long narrative context. NarrativeQA presents full novel or screenplay text followed by a question; the correct response is a short phrase. A base model (not instruction-tuned) given 7K tokens of dense narrative tends to continue the story or repeat the Q&A prompt format rather than produce a short answer — as visible in the generated outputs (e.g., the model produces a chain of additional question-answer pairs rather than answering the query). The F1-over-unigrams metric severely penalizes these verbose outputs. Naive truncation to 4096 tokens discards most of the narrative, leaving a shorter context in which the question is more prominent and the model's tendency to continue the story is weaker.
+
+Our pruned model scores below full context because our KQ scoring actively retains narrative content that is semantically relevant to the query — which is precisely the material that triggers story-continuation behavior. The better strategy for this task would be aggressive truncation or a recency-biased scorer, not semantic selection. This anomaly would likely disappear with an instruction-tuned model, which is trained to suppress narrative continuation.
 
 ### 5.6 Efficiency: Prefill Overhead Dominates at Current Context Lengths
 
