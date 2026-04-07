@@ -10,7 +10,7 @@ We present a prefill-time KV cache pruning method for transformer-based language
 
 ## 1. Introduction
 
-The computational cost of transformer attention scales quadratically with sequence length, making long-context inference expensive. A growing body of work addresses this by pruning the KV cache: discarding low-importance token slots before or during generation so that attention operates over a smaller, more informative set of key-value pairs [CITATION].
+The computational cost of transformer attention scales quadratically with sequence length, making long-context inference expensive. A growing body of work addresses this by pruning the KV cache: discarding low-importance token slots before or during generation so that attention operates over a smaller, more informative set of key-value pairs [Zhang et al., 2023; Li et al., 2024; Yang et al., 2024].
 
 Most existing methods assign per-token importance scores based on attention weights [H2O], value vector norms [VATP], or combinations thereof, and evict low-scoring tokens. A practical system must additionally decide: (1) how to score tokens in a way that is stable across different context lengths, (2) how to allocate the total token budget across attention heads, and (3) how much to favor recent tokens over semantically relevant but distant ones.
 
@@ -24,7 +24,7 @@ We make the following contributions:
 
 - **Global budget**: We retain the same token positions for all KV heads within a layer, selected by aggregating per-head importance scores. This avoids the memory overhead of per-head non-contiguous indexing while still using information from all heads.
 
-We evaluate on LongBench [CITATION] covering single-document QA, multi-document QA, summarization, retrieval, and code completion tasks. Our ablations isolate the contribution of each design choice and identify a residual weakness on code tasks. We additionally benchmark StreamingLLM as a recency-only baseline, which reveals that tasks requiring distributed context cannot be served by a simple recency window.
+We evaluate on LongBench [Bai et al., 2023] covering single-document QA, multi-document QA, summarization, retrieval, and code completion tasks. Our ablations isolate the contribution of each design choice and identify a residual weakness on code tasks. We additionally benchmark StreamingLLM as a recency-only baseline, which reveals that tasks requiring distributed context cannot be served by a simple recency window.
 
 ---
 
