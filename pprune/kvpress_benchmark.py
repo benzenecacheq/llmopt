@@ -129,9 +129,11 @@ DATASET2PROMPT = {
         "Do not explain your reasoning.\n\n{context}\n\nNumber of unique paragraphs:"
     ),
     "passage_retrieval_en": (
-        "Here are 30 paragraphs from Wikipedia, along with an abstract. Please determine which "
-        "paragraph the abstract is from.\n\n{context}\n\nThe following is an abstract.\n\n"
-        "{input}\n\nThe abstract is from paragraph"
+        "Here are 30 paragraphs from Wikipedia, along with an abstract. "
+        "Please determine which paragraph the abstract is from.\n\n{context}\n\n"
+        "The following is an abstract.\n\n{input}\n\n"
+        "Please enter the number of the paragraph that the abstract is from. "
+        "The answer format must be like \"Paragraph 1\", \"Paragraph 2\", etc.\n\nThe answer is:"
     ),
     "lcc": (
         "Please complete the code given below.\n{context}Next line of code:\n"
@@ -151,7 +153,8 @@ DATASET2MAXLEN = {
 ROUGE_TASKS = {"gov_report", "qmsum", "multi_news", "samsum"}
 F1_TASKS = {"narrativeqa", "qasper", "hotpotqa", "2wikimqa", "musique",
             "trec", "triviaqa", "multifieldqa_en"}
-EM_TASKS = {"passage_retrieval_en", "passage_count"}
+RETRIEVAL_TASKS = {"passage_retrieval_en"}
+COUNT_TASKS = {"passage_count"}
 CODE_TASKS = {"lcc", "repobench-p"}
 
 
@@ -184,9 +187,27 @@ def rouge_l(pred: str, answers: list[str]) -> float:
     scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
     return max(scorer.score(ans, pred)["rougeL"].fmeasure for ans in answers)
 
-def em_score(pred: str, answers: list[str]) -> float:
-    pred_n = normalize(pred)
-    return float(any(normalize(a) in pred_n for a in answers))
+def retrieval_score(pred: str, answers: list[str]) -> float:
+    """Extract paragraph number from prediction and answer; compare."""
+    def extract_num(s):
+        m = re.search(r"Paragraph\s+(\d+)", s, re.IGNORECASE)
+        if m:
+            return m.group(1)
+        m = re.search(r"\b(\d+)\b", s)
+        return m.group(1) if m else None
+    pred_num = extract_num(pred)
+    if pred_num is None:
+        return 0.0
+    return float(any(extract_num(a) == pred_num for a in answers))
+
+def count_score(pred: str, answers: list[str]) -> float:
+    def extract_num(s):
+        m = re.search(r"\b(\d+)\b", s)
+        return m.group(1) if m else None
+    pred_num = extract_num(pred)
+    if pred_num is None:
+        return 0.0
+    return float(any(extract_num(a) == pred_num for a in answers))
 
 def edit_sim(pred: str, answers: list[str]) -> float:
     """Normalised edit similarity for code tasks."""
@@ -198,8 +219,10 @@ def score_example(task: str, pred: str, answers: list[str]) -> float:
         return rouge_l(pred, answers)
     if task in F1_TASKS:
         return f1(pred, answers)
-    if task in EM_TASKS:
-        return em_score(pred, answers)
+    if task in RETRIEVAL_TASKS:
+        return retrieval_score(pred, answers)
+    if task in COUNT_TASKS:
+        return count_score(pred, answers)
     if task in CODE_TASKS:
         return edit_sim(pred, answers)
     return f1(pred, answers)
