@@ -1,0 +1,93 @@
+{
+  "results": {
+    "passage_retrieval_en": {
+      "full": 0.0,
+      "additive": 0.0,
+      "snapkv": 0.0,
+      "streaming": 0.0
+    },
+    "hotpotqa": {
+      "full": 9.653370727360048,
+      "additive": 8.653097054672584,
+      "snapkv": 9.688811340386867,
+      "streaming": 10.628418298109768
+    },
+    "2wikimqa": {
+      "full": 16.018654341470565,
+      "additive": 15.944580267396491,
+      "snapkv": 15.97235804517427,
+      "streaming": 15.579125596139997
+    },
+    "gov_report": {
+      "full": 17.04700008549874,
+      "additive": 16.886265556198932,
+      "snapkv": 16.422304641746834,
+      "streaming": 16.74234244134446
+    },
+    "qmsum": {
+      "full": 13.778101929264233,
+      "additive": 12.39942137835663,
+      "snapkv": 12.975089740065856,
+      "streaming": 11.980090841899806
+    },
+    "lcc": {
+      "full": 25.89874785418571,
+      "additive": 25.768993965413134,
+      "snapkv": 25.778649976277713,
+      "streaming": 26.411552985100457
+    }
+  },
+  "timings": {
+    "passage_retrieval_en": {
+      "full": 250.57349562644958,
+      "additive": 248.69418287277222,
+      "snapkv": 251.08914947509766,
+      "streaming": 238.7854835987091
+    },
+    "hotpotqa": {
+      "full": 251.27733278274536,
+      "additive": 241.36453104019165,
+      "snapkv": 243.84440732002258,
+      "streaming": 241.67387628555298
+    },
+    "2wikimqa": {
+      "full": 231.69899106025696,
+      "additive": 220.41997599601746,
+      "snapkv": 222.23244261741638,
+      "streaming": 218.58918857574463
+    },
+    "gov_report": {
+      "full": 895.0463404655457,
+      "additive": 731.3414433002472,
+      "snapkv": 698.7219219207764,
+      "streaming": 718.3095467090607
+    },
+    "qmsum": {
+      "full": 853.5571324825287,
+      "additive": 737.4148707389832,
+      "snapkv": 755.5636932849884,
+      "streaming": 749.1062278747559
+    },
+    "lcc": {
+      "full": 156.34284496307373,
+      "additive": 147.32894206047058,
+      "snapkv": 148.0410361289978,
+      "streaming": 145.22855234146118
+    }
+  },
+  "args": {
+    "model": "meta-llama/Llama-3.1-8B",
+    "tasks": "passage_retrieval_en,hotpotqa,2wikimqa,gov_report,qmsum,lcc",
+    "max_examples": 30,
+    "compression_ratio": 0.35,
+    "score_alpha": 0.65,
+    "min_decay": 0.7,
+    "q_buffer_size": 128,
+    "always_keep_first": 16,
+    "always_keep_last": 16,
+    "max_seq_len": 6144,
+    "device": "cuda",
+    "data_dir": "lb_data_raw/data",
+    "output": "kvpress_benchmark_results.json"
+  }
+}
