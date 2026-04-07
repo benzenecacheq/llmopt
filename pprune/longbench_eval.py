@@ -36,7 +36,7 @@ from typing import Dict, List, Optional
 
 import torch
 from rouge_score import rouge_scorer
-from transformers import AutoTokenizer, LlamaForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaForCausalLM
 
 from llama_pruned import PrunedLlamaConfig, build_pruned_model
 
@@ -449,14 +449,20 @@ def run_pass(
 # ---------------------------------------------------------------------------
 
 def score_results(tasks: List[str], ckpt: dict, max_examples: Optional[int]) -> dict:
-    methods = ["full", "naive", "pruned"]
-    results: dict = {}
+    # Discover all methods present in the checkpoint (preserving "full" first, "naive" second)
+    all_methods_seen: set = set()
+    for k in ckpt:
+        parts = k.split("|")
+        if len(parts) == 3:
+            all_methods_seen.add(parts[2])
+    preferred_order = ["full", "naive"]
+    methods = preferred_order + sorted(all_methods_seen - set(preferred_order))
 
+    results: dict = {}
     for task in tasks:
         scorer_fn = DATASET2SCORER[task]
         task_scores: Dict[str, List[float]] = {m: [] for m in methods}
 
-        # Collect all indices present in checkpoint for this task
         indices = sorted({
             int(k.split("|")[1])
             for k in ckpt
@@ -479,25 +485,34 @@ def score_results(tasks: List[str], ckpt: dict, max_examples: Optional[int]) -> 
             for m, v in task_scores.items()
         }
         results[task]["n"] = len(indices)
+        results[task]["_methods"] = methods
 
     return results
 
 
 def print_table(results: dict):
-    print("\n" + "=" * 70)
-    print(f"{'Task':<24} {'N':>5}  {'Full':>7}  {'Naive':>7}  {'Pruned':>7}")
-    print("-" * 70)
-    totals = {"full": [], "naive": [], "pruned": []}
+    if not results:
+        return
+    methods = next(iter(results.values()))["_methods"]
+    col_w = 8
+    header = f"{'Task':<24} {'N':>5}  " + "  ".join(f"{m[:col_w]:>{col_w}}" for m in methods)
+    sep = "-" * len(header)
+    print("\n" + "=" * len(header))
+    print(header)
+    print(sep)
+    totals: Dict[str, List[float]] = {m: [] for m in methods}
     for task, r in results.items():
-        f, na, p = r["full"], r["naive"], r["pruned"]
-        print(f"{task:<24} {r['n']:>5}  {f:>7.2f}  {na:>7.2f}  {p:>7.2f}")
-        for m in totals:
-            if not math.isnan(r[m]):
-                totals[m].append(r[m])
-    print("-" * 70)
+        row = f"{task:<24} {r['n']:>5}  " + "  ".join(f"{r.get(m, float('nan')):>{col_w}.2f}" for m in methods)
+        print(row)
+        for m in methods:
+            v = r.get(m, float("nan"))
+            if not math.isnan(v):
+                totals[m].append(v)
+    print(sep)
     avgs = {m: sum(v) / len(v) if v else float("nan") for m, v in totals.items()}
-    print(f"{'AVERAGE':<24} {'':>5}  {avgs['full']:>7.2f}  {avgs['naive']:>7.2f}  {avgs['pruned']:>7.2f}")
-    print("=" * 70)
+    avg_row = f"{'AVERAGE':<24} {'':>5}  " + "  ".join(f"{avgs[m]:>{col_w}.2f}" for m in methods)
+    print(avg_row)
+    print("=" * len(header))
 
 
 # ---------------------------------------------------------------------------
@@ -522,8 +537,14 @@ def parse_args():
     p.add_argument("--device",       default="cuda")
     # PrunedLlamaConfig knobs
     p.add_argument("--score_mode",   default="additive",
-                   choices=["kq_vn_decay", "kq_only", "vn_only", "vn_decay", "additive"])
+                   choices=["kq_vn_decay", "kq_only", "kq_post_rope", "snapkv",
+                            "vn_only", "vn_decay", "additive", "streaming"])
     p.add_argument("--score_alpha",  type=float, default=0.65)
+    p.add_argument("--sink_size",    type=int, default=4,
+                   help="Attention sink tokens kept in streaming mode")
+    p.add_argument("--method_label", default="pruned",
+                   help="Checkpoint key used for Pass 2 predictions (default: 'pruned'). "
+                        "Set to e.g. 'streaming' to add a new column without overwriting existing results.")
     p.add_argument("--decay_fn",     default="linear",
                    choices=["linear", "exponential"])
     p.add_argument("--min_decay",    type=float, default=0.7)
@@ -560,7 +581,7 @@ def main():
         print("\n=== Pass 1: base model (full + naive) ===")
         print(f"Loading {args.model} ...")
         tokenizer = AutoTokenizer.from_pretrained(args.model)
-        base_model = LlamaForCausalLM.from_pretrained(
+        base_model = AutoModelForCausalLM.from_pretrained(
             args.model,
             torch_dtype=torch.float16,
             device_map=args.device,
@@ -603,6 +624,7 @@ def main():
             always_keep_first=args.always_keep_first,
             score_mode=args.score_mode,
             score_alpha=args.score_alpha,
+            sink_size=args.sink_size,
         )
         pruned_model, tokenizer = build_pruned_model(
             args.model, pcfg, device=args.device, dtype=torch.float16,
@@ -611,7 +633,7 @@ def main():
         try:
             run_pass(
                 pass_name="Pass2",
-                methods=["pruned"],
+                methods=[args.method_label],
                 tasks=tasks,
                 model=pruned_model,
                 tokenizer=tokenizer,

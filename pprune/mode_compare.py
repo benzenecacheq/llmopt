@@ -40,6 +40,7 @@ def run_mode(
     mode: str,
     alpha: float,
     retention: float,
+    min_decay: float,
     tasks: List[str],
     pruned_model,
     pcfg: PrunedLlamaConfig,
@@ -53,6 +54,7 @@ def run_mode(
     pcfg.score_mode = mode
     pcfg.score_alpha = alpha
     pcfg.budget_fraction = retention
+    pcfg.min_decay = min_decay
     results = {}
 
     for task in tasks:
@@ -85,34 +87,47 @@ def main():
     p.add_argument("--tasks",        default="passage_retrieval_en,hotpotqa,2wikimqa")
     p.add_argument("--max_examples", type=int,   default=30)
     p.add_argument("--max_seq_len",  type=int,   default=16000)
-    p.add_argument("--modes",        default="vn_decay,kq_only,additive")
+    p.add_argument("--modes",        default="kq_only,kq_post_rope,additive,streaming")
     p.add_argument("--alphas",       default="0.3,0.5,0.7,0.9",
                    help="alpha values to test for additive mode")
+    p.add_argument("--sink_size",    type=int, default=4,
+                   help="Attention sink tokens kept in streaming mode")
     p.add_argument("--retentions",   default="0.50,0.65,0.80",
                    help="Fraction of tokens to keep (e.g. 0.5 = keep 50%%)")
     p.add_argument("--data_dir",     default="lb_data_raw/data")
     p.add_argument("--output",       default="mode_compare_results.json")
     p.add_argument("--device",       default="cuda")
     p.add_argument("--min_decay",    type=float, default=0.7)
+    p.add_argument("--min_decays",   default="",
+                   help="Comma-separated min_decay values to sweep (overrides --min_decay when set)")
     p.add_argument("--always_keep_first", type=int, default=16)
     p.add_argument("--always_keep_last",  type=int, default=16)
     p.add_argument("--q_buffer_size",     type=int, default=128)
+    p.add_argument("--snapkv_window",     type=int, default=32,
+                   help="Observation window size for snapkv scoring")
     args = p.parse_args()
 
     tasks      = [t.strip() for t in args.tasks.split(",")]
     data_dir   = Path(args.data_dir)
     alphas     = [float(a) for a in args.alphas.split(",")]
     retentions = [float(r) for r in args.retentions.split(",")]
+    min_decays = ([float(d) for d in args.min_decays.split(",")]
+                  if args.min_decays else [args.min_decay])
 
-    # Build (label, mode, alpha) list — expand "additive" into one entry per alpha
+    # Build (label, mode, alpha, min_decay) list
+    # "additive" expands across alphas; other modes expand across min_decays if >1 value given
     base_modes = [m.strip() for m in args.modes.split(",")]
     modes_to_run: List[tuple] = []
     for m in base_modes:
         if m == "additive":
             for a in alphas:
-                modes_to_run.append((f"additive(α={a})", "additive", a))
+                for d in min_decays:
+                    label = f"additive(α={a},md={d})" if len(min_decays) > 1 else f"additive(α={a})"
+                    modes_to_run.append((label, "additive", a, d))
         else:
-            modes_to_run.append((m, m, 0.5))
+            for d in min_decays:
+                label = f"{m}(md={d})" if len(min_decays) > 1 else m
+                modes_to_run.append((label, m, 0.5, d))
 
     pcfg = PrunedLlamaConfig(
         total_budget=999999,        # overridden by budget_fraction at runtime
@@ -122,6 +137,8 @@ def main():
         min_decay=args.min_decay,
         always_keep_last=args.always_keep_last,
         always_keep_first=args.always_keep_first,
+        sink_size=args.sink_size,
+        snapkv_window=args.snapkv_window,
         score_mode="vn_decay",
     )
 
@@ -132,11 +149,11 @@ def main():
 
     all_results = {}
     for retention in retentions:
-        for label, mode, alpha in modes_to_run:
+        for label, mode, alpha, min_decay in modes_to_run:
             run_label = f"r={retention:.0%} {label}"
             print(f"\n=== {run_label} ===")
             all_results[run_label] = run_mode(
-                mode=mode, alpha=alpha, retention=retention,
+                mode=mode, alpha=alpha, retention=retention, min_decay=min_decay,
                 tasks=tasks,
                 pruned_model=pruned_model, pcfg=pcfg, tokenizer=tokenizer,
                 data_dir=data_dir,
@@ -147,15 +164,15 @@ def main():
 
     # Print summary table grouped by retention
     col_w = 14
-    header = f"{'Mode':<28}" + "".join(f"{t[:col_w]:>{col_w}}" for t in tasks)
+    header = f"{'Mode':<32}" + "".join(f"{t[:col_w]:>{col_w}}" for t in tasks)
     for retention in retentions:
         print(f"\n--- Retention {retention:.0%} ---")
         print(header)
         print("-" * len(header))
-        for label, mode, alpha in modes_to_run:
+        for label, mode, alpha, min_decay in modes_to_run:
             run_label = f"r={retention:.0%} {label}"
             scores = all_results[run_label]
-            row = f"{label:<28}" + "".join(f"{scores.get(t, float('nan')):>{col_w}.1f}" for t in tasks)
+            row = f"{label:<32}" + "".join(f"{scores.get(t, float('nan')):>{col_w}.1f}" for t in tasks)
             print(row)
 
     with open(args.output, "w") as f:

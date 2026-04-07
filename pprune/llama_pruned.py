@@ -51,7 +51,7 @@ from typing import Dict, Optional, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import AutoTokenizer, LlamaForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaForCausalLM
 from transformers.models.llama.modeling_llama import (
     LlamaAttention,
     LlamaRotaryEmbedding,
@@ -96,7 +96,12 @@ class PrunedLlamaConfig:
     always_keep_first: int = 16         # unconditionally keep this many head tokens
     score_mode: str = "additive"        # "kq_vn_decay" | "kq_only" | "vn_only" | "vn_decay"
                                         # | "additive"  (alpha*kq + (1-alpha)*vn*decay)
+                                        # | "streaming" (first sink_size + recent window)
+                                        # | "kq_post_rope" (kq_only but with rotated K/Q)
+                                        # | "snapkv"    (pooled attention weights, post-RoPE)
     score_alpha: float = 0.65           # weight on kq in "additive" mode
+    sink_size: int = 4                  # attention sink tokens kept in "streaming" mode
+    snapkv_window: int = 32             # observation window size for snapkv scoring
     budget_fraction: float = 0.0        # if > 0, overrides total_budget with int(T * fraction)
     # If True, run the filter during prefill only; generation uses standard KV cache
     filter_prefill_only: bool = True
@@ -189,6 +194,7 @@ class PrunedLlamaAttention(nn.Module):
         key_states: torch.Tensor,     # post-RoPE key states   (B, num_kv_heads, T, head_dim)
         value_states: torch.Tensor,   # post-RoPE value states (B, num_kv_heads, T, head_dim)
         budget: int = 0,              # effective budget (already resolved from fraction/total)
+        q_post: Optional[torch.Tensor] = None,  # post-RoPE query states (B, num_heads, T, head_dim)
     ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
         """
         Score every token globally (aggregating across all Q-heads), keep the
@@ -224,70 +230,120 @@ class PrunedLlamaAttention(nn.Module):
         if cfg is None:
             return key_states, value_states, None
 
-        # --- Fully batched scoring using pre-RoPE K/Q ---
+        # StreamingLLM: keep first sink_size tokens + a recent window. No scoring needed.
+        if self.pcfg.score_mode == "streaming":
+            sink        = min(self.pcfg.sink_size, T)
+            window      = max(0, budget - sink)
+            win_start   = max(sink, T - window)
+            keep_set    = set(range(sink)) | set(range(win_start, T))
+            retained    = torch.tensor(sorted(keep_set), dtype=torch.long,
+                                       device=self.device)
+            gathered_k  = key_states[  :, :, retained, :]
+            gathered_v  = value_states[:, :, retained, :]
+            return gathered_k, gathered_v, retained
+
+        # --- Fully batched scoring ---
         #
-        # Using pre-RoPE vectors gives position-independent semantic similarity.
-        # Post-RoPE vectors would penalise early tokens simply because their
-        # rotational encoding is far from the Q-buffer's rotational encoding.
+        # For pre-RoPE modes: use q_raw / k_raw so that KQ dot products reflect
+        # position-independent semantic similarity.  Post-RoPE vectors penalise
+        # early tokens simply because their rotational encoding is far from the
+        # Q-buffer's encoding.
         #
-        # Q buffer: last q_buffer_size Q-vectors per Q-head (pre-RoPE).
+        # For kq_post_rope: use rotated Q and K to measure the same similarity
+        # the actual attention kernel will see, as an ablation of the pre-RoPE choice.
+
         q_buf_sz = min(cfg.q_buffer_size, T)
-        q_buf = q_raw[0, :, -q_buf_sz:, :]              # (num_q, q_buf_sz, D)
 
-        # Expand KV-keys to match Q-heads (pre-RoPE):
-        key_exp = k_raw[0].repeat_interleave(q_per_kv, dim=0)  # (num_q, T, D)
-
-        # Batch KQ: (num_q, q_buf_sz, D) x (num_q, D, T) -> (num_q, q_buf_sz, T)
-        dots = torch.bmm(q_buf.float(),
-                         key_exp.float().transpose(1, 2)) / math.sqrt(D)
-        kq = dots.max(dim=1).values                       # (num_q, T)
-
-        # Normalize KQ per head to [0,1]
-        kq_min = kq.min(dim=1, keepdim=True).values
-        kq_max = kq.max(dim=1, keepdim=True).values
-        kq = (kq - kq_min) / (kq_max - kq_min + cfg.score_eps)
-
-        # V-norm: (kv_heads, T) -> (num_q, T) by repeating each kv-head q_per_kv times
-        vn = value_states[0].norm(dim=-1)                 # (kv_heads, T)
-        vn = vn.repeat_interleave(q_per_kv, dim=0)        # (num_q, T)
-        vn = vn / (vn.max(dim=1, keepdim=True).values + cfg.score_eps)
-
-        # Distance decay (same for all heads).
-        # Rate is auto-computed from min_decay and the actual sequence length T
-        # so that decay(position 0) == min_decay regardless of context length.
-        pos_idx = torch.arange(T, device=key_states.device, dtype=torch.float32)
-        dist    = (T - 1) - pos_idx                       # (T,)  0 = last token
-        pcfg = self.pcfg
-        if pcfg.decay_rate > 0.0:
-            rate = pcfg.decay_rate
-        elif T > 1:
-            if pcfg.decay_fn == "linear":
-                rate = (1.0 - pcfg.min_decay) / (T - 1)
-            else:
-                rate = -math.log(max(pcfg.min_decay, 1e-9)) / (T - 1)
-        else:
-            rate = 0.0
-        if pcfg.decay_fn == "linear":
-            decay = (1.0 - rate * dist).clamp(min=0.0)
-        else:
-            decay = torch.exp(-rate * dist)
-
-        # Per-head scores: (num_q, T)
         mode = self.pcfg.score_mode
-        decay_b = decay.unsqueeze(0)  # (1, T) broadcast-ready
-        if mode == "kq_only":
-            head_scores = kq
-        elif mode == "vn_only":
-            head_scores = vn
-        elif mode == "vn_decay":
-            head_scores = vn * decay_b
-        elif mode == "additive":
-            # alpha * norm(kq) + (1-alpha) * norm(vn) * decay
-            # Additive so KQ can rescue tokens with average V-norm (e.g. retrieval)
-            a = self.pcfg.score_alpha
-            head_scores = a * kq + (1.0 - a) * vn * decay_b
-        else:  # "kq_vn_decay"
-            head_scores = kq * vn * decay_b
+
+        if mode == "kq_post_rope":
+            # Post-RoPE ablation: score using rotated Q and K (same vectors the
+            # attention kernel uses), to isolate the effect of pre-RoPE scoring.
+            _q = q_post if q_post is not None else q_raw
+            q_buf_p  = _q[0, :, -q_buf_sz:, :]                           # (num_q, q_buf_sz, D)
+            key_exp_p = key_states[0].repeat_interleave(q_per_kv, dim=0) # (num_q, T, D)
+            dots_p   = torch.bmm(q_buf_p.float(),
+                                 key_exp_p.float().transpose(1, 2)) / math.sqrt(D)
+            kq_p     = dots_p.max(dim=1).values                          # (num_q, T)
+            kq_min   = kq_p.min(dim=1, keepdim=True).values
+            kq_max   = kq_p.max(dim=1, keepdim=True).values
+            head_scores = (kq_p - kq_min) / (kq_max - kq_min + cfg.score_eps)
+
+        elif mode == "snapkv":
+            # SnapKV [Li et al., 2024]: pool causally-masked attention weights from
+            # the last snapkv_window query positions over all key positions.
+            # Uses post-RoPE Q and K so scores match the actual attention distribution.
+            _q     = q_post if q_post is not None else q_raw
+            window = min(self.pcfg.snapkv_window, T)
+            dev    = key_states.device
+
+            q_win    = _q[0, :, -window:, :]                              # (num_q, window, D)
+            key_ep   = key_states[0].repeat_interleave(q_per_kv, dim=0)  # (num_q, T, D)
+            logits   = torch.bmm(q_win.float(),
+                                 key_ep.float().transpose(1, 2)) / math.sqrt(D)
+                                                                           # (num_q, window, T)
+
+            # Causal mask: query at seq-position (T-window+j) may only attend to
+            # keys at positions <= T-window+j.
+            q_pos = torch.arange(T - window, T, device=dev).unsqueeze(1)  # (window, 1)
+            k_pos = torch.arange(T,          device=dev).unsqueeze(0)     # (1, T)
+            causal = torch.where(k_pos <= q_pos,
+                                 torch.zeros((), device=dev),
+                                 torch.full((), float('-inf'), device=dev))
+            logits = logits + causal.unsqueeze(0)                          # broadcast over heads
+
+            attn_w    = F.softmax(logits, dim=-1)                          # (num_q, window, T)
+            head_scores = attn_w.max(dim=1).values                         # (num_q, T)
+
+        else:
+            # Pre-RoPE path: compute KQ using unrotated Q and K so that dot
+            # products reflect content similarity, not positional distance.
+            q_buf   = q_raw[0, :, -q_buf_sz:, :]              # (num_q, q_buf_sz, D)
+            key_exp = k_raw[0].repeat_interleave(q_per_kv, dim=0)  # (num_q, T, D)
+            dots    = torch.bmm(q_buf.float(),
+                                key_exp.float().transpose(1, 2)) / math.sqrt(D)
+            kq      = dots.max(dim=1).values                   # (num_q, T)
+
+            # Normalize KQ per head to [0,1]
+            kq_min = kq.min(dim=1, keepdim=True).values
+            kq_max = kq.max(dim=1, keepdim=True).values
+            kq = (kq - kq_min) / (kq_max - kq_min + cfg.score_eps)
+
+            # V-norm: (kv_heads, T) -> (num_q, T)
+            vn = value_states[0].norm(dim=-1)
+            vn = vn.repeat_interleave(q_per_kv, dim=0)
+            vn = vn / (vn.max(dim=1, keepdim=True).values + cfg.score_eps)
+
+            # Distance decay — rate auto-derived from min_decay and T
+            pos_idx = torch.arange(T, device=key_states.device, dtype=torch.float32)
+            dist    = (T - 1) - pos_idx                       # (T,)  0 = last token
+            pcfg    = self.pcfg
+            if pcfg.decay_rate > 0.0:
+                rate = pcfg.decay_rate
+            elif T > 1:
+                if pcfg.decay_fn == "linear":
+                    rate = (1.0 - pcfg.min_decay) / (T - 1)
+                else:
+                    rate = -math.log(max(pcfg.min_decay, 1e-9)) / (T - 1)
+            else:
+                rate = 0.0
+            if pcfg.decay_fn == "linear":
+                decay = (1.0 - rate * dist).clamp(min=0.0)
+            else:
+                decay = torch.exp(-rate * dist)
+
+            decay_b = decay.unsqueeze(0)  # (1, T) broadcast-ready
+            if mode == "kq_only":
+                head_scores = kq
+            elif mode == "vn_only":
+                head_scores = vn
+            elif mode == "vn_decay":
+                head_scores = vn * decay_b
+            elif mode == "additive":
+                a = self.pcfg.score_alpha
+                head_scores = a * kq + (1.0 - a) * vn * decay_b
+            else:  # "kq_vn_decay"
+                head_scores = kq * vn * decay_b
 
         # Global aggregation
         global_scores = self._aggregate_head_scores(head_scores)  # (T,)
@@ -410,7 +466,8 @@ class PrunedLlamaAttention(nn.Module):
                 and self.head_filter is not None
                 and effective_budget < T):
             key_states, value_states, retained_pos = self._run_filter_prefill(
-                q_raw, k_raw, key_states, value_states, effective_budget
+                q_raw, k_raw, key_states, value_states, effective_budget,
+                q_post=query_states,
             )
 
         # Expand KV heads to match Q heads (GQA support)
@@ -485,7 +542,7 @@ def build_pruned_model(
     """
     print(f"Loading {model_name} ...")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = LlamaForCausalLM.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=dtype,
         device_map=device,
