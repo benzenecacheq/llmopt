@@ -1,0 +1,33 @@
+{
+  "results": {
+    "passage_retrieval_en": {
+      "full": 13.333333333333334,
+      "additive": 16.666666666666664,
+      "snapkv": 13.333333333333334,
+      "streaming": 16.666666666666664
+    }
+  },
+  "timings": {
+    "passage_retrieval_en": {
+      "full": 186.7512378692627,
+      "additive": 218.25218772888184,
+      "snapkv": 221.65964269638062,
+      "streaming": 220.5535819530487
+    }
+  },
+  "args": {
+    "model": "meta-llama/Llama-3.1-8B",
+    "tasks": "passage_retrieval_en",
+    "max_examples": 30,
+    "compression_ratio": 0.35,
+    "score_alpha": 0.65,
+    "min_decay": 0.7,
+    "q_buffer_size": 128,
+    "always_keep_first": 16,
+    "always_keep_last": 16,
+    "max_seq_len": 6144,
+    "device": "cuda",
+    "data_dir": "lb_data_raw/data",
+    "output": "kvpress_benchmark_retrieval.json"
+  }
+}
