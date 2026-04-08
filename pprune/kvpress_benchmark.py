@@ -42,7 +42,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from kvpress import SnapKVPress
 from kvpress.presses.streaming_llm_press import StreamingLLMPress
 
-from additive_scorer_press import AdditiveScorerPress, HeadAwareAdditiveScorerPress
+from additive_scorer_press import (AdditiveScorerPress, HeadAwareAdditiveScorerPress,
+                                   KStdAdaptiveAdditiveScorerPress)
 
 # ---------------------------------------------------------------------------
 # LongBench task definitions (subset used here)
@@ -331,6 +332,8 @@ def parse_args():
     p.add_argument("--device",           default="cuda")
     p.add_argument("--data_dir",         default="lb_data_raw/data")
     p.add_argument("--output",           default="kvpress_benchmark_results.json")
+    p.add_argument("--only_presses",     default="",
+                   help="Comma-separated subset of presses to run (default: all)")
     return p.parse_args()
 
 
@@ -354,7 +357,8 @@ def main():
     model.eval()
     device = args.device
 
-    presses = {
+    # Allow caller to restrict which presses to run
+    all_presses = {
         "full": None,
         "additive": AdditiveScorerPress(
             compression_ratio=args.compression_ratio,
@@ -363,6 +367,13 @@ def main():
             q_buffer_size=args.q_buffer_size,
             always_keep_first=args.always_keep_first,
             always_keep_last=args.always_keep_last,
+        ),
+        "kstd_adaptive": KStdAdaptiveAdditiveScorerPress(
+            compression_ratio=args.compression_ratio,
+            score_alpha=args.score_alpha,
+            always_keep_first=args.always_keep_first,
+            always_keep_last=args.always_keep_last,
+            q_buffer_size=args.q_buffer_size,
         ),
         "head_aware": HeadAwareAdditiveScorerPress(
             compression_ratio=args.compression_ratio,
@@ -380,6 +391,12 @@ def main():
             compression_ratio=args.compression_ratio,
         ),
     }
+
+    if args.only_presses:
+        only = [p.strip() for p in args.only_presses.split(",")]
+        presses = {k: v for k, v in all_presses.items() if k in only}
+    else:
+        presses = all_presses
 
     results = {}
     timings = {}

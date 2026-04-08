@@ -171,6 +171,124 @@ class AdditiveScorerPress(ScorerPress):
 
 
 @dataclass
+class KStdAdaptiveAdditiveScorerPress(AdditiveScorerPress):
+    """
+    Adaptive variant that adjusts the recency decay per head based on the
+    standard deviation of key vectors across the sequence.
+
+    Motivation
+    ----------
+    In code-completion contexts, key vectors tend to be homogeneous — syntax
+    tokens, operators, and common identifiers cluster closely in representation
+    space, so KQ alignment loses discriminative power. In that regime, recency
+    is a better guide than semantic similarity. In QA/narrative contexts, key
+    vectors are diverse and semantic scoring works well.
+
+    We measure homogeneity as the mean per-dimension std of key vectors across
+    the sequence (k_std). Low k_std → homogeneous → favour recency. High k_std
+    → diverse → favour semantic scoring. k_std is normalised per batch to
+    [0, 1] and used to interpolate min_decay between min_decay_recency and
+    min_decay_semantic, per head.
+
+    Parameters
+    ----------
+    min_decay_semantic : float
+        min_decay used for semantically diverse heads (standard setting, 0.7).
+    min_decay_recency : float
+        min_decay used for homogeneous heads (more recency bias, e.g. 0.2).
+        A lower value makes the decay steeper, so recent tokens score higher
+        relative to distant ones.
+    """
+
+    min_decay_semantic: float = 0.7    # standard min_decay — high k_std heads
+    min_decay_recency:  float = 0.2    # recency-heavy — low k_std heads
+
+    def score(
+        self,
+        module,
+        hidden_states: torch.Tensor,
+        keys: torch.Tensor,
+        values: torch.Tensor,
+        attentions: torch.Tensor,
+        kwargs,
+    ) -> torch.Tensor:
+        bsz, num_kv_heads, T, head_dim = keys.shape
+        num_heads = module.config.num_attention_heads
+        num_kv_groups = num_heads // num_kv_heads
+        device = keys.device
+
+        # ------------------------------------------------------------------
+        # 1. Pre-RoPE query buffer
+        # ------------------------------------------------------------------
+        buf_len = min(self.q_buffer_size, T)
+        q_raw = get_prerope_query_states(module, hidden_states[:, -buf_len:])
+
+        # ------------------------------------------------------------------
+        # 2. KQ alignment (identical to AdditiveScorerPress)
+        # ------------------------------------------------------------------
+        k_expanded = keys.repeat_interleave(num_kv_groups, dim=1)
+        kq = torch.matmul(q_raw, k_expanded.transpose(-1, -2)) / (head_dim ** 0.5)
+        kq = kq.amax(dim=2)
+        kq_min = kq.amin(dim=-1, keepdim=True)
+        kq_max = kq.amax(dim=-1, keepdim=True)
+        kq = (kq - kq_min) / (kq_max - kq_min + 1e-8)
+        kq = kq.view(bsz, num_kv_heads, num_kv_groups, T).amax(dim=2)
+
+        # ------------------------------------------------------------------
+        # 3. V-norm
+        # ------------------------------------------------------------------
+        vn = values.norm(dim=-1)
+        vn = vn / (vn.amax(dim=-1, keepdim=True) + 1e-8)
+
+        # ------------------------------------------------------------------
+        # 4. Adaptive decay: interpolate min_decay from k_std per head
+        #
+        #   k_std: mean across head_dim of per-position std across sequence
+        #          shape (bsz, num_kv_heads)
+        #   Normalise to [0,1] across heads so thresholding is scale-free.
+        #   low  k_std_norm → homogeneous → min_decay_recency (steep decay)
+        #   high k_std_norm → diverse     → min_decay_semantic (shallow decay)
+        # ------------------------------------------------------------------
+        # std across sequence positions, mean across head_dim
+        k_std = keys.std(dim=2).mean(dim=-1)              # (bsz, num_kv_heads)
+        k_std_min = k_std.amin(dim=-1, keepdim=True)
+        k_std_max = k_std.amax(dim=-1, keepdim=True)
+        k_std_norm = (k_std - k_std_min) / (k_std_max - k_std_min + 1e-8)
+        # (bsz, num_kv_heads) in [0, 1]
+
+        adaptive_min_decay = (
+            self.min_decay_recency
+            + k_std_norm * (self.min_decay_semantic - self.min_decay_recency)
+        )  # (bsz, num_kv_heads)
+
+        # Build per-head decay tensor: (bsz, num_kv_heads, T)
+        positions = torch.arange(T, device=device, dtype=keys.dtype)
+        # adaptive_min_decay[:, :, None] broadcasts over T
+        decay = (
+            adaptive_min_decay[:, :, None]
+            + (1.0 - adaptive_min_decay[:, :, None]) * positions / max(T - 1, 1)
+        )
+
+        # ------------------------------------------------------------------
+        # 5. Additive combination
+        # ------------------------------------------------------------------
+        scores = self.score_alpha * kq + (1.0 - self.score_alpha) * vn * decay
+
+        # ------------------------------------------------------------------
+        # 6. Always-keep guards
+        # ------------------------------------------------------------------
+        sentinel = scores.amax() + 1.0
+        if self.always_keep_first > 0:
+            n_first = min(self.always_keep_first, T)
+            scores[:, :, :n_first] = sentinel
+        if self.always_keep_last > 0:
+            n_last = min(self.always_keep_last, T)
+            scores[:, :, T - n_last:] = sentinel
+
+        return scores
+
+
+@dataclass
 class HeadAwareAdditiveScorerPress(AdditiveScorerPress):
     """
     Head-aware extension of AdditiveScorerPress.
