@@ -1,0 +1,105 @@
+{
+  "results": {
+    "passage_retrieval_en": {
+      "full": 13.333333333333334,
+      "additive": 16.666666666666664,
+      "head_aware": 16.666666666666664,
+      "snapkv": 13.333333333333334,
+      "streaming": 16.666666666666664
+    },
+    "hotpotqa": {
+      "full": 9.653370727360048,
+      "additive": 8.653097054672584,
+      "head_aware": 8.653097054672584,
+      "snapkv": 9.688811340386867,
+      "streaming": 10.628418298109768
+    },
+    "2wikimqa": {
+      "full": 16.018654341470565,
+      "additive": 15.944580267396491,
+      "head_aware": 15.944580267396491,
+      "snapkv": 15.97235804517427,
+      "streaming": 15.579125596139997
+    },
+    "gov_report": {
+      "full": 17.04700008549874,
+      "additive": 16.886265556198932,
+      "head_aware": 16.382378242593468,
+      "snapkv": 16.422304641746834,
+      "streaming": 16.74234244134446
+    },
+    "qmsum": {
+      "full": 13.778101929264233,
+      "additive": 12.39942137835663,
+      "head_aware": 12.325653865393194,
+      "snapkv": 12.975089740065856,
+      "streaming": 11.980090841899806
+    },
+    "lcc": {
+      "full": 25.89874785418571,
+      "additive": 25.768993965413134,
+      "head_aware": 25.778067140570784,
+      "snapkv": 25.778649976277713,
+      "streaming": 26.411552985100457
+    }
+  },
+  "timings": {
+    "passage_retrieval_en": {
+      "full": 183.89882516860962,
+      "additive": 213.17553877830505,
+      "head_aware": 217.83386063575745,
+      "snapkv": 217.69673919677734,
+      "streaming": 216.286771774292
+    },
+    "hotpotqa": {
+      "full": 250.1354956626892,
+      "additive": 238.5596923828125,
+      "head_aware": 240.1726095676422,
+      "snapkv": 241.7219500541687,
+      "streaming": 240.98208236694336
+    },
+    "2wikimqa": {
+      "full": 231.9985649585724,
+      "additive": 220.5665135383606,
+      "head_aware": 222.80322003364563,
+      "snapkv": 222.28694581985474,
+      "streaming": 218.8037624359131
+    },
+    "gov_report": {
+      "full": 893.8977055549622,
+      "additive": 731.4406321048737,
+      "head_aware": 745.9216597080231,
+      "snapkv": 699.5298345088959,
+      "streaming": 721.5211992263794
+    },
+    "qmsum": {
+      "full": 854.8068218231201,
+      "additive": 737.075516462326,
+      "head_aware": 736.6306691169739,
+      "snapkv": 754.4068739414215,
+      "streaming": 748.503007888794
+    },
+    "lcc": {
+      "full": 155.36519026756287,
+      "additive": 146.17867350578308,
+      "head_aware": 147.6024878025055,
+      "snapkv": 148.5468306541443,
+      "streaming": 145.5328483581543
+    }
+  },
+  "args": {
+    "model": "meta-llama/Llama-3.1-8B",
+    "tasks": "passage_retrieval_en,hotpotqa,2wikimqa,gov_report,qmsum,lcc",
+    "max_examples": 30,
+    "compression_ratio": 0.35,
+    "score_alpha": 0.65,
+    "min_decay": 0.7,
+    "q_buffer_size": 128,
+    "always_keep_first": 16,
+    "always_keep_last": 16,
+    "max_seq_len": 6144,
+    "device": "cuda",
+    "data_dir": "lb_data_raw/data",
+    "output": "kvpress_benchmark_headaware.json"
+  }
+}

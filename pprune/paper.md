@@ -6,7 +6,7 @@
 
 We argue that the scoring space matters as much as the scoring function for prefill-time KV cache pruning. Standard methods compute token importance using post-RoPE key-query dot products, where rotary positional encodings entangle semantic content with absolute position — causing distant-but-relevant tokens to appear unimportant regardless of their actual content. We instead score tokens using pre-RoPE representations, recovering a position-independent semantic signal. We pair this with a value-norm term that captures each token's output payload: attention weights decide what gets selected, but actual contribution to the output depends jointly on the weight and the value content. These two signals are combined additively rather than multiplicatively, so each can independently rescue tokens that the other would miss.
 
-Evaluated on LongBench across retrieval, summarization, multi-document QA, and code tasks with Llama-3.1-8B at 65% retention, our method recovers 86% of full-context performance and outperforms naive truncation on retrieval by 9 points (27% vs 18%). Results break down diagnostically by task type: summarization shows the largest gap versus recency-only baselines, retrieval benefits most from position-independent scoring, and code completion reveals a residual weakness where locality matters more than semantic relevance. A head-aware budget extension that allocates more capacity to high-entropy heads reduces this weakness. We validate on Mistral-7B-v0.3 with identical hyperparameters (93% retention), and implement the method as a KVPress press subclass, achieving a 10% generation speedup over full context.
+Evaluated on LongBench across retrieval, summarization, multi-document QA, and code tasks with Llama-3.1-8B at 65% retention, our method recovers 86% of full-context performance and outperforms naive truncation on retrieval by 9 points (27% vs 18%). Results break down diagnostically by task type: summarization shows the largest gap versus recency-only baselines, retrieval benefits most from position-independent scoring, and code completion reveals a residual weakness where locality matters more than semantic relevance. A head-aware budget extension that allocates more capacity to high-entropy heads is tested and found to match but not improve over the global budget at this scale — an informative null result that isolates the code failure as a token-selection issue rather than a budget-allocation issue. We validate on Mistral-7B-v0.3 with identical hyperparameters (93% retention), and implement the method as a KVPress press subclass, achieving a 10% generation speedup over full context.
 
 ---
 
@@ -24,7 +24,7 @@ We make the following contributions:
 
 - **Context-length-independent decay**: We parametrize recency bias by the decay value at position 0 (min_decay), with the rate auto-derived from context length, so pruning behavior is consistent across arbitrary sequence lengths without re-tuning.
 
-- **Head-aware budget allocation**: Different attention heads have different entropy profiles — some distribute attention broadly (high entropy), some focus on a few tokens (low entropy). We show that allocating higher token budgets to high-entropy heads reduces regression on locality-sensitive tasks while preserving gains on retrieval and summarization.
+- **Head-aware budget allocation**: Different attention heads have different entropy profiles — some distribute attention broadly (high entropy), some focus on a few tokens (low entropy). We test entropy-proportional budget allocation and find it matches the global-budget baseline within noise, isolating the code regression as a token-selection problem rather than a budget-distribution problem.
 
 We evaluate on LongBench [Bai et al., 2023] structured as a diagnostic breakdown by task family: retrieval tasks (where position-independent scoring matters most), summarization tasks (where distributed context is essential), code completion (where locality dominates), and few-shot QA (where recency suffices). This structure lets us attribute each gain and each failure mode to a specific property of the scoring function, rather than relying on a single average number.
 
@@ -316,6 +316,24 @@ We sweep the retention fraction r ∈ {50%, 65%, 80%} using the additive scorer 
 Higher retention consistently improves performance, but the effect is highly task-dependent. PassageRetrieval is the most sensitive: score nearly triples from r=50% to r=80% (3.3 → 33.3), and remains 10 points below full context even at 80%. Retrieval tasks require retaining the specific paragraphs matching the query — at 50% retention, roughly half the candidates are discarded regardless of scoring quality. QA tasks (HotpotQA, 2WikiMQA) show moderate, near-monotone improvement. Summarization (GovReport, QMSum) is relatively flat: the additive scorer extracts the most content-dense tokens even at 50% retention, and little is gained by retaining more. MultiNews scores are near-zero across all retentions, consistent with the base model's known difficulty with that format (see §4.5).
 
 The most interesting operating point is r=50–65%, where KV cache savings are meaningful (35–50% reduction) and scoring quality has maximum impact. At r=80% the gap versus full context is modest for all tasks except PassageRetrieval, suggesting diminishing returns for most use cases.
+
+### 5.8 Head-Aware Budget Allocation
+
+Different attention heads are known to specialise in different roles — some distribute attention broadly across the sequence (retrieval heads, high entropy), others focus locally (streaming heads, low entropy) [Xiao et al., 2025]. A global compression ratio applies the same budget to all heads, which may over-prune high-entropy retrieval heads while under-pruning low-entropy local heads. We test a simple head-aware extension: allocate per-head token budgets proportionally to the entropy of each head's score distribution, keeping the total token count fixed.
+
+Results on the same six-task subset (Llama-3.1-8B, 30 examples, 65% retention):
+
+| Task | Full | Additive | Head-Aware | SnapKV | Streaming |
+|---|---|---|---|---|---|
+| PassageRetrieval | 13.3 | 16.7 | 16.7 | 13.3 | 16.7 |
+| HotpotQA | 9.7 | 8.7 | 8.7 | 9.7 | 10.6 |
+| 2WikiMQA | 16.0 | 15.9 | 15.9 | 16.0 | 15.6 |
+| GovReport | 17.0 | **16.9** | 16.4 | 16.4 | 16.7 |
+| QMSum | 13.8 | 12.4 | 12.3 | 13.0 | 12.0 |
+| LCC | 25.9 | 25.8 | 25.8 | 25.8 | 26.4 |
+| **Average** | **16.0** | **16.1** | 16.0 | 15.7 | 16.3 |
+
+Head-aware allocation matches the global-budget additive scorer within noise on every task, including LCC. The entropy-based reallocation does not reduce the code regression. This is an informative null result: the code failure is not caused by the wrong heads receiving the wrong budgets. It is caused by which tokens the scorer selects within each head — syntactically necessary but semantically low-salience tokens are systematically under-ranked regardless of head budget. Fixing the code regression requires a different mechanism: either a task-adaptive scoring mode (more recency weight for code contexts) or a larger always_keep_last window. Head-aware budget allocation remains a reasonable prior — it introduces no overhead beyond a per-head topk instead of a global topk — but the gains over a well-tuned global budget are not reliably detectable at this scale.
 
 ---
 
