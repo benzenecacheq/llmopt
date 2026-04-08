@@ -42,7 +42,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from kvpress import SnapKVPress
 from kvpress.presses.streaming_llm_press import StreamingLLMPress
 
-from additive_scorer_press import AdditiveScorerPress
+from additive_scorer_press import AdditiveScorerPress, HeadAwareAdditiveScorerPress
 
 # ---------------------------------------------------------------------------
 # LongBench task definitions (subset used here)
@@ -364,9 +364,17 @@ def main():
             always_keep_first=args.always_keep_first,
             always_keep_last=args.always_keep_last,
         ),
+        "head_aware": HeadAwareAdditiveScorerPress(
+            compression_ratio=args.compression_ratio,
+            score_alpha=args.score_alpha,
+            min_decay=args.min_decay,
+            q_buffer_size=args.q_buffer_size,
+            always_keep_first=args.always_keep_first,
+            always_keep_last=args.always_keep_last,
+        ),
         "snapkv": SnapKVPress(
             compression_ratio=args.compression_ratio,
-            window_size=args.q_buffer_size,  # match q_buffer_size for fair comparison
+            window_size=args.q_buffer_size,
         ),
         "streaming": StreamingLLMPress(
             compression_ratio=args.compression_ratio,

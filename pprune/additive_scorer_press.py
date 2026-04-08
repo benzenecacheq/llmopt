@@ -168,3 +168,116 @@ class AdditiveScorerPress(ScorerPress):
             scores[:, :, T - n_last:] = sentinel
 
         return scores
+
+
+@dataclass
+class HeadAwareAdditiveScorerPress(AdditiveScorerPress):
+    """
+    Head-aware extension of AdditiveScorerPress.
+
+    Different attention heads have different entropy profiles: some distribute
+    attention broadly across the sequence (high entropy), some focus sharply on
+    a few tokens (low entropy). A global compression ratio is too crude — it
+    over-prunes high-entropy heads that genuinely need broad context and
+    under-prunes low-entropy heads that concentrate on a small set.
+
+    This press allocates the total token budget proportionally to per-head
+    score entropy: heads with higher entropy receive more tokens. The total
+    number of retained tokens is the same as AdditiveScorerPress at the same
+    compression_ratio; only the distribution across heads differs.
+
+    Parameters
+    ----------
+    min_head_ratio : float
+        Minimum fraction of the global budget any single head may receive.
+        Prevents degenerate allocation where a very low-entropy head is
+        pruned to near-zero. Default: 0.5 (no head gets less than half the
+        average allocation).
+    """
+
+    min_head_ratio: float = 0.5
+
+    def compress(
+        self,
+        module,
+        hidden_states: torch.Tensor,
+        keys: torch.Tensor,
+        values: torch.Tensor,
+        attentions: torch.Tensor,
+        kwargs: dict,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+
+        if self.compression_ratio == 0:
+            return keys, values
+
+        bsz, num_kv_heads, T, head_dim = keys.shape
+
+        # Compute per-head importance scores (bsz, num_kv_heads, T)
+        scores = self.score(module, hidden_states, keys, values, attentions, kwargs)
+
+        # ------------------------------------------------------------------
+        # Per-head entropy from score distribution.
+        # Use softmax to convert scores to a probability distribution before
+        # computing entropy, so the scale of raw scores doesn't dominate.
+        # ------------------------------------------------------------------
+        probs = torch.softmax(scores, dim=-1)                          # (bsz, num_kv_heads, T)
+        entropy = -(probs * (probs + 1e-10).log()).sum(dim=-1)         # (bsz, num_kv_heads)
+
+        # ------------------------------------------------------------------
+        # Budget allocation proportional to entropy.
+        # Total tokens to keep across all heads combined.
+        # ------------------------------------------------------------------
+        total_keep = int(T * (1.0 - self.compression_ratio))          # per-head budget (global)
+        total_budget = total_keep * num_kv_heads                       # total tokens across all heads
+
+        # Normalise entropy to get fractional allocation per head
+        # Clamp minimum allocation to min_head_ratio × average
+        avg_alloc = total_keep                                         # = total_budget / num_kv_heads
+        min_alloc = max(1, int(avg_alloc * self.min_head_ratio))
+
+        # (bsz, num_kv_heads) fractional weights
+        ent_sum = entropy.sum(dim=-1, keepdim=True).clamp(min=1e-8)
+        frac = entropy / ent_sum                                       # sums to 1.0 per batch
+
+        # Convert to integer token counts, enforce minimum, re-normalise to total
+        raw_alloc = (frac * total_budget).round().long()               # (bsz, num_kv_heads)
+        raw_alloc = raw_alloc.clamp(min=min_alloc)
+
+        # Re-scale to exactly hit total_budget (greedy: subtract/add from max-entropy heads)
+        diff = total_budget - raw_alloc.sum(dim=-1, keepdim=True)
+        # Distribute remainder by adding 1 to highest-entropy heads
+        sorted_idx = entropy.argsort(dim=-1, descending=True)
+        for b in range(bsz):
+            d = diff[b, 0].item()
+            if d == 0:
+                continue
+            step = 1 if d > 0 else -1
+            for i in range(abs(int(d))):
+                h = sorted_idx[b, i % num_kv_heads].item()
+                raw_alloc[b, h] = (raw_alloc[b, h] + step).clamp(min=min_alloc, max=T)
+
+        # ------------------------------------------------------------------
+        # Gather per-head top-k using head-specific budgets.
+        # Since each head may have a different n_kept we must loop over heads.
+        # ------------------------------------------------------------------
+        new_keys   = []
+        new_values = []
+        for h in range(num_kv_heads):
+            n_kept = raw_alloc[0, h].item()          # bsz=1 assumed (KVPress standard)
+            idx = scores[:, h, :].topk(n_kept, dim=-1).indices   # (bsz, n_kept)
+            idx_expanded = idx.unsqueeze(-1).expand(-1, -1, head_dim)
+            new_keys.append(keys[:, h, :, :].gather(1, idx_expanded))    # (bsz, n_kept, head_dim)
+            new_values.append(values[:, h, :, :].gather(1, idx_expanded))
+
+        # Pad shorter heads to the same length so we can stack
+        max_kept = max(t.shape[1] for t in new_keys)
+        def pad(t, target_len):
+            pad_len = target_len - t.shape[1]
+            if pad_len == 0:
+                return t
+            return torch.cat([t, t[:, -1:, :].expand(-1, pad_len, -1)], dim=1)
+
+        keys_out   = torch.stack([pad(k, max_kept) for k in new_keys],   dim=1)  # (bsz, H, max_kept, d)
+        values_out = torch.stack([pad(v, max_kept) for v in new_values], dim=1)
+
+        return keys_out.contiguous(), values_out.contiguous()
