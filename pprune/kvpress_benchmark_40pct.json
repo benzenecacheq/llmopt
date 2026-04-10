@@ -1,0 +1,70 @@
+{
+  "results": {
+    "passage_retrieval_en": {
+      "full": 13.333333333333334,
+      "additive": 20.0
+    },
+    "hotpotqa": {
+      "full": 9.653370727360048,
+      "additive": 8.204015596819197
+    },
+    "2wikimqa": {
+      "full": 16.018654341470565,
+      "additive": 15.277299692221177
+    },
+    "gov_report": {
+      "full": 17.04700008549874,
+      "additive": 16.22089208744198
+    },
+    "qmsum": {
+      "full": 13.778101929264233,
+      "additive": 11.851804445396695
+    },
+    "lcc": {
+      "full": 25.89874785418571,
+      "additive": 24.39390425242073
+    }
+  },
+  "timings": {
+    "passage_retrieval_en": {
+      "full": 182.961030960083,
+      "additive": 210.29413199424744
+    },
+    "hotpotqa": {
+      "full": 247.79384660720825,
+      "additive": 231.93450736999512
+    },
+    "2wikimqa": {
+      "full": 228.8773970603943,
+      "additive": 211.0435290336609
+    },
+    "gov_report": {
+      "full": 892.006974697113,
+      "additive": 671.296637058258
+    },
+    "qmsum": {
+      "full": 848.1122217178345,
+      "additive": 666.1571309566498
+    },
+    "lcc": {
+      "full": 155.6776041984558,
+      "additive": 138.1032702922821
+    }
+  },
+  "args": {
+    "model": "meta-llama/Llama-3.1-8B",
+    "tasks": "passage_retrieval_en,hotpotqa,2wikimqa,gov_report,qmsum,lcc",
+    "max_examples": 30,
+    "compression_ratio": 0.6,
+    "score_alpha": 0.65,
+    "min_decay": 0.7,
+    "q_buffer_size": 128,
+    "always_keep_first": 16,
+    "always_keep_last": 16,
+    "max_seq_len": 6144,
+    "device": "cuda",
+    "data_dir": "lb_data_raw/data",
+    "output": "kvpress_benchmark_40pct.json",
+    "only_presses": "full,additive"
+  }
+}

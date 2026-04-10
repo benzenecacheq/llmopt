@@ -289,6 +289,135 @@ class KStdAdaptiveAdditiveScorerPress(AdditiveScorerPress):
 
 
 @dataclass
+class EntropyAdaptiveAdditiveScorerPress(AdditiveScorerPress):
+    """
+    Adaptive variant that adjusts per-head recency bias based on the entropy
+    of content-only importance scores (no decay term).
+
+    Motivation
+    ----------
+    When the scorer is uncertain about which tokens matter (high entropy of
+    content scores), recency is a more reliable fallback than semantic scoring.
+    This happens in code contexts where many tokens have moderate, roughly equal
+    relevance to the query. In targeted retrieval, one passage dominates and
+    entropy is low — semantic scoring is trusted.
+
+    Entropy is computed from content-only scores (α·kq + (1−α)·vn, no decay)
+    to avoid circularity: the signal is independent of the recency weighting
+    we are trying to set.
+
+    min_decay per head:
+        min_decay_i = min_decay_semantic × (1 − entropy_coefficient × entropy_norm_i)
+
+    where entropy_norm_i ∈ [0,1] is the per-head entropy normalised across
+    heads within the layer.
+
+    At entropy_coefficient=0:   all heads use min_decay_semantic (reduces to
+                                AdditiveScorerPress).
+    At entropy_coefficient=0.5: max-entropy head gets min_decay = 0.35 (default),
+                                zero-entropy head stays at 0.7.
+    At entropy_coefficient=1.0: max-entropy head gets min_decay = 0 (pure recency).
+
+    Parameters
+    ----------
+    min_decay_semantic : float
+        Baseline min_decay for confident (low-entropy) heads. Default: 0.7.
+    entropy_coefficient : float
+        Controls how aggressively uncertainty drives recency. Start at 0.5.
+    always_keep_last : int
+        Unconditionally retained tail tokens (inherited from AdditiveScorerPress,
+        default 16). Provides a recency floor independent of decay.
+    """
+
+    min_decay_semantic:   float = 0.7
+    entropy_coefficient:  float = 0.5
+
+    def score(
+        self,
+        module,
+        hidden_states: torch.Tensor,
+        keys: torch.Tensor,
+        values: torch.Tensor,
+        attentions: torch.Tensor,
+        kwargs,
+    ) -> torch.Tensor:
+        bsz, num_kv_heads, T, head_dim = keys.shape
+        num_heads = module.config.num_attention_heads
+        num_kv_groups = num_heads // num_kv_heads
+        device = keys.device
+
+        # ------------------------------------------------------------------
+        # 1. Pre-RoPE query buffer
+        # ------------------------------------------------------------------
+        buf_len = min(self.q_buffer_size, T)
+        q_raw = get_prerope_query_states(module, hidden_states[:, -buf_len:])
+
+        # ------------------------------------------------------------------
+        # 2. KQ alignment (pre-RoPE)
+        # ------------------------------------------------------------------
+        k_expanded = keys.repeat_interleave(num_kv_groups, dim=1)
+        kq = torch.matmul(q_raw, k_expanded.transpose(-1, -2)) / (head_dim ** 0.5)
+        kq = kq.amax(dim=2)
+        kq_min = kq.amin(dim=-1, keepdim=True)
+        kq_max = kq.amax(dim=-1, keepdim=True)
+        kq = (kq - kq_min) / (kq_max - kq_min + 1e-8)
+        kq = kq.view(bsz, num_kv_heads, num_kv_groups, T).amax(dim=2)
+
+        # ------------------------------------------------------------------
+        # 3. V-norm
+        # ------------------------------------------------------------------
+        vn = values.norm(dim=-1)
+        vn = vn / (vn.amax(dim=-1, keepdim=True) + 1e-8)
+
+        # ------------------------------------------------------------------
+        # 4. Content-only entropy (no decay) — used to set adaptive min_decay
+        #
+        #    Compute scores without decay first so the confidence signal is
+        #    independent of the recency weighting we are about to set.
+        # ------------------------------------------------------------------
+        content_scores = self.score_alpha * kq + (1.0 - self.score_alpha) * vn
+        probs = torch.softmax(content_scores, dim=-1)           # (bsz, num_kv_heads, T)
+        entropy = -(probs * (probs + 1e-10).log()).sum(dim=-1)  # (bsz, num_kv_heads)
+
+        # Normalise entropy to [0, 1] across heads within this layer
+        ent_min = entropy.amin(dim=-1, keepdim=True)
+        ent_max = entropy.amax(dim=-1, keepdim=True)
+        entropy_norm = (entropy - ent_min) / (ent_max - ent_min + 1e-8)
+
+        # Adaptive min_decay: high entropy → lower min_decay → more recency
+        adaptive_min_decay = self.min_decay_semantic * (
+            1.0 - self.entropy_coefficient * entropy_norm
+        )  # (bsz, num_kv_heads), in [min_decay_semantic*(1-coeff), min_decay_semantic]
+
+        # ------------------------------------------------------------------
+        # 5. Per-head decay using adaptive min_decay
+        # ------------------------------------------------------------------
+        positions = torch.arange(T, device=device, dtype=keys.dtype)
+        decay = (
+            adaptive_min_decay[:, :, None]
+            + (1.0 - adaptive_min_decay[:, :, None]) * positions / max(T - 1, 1)
+        )  # (bsz, num_kv_heads, T)
+
+        # ------------------------------------------------------------------
+        # 6. Final additive combination
+        # ------------------------------------------------------------------
+        scores = self.score_alpha * kq + (1.0 - self.score_alpha) * vn * decay
+
+        # ------------------------------------------------------------------
+        # 7. Always-keep guards
+        # ------------------------------------------------------------------
+        sentinel = scores.amax() + 1.0
+        if self.always_keep_first > 0:
+            n_first = min(self.always_keep_first, T)
+            scores[:, :, :n_first] = sentinel
+        if self.always_keep_last > 0:
+            n_last = min(self.always_keep_last, T)
+            scores[:, :, T - n_last:] = sentinel
+
+        return scores
+
+
+@dataclass
 class HeadAwareAdditiveScorerPress(AdditiveScorerPress):
     """
     Head-aware extension of AdditiveScorerPress.

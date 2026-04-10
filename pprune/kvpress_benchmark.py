@@ -42,8 +42,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from kvpress import SnapKVPress
 from kvpress.presses.streaming_llm_press import StreamingLLMPress
 
-from additive_scorer_press import (AdditiveScorerPress, HeadAwareAdditiveScorerPress,
-                                   KStdAdaptiveAdditiveScorerPress)
+from additive_scorer_press import (AdditiveScorerPress, EntropyAdaptiveAdditiveScorerPress,
+                                   HeadAwareAdditiveScorerPress, KStdAdaptiveAdditiveScorerPress)
 
 # ---------------------------------------------------------------------------
 # LongBench task definitions (subset used here)
@@ -367,6 +367,13 @@ def main():
             q_buffer_size=args.q_buffer_size,
             always_keep_first=args.always_keep_first,
             always_keep_last=args.always_keep_last,
+        ),
+        "entropy_adaptive": EntropyAdaptiveAdditiveScorerPress(
+            compression_ratio=args.compression_ratio,
+            score_alpha=args.score_alpha,
+            always_keep_first=args.always_keep_first,
+            always_keep_last=args.always_keep_last,
+            q_buffer_size=args.q_buffer_size,
         ),
         "kstd_adaptive": KStdAdaptiveAdditiveScorerPress(
             compression_ratio=args.compression_ratio,

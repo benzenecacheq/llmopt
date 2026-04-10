@@ -1,0 +1,82 @@
+{
+  "results": {
+    "passage_retrieval_en": {
+      "full": 13.333333333333334,
+      "additive": 16.666666666666664,
+      "entropy_adaptive": 3.3333333333333335
+    },
+    "hotpotqa": {
+      "full": 9.653370727360048,
+      "additive": 8.653097054672584,
+      "entropy_adaptive": 6.67726127110594
+    },
+    "2wikimqa": {
+      "full": 16.018654341470565,
+      "additive": 15.944580267396491,
+      "entropy_adaptive": 12.356242572133
+    },
+    "gov_report": {
+      "full": 17.04700008549874,
+      "additive": 16.886265556198932,
+      "entropy_adaptive": 12.768385836179826
+    },
+    "qmsum": {
+      "full": 13.778101929264233,
+      "additive": 12.39942137835663,
+      "entropy_adaptive": 6.645011911617854
+    },
+    "lcc": {
+      "full": 25.89874785418571,
+      "additive": 25.768993965413134,
+      "entropy_adaptive": 23.333914169921226
+    }
+  },
+  "timings": {
+    "passage_retrieval_en": {
+      "full": 185.78057837486267,
+      "additive": 217.60968685150146,
+      "entropy_adaptive": 263.68509817123413
+    },
+    "hotpotqa": {
+      "full": 255.07330203056335,
+      "additive": 244.52886295318604,
+      "entropy_adaptive": 248.97976183891296
+    },
+    "2wikimqa": {
+      "full": 234.54587388038635,
+      "additive": 221.14040565490723,
+      "entropy_adaptive": 221.69201588630676
+    },
+    "gov_report": {
+      "full": 898.6218028068542,
+      "additive": 734.0554361343384,
+      "entropy_adaptive": 843.0495407581329
+    },
+    "qmsum": {
+      "full": 851.3246877193451,
+      "additive": 737.7115299701691,
+      "entropy_adaptive": 877.2416045665741
+    },
+    "lcc": {
+      "full": 155.31978511810303,
+      "additive": 146.4987940788269,
+      "entropy_adaptive": 145.26308917999268
+    }
+  },
+  "args": {
+    "model": "meta-llama/Llama-3.1-8B",
+    "tasks": "passage_retrieval_en,hotpotqa,2wikimqa,gov_report,qmsum,lcc",
+    "max_examples": 30,
+    "compression_ratio": 0.35,
+    "score_alpha": 0.65,
+    "min_decay": 0.7,
+    "q_buffer_size": 128,
+    "always_keep_first": 16,
+    "always_keep_last": 16,
+    "max_seq_len": 6144,
+    "device": "cuda",
+    "data_dir": "lb_data_raw/data",
+    "output": "kvpress_benchmark_entropy.json",
+    "only_presses": "full,additive,entropy_adaptive"
+  }
+}
