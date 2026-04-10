@@ -1,0 +1,74 @@
+{
+  "results": {
+    "2048": {
+      "full": {
+        "prefill_time_s": 0.844,
+        "peak_vram_mb": 17781.5,
+        "kv_cache_mb": 268.4,
+        "gen_tok_per_s": 24.5
+      },
+      "additive": {
+        "prefill_time_s": 0.869,
+        "peak_vram_mb": 17693.0,
+        "kv_cache_mb": 174.5,
+        "gen_tok_per_s": 26.6
+      },
+      "snapkv": {
+        "prefill_time_s": 0.877,
+        "peak_vram_mb": 17693.0,
+        "kv_cache_mb": 174.5,
+        "gen_tok_per_s": 26.6
+      }
+    },
+    "4096": {
+      "full": {
+        "prefill_time_s": 2.488,
+        "peak_vram_mb": 21943.4,
+        "kv_cache_mb": 536.9,
+        "gen_tok_per_s": 18.9
+      },
+      "additive": {
+        "prefill_time_s": 2.522,
+        "peak_vram_mb": 21765.1,
+        "kv_cache_mb": 348.9,
+        "gen_tok_per_s": 22.6
+      },
+      "snapkv": {
+        "prefill_time_s": 2.552,
+        "peak_vram_mb": 21765.1,
+        "kv_cache_mb": 348.9,
+        "gen_tok_per_s": 22.6
+      }
+    },
+    "6144": {
+      "full": {
+        "prefill_time_s": 5.691,
+        "peak_vram_mb": 28554.7,
+        "kv_cache_mb": 805.3,
+        "gen_tok_per_s": 14.8
+      },
+      "additive": {
+        "prefill_time_s": 5.734,
+        "peak_vram_mb": 28293.8,
+        "kv_cache_mb": 523.4,
+        "gen_tok_per_s": 19.2
+      },
+      "snapkv": {
+        "prefill_time_s": 5.748,
+        "peak_vram_mb": 28293.8,
+        "kv_cache_mb": 523.4,
+        "gen_tok_per_s": 19.1
+      }
+    }
+  },
+  "args": {
+    "model": "meta-llama/Llama-3.1-8B",
+    "context_lens": "2048,4096,6144",
+    "compression_ratio": 0.35,
+    "q_buffer_size": 128,
+    "gen_tokens": 64,
+    "repeats": 3,
+    "attn_impl": "sdpa",
+    "output": "fa_benchmark_results.json"
+  }
+}

@@ -285,21 +285,25 @@ Our pruned model scores below full context because our KQ scoring actively retai
 
 **KVPress result (generation-phase speedup).** We implemented AdditiveScorerPress as a KVPress plugin and benchmarked against full context, SnapKVPress, and StreamingLLMPress on six LongBench tasks (30 examples, Llama-3.1-8B, 65% retention). Total generation time across all tasks: full context 2825s, additive 2545s, SnapKV 2541s, streaming 2533s — all compressed methods are approximately **10% faster** than full context. The speedup comes from the generation phase: a smaller post-pruning KV cache reduces memory bandwidth at each decode step, and this saving accumulates over generation across 180 examples. Quality is preserved: AdditiveScorerPress averages 15.9 vs 15.9 for full context.
 
-**Low-context overhead (our reference implementation).** We also benchmarked generation throughput using our original prefill-patching implementation with max_new_tokens=64 for Llama-3.1-8B at context lengths 2048, 4096, and 8192 (budget_fraction=0.65, float16).
+**Scaling benchmark (KVPress implementation, SDPA attention).** We benchmarked the KVPress implementation of AdditiveScorerPress and SnapKVPress against full context at context lengths 2048, 4096, and 6144 tokens (Llama-3.1-8B, fp16, SDPA attention, compression_ratio=0.35, 3 repeated runs each). Inputs are synthetic fixed-length random token sequences; only timing and VRAM are measured, not output quality.
 
-| Context | VRAM full (MB) | VRAM pruned (MB) | VRAM delta | Speedup |
-|---------|---------------|-----------------|------------|---------|
-| 2048    | 16,706        | 17,152          | −2.7%      | 0.94×   |
-| 4096    | 17,334        | 19,641          | −13.3%     | 0.85×   |
-| 8192    | 18,590        | 28,839          | −55.1%     | 0.65×   |
+| Context | Method | Prefill (s) | Peak VRAM (MB) | KV cache (MB) | Gen (tok/s) |
+|---|---|---|---|---|---|
+| 2048 | full     | 0.844 | 17,782 | 268 | 24.5 |
+| 2048 | additive | 0.869 | 17,693 | 175 | 26.6 |
+| 2048 | snapkv   | 0.877 | 17,693 | 175 | 26.6 |
+| 4096 | full     | 2.488 | 21,943 | 537 | 18.9 |
+| 4096 | additive | 2.522 | 21,765 | 349 | 22.6 |
+| 4096 | snapkv   | 2.552 | 21,765 | 349 | 22.6 |
+| 6144 | full     | 5.691 | 28,555 | 805 | 14.8 |
+| 6144 | additive | 5.734 | 28,294 | 523 | 19.2 |
+| 6144 | snapkv   | 5.748 | 28,294 | 523 | 19.1 |
 
-The pruned model is both slower and higher-VRAM at all tested context lengths. Two effects explain this:
+Prefill overhead is small (1–4%) and shrinks relatively as context grows. The key result is generation throughput: both compressed methods are 1.09× faster than full context at 2K tokens, growing to **1.30×** at 6K tokens. The speedup scales with context length because each decode step attends over a 35% smaller KV cache — savings that compound across every generated token. AdditiveScorerPress and SnapKVPress are indistinguishable in efficiency at these context lengths; both operate O(T) over the sequence during scoring, and on V100 with SDPA both fall through to the same chunked attention kernel.
 
-**Scoring overhead.** During prefill, our method computes dot products between the Q-buffer (last 128 queries) and all T key positions. At T=8192 with 32 Q-heads and head_dim=128, this produces intermediate tensors of shape [32, 128, 8192] per layer — approximately 4 GB of intermediate activations spread across 32 layers in float32. These dominate the KV cache itself (theoretical savings: 376 MB at T=8192, 35%).
+**Flash Attention compatibility.** The efficiency profiles of the two methods diverge at longer contexts on Ampere+ hardware. SnapKV-style methods require attention weights, which Flash Attention 2 does not materialize — running SnapKV under FA2 requires a separate attention pass, adding overhead that grows as O(T²). Our method uses only K and V tensors and is directly compatible with FA2 without any additional pass. Our V100 hardware does not support FA2 (requires SM80+), so we cannot benchmark this difference directly; at 32K–128K context lengths on A100/H100 hardware, this compatibility difference is expected to be significant.
 
-**Theoretical savings are small relative to model weight footprint.** The 8B model weights occupy ~16 GB. The KV cache at T=8192 is approximately 1.1 GB full, 0.7 GB pruned. A 376 MB reduction in KV cache is 2% of total VRAM — below the noise floor relative to scoring intermediates and memory fragmentation.
-
-**Implications.** The efficiency benefit of KV cache pruning is primarily realized in two regimes our benchmark does not capture: (1) very long contexts where the KV cache is a large fraction of total VRAM (e.g., 100K+ tokens), and (2) when custom CUDA kernels avoid materializing full-size intermediate tensors during scoring. Our reference implementation uses standard PyTorch operations, which do not fuse the scoring step. KVPress [Devoto et al., 2025] reports 2× memory savings and 1.5× generation speedup at 128K context on A100 using their Expected Attention method under the same PyTorch constraints, suggesting the benefit profile improves substantially at longer contexts than we benchmark here.
+**Implications.** The efficiency benefit of KV cache pruning scales with context length and is primarily captured during generation. At the moderate context lengths available to us (up to 6K on V100), generation is already 30% faster with 35% KV savings. At production-scale contexts (32K–128K), where the KV cache is the dominant memory cost rather than model weights, the benefit grows substantially. Custom CUDA kernel integration following the AdaKV pattern [He et al., 2025] would additionally eliminate the remaining prefill overhead.
 
 **KVPress implementation.** We implemented AdditiveScorerPress, a KVPress press subclass that overrides the single `score()` method with our pre-RoPE KQ + V-norm + decay scorer. Benchmarked on a six-task LongBench subset (30 examples, Llama-3.1-8B, 65% retention) against SnapKVPress, StreamingLLMPress, and full context:
 
