@@ -1,0 +1,58 @@
+{
+  "results": {
+    "passage_retrieval_en": {
+      "full": 36.666666666666664
+    },
+    "hotpotqa": {
+      "full": 41.98234445293269
+    },
+    "2wikimqa": {
+      "full": 33.83545108864802
+    },
+    "gov_report": {
+      "full": 21.873890962455516
+    },
+    "qmsum": {
+      "full": 13.94253427942201
+    },
+    "multi_news": {
+      "full": 18.43378038519415
+    }
+  },
+  "timings": {
+    "passage_retrieval_en": {
+      "full": 132.02176117897034
+    },
+    "hotpotqa": {
+      "full": 121.65709710121155
+    },
+    "2wikimqa": {
+      "full": 112.31255722045898
+    },
+    "gov_report": {
+      "full": 666.0999989509583
+    },
+    "qmsum": {
+      "full": 465.3958532810211
+    },
+    "multi_news": {
+      "full": 309.8409614562988
+    }
+  },
+  "args": {
+    "model": "meta-llama/Llama-3.2-3B-Instruct",
+    "tasks": "passage_retrieval_en,hotpotqa,2wikimqa,gov_report,qmsum,multi_news",
+    "max_examples": 30,
+    "compression_ratio": 0.35,
+    "score_alpha": 0.65,
+    "min_decay": 0.7,
+    "q_buffer_size": 128,
+    "always_keep_first": 16,
+    "always_keep_last": 16,
+    "max_seq_len": 6144,
+    "device": "cuda",
+    "data_dir": "lb_data_raw/data",
+    "output": "kvpress_3b_full.json",
+    "only_presses": "full"
+  }
+}
