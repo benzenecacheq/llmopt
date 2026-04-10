@@ -1,0 +1,22 @@
+# Large generated data files
+pprune/vn_diagnostic.pkl
+pprune/vn_diagnostic.pkl.gz
+
+# Benchmark result JSONs (reproducible)
+pprune/benchmark_results.json
+pprune/mode_compare_*.json
+pprune/needle_*.json
+pprune/sanity.json
+
+# LongBench raw data and results
+pprune/lb_data_raw/
+pprune/lb_results*/
+pprune/lb_smoke/
+
+# Python cache
+pprune/__pycache__/
+**/__pycache__/
+*.pyc
+
+# Swap files
+*.swp
