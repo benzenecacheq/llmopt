@@ -335,6 +335,7 @@ def compute_perplexity_faithfulness(
         }
         results[task]["_methods"] = all_methods
         results[task]["n"] = len(ref_losses)
+        results[task]["_scores"] = {m: v for m, v in task_scores.items()}
         print(f" n={len(ref_losses)}  ({t_idx+1}/{n_tasks})", flush=True)
 
         # Save after every task
@@ -428,6 +429,7 @@ def compute_embedding_faithfulness(
             }
             results[task]["_methods"] = all_methods
             results[task]["n"] = len(ref_texts)
+            results[task]["_scores"] = {m: task_scores[m] for m in all_methods}
             print(f" n={len(ref_texts)}  ({t_idx+1}/{n_tasks})", flush=True)
 
         # Save after every task
@@ -438,14 +440,47 @@ def compute_embedding_faithfulness(
 
 
 # ---------------------------------------------------------------------------
+# Confidence intervals
+# ---------------------------------------------------------------------------
+
+def bootstrap_ci(scores: List[float], n_boot: int = 2000, ci: float = 0.95) -> tuple:
+    """Return (mean, lower, upper) bootstrap CI for a list of per-example scores."""
+    if not scores:
+        nan = float("nan")
+        return nan, nan, nan
+    arr = np.array(scores)
+    means = [np.mean(arr[np.random.randint(0, len(arr), len(arr))]) for _ in range(n_boot)]
+    alpha = (1 - ci) / 2
+    return float(np.mean(arr)), float(np.percentile(means, alpha * 100)), float(np.percentile(means, (1 - alpha) * 100))
+
+
+def compute_aggregate_ci(results: dict, tasks: List[str], methods: List[str],
+                         n_boot: int = 2000) -> Dict[str, tuple]:
+    """
+    Pool all per-example scores across tasks for each method and bootstrap
+    a CI on the grand mean.  Returns {method: (mean, lower, upper)}.
+    """
+    pooled: Dict[str, List[float]] = {m: [] for m in methods}
+    for task in tasks:
+        if task not in results:
+            continue
+        scores = results[task].get("_scores", {})
+        for m in methods:
+            pooled[m].extend(scores.get(m, []))
+    return {m: bootstrap_ci(pooled[m], n_boot) for m in methods}
+
+
+# ---------------------------------------------------------------------------
 # Printing
 # ---------------------------------------------------------------------------
 
-def print_faithfulness_table(results: dict, title: str, gt_results: Optional[dict] = None):
+def print_faithfulness_table(results: dict, title: str, gt_results: Optional[dict] = None,
+                              show_ci: bool = False, tasks_order: Optional[List[str]] = None):
     if not results:
         return
     methods = next(iter(results.values()))["_methods"]
     col_w = 9
+    ordered_tasks = tasks_order if tasks_order else [t for t in results if not t.startswith("_")]
     print(f"\n{'='*80}")
     print(title)
     print(f"{'='*80}")
@@ -453,9 +488,10 @@ def print_faithfulness_table(results: dict, title: str, gt_results: Optional[dic
     print(header)
     print("-" * len(header))
     totals: Dict[str, List[float]] = {m: [] for m in methods}
-    for task, r in results.items():
-        if task.startswith("_"):
+    for task in ordered_tasks:
+        if task not in results:
             continue
+        r = results[task]
         flag = ""
         if gt_results:
             fg = gt_results.get(task, {}).get("full", 100.0)
@@ -472,6 +508,19 @@ def print_faithfulness_table(results: dict, title: str, gt_results: Optional[dic
     avg_row = f"{'AVERAGE':<26} {'':>4}  " + \
               "  ".join(f"{avgs[m]:>{col_w}.1f}" for m in methods)
     print(avg_row)
+
+    if show_ci and any("_scores" in results.get(t, {}) for t in ordered_tasks):
+        cis = compute_aggregate_ci(results, ordered_tasks, methods)
+        ci_row = f"{'95% CI (±)':<26} {'':>4}  " + \
+                 "  ".join(f"{(cis[m][2]-cis[m][1])/2:>{col_w}.1f}" if not math.isnan(cis[m][0]) else f"{'nan':>{col_w}}" for m in methods)
+        lo_row = f"{'  lower':<26} {'':>4}  " + \
+                 "  ".join(f"{cis[m][1]:>{col_w}.1f}" if not math.isnan(cis[m][0]) else f"{'nan':>{col_w}}" for m in methods)
+        hi_row = f"{'  upper':<26} {'':>4}  " + \
+                 "  ".join(f"{cis[m][2]:>{col_w}.1f}" if not math.isnan(cis[m][0]) else f"{'nan':>{col_w}}" for m in methods)
+        print(ci_row)
+        print(lo_row)
+        print(hi_row)
+
     if gt_results:
         print("  † full-context ground-truth accuracy < 10%: model unreliable on this task")
 
@@ -551,8 +600,8 @@ def main():
         )
         print_faithfulness_table(ppl_results,
             "Perplexity faithfulness — exp(loss_full − loss_method) × 100\n"
-            "  100 = as likely as full-context output; >100 = MORE likely; <100 = less likely",
-            gt_results)
+            "  ≥100 = faithful approximation; <100 = diverges from full-context distribution",
+            gt_results, show_ci=True, tasks_order=tasks)
 
         del model
         torch.cuda.empty_cache()
@@ -569,7 +618,7 @@ def main():
         print_faithfulness_table(emb_results,
             "Embedding faithfulness — cosine similarity (sentence-transformer)\n"
             "  100 = identical embedding; 50 = orthogonal; rescaled from [-1,1] to [0,100]",
-            gt_results)
+            gt_results, show_ci=True, tasks_order=tasks)
 
     print(f"\nSaved → {args.output}")
 
