@@ -122,7 +122,7 @@ DATASET2PROMPT: Dict[str, str] = {
     ),
     "multi_news": (
         "You are given several news passages. Write a one-page summary of all news.\n\n"
-        "News:\n{context}\n\nNow, write a one-page summary of all the news.\n\nSummary:"
+        "News:\n{context}\n\nNow, write a one-page summary of all the news.\n\nSummary: The following is a summary of the above news articles:"
     ),
     "trec": (
         "Please determine the type of the question below. Here are some examples of questions.\n\n"
@@ -282,8 +282,8 @@ DATASET2SCORER = {
 def build_prompt(task: str, example: dict) -> str:
     template = DATASET2PROMPT[task]
     return template.format(
-        context=example.get("context", ""),
-        input=example.get("input", ""),
+        context=example.get("context", "").replace("NEWLINE_CHAR", "\n"),
+        input=example.get("input", "").replace("NEWLINE_CHAR", "\n"),
     )
 
 
@@ -303,6 +303,27 @@ def truncate_to_budget(
     if len(ids) <= budget:
         return prompt
     # Keep first 10% and last 90% of the budget (question is at the end)
+    keep_start = max(budget // 10, 64)
+    keep_end   = budget - keep_start
+    ids = ids[:keep_start] + ids[-keep_end:]
+    return tokenizer.decode(ids, skip_special_tokens=True)
+
+
+def truncate_by_fraction(
+    tokenizer: AutoTokenizer,
+    prompt: str,
+    keep_fraction: float,
+    max_new_tokens: int,
+) -> str:
+    """
+    Truncate prompt to keep_fraction of its actual token length.
+    Uses the same head/tail split as truncate_to_budget so comparisons are fair.
+    If the prompt is already within the fraction budget, it is returned unchanged.
+    """
+    ids = tokenizer.encode(prompt)
+    budget = max(64 + max_new_tokens, int(keep_fraction * len(ids))) - max_new_tokens
+    if len(ids) <= budget:
+        return prompt
     keep_start = max(budget // 10, 64)
     keep_end   = budget - keep_start
     ids = ids[:keep_start] + ids[-keep_end:]
@@ -401,6 +422,7 @@ def run_pass(
     max_seq_len: int,
     device: str,
     data_dir: Path,
+    naive_fraction: float = 0.0,
 ):
     """Run inference for the given methods/tasks using the already-loaded model."""
     for task in tasks:
@@ -427,6 +449,8 @@ def run_pass(
 
                 if method == "naive":
                     p = truncate_to_budget(tokenizer, prompt, budget, max_new_tokens)
+                elif method == "naive_65pct":
+                    p = truncate_by_fraction(tokenizer, prompt, naive_fraction, max_new_tokens)
                 else:
                     p = prompt
 
@@ -490,19 +514,22 @@ def score_results(tasks: List[str], ckpt: dict, max_examples: Optional[int]) -> 
     return results
 
 
-def print_table(results: dict):
+def print_table(results: dict, flag_col: Optional[str] = None):
+    """Print a results table. If flag_col is a method name, flag rows where that
+    method's score is below LOW_SIGNAL_THRESHOLD with a dagger (†)."""
     if not results:
         return
     methods = next(iter(results.values()))["_methods"]
     col_w = 8
-    header = f"{'Task':<24} {'N':>5}  " + "  ".join(f"{m[:col_w]:>{col_w}}" for m in methods)
+    header = f"{'Task':<26} {'N':>5}  " + "  ".join(f"{m[:col_w]:>{col_w}}" for m in methods)
     sep = "-" * len(header)
     print("\n" + "=" * len(header))
     print(header)
     print(sep)
     totals: Dict[str, List[float]] = {m: [] for m in methods}
     for task, r in results.items():
-        row = f"{task:<24} {r['n']:>5}  " + "  ".join(f"{r.get(m, float('nan')):>{col_w}.2f}" for m in methods)
+        flag = "†" if (flag_col and r.get(flag_col, 100) < LOW_SIGNAL_THRESHOLD) else " "
+        row = f"{task:<24}{flag} {r['n']:>5}  " + "  ".join(f"{r.get(m, float('nan')):>{col_w}.2f}" for m in methods)
         print(row)
         for m in methods:
             v = r.get(m, float("nan"))
@@ -510,9 +537,92 @@ def print_table(results: dict):
                 totals[m].append(v)
     print(sep)
     avgs = {m: sum(v) / len(v) if v else float("nan") for m, v in totals.items()}
-    avg_row = f"{'AVERAGE':<24} {'':>5}  " + "  ".join(f"{avgs[m]:>{col_w}.2f}" for m in methods)
+    avg_row = f"{'AVERAGE':<26} {'':>5}  " + "  ".join(f"{avgs[m]:>{col_w}.2f}" for m in methods)
     print(avg_row)
     print("=" * len(header))
+    if flag_col:
+        print(f"  † full-context ground-truth score < {LOW_SIGNAL_THRESHOLD}%: "
+              f"faithfulness is still valid but the full-context model itself is unreliable on this task.")
+
+
+# Tasks where the full-context model's ground-truth score is below this value
+# are flagged in the faithfulness table as low-signal references.
+LOW_SIGNAL_THRESHOLD = 10.0  # percent
+
+
+def score_faithfulness(
+    tasks: List[str],
+    ckpt: dict,
+    max_examples: Optional[int],
+    ground_truth_results: dict,
+    reference_method: str = "full",
+) -> dict:
+    """
+    Score each compressed method against the full-context output rather than
+    the ground-truth labels.  Uses the same per-task scoring functions so the
+    numbers are directly comparable to the ground-truth table.
+
+    A score of 100 means the compressed output is identical to full-context;
+    lower scores reflect divergence from the full-context model's behaviour.
+
+    Tasks where the full-context ground-truth score is below LOW_SIGNAL_THRESHOLD
+    are noted — faithfulness is still computed, but the full-context model itself
+    answers unreliably, so a high faithfulness score means "faithfully replicates
+    a bad answer" rather than "faithfully replicates a good answer."
+    """
+    # Discover methods, excluding the reference
+    all_methods_seen: set = set()
+    for k in ckpt:
+        parts = k.split("|")
+        if len(parts) == 3:
+            all_methods_seen.add(parts[2])
+    preferred_order = ["naive", "naive_65pct", "pruned"]
+    methods = [m for m in preferred_order if m in all_methods_seen] + \
+              sorted(all_methods_seen - set(preferred_order) - {reference_method})
+
+    results: dict = {}
+    for task in tasks:
+        scorer_fn = DATASET2SCORER[task]
+        task_scores: Dict[str, List[float]] = {m: [] for m in methods}
+
+        indices = sorted({
+            int(k.split("|")[1])
+            for k in ckpt
+            if k.startswith(f"{task}|")
+        })
+        if max_examples:
+            indices = indices[:max_examples]
+
+        for idx in indices:
+            ref_key = ckpt_key(task, idx, reference_method)
+            if ref_key not in ckpt:
+                continue
+            ref_output = ckpt[ref_key]["prediction"].strip()
+            if not ref_output:
+                # Reference produced no output — skip this example entirely
+                continue
+
+            for method in methods:
+                key = ckpt_key(task, idx, method)
+                if key not in ckpt:
+                    continue
+                method_output = ckpt[key]["prediction"]
+                # Score method output against the full-context output as reference
+                s = scorer_fn(method_output, [ref_output])
+                task_scores[method].append(s)
+
+        # Full-context ground-truth score (from earlier scoring pass)
+        full_gt = ground_truth_results.get(task, {}).get(reference_method, float("nan"))
+
+        results[task] = {
+            m: (100.0 * sum(v) / len(v) if v else float("nan"))
+            for m, v in task_scores.items()
+        }
+        results[task]["n"] = len(indices)
+        results[task]["_methods"] = methods
+        results[task]["full_gt"] = full_gt   # stored for flag logic; not printed as a column
+
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -524,6 +634,8 @@ def parse_args():
     p.add_argument("--model",        default="meta-llama/Llama-3-8B-Instruct")
     p.add_argument("--budget",       type=int, default=4096,
                    help="KV token budget for naive truncation (and pruned model when budget_fraction=0)")
+    p.add_argument("--naive_fraction", type=float, default=0.65,
+                   help="If > 0, also run naive_65pct: truncate each prompt to this fraction of its actual length")
     p.add_argument("--budget_fraction", type=float, default=0.0,
                    help="If > 0, pruned model keeps this fraction of tokens per sequence (overrides --budget for pruning)")
     p.add_argument("--tasks",        default=",".join(ENGLISH_TASKS),
@@ -555,6 +667,8 @@ def parse_args():
                    help="Directory containing LongBench JSONL files")
     p.add_argument("--score_only",   action="store_true",
                    help="Skip inference, just re-score whatever is in the checkpoint")
+    p.add_argument("--faithfulness", action="store_true",
+                   help="Also compute faithfulness scores (similarity to full-context output)")
     return p.parse_args()
 
 
@@ -576,9 +690,14 @@ def main():
 
     if not args.score_only:
         # ------------------------------------------------------------------
-        # Pass 1: base model — "full" context and "naive" truncation
+        # Pass 1: base model — "full", "naive", and optionally "naive_65pct"
         # ------------------------------------------------------------------
-        print("\n=== Pass 1: base model (full + naive) ===")
+        pass1_methods = ["full", "naive"]
+        if args.naive_fraction > 0:
+            pass1_methods.append("naive_65pct")
+        print(f"\n=== Pass 1: base model ({', '.join(pass1_methods)}) ===")
+        if args.naive_fraction > 0:
+            print(f"naive_65pct keeps {100*args.naive_fraction:.0f}% of each prompt's actual token count")
         print(f"Loading {args.model} ...")
         tokenizer = AutoTokenizer.from_pretrained(args.model)
         base_model = AutoModelForCausalLM.from_pretrained(
@@ -591,7 +710,7 @@ def main():
         try:
             run_pass(
                 pass_name="Pass1",
-                methods=["full", "naive"],
+                methods=pass1_methods,
                 tasks=tasks,
                 model=base_model,
                 tokenizer=tokenizer,
@@ -602,6 +721,7 @@ def main():
                 max_seq_len=args.max_seq_len,
                 device=args.device,
                 data_dir=data_dir,
+                naive_fraction=args.naive_fraction,
             )
         except KeyboardInterrupt:
             print("\nInterrupted — progress saved. Re-run to continue.")
@@ -655,14 +775,27 @@ def main():
     # ------------------------------------------------------------------
     # Score and report
     # ------------------------------------------------------------------
-    print("\n=== Scoring ===")
+    print("\n=== Ground-truth scoring ===")
     results = score_results(tasks, ckpt, args.max_examples)
     print_table(results)
 
     results_path = out_dir / "results.json"
     with open(results_path, "w") as f:
         json.dump(results, f, indent=2)
-    print(f"\nFull results saved to {results_path}")
+    print(f"\nGround-truth results saved to {results_path}")
+
+    if args.faithfulness:
+        print("\n=== Faithfulness scoring (vs full-context output) ===")
+        print("Score = similarity of each method's output to the full-context model's output.")
+        print("100 = identical to full context.  † = full-context ground-truth accuracy < "
+              f"{LOW_SIGNAL_THRESHOLD}% (model unreliable on this task).\n")
+        faith = score_faithfulness(tasks, ckpt, args.max_examples, results)
+        print_table(faith, flag_col="full_gt")
+
+        faith_path = out_dir / "faithfulness_results.json"
+        with open(faith_path, "w") as f:
+            json.dump(faith, f, indent=2)
+        print(f"\nFaithfulness results saved to {faith_path}")
 
 
 if __name__ == "__main__":
