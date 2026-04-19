@@ -235,6 +235,13 @@ def score_output_loss(
     return loss.item()
 
 
+# Tasks whose contexts are so long that 7168-token forward passes OOM on a 32GB GPU.
+# Reduced seq_len still covers the full output + a meaningful prompt prefix.
+TASK_MAX_SEQ_LEN: Dict[str, int] = {
+    "narrativeqa": 5120,
+}
+
+
 def compute_perplexity_faithfulness(
     tasks: List[str],
     ckpt: dict,
@@ -273,6 +280,7 @@ def compute_perplexity_faithfulness(
             print(f"  [{task}] SKIP (already done)  ({t_idx+1}/{n_tasks})", flush=True)
             continue
 
+        task_seq_len = TASK_MAX_SEQ_LEN.get(task, max_seq_len)
         print(f"  [{task}]", end="", flush=True)
         data_file = data_dir / f"{task}.jsonl"
         if not data_file.exists():
@@ -309,7 +317,7 @@ def compute_perplexity_faithfulness(
 
             # Score the full-context output against itself (reference baseline)
             ref_loss = score_output_loss(model, tokenizer, prompt, ref_output,
-                                         max_seq_len, device)
+                                         task_seq_len, device)
             if ref_loss is None:
                 continue
             ref_losses.append(ref_loss)
@@ -323,7 +331,7 @@ def compute_perplexity_faithfulness(
                     task_scores[method].append(0.0)
                     continue
                 m_loss = score_output_loss(model, tokenizer, prompt, mout,
-                                           max_seq_len, device)
+                                           task_seq_len, device)
                 if m_loss is None:
                     continue
                 ratio = math.exp(ref_loss - m_loss)
