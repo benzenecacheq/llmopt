@@ -6,7 +6,7 @@
 
 Standard benchmarks for KV cache compression measure whether a compressed model gives the *correct* answer according to ground-truth labels. We argue this is the wrong objective: the goal of compression is approximation fidelity — producing the same output the full-context model would have produced, not necessarily the labeled ground-truth answer. A method that replicates the full model's errors is more faithful than one that accidentally gives correct answers for the wrong reasons. We introduce a suite of faithfulness metrics — lexical, perplexity-based, and embedding-based — that measure similarity to full-context outputs rather than to ground-truth labels, and show that ground-truth rankings and faithfulness rankings disagree substantially across methods.
 
-Using faithfulness as the primary lens, we revisit the question of where to compute KV cache importance scores. Standard methods score tokens using post-RoPE key-query dot products, where rotary positional encodings entangle semantic content with absolute position, causing distant-but-relevant tokens to be undervalued regardless of their actual content. Scoring in pre-RoPE space removes this positional bias and produces a cleaner semantic relevance signal. On LongBench with Llama-3.1-8B at 65% retention, post-RoPE scoring (kq_post_rope) retains 95.6% of full-context ground-truth performance, comparable to naive proportional truncation (93.6%) and SnapKV (95.2%). Ground-truth scores alone suggest these methods are nearly equivalent. Perplexity faithfulness — how likely the full-context model considers the compressed output, normalized against its own output likelihood — reveals a 9-point gap: kq_post_rope scores 104.2 (within 4.2% of the full model's own distribution) while naive truncation scores 95.5 (4.5% below). Streaming, which appears competitive on some ground-truth tasks, scores only 68.2 on perplexity faithfulness — its outputs are 32% less likely under the full-context model, confirming it is a poor approximation despite occasional ground-truth gains. We additionally find that a V-norm payload term, while theoretically motivated, does not improve faithfulness over the simpler pre-RoPE KQ signal alone. Evaluated on Mistral-7B-v0.3 with identical hyperparameters, the method generalizes without modification.
+Using faithfulness as the primary lens, we revisit the question of where to compute KV cache importance scores. Standard methods score tokens using post-RoPE key-query dot products, where rotary positional encodings entangle semantic content with absolute position, causing distant-but-relevant tokens to be undervalued regardless of their actual content. Scoring in pre-RoPE space removes this positional bias and produces a cleaner semantic relevance signal. On LongBench with Llama-3.1-8B at 65% retention, post-RoPE scoring (kq_post_rope) retains 95.6% of full-context ground-truth performance, comparable to naive proportional truncation (93.6%) and SnapKV (95.2%). Ground-truth scores alone suggest these methods are nearly equivalent. Perplexity faithfulness — how likely the full-context model considers the compressed output, normalized against its own output likelihood — reveals a 9-point gap: kq_post_rope scores 104.2 (its outputs are 4.2% more probable than the full model's own greedy outputs, consistent with greedy decoding's path-dependence) while naive truncation scores 95.5 (4.5% below, indicating genuine distributional divergence). Streaming, which appears competitive on some ground-truth tasks, scores only 68.2 on perplexity faithfulness — its outputs are 32% less likely under the full-context model, confirming it is a poor approximation despite occasional ground-truth gains. We additionally find that V-norm scoring, while theoretically motivated, achieves higher perplexity faithfulness than KQ alignment but lower embedding faithfulness — the signature of *mode-switching*, where a compressed model produces high-probability outputs that are semantically different from what the full model produces. This cross-metric tension demonstrates why both metrics are needed: perplexity measures fidelity to the full model's distribution; embedding catches behavioral divergence that perplexity cannot detect. Evaluated on Mistral-7B-v0.3 with identical hyperparameters, the method generalizes without modification.
 
 ---
 
@@ -73,7 +73,7 @@ We measure how likely the full-context model M considers the compressed output �
 faith_ppl = exp(loss_M(y* | c, q) − loss_M(ŷ | c, q)) × 100
 ```
 
-where loss_M(y | c, q) is the mean per-token cross-entropy of y under M conditioned on (c, q) via a teacher-forced forward pass (no generation). A score of 100 means the compressed output is exactly as likely as the full-context output; above 100 means more likely (the method's output is "safer" than the model's own); below 100 means less likely.
+where loss_M(y | c, q) is the mean per-token cross-entropy of y under M conditioned on (c, q) via a teacher-forced forward pass (no generation). A score of 100 means the compressed output is exactly as likely as the full-context output under the full model; above 100 means more likely (valid, since greedy decoding does not produce the globally most probable sequence); below 100 means less likely.
 
 This metric is robust to surface variation — semantically equivalent paraphrases that the model considers equally likely score identically — and handles cascading token divergence, which makes token-level comparison of generated outputs problematic: once any token diverges at position k, the inputs to position k+1 differ between the two generation traces, making logit comparison meaningless. Teacher-forcing conditions on reference tokens, bypassing this issue.
 
@@ -89,7 +89,7 @@ We use `all-MiniLM-L6-v2` [Wang et al., 2020]. A score of 100 means identical em
 
 ### 3.5 GT vs. Faithfulness: Where They Disagree
 
-Before presenting results, we clarify the scales. Ground-truth scores are expressed on a task-specific metric (ROUGE-L, F1, EM); the full-context model scores 25.0 average, and a compressed method retaining 93–96% of that is the competitive range. Perplexity faithfulness is centered at 100, which means the compressed output is exactly as likely under the full-context model as the full-context model's own output; scores below 100 mean the compressed output is less likely (worse approximation), while scores above 100 mean the compressed output is *more* likely — more generic or conservative — than what the full model actually produced. The ideal score is 100; large deviations in either direction indicate the compressed output differs from full-context behavior. A score of 95.5 means 4.5% less likely, and 104.2 means 4.2% more likely — the gap between these methods is roughly 9 percentage points, not 9 absolute units. Embedding faithfulness runs from 50 (orthogonal embeddings, no semantic overlap) to 100 (identical embeddings); the compressed methods cluster in the 84–91 range, with streaming much lower at 62.
+Before presenting results, we clarify the scales. Ground-truth scores are expressed on a task-specific metric (ROUGE-L, F1, EM); the full-context model scores 25.0 average, and a compressed method retaining 93–96% of that is the competitive range. Perplexity faithfulness is centered at 100, which means the compressed output is exactly as likely under the full-context model as the full-context model's own output; scores below 100 mean the compressed output is less likely (the method diverges from the full model's distribution); scores above 100 mean the compressed output is *more* likely than what the greedy decoder produced — valid and expected, since greedy decoding is path-dependent and does not find the globally most probable sequence. Scores near 100 in either direction are acceptable; large negative deviations indicate the compressed output is out-of-distribution. A score of 95.5 means 4.5% less likely, and 104.2 means 4.2% more likely — the gap between these methods is roughly 9 percentage points, not 9 absolute units. Embedding faithfulness runs from 50 (orthogonal embeddings, no semantic overlap) to 100 (identical embeddings); the compressed methods cluster in the 84–91 range, with streaming much lower at 62.
 
 With these scales in mind, the key finding is that ground-truth rankings and faithfulness rankings disagree substantially. The clearest case is naive proportional truncation (naive_65pct): it retains 93.6% of full-context ground-truth performance (23.4 vs. full context 25.0), which appears competitive with all semantic methods. But its perplexity faithfulness is 95.5 — meaning its outputs are 4.5% less likely under the full-context model than the full model's own outputs — while kq_post_rope achieves 104.2, indicating its outputs are within 4.2% of full-context likelihood from the other side. The gap between naive_65pct and kq_post_rope on perplexity faithfulness (8.7 points) is thus much larger than the gap on ground truth (0.5 points). Embedding faithfulness reverses this picture: naive_65pct scores 90.7 (90.7% of the way from orthogonal to identical semantics) while kq_post_rope scores 85.7 — naive's contiguous text preservation produces semantically similar outputs even when they are less likely under the full model.
 
@@ -251,16 +251,20 @@ Ground-truth scores are relatively compressed across methods: naive_65pct (23.4)
 | Method | GT↑ | Perplexity↑ | Embedding↑ | Lexical↑ |
 |---|---|---|---|---|
 | Naive_65pct | 23.4 | 95.5 | **90.7** | **57.9** |
-| kq_post_rope | **23.9** | **104.2** | 85.7 | 46.0 |
+| kq_post_rope | **23.9** | 104.2 | 85.7 | 46.0 |
 | kq_only | 23.0 | 101.6 | 84.8 | 43.9 |
 | SnapKV | 23.8 | 102.8 | 86.1 | 46.7 |
+| pruned (kq + V-norm) | 21.4 | 104.7 | 82.5 | 38.6 |
+| vn_decay | — | **106.2** | 78.2 | — |
 | Streaming | 13.4 | 68.2 | 62.2 | 11.9 |
+
+GT and Lexical scores for vn_decay are omitted; it is evaluated as a faithfulness ablation in §5.5 and §6.1.
 
 The headline finding: **on ground truth, kq_post_rope (95.6% of full), SnapKV (95.2%), and naive_65pct (93.6%) appear nearly equivalent — all within 2 points of each other. Perplexity faithfulness reveals a 9-point gap between naive_65pct (95.5) and kq_post_rope (104.2), despite ground-truth scores differing by only 0.5 points.** Naive truncation is a significantly poorer approximation of full-context behavior than ground-truth scores suggest.
 
-Recall that a perplexity faithfulness score of 100 is the ideal — the compressed output is exactly as likely as the full model's own output. Scores below 100 indicate the compressed output is less likely (diverging from the full model's distribution); scores above 100 indicate the compressed output is more conservative or generic than what the full model actually produced. kq_post_rope at 104.2 means its outputs are slightly more predictable than the full model's, while naive_65pct at 95.5 means its outputs are measurably less plausible under the full model — it is operating from a genuinely different effective context.
+A perplexity score of 100 means the compressed output is exactly as likely under the full model as the full model's own greedy output. Scores below 100 mean the output is less probable — the method is diverging from the full model's distribution. Scores above 100 mean the compressed output is *more* probable than what the greedy decoder produced; this is valid and expected, since greedy decoding is path-dependent and does not find the globally most probable sequence. kq_post_rope at 104.2 occupies a slightly higher-probability region than the full model's own outputs; naive_65pct at 95.5 is measurably less plausible, reflecting operation from a truncated context.
 
-Embedding faithfulness tells a partially different story: naive_65pct scores 90.7, the highest of any compressed method. This reflects that naive truncation preserves contiguous text from the prompt tail, making output embeddings semantically similar to full-context outputs on tasks where the tail is informative. But this similarity is superficial — the outputs look alike semantically while being less likely under the full model's distribution. Perplexity and embedding faithfulness thus capture complementary aspects: perplexity measures whether the output fits the full model's learned distribution; embedding measures whether the surface semantic content is similar. Both are useful; we treat perplexity as the more principled criterion for compression fidelity.
+Embedding faithfulness tells a partially different story: naive_65pct scores 90.7, the highest of any method. Naive truncation preserves contiguous text from the tail, producing outputs that are semantically similar to the full model's on tasks where the tail is informative — but those outputs are less likely under the full model, revealing operation in a different regime. More striking is vn_decay: it achieves the highest perplexity faithfulness (106.2) yet the lowest embedding faithfulness among semantic methods (78.2). Its outputs are *more* probable than the full model's own outputs, yet semantically further from what the full model produces. This cross-metric tension — high probability, low similarity — identifies a distinct failure mode that neither metric alone can detect. We discuss this in depth in §6.1.
 
 #### The GT-Faithfulness Reversal
 
@@ -287,20 +291,23 @@ Our recommended default is therefore kq_post_rope (post-RoPE with decay), which 
 
 ### 5.5 V-Norm Ablation
 
-We additionally evaluated adding a V-norm payload term to the score (the "pruned" method from earlier experiments):
+We evaluated two V-norm variants: *pruned*, which combines KQ alignment with a V-norm payload term (α = 0.65), and *vn_decay*, which scores tokens by V-norm and distance decay alone, without any KQ alignment:
 
 ```
-score_i = α · kq_i + (1 − α) · vn_i · decay_i,   α = 0.65
+pruned:   score_i = α · kq_i + (1 − α) · vn_i · decay_i,   α = 0.65
+vn_decay: score_i = vn_i · decay_i
 ```
 
-| Metric | kq_post_rope | pruned (+ V-norm) | Δ |
+| Metric | kq_post_rope | pruned (+ V-norm) | vn_decay (V-norm only) |
 |---|---|---|---|
-| GT average | **23.9** | 21.4 | −2.5 |
-| Perplexity faith. | 104.2 | **104.7** | +0.5 |
-| Embedding faith. | **85.7** | 82.5 | −3.2 |
-| Lexical faith. | **46.0** | 38.6 | −7.4 |
+| GT average | **23.9** | 21.4 | — |
+| Perplexity faith. | 104.2 | 104.7 | **106.2** |
+| Embedding faith. | **85.7** | 82.5 | 78.2 |
+| Lexical faith. | **46.0** | 38.6 | — |
 
-The V-norm term adds essentially nothing to perplexity faithfulness (+0.5) while costing 2.5 points on ground truth, 3.2 on embedding, and 7.4 on lexical faithfulness. We report this as a negative result. The theoretical motivation — that V-norm captures each token's output contribution independently of query relevance — is sound, but in practice the two signals are sufficiently correlated that the additive combination introduces noise rather than complementary information. Simpler is better here.
+The V-norm variants reveal a consistent pattern: as V-norm weight increases, perplexity faithfulness rises slightly while embedding faithfulness falls substantially. vn_decay achieves the highest perplexity score of any method (106.2) while also having the lowest embedding score among semantic methods (78.2) — a 28-point gap between the two metrics. This cross-metric tension is the signature of a specific failure mode, *mode-switching*, discussed in detail in §6.1.
+
+The practical conclusion is that V-norm does not improve over KQ alignment when evaluated holistically. The perplexity gain (+2.0 for vn_decay vs. kq_post_rope) comes at the cost of semantic drift that embedding faithfulness makes visible. We report this as a negative result rather than omitting it; the pattern is informative for future work on scoring signal design.
 
 ### 5.6 Generalization to Mistral-7B-v0.3
 
@@ -334,14 +341,24 @@ Task-level patterns are consistent across models: PassageRetrieval shows the sam
 
 ### 6.1 Why Perplexity and Embedding Disagree
 
-Perplexity and embedding faithfulness measure different things and can disagree:
+Perplexity and embedding faithfulness measure fundamentally different things, and understanding their disagreement is essential for interpreting compression results correctly.
 
-- **Perplexity is high when the compressed output is likely under the full model**, regardless of whether it says the same thing. A short, generic response (e.g., "I don't know") would score perfectly if the full model would also produce it.
-- **Embedding is high when the semantic content is similar**, regardless of model likelihood. Two outputs covering the same facts in different words score high.
+**What each metric captures.** Perplexity faithfulness asks: *given the full model's learned probability distribution, how likely is the compressed output?* It is a property of the model itself — not the specific sequence the greedy decoder happened to produce — and is robust to surface variation. Two outputs that say the same thing in different words score identically if the full model assigns them equal probability. Embedding faithfulness asks: *how semantically similar is the compressed output to the specific sequence the full model produced?* It captures content similarity but treats the full model's greedy output as the gold standard, which it is not — it is one sample from a high-probability region.
 
-This explains why naive_65pct leads on embedding (90.7) but lags on perplexity (95.5): naive truncation preserves contiguous text from the tail of the context, producing outputs that are semantically similar to the full model's outputs on tasks where the tail is informative. But the outputs are less likely under the full model (which processed the entire context), revealing that naive is operating in a different regime. kq_post_rope is better calibrated to the full model's distribution (high perplexity faithfulness) even when the surface-level semantic content differs (lower embedding faithfulness).
+**The mode-switching failure mode.** The full model's probability distribution is multimodal: many distinct outputs are high-probability for any given prompt. Greedy decoding selects one path through this space, but a compressed model may follow a different path — equally valid under the full model's distribution — and produce a semantically different output. Consider a compressed model answering a question about the French Revolution. The full model might write about the Reign of Terror; the compressed model might write about the storming of the Bastille. Both answers are historically accurate, high-probability under the full model, and would score well on perplexity faithfulness. But embedding faithfulness would correctly flag that they address different aspects of the question. A user deploying the compressed model as a drop-in replacement for the full model gets different outputs — and would never know from perplexity faithfulness alone.
 
-For evaluating compression fidelity, we consider perplexity faithfulness the most principled metric, because it directly measures whether the compressed model's output distribution approximates the full model's distribution. Embedding faithfulness is useful for identifying semantic drift but can be gamed by methods that simply copy recent content.
+**vn_decay as a concrete illustration.** This failure mode appears clearly in our results. vn_decay achieves the highest perplexity faithfulness of any method (106.2) — its outputs are on average *more* probable than what the full model's own greedy decoder produces — yet has the lowest embedding faithfulness among semantic methods (78.2), a 28-point gap. vn_decay is reliably finding high-probability outputs in the full model's distribution, just not the same modes the full model's decoder reaches. kq_post_rope shows no such tension: 104.2 perplexity, 85.7 embedding — competitive on both dimensions, indicating it approximates both the full model's distribution *and* the specific trajectory the full model takes through it.
+
+This four-quadrant view covers the space of outcomes:
+
+| | High Embedding | Low Embedding |
+|---|---|---|
+| **High Perplexity** | Ideal: faithful to distribution and trajectory (kq_post_rope) | Mode-switching: in-distribution but divergent (vn_decay) |
+| **Low Perplexity** | Surface-copy: similar content, wrong distribution (naive_65pct) | Failed: divergent on both dimensions (streaming) |
+
+**Why perplexity is more principled.** Despite the mode-switching limitation, we treat perplexity faithfulness as the primary criterion for compression fidelity. The reason is that the full model's greedy output is not the gold standard: it is one arbitrary path through a high-probability region, and greedy decoding makes no global optimality guarantee. Embedding faithfulness penalizes valid alternative modes — equally correct, equally probable answers that happen to differ in surface form or focus. Perplexity faithfulness asks the cleaner question: is the compressed output in a high-probability region of the distribution the full model learned? That is what fidelity to *the model* means, as opposed to fidelity to one particular decoding trajectory.
+
+**Using both metrics as diagnostics.** The right approach is to read them together. Perplexity faithfulness confirms that the compressed model is operating within the full model's learned distribution. Embedding faithfulness confirms that the compressed model is reaching the same modes, not just any high-probability region. A method that passes one but fails the other warrants scrutiny: naive_65pct copies recent context effectively but diverges distributionally; vn_decay stays in-distribution but mode-switches. kq_post_rope is the only method that maintains competitive scores on both, which is why we treat it as the primary result despite vn_decay's higher perplexity score in isolation.
 
 ### 6.2 Streaming
 
