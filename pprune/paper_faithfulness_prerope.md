@@ -61,7 +61,13 @@ We note one important caveat: on tasks where the full-context model completely f
 
 ### 3.2 Lexical Faithfulness
 
-Token-level F1 between the compressed output ŷ and full-context output y*, computed over unigrams with standard normalization. Simple and fast, but sensitive to surface variation: semantically equivalent outputs that differ in phrasing score low. Useful as a lower bound on semantic similarity.
+Token-level F1 between the compressed output ŷ and full-context output y*, computed over unigrams with standard normalization:
+
+```
+P = |ŷ ∩ y*| / |ŷ|,   R = |ŷ ∩ y*| / |y*|,   F1 = 2PR / (P + R)
+```
+
+where ∩ denotes multiset intersection. Simple and fast, but sensitive to surface variation: semantically equivalent outputs that differ in phrasing score low. Useful as a lower bound on semantic similarity.
 
 ### 3.3 Perplexity Faithfulness
 
