@@ -1,10 +1,10 @@
-# Faithfulness over Accuracy: Rethinking KV Cache Compression Evaluation with Pre-RoPE Scoring
+# Faithfulness over Accuracy: Rethinking KV Cache Compression Evaluation
 
 ---
 
 ## Abstract
 
-Standard benchmarks for KV cache compression measure whether a compressed model gives the *correct* answer according to ground-truth labels. We argue this is the wrong objective: the goal of compression is approximation fidelity — producing the same output the full-context model would have produced. We introduce a suite of complementary faithfulness metrics that measure similarity to full-context outputs directly, and show that ground-truth rankings and faithfulness rankings disagree substantially. Using faithfulness as the primary lens, we revisit where to compute KV cache importance scores, comparing pre-RoPE and post-RoPE key-query dot products and evaluating a V-norm payload term as an ablation. We find that the two faithfulness metrics — perplexity-based and embedding-based — capture distinct failure modes, motivating their joint use for compression evaluation.
+Standard benchmarks for KV cache compression measure whether a compressed model gives the *correct* answer according to ground-truth labels. We argue this is the wrong objective: the goal of compression is approximation fidelity — producing the same output the full-context model would have produced. We introduce a suite of complementary faithfulness metrics that measure similarity to full-context outputs directly, and show that ground-truth rankings and faithfulness rankings disagree substantially. Using faithfulness as the primary lens, we revisit where to compute KV cache importance scores, comparing post-RoPE and pre-RoPE key-query dot products. Counterintuitively, post-RoPE scoring outperforms its pre-RoPE counterpart on all metrics despite the theoretical argument that RoPE's positional encoding penalizes distant tokens. We also evaluate a V-norm payload term as an ablation. We find that the two faithfulness metrics — perplexity-based and embedding-based — capture distinct failure modes, motivating their joint use for compression evaluation.
 
 ---
 
@@ -22,22 +22,22 @@ We propose to evaluate KV cache compression using *faithfulness metrics* that co
 
 These metrics are complementary. Lexical faithfulness is strict and penalizes paraphrasing; perplexity faithfulness is robust to surface variation but anchored to model likelihood; embedding faithfulness captures semantic content independently of both phrasing and the LLM.
 
-Using faithfulness as the primary evaluation lens, we revisit the design space for KV cache importance scoring. The central question is where to compute KQ dot products: in post-RoPE space (as most methods do) or in pre-RoPE space (before rotary embeddings are applied). Post-RoPE vectors encode both semantic content and absolute position; pre-RoPE vectors encode content only. For long contexts, this difference is consequential: a token at position 0 in a 10K sequence is rotated by a large angle relative to the tail queries, producing a low dot product regardless of semantic relevance. Pre-RoPE scoring removes this positional penalty and recovers distant-but-relevant tokens.
+Using faithfulness as the primary evaluation lens, we revisit the design space for KV cache importance scoring. The central question is where to compute KQ dot products: in post-RoPE space (as most methods do) or in pre-RoPE space (before rotary embeddings are applied). The theoretical argument for pre-RoPE is intuitive: post-RoPE vectors encode both semantic content and absolute position, so a token at position 0 in a 10K sequence is rotated by a large angle relative to the tail queries, producing a low dot product regardless of semantic relevance. Pre-RoPE scoring removes this positional penalty. Despite this argument, our experiments find that post-RoPE KQ alignment with linear distance decay outperforms pre-RoPE scoring on all metrics; we report the pre-RoPE hypothesis as a negative result and discuss the likely mechanism in §7.
 
 We make the following contributions:
 
 - **Faithfulness evaluation framework**: three complementary metrics for measuring how closely a compressed model approximates full-context behavior, together with an analysis of where and why ground-truth rankings and faithfulness rankings disagree
-- **Pre-RoPE KV scoring**: importance scoring in pre-RoPE space, recovering semantic relevance for long-range tokens that post-RoPE methods systematically undervalue
-- **Ablation finding**: a V-norm payload term, while theoretically motivated [Feng et al., 2025], does not improve faithfulness over pre-RoPE KQ alignment alone; we report this as a negative result to inform future work
+- **Scoring space comparison**: we test both post-RoPE and pre-RoPE KQ alignment and find, counterintuitively, that post-RoPE scoring with linear distance decay outperforms pre-RoPE on all faithfulness metrics; we report the pre-RoPE hypothesis as a negative result and discuss why learned positional features may carry useful discriminative information
+- **V-norm ablation**: a V-norm payload term, while theoretically motivated [Feng et al., 2025], does not improve faithfulness over post-RoPE KQ alignment alone; we report this as a negative result to inform future work
 - **Cross-architecture validation**: results on both Llama-3.1-8B and Mistral-7B-v0.3 with identical hyperparameters
 
 ---
 
 ## 2. Background and Related Work
 
-**KV cache eviction.** H2O [Zhang et al., 2023] identifies "heavy hitter" tokens via accumulated attention scores and evicts the rest. SnapKV [Li et al., 2024] selects tokens by pooling attention weights from the last several queries over all key positions, using post-RoPE vectors. StreamingLLM [Xiao et al., 2023] retains attention sink tokens plus a recency window, requiring no scoring computation. Our method uses pre-RoPE key-query alignment, removing the positional bias present in both SnapKV and H2O.
+**KV cache eviction.** H2O [Zhang et al., 2023] identifies "heavy hitter" tokens via accumulated attention scores and evicts the rest. SnapKV [Li et al., 2024] selects tokens by pooling attention weights from the last several queries over all key positions, using post-RoPE vectors. StreamingLLM [Xiao et al., 2023] retains attention sink tokens plus a recency window, requiring no scoring computation. Our method uses post-RoPE key-query alignment with linear distance decay.
 
-**Pre-RoPE scoring.** A2ATS [ACL 2025] explicitly advocates scoring with pre-RoPE keys, and is to our knowledge the only prior work to study this choice in isolation. We confirm and extend this finding, providing a faithfulness-based analysis that explains *why* pre-RoPE scoring is beneficial: it recovers tokens that are semantically relevant but positionally distant.
+**Pre-RoPE vs. post-RoPE scoring.** A2ATS [ACL 2025] explicitly advocates scoring with pre-RoPE keys, and is to our knowledge the only prior work to study this choice in isolation. We test both scoring spaces and find the opposite result: post-RoPE KQ alignment with distance decay consistently outperforms pre-RoPE scoring across all faithfulness metrics. We provide a faithfulness-based analysis of this discrepancy in §5.4 and §7.
 
 **Value-norm scoring.** VATP [EMNLP 2024] scores tokens by the product of attention weight and L1 value norm, observing that attention sinks receive high attention but near-zero V-norm. Feng et al. [2025] provide a theoretical justification via an upper bound on output perturbation, recommending a two-stage selector combining attention weights with projected value norms ‖V·W^O‖₁. We test a simpler additive combination of KQ alignment and raw V-norm and find it does not improve over KQ alignment alone.
 
@@ -103,7 +103,7 @@ This reversal — ground-truth appearing to show rough equivalence while faithfu
 
 ---
 
-## 4. Method: Pre-RoPE KV Scoring
+## 4. Method: KQ Scoring with Distance Decay
 
 ### 4.1 Setup
 
@@ -111,7 +111,7 @@ We patch the self-attention layers of a decoder-only transformer to intercept th
 
 ### 4.2 Scoring
 
-For each attention layer, let Q ∈ ℝ^{T×D} and K ∈ ℝ^{T×D} be the *pre-RoPE* query and key matrices, and V ∈ ℝ^{T×D} be the value matrix.
+For each attention layer, let Q ∈ ℝ^{T×D} and K ∈ ℝ^{T×D} be the *post-RoPE* query and key matrices (the same vectors used in the actual attention computation), and V ∈ ℝ^{T×D} be the value matrix.
 
 **KQ alignment.** We use the last q_buffer_size query vectors (the tail of the sequence, which best approximates generation-phase queries) and compute max-pooled dot-product similarity to every key:
 
@@ -135,11 +135,11 @@ where i is the position index (0 = oldest). The rate is derived automatically fr
 score_i = kq_i · decay_i
 ```
 
-### 4.3 Why Pre-RoPE?
+### 4.3 Scoring Space: Post-RoPE vs. Pre-RoPE
 
-RoPE encodes absolute position by rotating K and Q vectors by position-dependent angles. A key vector from position 0 in a 10K context is rotated by a large angle relative to the last-position query, producing an artificially low dot product regardless of semantic content. Pre-RoPE keys remove this rotation: KQ alignment reflects content similarity only. The post-RoPE keys and values are still used in the actual attention computation — pre-RoPE is used only for scoring.
+The theoretical argument for pre-RoPE scoring is intuitive: RoPE encodes absolute position by rotating K and Q vectors by position-dependent angles, so a key vector from position 0 in a 10K context is rotated by a large angle relative to the last-position query, producing an artificially low dot product regardless of semantic content. Pre-RoPE keys remove this rotation, making KQ alignment reflect content similarity only.
 
-The practical consequence is that semantically relevant early tokens — passages answering the query, relevant context in a document — are not systematically penalized for being distant. Post-RoPE scoring conflates "far away" with "unimportant"; pre-RoPE scoring does not.
+Despite this argument, our experiments (§5.4) consistently show post-RoPE scoring outperforming pre-RoPE across all metrics. We use post-RoPE Q and K as the default. The likely explanation — discussed in §7 — is that post-RoPE keys contain position-conditioned features learned during training that carry useful discriminative information; removing position entirely discards signal along with bias. The distance decay term (§4.2) provides explicit recency weighting, serving the role that pre-RoPE proponents attribute to position-independence.
 
 ### 4.4 Budget Selection
 
@@ -155,8 +155,8 @@ After selection, we reconstruct a valid causal attention mask using the *origina
 - *Naive proportional truncation (naive_65pct)*: each prompt is truncated to 65% of its actual token length using a 10%/90% head/tail split, matching the compression budget exactly
 - *SnapKV*: post-RoPE attention weight pooling over a 128-token observation window [Li et al., 2024]
 - *StreamingLLM*: first 4 attention sink tokens plus most recent tokens to fill the 65% budget [Xiao et al., 2023]
-- *kq_only*: pre-RoPE KQ alignment without decay (ablation)
-- *kq_post_rope*: our full method (KQ alignment with decay, computed in pre-RoPE space) — **this is the primary method**
+- *kq_only*: pre-RoPE KQ alignment without decay (ablation; tests the pre-RoPE hypothesis)
+- *kq_post_rope*: post-RoPE KQ alignment with distance decay — **this is the primary method**
 
 Note on the naive baseline: we use proportional truncation (65% of actual prompt length) rather than a fixed 4096-token budget, which would create a budget mismatch — retaining all tokens for short-context tasks while pruning more aggressively for long ones. Proportional truncation is the only honest apples-to-apples comparison.
 
