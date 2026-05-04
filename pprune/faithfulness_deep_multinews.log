@@ -1,0 +1,78 @@
+Checkpoint : lb_results_base/checkpoint.json
+Output     : lb_results_base/faithfulness_deep.json
+Tasks      : 1
+Perplexity : True
+Embedding  : True
+Resuming from existing output: {'perplexity': 15, 'embedding': 15}
+
+Loading meta-llama/Llama-3.1-8B for perplexity scoring ...
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 1/291 [00:00<02:36,  1.85it/s]Loading weights:   8%|▊         | 22/291 [00:00<00:06, 39.44it/s]Loading weights:  11%|█         | 32/291 [00:00<00:05, 51.59it/s]Loading weights:  15%|█▌        | 45/291 [00:00<00:03, 68.86it/s]Loading weights:  20%|█▉        | 58/291 [00:01<00:03, 74.77it/s]Loading weights:  26%|██▌       | 76/291 [00:01<00:02, 85.54it/s]Loading weights:  30%|██▉       | 87/291 [00:01<00:02, 86.67it/s]Loading weights:  35%|███▌      | 103/291 [00:01<00:02, 93.99it/s]Loading weights:  39%|███▉      | 114/291 [00:01<00:01, 94.41it/s]Loading weights:  43%|████▎     | 124/291 [00:01<00:01, 94.04it/s]Loading weights:  48%|████▊     | 139/291 [00:01<00:01, 100.97it/s]Loading weights:  52%|█████▏    | 150/291 [00:02<00:01, 92.23it/s] Loading weights:  57%|█████▋    | 166/291 [00:02<00:01, 99.41it/s]Loading weights:  61%|██████    | 177/291 [00:02<00:01, 99.80it/s]Loading weights:  65%|██████▌   | 190/291 [00:02<00:00, 107.08it/s]Loading weights:  69%|██████▉   | 202/291 [00:02<00:00, 94.84it/s] Loading weights:  75%|███████▍  | 217/291 [00:02<00:00, 108.34it/s]Loading weights:  79%|███████▊  | 229/291 [00:02<00:00, 95.85it/s] Loading weights:  84%|████████▎ | 243/291 [00:02<00:00, 106.08it/s]Loading weights:  88%|████████▊ | 255/291 [00:02<00:00, 108.90it/s]Loading weights:  92%|█████████▏| 267/291 [00:03<00:00, 96.74it/s] Loading weights:  97%|█████████▋| 283/291 [00:03<00:00, 93.83it/s]Loading weights: 100%|██████████| 291/291 [00:03<00:00, 87.60it/s]
+
+Perplexity faithfulness (forward passes only, no generation):
+  [multi_news] n=95  (1/1)
+
+================================================================================
+Perplexity faithfulness — exp(loss_full − loss_method) × 100
+  100 = as likely as full-context output; >100 = MORE likely; <100 = less likely
+================================================================================
+Task                          N    kq_only  kq_post_r      naive  naive_65p     pruned     snapkv  streaming   vn_decay
+-----------------------------------------------------------------------------------------------------------------------
+narrativeqa                  0        nan        nan        nan        nan        nan        nan        nan        nan
+qasper                     100       95.4       97.2       95.9       91.8       95.5       96.5       66.3       95.3
+multifieldqa_en             99      100.2       96.3       88.0       87.3      100.6      101.6       61.8      106.3
+hotpotqa                   100      101.1      100.7       85.4       97.6      101.9      100.4       50.1       98.8
+2wikimqa                    99      103.7      102.7       97.5      101.1      100.5      100.9       37.6       99.1
+musique                    100       99.8       99.2       85.7       99.8      101.4       98.2       56.2       98.9
+gov_report                  99       92.3       93.5       59.6       76.5       94.8       93.2       94.1       99.3
+qmsum                      100      106.3      106.4       78.5       93.4      108.9      103.4       98.1      114.2
+trec                       100       98.8       98.4       99.9      100.1       97.7       97.5       34.8       97.9
+triviaqa                   100       97.4      102.7       98.8      100.5      102.7       98.5       64.5       96.3
+samsum                     100      112.0      121.1      104.3      102.6      119.2      119.9      109.4      117.7
+passage_count              100      135.5      147.3       58.2       98.5      154.0      142.2      111.9      166.1
+passage_retrieval_en       100      104.4      107.5        8.3       89.1      107.7      103.3       60.2      104.5
+lcc                        100       93.4       98.8       98.9      100.0       92.4       98.2       36.2       93.0
+repobench-p                100       90.7       94.7       95.1       97.2       93.5       95.8       46.6       91.4
+multi_news                  95       89.6       89.8      100.1       93.4       89.9       88.1       86.2       95.8
+-----------------------------------------------------------------------------------------------------------------------
+AVERAGE                              101.4      103.7       83.6       95.3      104.0      102.5       67.6      105.0
+  † full-context ground-truth accuracy < 10%: model unreliable on this task
+
+Embedding faithfulness (cosine similarity in sentence-transformer space):
+  Loading sentence-transformer: all-MiniLM-L6-v2 ...
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 28230.63it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+[3mNotes:
+- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.[0m
+  [multi_news] n=100  (1/1)
+
+================================================================================
+Embedding faithfulness — cosine similarity (sentence-transformer)
+  100 = identical embedding; 50 = orthogonal; rescaled from [-1,1] to [0,100]
+================================================================================
+Task                          N    kq_only  kq_post_r      naive  naive_65p     pruned     snapkv  streaming   vn_decay
+-----------------------------------------------------------------------------------------------------------------------
+narrativeqa                 99       82.2       84.1       75.0       96.5       82.9       85.1       60.2       75.2
+qasper                     100       84.9       85.4       90.6       83.8       83.5       86.3       67.0       78.4
+multifieldqa_en             99       86.8       88.1       88.0       86.3       86.3       87.0       66.6       81.9
+hotpotqa                   100       85.7       87.4       81.8       95.9       83.6       87.8       61.8       79.4
+2wikimqa                    99       89.4       89.5       87.8       85.8       86.5       88.2       67.5       83.5
+musique                    100       82.5       84.2       78.9       98.7       82.3       85.1       59.9       78.9
+gov_report                  99       89.0       90.3       86.6       92.1       85.1       90.3       56.2       78.2
+qmsum                      100       84.1       85.2       81.9       89.2       82.0       86.7       56.8       77.0
+trec                       100       87.4       84.9       90.1       88.8       83.9       85.5       60.7       77.8
+triviaqa                   100       76.4       75.8       79.9       88.3       74.3       79.1       62.6       70.6
+samsum                     100       87.8       88.8       91.0       93.4       84.6       88.5       69.6       85.1
+passage_count              100       72.4       73.5       66.9       88.8       70.3       73.7       70.2       65.5
+passage_retrieval_en       100       84.8       84.4       59.7       91.0       77.9       84.2       57.9       65.2
+lcc                        100       85.4       89.8       98.4       90.0       84.7       90.1       60.1       84.1
+repobench-p                100       87.4       90.3       90.3       95.4       84.6       89.1       54.3       86.9
+multi_news                 100       90.6       89.9       98.0       87.2       87.1       90.6       63.8       83.1
+-----------------------------------------------------------------------------------------------------------------------
+AVERAGE                               84.8       85.7       84.1       90.7       82.5       86.1       62.2       78.2
+  † full-context ground-truth accuracy < 10%: model unreliable on this task
+
+Saved → lb_results_base/faithfulness_deep.json

@@ -1,0 +1,506 @@
+================================================================
+decay_screen: kq_post_rope + distance decay faithfulness screen
+Tasks : passage_retrieval_en,qmsum,samsum
+N     : 20 examples per task
+================================================================
+
+--- min_decay=0.9  label=kqpr_md0.9 ---
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<02:28,  1.95it/s]
+Loading weights:   5%|▌         | 15/291 [00:00<00:08, 31.80it/s]
+Loading weights:  10%|▉         | 28/291 [00:00<00:05, 51.32it/s]
+Loading weights:  14%|█▎        | 40/291 [00:00<00:03, 64.30it/s]
+Loading weights:  17%|█▋        | 50/291 [00:00<00:03, 72.12it/s]
+Loading weights:  21%|██        | 60/291 [00:01<00:02, 77.53it/s]
+Loading weights:  26%|██▌       | 76/291 [00:01<00:02, 89.30it/s]
+Loading weights:  30%|██▉       | 86/291 [00:01<00:02, 86.94it/s]
+Loading weights:  33%|███▎      | 96/291 [00:01<00:02, 87.38it/s]
+Loading weights:  38%|███▊      | 112/291 [00:01<00:01, 94.66it/s]
+Loading weights:  42%|████▏     | 122/291 [00:01<00:01, 95.89it/s]
+Loading weights:  47%|████▋     | 136/291 [00:01<00:01, 106.82it/s]
+Loading weights:  51%|█████     | 148/291 [00:01<00:01, 102.87it/s]
+Loading weights:  55%|█████▍    | 159/291 [00:02<00:01, 92.81it/s] 
+Loading weights:  60%|██████    | 175/291 [00:02<00:01, 98.52it/s]
+Loading weights:  65%|██████▌   | 190/291 [00:02<00:00, 109.16it/s]
+Loading weights:  69%|██████▉   | 202/291 [00:02<00:00, 98.55it/s] 
+Loading weights:  73%|███████▎  | 213/291 [00:02<00:00, 100.32it/s]
+Loading weights:  79%|███████▊  | 229/291 [00:02<00:00, 105.10it/s]
+Loading weights:  82%|████████▏ | 240/291 [00:02<00:00, 100.31it/s]
+Loading weights:  88%|████████▊ | 256/291 [00:03<00:00, 98.33it/s] 
+Loading weights:  93%|█████████▎| 270/291 [00:03<00:00, 107.81it/s]
+Loading weights:  97%|█████████▋| 282/291 [00:03<00:00, 110.25it/s]
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 88.01it/s] 
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<01:38,  2.94it/s]
+Loading weights:   1%|          | 2/291 [00:00<01:01,  4.69it/s]
+Loading weights:   8%|▊         | 22/291 [00:00<00:04, 54.34it/s]
+Loading weights:  11%|█         | 32/291 [00:00<00:03, 65.71it/s]
+Loading weights:  14%|█▍        | 42/291 [00:00<00:03, 73.19it/s]
+Loading weights:  18%|█▊        | 51/291 [00:00<00:03, 76.81it/s]
+Loading weights:  23%|██▎       | 67/291 [00:01<00:02, 89.87it/s]
+Loading weights:  27%|██▋       | 78/291 [00:01<00:02, 94.53it/s]
+Loading weights:  32%|███▏      | 94/291 [00:01<00:01, 98.97it/s]
+Loading weights:  36%|███▌      | 105/291 [00:01<00:01, 94.98it/s]
+Loading weights:  42%|████▏     | 121/291 [00:01<00:01, 97.12it/s]
+Loading weights:  45%|████▌     | 131/291 [00:01<00:01, 94.13it/s]
+Loading weights:  51%|█████     | 148/291 [00:01<00:01, 96.22it/s]
+Loading weights:  56%|█████▌    | 163/291 [00:01<00:01, 108.55it/s]
+Loading weights:  60%|██████    | 175/291 [00:02<00:01, 100.73it/s]
+Loading weights:  64%|██████▍   | 186/291 [00:02<00:01, 98.43it/s] 
+Loading weights:  69%|██████▉   | 202/291 [00:02<00:00, 98.92it/s]
+Loading weights:  73%|███████▎  | 213/291 [00:02<00:00, 93.11it/s]
+Loading weights:  79%|███████▊  | 229/291 [00:02<00:00, 100.29it/s]
+Loading weights:  82%|████████▏ | 240/291 [00:02<00:00, 97.13it/s] 
+Loading weights:  87%|████████▋ | 253/291 [00:02<00:00, 104.68it/s]
+Loading weights:  91%|█████████ | 265/291 [00:03<00:00, 95.79it/s] 
+Loading weights:  96%|█████████▌| 280/291 [00:03<00:00, 108.87it/s]
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 89.83it/s] 
+The following generation flags are not valid and may be ignored: ['top_p']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+The attention mask is not set and cannot be inferred from input because pad token is same as eos token. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+
+Tasks     : ['passage_retrieval_en', 'qmsum', 'samsum']
+Budget    : 4096
+Max seq   : 7168
+Data dir  : lb_data_raw/data
+Checkpoint: lb_results_base/checkpoint.json
+
+=== Pass 1: base model (full, naive) ===
+Loading meta-llama/Llama-3.1-8B ...
+
+[Pass1] Task: passage_retrieval_en
+
+[Pass1] Task: qmsum
+
+[Pass1] Task: samsum
+
+=== Pass 2: pruned model ===
+Loading meta-llama/Llama-3.1-8B ...
+Patching 32 attention layers ...
+Model ready.
+
+[Pass2] Task: passage_retrieval_en
+  20/20 examples done
+
+[Pass2] Task: qmsum
+  20/20 examples done
+
+[Pass2] Task: samsum
+  20/20 examples done
+
+=== Ground-truth scoring ===
+
+====================================================================================================================================
+Task                           N      full     naive   kq_only  kq_post_  kqpr_md0  naive_65    pruned    snapkv  streamin  vn_decay
+------------------------------------------------------------------------------------------------------------------------------------
+passage_retrieval_en         20     35.00     15.00     20.00     25.00     25.00     35.00     25.00     20.00     15.00     10.00
+qmsum                        20     10.67     14.74      8.50      8.63      7.65     11.26      7.05      8.88      4.33      7.58
+samsum                       20     16.06     16.00     16.53     18.82     20.05     16.84     14.71     18.11      5.54     18.09
+------------------------------------------------------------------------------------------------------------------------------------
+AVERAGE                              20.58     15.25     15.01     17.48     17.57     21.03     15.59     15.66      8.29     11.89
+====================================================================================================================================
+
+Ground-truth results saved to lb_results_base/results.json
+
+Finished min_decay=0.9
+
+--- min_decay=0.7  label=kqpr_md0.7 ---
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<02:21,  2.05it/s]
+Loading weights:   5%|▌         | 15/291 [00:00<00:08, 33.06it/s]
+Loading weights:   8%|▊         | 24/291 [00:00<00:05, 46.17it/s]
+Loading weights:  14%|█▎        | 40/291 [00:00<00:03, 67.33it/s]
+Loading weights:  18%|█▊        | 51/291 [00:00<00:03, 77.49it/s]
+Loading weights:  23%|██▎       | 67/291 [00:01<00:02, 88.90it/s]
+Loading weights:  27%|██▋       | 78/291 [00:01<00:02, 90.03it/s]
+Loading weights:  30%|███       | 88/291 [00:01<00:02, 90.25it/s]
+Loading weights:  35%|███▌      | 103/291 [00:01<00:01, 100.54it/s]
+Loading weights:  39%|███▉      | 114/291 [00:01<00:01, 92.79it/s] 
+Loading weights:  45%|████▍     | 130/291 [00:01<00:01, 97.76it/s]
+Loading weights:  48%|████▊     | 141/291 [00:01<00:01, 100.27it/s]
+Loading weights:  54%|█████▍    | 157/291 [00:01<00:01, 104.56it/s]
+Loading weights:  58%|█████▊    | 168/291 [00:02<00:01, 96.47it/s] 
+Loading weights:  63%|██████▎   | 184/291 [00:02<00:01, 97.03it/s]
+Loading weights:  67%|██████▋   | 195/291 [00:02<00:00, 97.82it/s]
+Loading weights:  73%|███████▎  | 211/291 [00:02<00:00, 102.35it/s]
+Loading weights:  76%|███████▋  | 222/291 [00:02<00:00, 99.34it/s] 
+Loading weights:  81%|████████  | 235/291 [00:02<00:00, 102.90it/s]
+Loading weights:  85%|████████▍ | 247/291 [00:02<00:00, 95.17it/s] 
+Loading weights:  90%|█████████ | 262/291 [00:03<00:00, 107.67it/s]
+Loading weights:  94%|█████████▍| 274/291 [00:03<00:00, 96.75it/s] 
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 89.13it/s]
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<01:44,  2.79it/s]
+Loading weights:   1%|          | 2/291 [00:00<01:00,  4.78it/s]
+Loading weights:   6%|▌         | 18/291 [00:00<00:05, 48.69it/s]
+Loading weights:   9%|▉         | 26/291 [00:00<00:04, 56.82it/s]
+Loading weights:  14%|█▎        | 40/291 [00:00<00:03, 69.28it/s]
+Loading weights:  20%|█▉        | 58/291 [00:00<00:02, 88.65it/s]
+Loading weights:  23%|██▎       | 68/291 [00:01<00:02, 88.21it/s]
+Loading weights:  28%|██▊       | 82/291 [00:01<00:02, 97.93it/s]
+Loading weights:  32%|███▏      | 94/291 [00:01<00:02, 93.64it/s]
+Loading weights:  37%|███▋      | 108/291 [00:01<00:01, 105.21it/s]
+Loading weights:  42%|████▏     | 121/291 [00:01<00:01, 96.09it/s] 
+Loading weights:  47%|████▋     | 136/291 [00:01<00:01, 108.85it/s]
+Loading weights:  51%|█████     | 148/291 [00:01<00:01, 103.83it/s]
+Loading weights:  55%|█████▍    | 159/291 [00:01<00:01, 95.01it/s] 
+Loading weights:  59%|█████▉    | 172/291 [00:02<00:01, 102.50it/s]
+Loading weights:  63%|██████▎   | 184/291 [00:02<00:01, 97.86it/s] 
+Loading weights:  67%|██████▋   | 195/291 [00:02<00:00, 96.72it/s]
+Loading weights:  72%|███████▏  | 209/291 [00:02<00:00, 104.09it/s]
+Loading weights:  76%|███████▌  | 220/291 [00:02<00:00, 99.90it/s] 
+Loading weights:  79%|███████▉  | 231/291 [00:02<00:00, 96.25it/s]
+Loading weights:  85%|████████▍ | 247/291 [00:02<00:00, 101.38it/s]
+Loading weights:  89%|████████▊ | 258/291 [00:02<00:00, 99.69it/s] 
+Loading weights:  93%|█████████▎| 271/291 [00:03<00:00, 106.02it/s]
+Loading weights:  97%|█████████▋| 283/291 [00:03<00:00, 97.13it/s] 
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 90.19it/s]
+The following generation flags are not valid and may be ignored: ['top_p']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+The attention mask is not set and cannot be inferred from input because pad token is same as eos token. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+
+Tasks     : ['passage_retrieval_en', 'qmsum', 'samsum']
+Budget    : 4096
+Max seq   : 7168
+Data dir  : lb_data_raw/data
+Checkpoint: lb_results_base/checkpoint.json
+
+=== Pass 1: base model (full, naive) ===
+Loading meta-llama/Llama-3.1-8B ...
+
+[Pass1] Task: passage_retrieval_en
+
+[Pass1] Task: qmsum
+
+[Pass1] Task: samsum
+
+=== Pass 2: pruned model ===
+Loading meta-llama/Llama-3.1-8B ...
+Patching 32 attention layers ...
+Model ready.
+
+[Pass2] Task: passage_retrieval_en
+  20/20 examples done
+
+[Pass2] Task: qmsum
+  20/20 examples done
+
+[Pass2] Task: samsum
+  20/20 examples done
+
+=== Ground-truth scoring ===
+
+==============================================================================================================================================
+Task                           N      full     naive   kq_only  kq_post_  kqpr_md0  kqpr_md0  naive_65    pruned    snapkv  streamin  vn_decay
+----------------------------------------------------------------------------------------------------------------------------------------------
+passage_retrieval_en         20     35.00     15.00     20.00     25.00     10.00     25.00     35.00     25.00     20.00     15.00     10.00
+qmsum                        20     10.67     14.74      8.50      8.63      7.34      7.65     11.26      7.05      8.88      4.33      7.58
+samsum                       20     16.06     16.00     16.53     18.82     17.80     20.05     16.84     14.71     18.11      5.54     18.09
+----------------------------------------------------------------------------------------------------------------------------------------------
+AVERAGE                              20.58     15.25     15.01     17.48     11.71     17.57     21.03     15.59     15.66      8.29     11.89
+==============================================================================================================================================
+
+Ground-truth results saved to lb_results_base/results.json
+
+Finished min_decay=0.7
+
+--- min_decay=0.5  label=kqpr_md0.5 ---
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<02:29,  1.94it/s]
+Loading weights:   7%|▋         | 19/291 [00:00<00:06, 40.37it/s]
+Loading weights:  11%|█         | 31/291 [00:00<00:04, 53.22it/s]
+Loading weights:  14%|█▍        | 41/291 [00:00<00:03, 62.92it/s]
+Loading weights:  18%|█▊        | 51/291 [00:00<00:03, 71.00it/s]
+Loading weights:  22%|██▏       | 64/291 [00:01<00:02, 85.40it/s]
+Loading weights:  26%|██▌       | 76/291 [00:01<00:02, 87.24it/s]
+Loading weights:  30%|██▉       | 87/291 [00:01<00:02, 86.45it/s]
+Loading weights:  35%|███▌      | 103/291 [00:01<00:02, 90.42it/s]
+Loading weights:  39%|███▉      | 113/291 [00:01<00:02, 88.81it/s]
+Loading weights:  45%|████▍     | 130/291 [00:01<00:01, 102.95it/s]
+Loading weights:  48%|████▊     | 141/291 [00:01<00:01, 99.39it/s] 
+Loading weights:  54%|█████▍    | 157/291 [00:02<00:01, 104.01it/s]
+Loading weights:  58%|█████▊    | 168/291 [00:02<00:01, 93.46it/s] 
+Loading weights:  63%|██████▎   | 184/291 [00:02<00:01, 97.07it/s]
+Loading weights:  67%|██████▋   | 194/291 [00:02<00:01, 95.91it/s]
+Loading weights:  73%|███████▎  | 211/291 [00:02<00:00, 103.21it/s]
+Loading weights:  76%|███████▋  | 222/291 [00:02<00:00, 100.33it/s]
+Loading weights:  81%|████████  | 235/291 [00:02<00:00, 105.70it/s]
+Loading weights:  85%|████████▍ | 247/291 [00:02<00:00, 106.11it/s]
+Loading weights:  89%|████████▊ | 258/291 [00:03<00:00, 93.62it/s] 
+Loading weights:  94%|█████████▍| 274/291 [00:03<00:00, 103.91it/s]
+Loading weights:  98%|█████████▊| 285/291 [00:03<00:00, 100.10it/s]
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 87.97it/s] 
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<01:43,  2.81it/s]
+Loading weights:   1%|          | 2/291 [00:00<01:00,  4.78it/s]
+Loading weights:   7%|▋         | 19/291 [00:00<00:05, 50.96it/s]
+Loading weights:  11%|█         | 31/291 [00:00<00:04, 62.22it/s]
+Loading weights:  14%|█▎        | 40/291 [00:00<00:03, 68.45it/s]
+Loading weights:  20%|█▉        | 58/291 [00:00<00:02, 87.55it/s]
+Loading weights:  23%|██▎       | 68/291 [00:01<00:02, 90.29it/s]
+Loading weights:  27%|██▋       | 78/291 [00:01<00:02, 90.78it/s]
+Loading weights:  32%|███▏      | 94/291 [00:01<00:01, 99.35it/s]
+Loading weights:  36%|███▌      | 105/291 [00:01<00:01, 94.70it/s]
+Loading weights:  40%|███▉      | 115/291 [00:01<00:01, 95.86it/s]
+Loading weights:  45%|████▍     | 130/291 [00:01<00:01, 103.64it/s]
+Loading weights:  48%|████▊     | 141/291 [00:01<00:01, 100.45it/s]
+Loading weights:  54%|█████▍    | 157/291 [00:01<00:01, 103.87it/s]
+Loading weights:  58%|█████▊    | 168/291 [00:02<00:01, 101.02it/s]
+Loading weights:  63%|██████▎   | 184/291 [00:02<00:01, 104.48it/s]
+Loading weights:  67%|██████▋   | 195/291 [00:02<00:00, 101.10it/s]
+Loading weights:  72%|███████▏  | 209/291 [00:02<00:00, 109.00it/s]
+Loading weights:  76%|███████▌  | 220/291 [00:02<00:00, 101.44it/s]
+Loading weights:  79%|███████▉  | 231/291 [00:02<00:00, 98.02it/s] 
+Loading weights:  85%|████████▍ | 247/291 [00:02<00:00, 103.45it/s]
+Loading weights:  89%|████████▊ | 258/291 [00:02<00:00, 99.62it/s] 
+Loading weights:  93%|█████████▎| 271/291 [00:03<00:00, 105.22it/s]
+Loading weights:  97%|█████████▋| 283/291 [00:03<00:00, 101.26it/s]
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 90.70it/s] 
+The following generation flags are not valid and may be ignored: ['top_p']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+The attention mask is not set and cannot be inferred from input because pad token is same as eos token. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+
+Tasks     : ['passage_retrieval_en', 'qmsum', 'samsum']
+Budget    : 4096
+Max seq   : 7168
+Data dir  : lb_data_raw/data
+Checkpoint: lb_results_base/checkpoint.json
+
+=== Pass 1: base model (full, naive) ===
+Loading meta-llama/Llama-3.1-8B ...
+
+[Pass1] Task: passage_retrieval_en
+
+[Pass1] Task: qmsum
+
+[Pass1] Task: samsum
+
+=== Pass 2: pruned model ===
+Loading meta-llama/Llama-3.1-8B ...
+Patching 32 attention layers ...
+Model ready.
+
+[Pass2] Task: passage_retrieval_en
+  20/20 examples done
+
+[Pass2] Task: qmsum
+  20/20 examples done
+
+[Pass2] Task: samsum
+  20/20 examples done
+
+=== Ground-truth scoring ===
+
+========================================================================================================================================================
+Task                           N      full     naive   kq_only  kq_post_  kqpr_md0  kqpr_md0  kqpr_md0  naive_65    pruned    snapkv  streamin  vn_decay
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+passage_retrieval_en         20     35.00     15.00     20.00     25.00      5.00     10.00     25.00     35.00     25.00     20.00     15.00     10.00
+qmsum                        20     10.67     14.74      8.50      8.63      6.87      7.34      7.65     11.26      7.05      8.88      4.33      7.58
+samsum                       20     16.06     16.00     16.53     18.82     13.68     17.80     20.05     16.84     14.71     18.11      5.54     18.09
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+AVERAGE                              20.58     15.25     15.01     17.48      8.52     11.71     17.57     21.03     15.59     15.66      8.29     11.89
+========================================================================================================================================================
+
+Ground-truth results saved to lb_results_base/results.json
+
+Finished min_decay=0.5
+
+================================================================
+Generation done.  Running perplexity faithfulness scoring...
+================================================================
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<02:23,  2.02it/s]
+Loading weights:   6%|▌         | 18/291 [00:00<00:06, 39.32it/s]
+Loading weights:  10%|▉         | 29/291 [00:00<00:04, 56.29it/s]
+Loading weights:  14%|█▎        | 40/291 [00:00<00:03, 64.56it/s]
+Loading weights:  17%|█▋        | 50/291 [00:00<00:03, 70.26it/s]
+Loading weights:  21%|██        | 60/291 [00:01<00:03, 76.96it/s]
+Loading weights:  26%|██▌       | 76/291 [00:01<00:02, 91.01it/s]
+Loading weights:  30%|██▉       | 87/291 [00:01<00:02, 91.88it/s]
+Loading weights:  35%|███▌      | 103/291 [00:01<00:01, 97.68it/s]
+Loading weights:  39%|███▉      | 114/291 [00:01<00:01, 91.03it/s]
+Loading weights:  45%|████▍     | 130/291 [00:01<00:01, 98.87it/s]
+Loading weights:  48%|████▊     | 141/291 [00:01<00:01, 97.74it/s]
+Loading weights:  53%|█████▎    | 154/291 [00:01<00:01, 104.84it/s]
+Loading weights:  57%|█████▋    | 166/291 [00:02<00:01, 99.01it/s] 
+Loading weights:  61%|██████    | 177/291 [00:02<00:01, 97.96it/s]
+Loading weights:  66%|██████▋   | 193/291 [00:02<00:00, 101.31it/s]
+Loading weights:  70%|███████   | 204/291 [00:02<00:00, 95.58it/s] 
+Loading weights:  75%|███████▍  | 217/291 [00:02<00:00, 102.95it/s]
+Loading weights:  79%|███████▊  | 229/291 [00:02<00:00, 94.91it/s] 
+Loading weights:  85%|████████▍ | 246/291 [00:02<00:00, 113.00it/s]
+Loading weights:  89%|████████▊ | 258/291 [00:03<00:00, 96.83it/s] 
+Loading weights:  94%|█████████▍| 274/291 [00:03<00:00, 97.78it/s]
+Loading weights:  98%|█████████▊| 285/291 [00:03<00:00, 100.02it/s]
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 88.73it/s] 
+
+Checkpoint : lb_results_base/checkpoint.json
+Output     : decay_screen_faith.json
+Tasks      : 3
+Perplexity : True
+Embedding  : False
+Resuming from existing output: {'perplexity': 5}
+
+Loading meta-llama/Llama-3.1-8B for perplexity scoring ...
+
+Perplexity faithfulness (forward passes only, no generation):
+  [passage_retrieval_en] n=0  (1/3)
+  [qmsum] n=95  (2/3)
+  [samsum] n=100  (3/3)
+
+================================================================================
+Perplexity faithfulness — exp(loss_full − loss_method) × 100
+  ≥100 = faithful approximation; <100 = diverges from full-context distribution
+================================================================================
+Task                          N    kq_only  kq_post_r  kqpr_md0.  kqpr_md0.  kqpr_md0.      naive  naive_65p     pruned     snapkv  streaming   vn_decay
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+passage_retrieval_en         0        nan        nan        nan        nan        nan        nan        nan        nan        nan        nan        nan
+qmsum                       95      105.4      106.8      113.1      112.3      109.3       76.4       92.8      108.1      102.6       97.7      113.7
+samsum                     100      112.0      121.1      116.1      132.0      120.8      104.3      102.6      119.2      119.9      109.4      117.7
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+AVERAGE                              108.7      113.9      114.6      122.1      115.0       90.4       97.7      113.6      111.2      103.5      115.7
+95% CI (±)                             4.3        4.1       12.4        9.9       10.5        4.7        3.2        4.1        4.3        6.3        3.7
+  lower                              104.4      110.2      102.4      113.8      105.9       86.1       94.6      109.9      107.3       97.3      112.1
+  upper                              112.9      118.4      127.1      133.6      126.9       95.5      100.9      118.0      116.0      109.9      119.5
+  † full-context ground-truth accuracy < 10%: model unreliable on this task
+
+Saved → decay_screen_faith.json
+
+
+================================================================
+Done.  Results in decay_screen_faith.json
+================================================================
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<04:09,  1.16it/s]
+Loading weights:   8%|▊         | 23/291 [00:00<00:08, 31.73it/s]
+Loading weights:  12%|█▏        | 35/291 [00:01<00:06, 41.31it/s]
+Loading weights:  16%|█▌        | 46/291 [00:01<00:04, 52.39it/s]
+Loading weights:  19%|█▉        | 56/291 [00:01<00:04, 58.26it/s]
+Loading weights:  22%|██▏       | 65/291 [00:01<00:03, 63.10it/s]
+Loading weights:  25%|██▌       | 74/291 [00:01<00:03, 64.49it/s]
+Loading weights:  29%|██▊       | 83/291 [00:01<00:03, 66.63it/s]
+Loading weights:  31%|███▏      | 91/291 [00:01<00:03, 66.59it/s]
+Loading weights:  34%|███▍      | 99/291 [00:02<00:02, 66.08it/s]
+Loading weights:  37%|███▋      | 107/291 [00:02<00:02, 64.59it/s]
+Loading weights:  39%|███▉      | 114/291 [00:02<00:02, 62.11it/s]
+Loading weights:  42%|████▏     | 122/291 [00:02<00:02, 62.80it/s]
+Loading weights:  45%|████▌     | 131/291 [00:02<00:02, 65.76it/s]
+Loading weights:  48%|████▊     | 140/291 [00:02<00:02, 69.65it/s]
+Loading weights:  51%|█████     | 148/291 [00:02<00:02, 69.26it/s]
+Loading weights:  54%|█████▍    | 157/291 [00:02<00:01, 69.44it/s]
+Loading weights:  57%|█████▋    | 166/291 [00:02<00:01, 68.91it/s]
+Loading weights:  60%|██████    | 175/291 [00:03<00:01, 71.84it/s]
+Loading weights:  63%|██████▎   | 184/291 [00:03<00:01, 71.45it/s]
+Loading weights:  66%|██████▋   | 193/291 [00:03<00:01, 70.20it/s]
+Loading weights:  69%|██████▉   | 202/291 [00:03<00:01, 70.32it/s]
+Loading weights:  73%|███████▎  | 211/291 [00:03<00:01, 69.97it/s]
+Loading weights:  76%|███████▌  | 220/291 [00:03<00:00, 71.92it/s]
+Loading weights:  79%|███████▊  | 229/291 [00:03<00:00, 70.71it/s]
+Loading weights:  82%|████████▏ | 238/291 [00:04<00:00, 66.64it/s]
+Loading weights:  85%|████████▍ | 247/291 [00:04<00:00, 71.90it/s]
+Loading weights:  88%|████████▊ | 256/291 [00:04<00:00, 70.09it/s]
+Loading weights:  91%|█████████ | 265/291 [00:04<00:00, 71.25it/s]
+Loading weights:  94%|█████████▍| 274/291 [00:04<00:00, 73.10it/s]
+Loading weights:  97%|█████████▋| 283/291 [00:04<00:00, 71.29it/s]
+Loading weights: 100%|██████████| 291/291 [00:04<00:00, 62.33it/s]
+
+Checkpoint : lb_results_base/checkpoint.json
+Output     : decay_screen_faith.json
+Tasks      : 3
+Perplexity : True
+Embedding  : False
+Resuming from existing output: {'perplexity': 7}
+
+Loading meta-llama/Llama-3.1-8B for perplexity scoring ...
+
+Perplexity faithfulness (forward passes only, no generation):
+  [passage_retrieval_en] n=0  (1/3)
+  [qmsum] SKIP (already done)  (2/3)
+  [samsum] SKIP (already done)  (3/3)
+
+================================================================================
+Perplexity faithfulness — exp(loss_full − loss_method) × 100
+  ≥100 = faithful approximation; <100 = diverges from full-context distribution
+================================================================================
+Task                          N    kq_only  kq_post_r  kqpr_md0.  kqpr_md0.  kqpr_md0.      naive  naive_65p     pruned     snapkv  streaming   vn_decay
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+passage_retrieval_en         0        nan        nan        nan        nan        nan        nan        nan        nan        nan        nan        nan
+qmsum                       95      105.4      106.8      113.1      112.3      109.3       76.4       92.8      108.1      102.6       97.7      113.7
+samsum                     100      112.0      121.1      116.1      132.0      120.8      104.3      102.6      119.2      119.9      109.4      117.7
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+AVERAGE                              108.7      113.9      114.6      122.1      115.0       90.4       97.7      113.6      111.2      103.5      115.7
+95% CI (±)                             4.0        4.1       11.7        9.7       10.8        4.7        3.2        4.1        4.2        6.3        3.7
+  lower                              104.8      110.1      103.3      114.1      105.3       86.0       94.7      109.6      107.3       97.6      112.0
+  upper                              112.8      118.3      126.7      133.5      126.8       95.5      101.2      117.9      115.7      110.1      119.5
+  † full-context ground-truth accuracy < 10%: model unreliable on this task
+
+Saved → decay_screen_faith.json
+
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<01:18,  3.71it/s]
+Loading weights:   1%|          | 2/291 [00:00<00:51,  5.64it/s]
+Loading weights:   7%|▋         | 19/291 [00:00<00:04, 56.93it/s]
+Loading weights:  11%|█         | 31/291 [00:00<00:03, 69.86it/s]
+Loading weights:  14%|█▎        | 40/291 [00:00<00:03, 75.37it/s]
+Loading weights:  17%|█▋        | 49/291 [00:00<00:03, 78.10it/s]
+Loading weights:  20%|██        | 59/291 [00:00<00:02, 83.62it/s]
+Loading weights:  25%|██▌       | 73/291 [00:01<00:02, 97.09it/s]
+Loading weights:  29%|██▉       | 84/291 [00:01<00:02, 97.14it/s]
+Loading weights:  32%|███▏      | 94/291 [00:01<00:02, 87.86it/s]
+Loading weights:  36%|███▌      | 105/291 [00:01<00:02, 91.30it/s]
+Loading weights:  42%|████▏     | 121/291 [00:01<00:01, 98.02it/s]
+Loading weights:  45%|████▌     | 131/291 [00:01<00:01, 93.60it/s]
+Loading weights:  50%|████▉     | 145/291 [00:01<00:01, 103.79it/s]
+Loading weights:  54%|█████▍    | 157/291 [00:01<00:01, 95.09it/s] 
+Loading weights:  58%|█████▊    | 168/291 [00:02<00:01, 98.69it/s]
+Loading weights:  63%|██████▎   | 184/291 [00:02<00:01, 98.95it/s]
+Loading weights:  68%|██████▊   | 198/291 [00:02<00:00, 108.94it/s]
+Loading weights:  72%|███████▏  | 210/291 [00:02<00:00, 111.33it/s]
+Loading weights:  76%|███████▋  | 222/291 [00:02<00:00, 94.65it/s] 
+Loading weights:  81%|████████▏ | 237/291 [00:02<00:00, 105.59it/s]
+Loading weights:  86%|████████▌ | 249/291 [00:02<00:00, 96.11it/s] 
+Loading weights:  91%|█████████ | 265/291 [00:02<00:00, 97.99it/s]
+Loading weights:  95%|█████████▍| 276/291 [00:03<00:00, 99.14it/s]
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 91.26it/s]
+
+Checkpoint : lb_results_base/checkpoint.json
+Output     : decay_screen_faith.json
+Tasks      : 3
+Perplexity : True
+Embedding  : False
+Resuming from existing output: {'perplexity': 7}
+
+Loading meta-llama/Llama-3.1-8B for perplexity scoring ...
+
+Perplexity faithfulness (forward passes only, no generation):
+  [passage_retrieval_en] n=100  (1/3)
+  [qmsum] SKIP (already done)  (2/3)
+  [samsum] SKIP (already done)  (3/3)
+
+================================================================================
+Perplexity faithfulness — exp(loss_full − loss_method) × 100
+  ≥100 = faithful approximation; <100 = diverges from full-context distribution
+================================================================================
+Task                          N    kq_only  kq_post_r  kqpr_md0.  kqpr_md0.  kqpr_md0.      naive  naive_65p     pruned     snapkv  streaming   vn_decay
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+passage_retrieval_en       100      104.4      107.5      113.6      108.4      103.6        8.3       89.1      107.7      103.3       60.2      104.5
+qmsum                       95      105.4      106.8      113.1      112.3      109.3       76.4       92.8      108.1      102.6       97.7      113.7
+samsum                     100      112.0      121.1      116.1      132.0      120.8      104.3      102.6      119.2      119.9      109.4      117.7
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+AVERAGE                              107.3      111.8      114.3      117.6      111.2       63.0       94.8      111.7      108.6       89.1      111.9
+95% CI (±)                             3.3        3.3        9.4        8.2        8.9        5.6        3.0        3.3        3.3        5.3        3.5
+  lower                              104.2      108.7      104.8      110.1      102.5       57.2       91.9      108.4      105.5       83.6      108.4
+  upper                              110.8      115.2      123.6      126.6      120.3       68.4       97.8      115.0      112.1       94.1      115.4
+  † full-context ground-truth accuracy < 10%: model unreliable on this task
+
+Saved → decay_screen_faith.json
+

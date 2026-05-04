@@ -1,0 +1,82 @@
+{
+  "results": {
+    "passage_retrieval_en": {
+      "full": 13.333333333333334,
+      "additive": 16.666666666666664,
+      "kstd_adaptive": 16.666666666666664
+    },
+    "hotpotqa": {
+      "full": 9.653370727360048,
+      "additive": 8.653097054672584,
+      "kstd_adaptive": 8.638667040242568
+    },
+    "2wikimqa": {
+      "full": 16.018654341470565,
+      "additive": 15.944580267396491,
+      "kstd_adaptive": 16.018654341470565
+    },
+    "gov_report": {
+      "full": 17.04700008549874,
+      "additive": 16.886265556198932,
+      "kstd_adaptive": 16.75985976908552
+    },
+    "qmsum": {
+      "full": 13.778101929264233,
+      "additive": 12.39942137835663,
+      "kstd_adaptive": 12.741495271085665
+    },
+    "lcc": {
+      "full": 25.89874785418571,
+      "additive": 25.768993965413134,
+      "kstd_adaptive": 24.47257332495106
+    }
+  },
+  "timings": {
+    "passage_retrieval_en": {
+      "full": 185.88101720809937,
+      "additive": 216.39783549308777,
+      "kstd_adaptive": 218.4146909713745
+    },
+    "hotpotqa": {
+      "full": 254.69950604438782,
+      "additive": 244.57221388816833,
+      "kstd_adaptive": 247.67600798606873
+    },
+    "2wikimqa": {
+      "full": 235.75038743019104,
+      "additive": 221.20904064178467,
+      "kstd_adaptive": 223.31559109687805
+    },
+    "gov_report": {
+      "full": 897.0101020336151,
+      "additive": 733.2203376293182,
+      "kstd_adaptive": 734.4997444152832
+    },
+    "qmsum": {
+      "full": 856.7429938316345,
+      "additive": 739.0207166671753,
+      "kstd_adaptive": 720.6531796455383
+    },
+    "lcc": {
+      "full": 155.96942281723022,
+      "additive": 146.91125750541687,
+      "kstd_adaptive": 148.71382427215576
+    }
+  },
+  "args": {
+    "model": "meta-llama/Llama-3.1-8B",
+    "tasks": "passage_retrieval_en,hotpotqa,2wikimqa,gov_report,qmsum,lcc",
+    "max_examples": 30,
+    "compression_ratio": 0.35,
+    "score_alpha": 0.65,
+    "min_decay": 0.7,
+    "q_buffer_size": 128,
+    "always_keep_first": 16,
+    "always_keep_last": 16,
+    "max_seq_len": 6144,
+    "device": "cuda",
+    "data_dir": "lb_data_raw/data",
+    "output": "kvpress_benchmark_kstd.json",
+    "only_presses": "full,additive,kstd_adaptive"
+  }
+}

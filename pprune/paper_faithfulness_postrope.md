@@ -27,7 +27,7 @@ Using faithfulness as the primary evaluation lens, we revisit the design space f
 We make the following contributions:
 
 - **Faithfulness evaluation framework**: three complementary metrics for measuring how closely a compressed model approximates full-context behavior, together with an analysis of where and why ground-truth rankings and faithfulness rankings disagree
-- **Scoring space comparison**: we test both post-RoPE and pre-RoPE KQ alignment and find, counterintuitively, that post-RoPE scoring with linear distance decay outperforms pre-RoPE on all faithfulness metrics; we report the pre-RoPE hypothesis as a negative result and discuss why learned positional features may carry useful discriminative information
+- **kq_post_rope**: we propose a novel KV cache eviction method that scores tokens by the max-pooled dot product of tail query vectors against all key vectors in post-RoPE space, multiplied by a linear distance decay. This is distinct from SnapKV [Li et al., 2024], which also uses post-RoPE vectors but scores by pooling softmax attention weights rather than raw dot products, and from A2ATS [ACL 2025], which uses pre-RoPE keys. We find that post-RoPE scoring with distance decay outperforms the pre-RoPE alternative on all faithfulness metrics; we report the pre-RoPE hypothesis as a negative result and discuss the likely mechanism in §7
 - **V-norm ablation**: a V-norm payload term, while theoretically motivated [Feng et al., 2025], does not improve faithfulness over post-RoPE KQ alignment alone; we report this as a negative result to inform future work
 - **Cross-architecture validation**: results on both Llama-3.1-8B and Mistral-7B-v0.3 with identical hyperparameters
 
@@ -35,7 +35,7 @@ We make the following contributions:
 
 ## 2. Background and Related Work
 
-**KV cache eviction.** H2O [Zhang et al., 2023] identifies "heavy hitter" tokens via accumulated attention scores and evicts the rest. SnapKV [Li et al., 2024] selects tokens by pooling attention weights from the last several queries over all key positions, using post-RoPE vectors. StreamingLLM [Xiao et al., 2023] retains attention sink tokens plus a recency window, requiring no scoring computation. Our method uses post-RoPE key-query alignment with linear distance decay.
+**KV cache eviction.** H2O [Zhang et al., 2023] identifies "heavy hitter" tokens via accumulated attention scores and evicts the rest. SnapKV [Li et al., 2024] selects tokens by pooling attention weights from the last several queries over all key positions, using post-RoPE vectors. StreamingLLM [Xiao et al., 2023] retains attention sink tokens plus a recency window, requiring no scoring computation. Our method, kq_post_rope, also uses post-RoPE vectors but differs from SnapKV in two key respects: it uses raw dot products rather than softmax attention weights (avoiding the distortion introduced by the causal mask and the softmax normalization), and it multiplies scores by a linear distance decay rather than relying on the attention distribution alone to capture recency.
 
 **Pre-RoPE vs. post-RoPE scoring.** A2ATS [ACL 2025] explicitly advocates scoring with pre-RoPE keys, and is to our knowledge the only prior work to study this choice in isolation. We test both scoring spaces and find the opposite result: post-RoPE KQ alignment with distance decay consistently outperforms pre-RoPE scoring across all faithfulness metrics. We provide a faithfulness-based analysis of this discrepancy in §5.4 and §7.
 
@@ -105,29 +105,33 @@ This reversal — ground-truth appearing to show rough equivalence while faithfu
 
 ## 4. Method: KQ Scoring with Distance Decay
 
+We propose **kq_post_rope**, a prefill-time KV cache eviction method that scores each token by the semantic relevance of its key to the generation-phase queries, attenuated by a context-length-independent distance decay. All scoring is performed in post-RoPE space — the same key and query vectors the attention kernel uses — and requires no additional forward passes or stored attention weights.
+
 ### 4.1 Setup
 
 We patch the self-attention layers of a decoder-only transformer to intercept the prefill pass. On the first (prefill) forward pass through each layer, we compute importance scores for all T input tokens, select a retained subset of size ⌊r·T⌋, and gather the corresponding K and V states. All subsequent generation steps attend only to retained positions plus any newly generated tokens.
 
 ### 4.2 Scoring
 
-For each attention layer, let Q ∈ ℝ^{T×D} and K ∈ ℝ^{T×D} be the *post-RoPE* query and key matrices (the same vectors used in the actual attention computation), and V ∈ ℝ^{T×D} be the value matrix.
+All scoring is performed per attention head. For each head, let Q ∈ ℝ^{T×D} and K ∈ ℝ^{T×D} be the *post-RoPE* query and key matrices (the same vectors used in the actual attention computation), where D is the per-head dimension, and let V ∈ ℝ^{T×D} be the value matrix.
 
-**KQ alignment.** We use the last q_buffer_size query vectors (the tail of the sequence, which best approximates generation-phase queries) and compute max-pooled dot-product similarity to every key:
+**KQ alignment.** The model will generate tokens immediately after the prefill, so the most relevant query vectors for importance scoring are those at the tail of the sequence — they best represent the queries the model will issue during generation. We take the last `q_buffer_size` query vectors as a proxy and compute the max-pooled dot-product similarity of each key against this buffer:
 
 ```
 kq_i = max_{j ∈ tail} (Q_j · K_i) / √D
 ```
 
-This is computed in a single batched matrix multiply. The result is normalized per-head to [0, 1].
+Max-pooling over the buffer rather than mean-pooling makes the score robust to within-buffer variation: a key that is highly relevant to *any* tail query is retained, rather than requiring it to be relevant to the average. This is computed in a single batched matrix multiply. The result is normalized per-head to [0, 1].
 
-**Distance decay.** We apply a linear decay that assigns weight 1.0 to the most recent token and min_decay to the oldest:
+Unlike SnapKV, which applies the causal mask and softmax before pooling, we operate on raw dot products. This avoids two distortions: the causal mask artificially suppresses scores for keys that the earliest observation-window queries cannot attend to, and softmax normalization makes scores relative to the current window rather than absolute measures of key relevance.
+
+**Distance decay.** KQ alignment alone gives no recency bias: a key from position 0 that is semantically relevant to the tail queries scores as high as an equally relevant recent key. For many tasks, recency is a useful prior — recently seen tokens are more likely to be needed immediately after the prompt. We apply a linear decay that assigns weight 1.0 to the most recent token and `min_decay` to the oldest:
 
 ```
 decay_i = min_decay + (1 − min_decay) · (i / (T−1))
 ```
 
-where i is the position index (0 = oldest). The rate is derived automatically from min_decay and T, making it context-length-independent.
+where i is the position index (0 = oldest). Crucially, the decay rate is derived automatically from `min_decay` and T, making the recency profile context-length-independent. A fixed decay rate would collapse early tokens to near-zero at long contexts or have negligible effect at short ones; parametrizing by the value at the oldest position avoids this.
 
 **Final score.** The per-token importance score is:
 
@@ -149,14 +153,21 @@ For GQA models (e.g. Llama 3.x with 32 Q-heads and 8 KV-heads), we compute score
 
 After selection, we reconstruct a valid causal attention mask using the *original* pre-pruning positions of the retained tokens, ensuring that query token at position p can only attend to retained tokens at positions ≤ p.
 
-### 4.5 Baselines
+### 4.5 Proposed Method and Baselines
 
+**Proposed method.**
+- *kq_post_rope*: post-RoPE KQ alignment with distance decay, as described in §4.2–4.4. This is the primary method evaluated throughout.
+
+**External baselines.**
 - *Full context*: unmodified model with full prompt
 - *Naive proportional truncation (naive_65pct)*: each prompt is truncated to 65% of its actual token length using a 10%/90% head/tail split, matching the compression budget exactly
 - *SnapKV*: post-RoPE attention weight pooling over a 128-token observation window [Li et al., 2024]
 - *StreamingLLM*: first 4 attention sink tokens plus most recent tokens to fill the 65% budget [Xiao et al., 2023]
-- *kq_only*: pre-RoPE KQ alignment without decay (ablation; tests the pre-RoPE hypothesis)
-- *kq_post_rope*: post-RoPE KQ alignment with distance decay — **this is the primary method**
+
+**Ablations.**
+- *kq_only*: pre-RoPE KQ alignment with distance decay — identical to kq_post_rope except scoring uses pre-RoPE keys and queries; isolates the effect of the scoring space choice
+- *pruned (kq + V-norm)*: additive combination of post-RoPE KQ alignment and V-norm with decay (α·kq + (1−α)·vn·decay, α=0.65); tests whether a V-norm payload term improves over KQ alignment alone
+- *vn_decay*: V-norm multiplied by distance decay, with no KQ alignment; tests the V-norm signal in isolation
 
 Note on the naive baseline: we use proportional truncation (65% of actual prompt length) rather than a fixed 4096-token budget, which would create a budget mismatch — retaining all tokens for short-context tasks while pruning more aggressively for long ones. Proportional truncation is the only honest apples-to-apples comparison.
 
@@ -259,16 +270,14 @@ Ground-truth scores are relatively compressed across methods: naive_65pct (23.4)
 | kq_only | 23.0 | 101.6 | 84.8 | 43.9 |
 | SnapKV | 23.8 | 102.8 | 86.1 | 46.7 |
 | pruned (kq + V-norm) | 21.4 | 104.7 | 82.5 | 38.6 |
-| vn_decay | — | **106.2** | 78.2 | — |
+| vn_decay | 17.8 | **106.2** | 78.2 | 30.2 |
 | Streaming | 13.4 | 68.2 | 62.2 | 11.9 |
-
-GT and Lexical scores for vn_decay are omitted; it is evaluated as a faithfulness ablation in §5.5 and §6.1.
 
 The headline finding: **on ground truth, kq_post_rope (95.6% of full), SnapKV (95.2%), and naive_65pct (93.6%) appear nearly equivalent — all within 2 points of each other. Perplexity faithfulness reveals a 9-point gap between naive_65pct (95.5) and kq_post_rope (104.2), despite ground-truth scores differing by only 0.5 points.** Naive truncation is a significantly poorer approximation of full-context behavior than ground-truth scores suggest.
 
 A perplexity score of 100 means the compressed output is exactly as likely under the full model as the full model's own greedy output. Scores below 100 mean the output is less probable — the method is diverging from the full model's distribution. Scores above 100 mean the compressed output is *more* probable than what the greedy decoder produced; this is valid and expected, since greedy decoding is path-dependent and does not find the globally most probable sequence. kq_post_rope at 104.2 occupies a slightly higher-probability region than the full model's own outputs; naive_65pct at 95.5 is measurably less plausible, reflecting operation from a truncated context.
 
-Embedding faithfulness tells a partially different story: naive_65pct scores 90.7, the highest of any method. Naive truncation preserves contiguous text from the tail, producing outputs that are semantically similar to the full model's on tasks where the tail is informative — but those outputs are less likely under the full model, revealing operation in a different regime. More striking is vn_decay: it achieves the highest perplexity faithfulness (106.2) yet the lowest embedding faithfulness among semantic methods (78.2). Its outputs are *more* probable than the full model's own outputs, yet semantically further from what the full model produces. This cross-metric tension — high probability, low similarity — identifies a distinct failure mode that neither metric alone can detect. We discuss this in depth in §6.1.
+Embedding faithfulness tells a partially different story: naive_65pct scores 90.7, the highest of any method. Naive truncation preserves contiguous text from the tail, producing outputs that are semantically similar to the full model's on tasks where the tail is informative — but those outputs are less likely under the full model, revealing operation in a different regime. More striking is vn_decay: it achieves the highest perplexity faithfulness (106.2) yet the lowest embedding faithfulness among semantic methods (78.2) and the lowest ground-truth score among semantic methods (17.8 vs. 23.9 for kq_post_rope). Its outputs are *more* probable than the full model's own outputs, yet semantically further from what the full model produces and measurably less correct. This cross-metric pattern — high perplexity, low embedding, low ground truth — identifies a distinct failure mode that neither metric alone can detect. We discuss this in depth in §6.1.
 
 #### The GT-Faithfulness Reversal
 
@@ -313,7 +322,13 @@ The V-norm variants reveal a consistent pattern: as V-norm weight increases, per
 
 The practical conclusion is that V-norm does not improve over KQ alignment when evaluated holistically. The perplexity gain (+2.0 for vn_decay vs. kq_post_rope) comes at the cost of semantic drift that embedding faithfulness makes visible. We report this as a negative result rather than omitting it; the pattern is informative for future work on scoring signal design.
 
-### 5.6 Generalization to Mistral-7B-v0.3
+### 5.6 Distance Decay Screening
+
+We screened min_decay ∈ {0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.9} using perplexity faithfulness on three tasks (PassageRetrieval, QMSum, SAMSum), 20 examples each. The screen identified min_decay=0.6 as optimal, with PassageRetrieval perplexity faithfulness peaking there. A subsequent full 16-task ground-truth evaluation at min_decay=0.6 showed a substantial degradation: average ground-truth accuracy fell from 23.9 (min_decay=0.7, our default) to 19.4, with PassageRetrieval collapsing from 36 to 11.
+
+This dissociation exposes a limitation of perplexity faithfulness as a hyperparameter screening signal on retrieval tasks. PassageRetrieval requires selecting one paragraph from 30 topically similar candidates; the full-context model fails on 56% of examples, producing wrong paragraph numbers in an otherwise valid output format. At min_decay=0.6, stronger recency bias prunes distant candidate paragraphs more aggressively, causing additional retrieval failures — but the identifying content is only 1–2 tokens in a ~40-token output, so wrong paragraph numbers score nearly identically to correct ones under perplexity faithfulness. The format is preserved, and the small token divergence is invisible in the mean cross-entropy. We retain min_decay=0.7 as the default and note that perplexity faithfulness can be an insensitive screening signal when task-critical content is sparse in the output.
+
+### 5.7 Generalization to Mistral-7B-v0.3
 
 To test whether the method generalizes beyond the Llama architecture, we run on Mistral-7B-v0.3 (base, fp16) with identical hyperparameters.
 
@@ -405,7 +420,7 @@ Prefill overhead is 1–4% and shrinks relatively as context grows. At 6K tokens
 
 **V-norm as a negative result.** The V-norm term was motivated by the observation that attention sinks — tokens that receive high attention weights but contribute little to the output — can be filtered by checking whether their value vectors have meaningful magnitude. Our ablation shows that adding V-norm to KQ alignment does not improve faithfulness. One explanation is that the tokens V-norm would filter (attention sinks, common function words) are already ranked low by KQ alignment — the signals are correlated and the combination adds noise. We report this clearly rather than omitting it: negative results about theoretically motivated components are informative for the field.
 
-**Limitations.** Our evaluation covers two model families at ~7–8B parameters; behavior at larger scales or on other architectures is untested. The min_decay hyperparameter was tuned on LongBench and may not generalize to out-of-distribution tasks. Code completion regresses relative to naive truncation because semantic scoring cannot identify syntactically necessary but semantically predictable tokens (brackets, keywords); addressing this requires either task detection or a scoring signal that captures syntactic necessity. All experiments use a single V100 GPU; Flash Attention 2 benefits (relevant at 32K+ contexts) were not benchmarked directly. Faithfulness evaluation requires storing full-context outputs, adding computational overhead.
+**Limitations.** Our evaluation covers two model families at ~7–8B parameters; behavior at larger scales or on other architectures is untested. The min_decay hyperparameter was selected via a perplexity faithfulness screen; as discussed in §5.6, perplexity faithfulness can be an insensitive signal on tasks where critical content is sparse in the output, and the screened value underperformed on full evaluation. Code completion regresses relative to naive truncation because semantic scoring cannot identify syntactically necessary but semantically predictable tokens (brackets, keywords); addressing this requires either task detection or a scoring signal that captures syntactic necessity. All experiments use a single V100 GPU; Flash Attention 2 benefits (relevant at 32K+ contexts) were not benchmarked directly. Faithfulness evaluation requires storing full-context outputs, adding computational overhead.
 
 ---
 

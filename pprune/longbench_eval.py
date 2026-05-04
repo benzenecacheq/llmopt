@@ -426,7 +426,7 @@ def run_pass(
 ):
     """Run inference for the given methods/tasks using the already-loaded model."""
     for task in tasks:
-        print(f"\n[{pass_name}] Task: {task}")
+        print(f"\n[{pass_name}] Task: {task}", flush=True)
         dataset = load_task(task, data_dir)
         max_new_tokens = DATASET2MAXLEN[task]
 
@@ -457,7 +457,7 @@ def run_pass(
                 try:
                     pred = generate(model, tokenizer, p, max_new_tokens, max_seq_len, device)
                 except Exception as e:
-                    print(f"  WARNING: {task}[{idx}] {method} failed: {e}")
+                    print(f"  WARNING: {task}[{idx}] {method} failed: {e}", flush=True)
                     pred = ""
 
                 ckpt[key] = {"prediction": pred, "answers": example["answers"]}
@@ -465,7 +465,7 @@ def run_pass(
 
             done += 1
             if done % 20 == 0 or done == n:
-                print(f"  {done}/{n} examples done")
+                print(f"  {done}/{n} examples done", flush=True)
 
 
 # ---------------------------------------------------------------------------

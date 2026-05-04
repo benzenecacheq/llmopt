@@ -1,0 +1,250 @@
+================================================================
+full_eval_md06: kq_post_rope min_decay=0.6, all 16 tasks
+Model  : meta-llama/Llama-3.1-8B
+Label  : kqpr_md0.6
+Output : lb_results_base
+================================================================
+Tasks     : ['narrativeqa', 'qasper', 'multifieldqa_en', 'hotpotqa', '2wikimqa', 'musique', 'gov_report', 'qmsum', 'multi_news', 'trec', 'triviaqa', 'samsum', 'passage_count', 'passage_retrieval_en', 'lcc', 'repobench-p']
+Budget    : 4096
+Max seq   : 7168
+Data dir  : lb_data_raw/data
+Checkpoint: lb_results_base/checkpoint.json
+
+=== Pass 1: base model (full, naive) ===
+Loading meta-llama/Llama-3.1-8B ...
+
+[Pass1] Task: narrativeqa
+
+[Pass1] Task: qasper
+
+[Pass1] Task: multifieldqa_en
+
+[Pass1] Task: hotpotqa
+
+[Pass1] Task: 2wikimqa
+
+[Pass1] Task: musique
+
+[Pass1] Task: gov_report
+
+[Pass1] Task: qmsum
+
+[Pass1] Task: multi_news
+
+[Pass1] Task: trec
+
+[Pass1] Task: triviaqa
+
+[Pass1] Task: samsum
+
+[Pass1] Task: passage_count
+
+[Pass1] Task: passage_retrieval_en
+
+[Pass1] Task: lcc
+
+[Pass1] Task: repobench-p
+
+=== Pass 2: pruned model ===
+Loading meta-llama/Llama-3.1-8B ...
+Patching 32 attention layers ...
+Model ready.
+
+[Pass2] Task: narrativeqa
+  20/100 examples done
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: qasper
+  20/100 examples done
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: multifieldqa_en
+  20/100 examples done
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: hotpotqa
+  20/100 examples done
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: 2wikimqa
+  20/100 examples done
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: musique
+  20/100 examples done
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: gov_report
+  20/100 examples done
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: qmsum
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: multi_news
+  20/100 examples done
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: trec
+  20/100 examples done
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: triviaqa
+  20/100 examples done
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: samsum
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: passage_count
+  20/100 examples done
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: passage_retrieval_en
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: lcc
+  20/100 examples done
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+[Pass2] Task: repobench-p
+  20/100 examples done
+  40/100 examples done
+  60/100 examples done
+  80/100 examples done
+  100/100 examples done
+
+=== Ground-truth scoring ===
+
+==========================================================================================================================================================================================================
+Task                           N      full     naive   kq_only  kq_post_  kqpr_md0  kqpr_md0  kqpr_md0  kqpr_md0  kqpr_md0  kqpr_md0  kqpr_md0  kqpr_md0  naive_65    pruned    snapkv  streamin  vn_decay
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+narrativeqa                 100      5.48     19.47      5.71      5.69       nan       nan      8.35       nan       nan       nan       nan       nan      4.86      3.13      4.96      6.59      2.73
+qasper                      100     11.10     11.44     11.71      9.49       nan       nan      8.76       nan       nan       nan       nan       nan     10.24     10.12     11.05      8.44      7.81
+multifieldqa_en             100     28.90     28.50     25.28     29.35       nan       nan     19.69       nan       nan       nan       nan       nan     26.98     27.12     28.38     15.84     20.04
+hotpotqa                    100      9.94     10.94      8.56     10.08       nan       nan      7.20       nan       nan       nan       nan       nan      9.59      9.86      9.59     11.37      6.01
+2wikimqa                    100     14.07     14.15     12.42     12.08       nan       nan      9.32       nan       nan       nan       nan       nan     12.57     11.30     13.88     12.93     10.43
+musique                     100      6.89      6.73      5.58      6.13       nan       nan      4.48       nan       nan       nan       nan       nan      6.97      5.11      5.97      4.49      3.09
+gov_report                  100     20.36     20.15     18.94     19.15       nan       nan     18.12       nan       nan       nan       nan       nan     19.77     17.51     19.86      5.16     17.08
+qmsum                       100     10.31     14.64      8.63      9.00      6.87      6.39      7.91      8.12      7.34      6.82      7.56      7.65     11.52      8.07      9.66      3.50      7.11
+multi_news                  100     19.02     18.93     17.76     18.37       nan       nan     14.53       nan       nan       nan       nan       nan     16.53     16.73     18.89      7.48     14.84
+trec                        100     70.00     71.00     68.00     70.00       nan       nan     61.00       nan       nan       nan       nan       nan     66.00     65.00     66.00     50.00     49.00
+triviaqa                    100     17.44     17.76     16.96     18.30       nan       nan     16.73       nan       nan       nan       nan       nan     17.34     17.66     17.56     35.89     17.62
+samsum                      100     16.00     16.38     15.77     18.33     13.68     16.98     16.60     16.83     17.80     18.10     17.80     20.05     16.53     15.56     17.53      6.44     16.37
+passage_count               100      3.00      1.00      2.00      3.00       nan       nan      1.00       nan       nan       nan       nan       nan      1.00      2.00      3.00      2.00      1.00
+passage_retrieval_en        100     44.00     18.00     38.00     36.00      5.00     10.00     11.00     10.00     10.00      5.00     10.00     25.00     37.00     27.00     37.00     20.00      9.00
+lcc                         100     68.14     66.45     59.70     64.07       nan       nan     57.45       nan       nan       nan       nan       nan     63.40     57.37     63.18     17.81     52.19
+repobench-p                 100     55.57     54.66     52.12     54.05       nan       nan     47.56       nan       nan       nan       nan       nan     53.94     48.97     53.43      6.33     50.89
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+AVERAGE                              25.01     24.39     22.95     23.94      8.52     11.12     19.36     11.65     11.71      9.98     11.79     17.57     23.39     21.41     23.75     13.39     17.83
+==========================================================================================================================================================================================================
+
+Ground-truth results saved to lb_results_base/results.json
+
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<02:20,  2.07it/s]
+Loading weights:   7%|▋         | 19/291 [00:00<00:06, 39.55it/s]
+Loading weights:  11%|█         | 31/291 [00:00<00:04, 56.87it/s]
+Loading weights:  14%|█▍        | 41/291 [00:00<00:03, 64.42it/s]
+Loading weights:  18%|█▊        | 51/291 [00:00<00:03, 71.84it/s]
+Loading weights:  23%|██▎       | 66/291 [00:01<00:02, 90.96it/s]
+Loading weights:  26%|██▋       | 77/291 [00:01<00:02, 81.13it/s]
+Loading weights:  31%|███▏      | 91/291 [00:01<00:02, 94.97it/s]
+Loading weights:  35%|███▌      | 102/291 [00:01<00:01, 96.63it/s]
+Loading weights:  39%|███▉      | 113/291 [00:01<00:02, 85.42it/s]
+Loading weights:  45%|████▍     | 130/291 [00:01<00:01, 96.64it/s]
+Loading weights:  48%|████▊     | 141/291 [00:01<00:01, 93.71it/s]
+Loading weights:  53%|█████▎    | 154/291 [00:01<00:01, 101.60it/s]
+Loading weights:  57%|█████▋    | 166/291 [00:02<00:01, 98.06it/s] 
+Loading weights:  61%|██████    | 177/291 [00:02<00:01, 96.41it/s]
+Loading weights:  66%|██████▌   | 192/291 [00:02<00:00, 107.98it/s]
+Loading weights:  70%|███████   | 204/291 [00:02<00:00, 97.24it/s] 
+Loading weights:  75%|███████▍  | 217/291 [00:02<00:00, 99.83it/s]
+Loading weights:  79%|███████▊  | 229/291 [00:02<00:00, 95.43it/s]
+Loading weights:  82%|████████▏ | 239/291 [00:02<00:00, 94.14it/s]
+Loading weights:  87%|████████▋ | 253/291 [00:02<00:00, 101.55it/s]
+Loading weights:  91%|█████████ | 265/291 [00:03<00:00, 98.34it/s] 
+Loading weights:  95%|█████████▍| 275/291 [00:03<00:00, 94.65it/s]
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 87.50it/s]
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<01:42,  2.82it/s]
+Loading weights:   1%|          | 2/291 [00:00<01:04,  4.52it/s]
+Loading weights:   7%|▋         | 19/291 [00:00<00:05, 49.80it/s]
+Loading weights:  10%|▉         | 28/291 [00:00<00:04, 60.92it/s]
+Loading weights:  13%|█▎        | 37/291 [00:00<00:03, 69.22it/s]
+Loading weights:  17%|█▋        | 49/291 [00:00<00:03, 76.08it/s]
+Loading weights:  20%|██        | 59/291 [00:01<00:02, 78.48it/s]
+Loading weights:  25%|██▌       | 73/291 [00:01<00:02, 93.70it/s]
+Loading weights:  29%|██▉       | 85/291 [00:01<00:02, 92.56it/s]
+Loading weights:  33%|███▎      | 95/291 [00:01<00:02, 92.00it/s]
+Loading weights:  37%|███▋      | 109/291 [00:01<00:01, 101.63it/s]
+Loading weights:  42%|████▏     | 121/291 [00:01<00:01, 90.51it/s] 
+Loading weights:  45%|████▌     | 131/291 [00:01<00:01, 89.93it/s]
+Loading weights:  51%|█████     | 148/291 [00:01<00:01, 104.48it/s]
+Loading weights:  55%|█████▍    | 159/291 [00:02<00:01, 101.61it/s]
+Loading weights:  58%|█████▊    | 170/291 [00:02<00:01, 102.82it/s]
+Loading weights:  63%|██████▎   | 184/291 [00:02<00:01, 101.78it/s]
+Loading weights:  67%|██████▋   | 195/291 [00:02<00:00, 98.15it/s] 
+Loading weights:  71%|███████▏  | 208/291 [00:02<00:00, 105.03it/s]
+Loading weights:  76%|███████▌  | 220/291 [00:02<00:00, 100.72it/s]
+Loading weights:  79%|███████▉  | 231/291 [00:02<00:00, 95.77it/s] 
+Loading weights:  84%|████████▍ | 245/291 [00:02<00:00, 107.11it/s]
+Loading weights:  88%|████████▊ | 256/291 [00:02<00:00, 95.54it/s] 
+Loading weights:  92%|█████████▏| 267/291 [00:03<00:00, 99.00it/s]
+Loading weights:  96%|█████████▌| 280/291 [00:03<00:00, 105.19it/s]
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 88.57it/s] 
+The following generation flags are not valid and may be ignored: ['top_p']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+The attention mask is not set and cannot be inferred from input because pad token is same as eos token. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+
+
+================================================================
+Done.  Results in lb_results_base/checkpoint.json
+================================================================

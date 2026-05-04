@@ -1,0 +1,64 @@
+Checkpoint : lb_results_base/checkpoint.json
+Output     : lb_results_base/faithfulness_deep.json
+Tasks      : 16
+Perplexity : False
+Embedding  : True
+Resuming from existing output: {'perplexity': 16}
+
+Embedding faithfulness (cosine similarity in sentence-transformer space):
+  Loading sentence-transformer: all-MiniLM-L6-v2 ...
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 21919.60it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+[3mNotes:
+- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.[0m
+  [narrativeqa] n=99  (1/16)
+  [qasper] n=100  (2/16)
+  [multifieldqa_en] n=99  (3/16)
+  [hotpotqa] n=100  (4/16)
+  [2wikimqa] n=99  (5/16)
+  [musique] n=100  (6/16)
+  [gov_report] n=99  (7/16)
+  [qmsum] n=100  (8/16)
+  [multi_news] n=100  (9/16)
+  [trec] n=100  (10/16)
+  [triviaqa] n=100  (11/16)
+  [samsum] n=100  (12/16)
+  [passage_count] n=100  (13/16)
+  [passage_retrieval_en] n=100  (14/16)
+  [lcc] n=100  (15/16)
+  [repobench-p] n=100  (16/16)
+
+================================================================================
+Embedding faithfulness — cosine similarity (sentence-transformer)
+  100 = identical embedding; 50 = orthogonal; rescaled from [-1,1] to [0,100]
+================================================================================
+Task                          N    kq_only  kq_post_r      naive  naive_65p     pruned     snapkv  streaming   vn_decay
+-----------------------------------------------------------------------------------------------------------------------
+narrativeqa             †   99       82.2       84.1       75.0       96.5       82.9       85.1       60.2       75.2
+qasper                     100       84.9       85.4       90.6       83.8       83.5       86.3       67.0       78.4
+multifieldqa_en             99       86.8       88.1       88.0       86.3       86.3       87.0       66.6       81.9
+hotpotqa                †  100       85.7       87.4       81.8       95.9       83.6       87.8       61.8       79.4
+2wikimqa                    99       89.4       89.5       87.8       85.8       86.5       88.2       67.5       83.5
+musique                 †  100       82.5       84.2       78.9       98.7       82.3       85.1       59.9       78.9
+gov_report                  99       89.0       90.3       86.6       92.1       85.1       90.3       56.2       78.2
+qmsum                      100       84.1       85.2       81.9       89.2       82.0       86.7       56.8       77.0
+multi_news                 100       90.6       89.9       98.0       87.2       87.1       90.6       63.8       83.1
+trec                       100       87.4       84.9       90.1       88.8       83.9       85.5       60.7       77.8
+triviaqa                   100       76.4       75.8       79.9       88.3       74.3       79.1       62.6       70.6
+samsum                     100       87.8       88.8       91.0       93.4       84.6       88.5       69.6       85.1
+passage_count           †  100       72.4       73.5       66.9       88.8       70.3       73.7       70.2       65.5
+passage_retrieval_en       100       84.8       84.4       59.7       91.0       77.9       84.2       57.9       65.2
+lcc                        100       85.4       89.8       98.4       90.0       84.7       90.1       60.1       84.1
+repobench-p                100       87.4       90.3       90.3       95.4       84.6       89.1       54.3       86.9
+-----------------------------------------------------------------------------------------------------------------------
+AVERAGE                               84.8       85.7       84.1       90.7       82.5       86.1       62.2       78.2
+95% CI (±)                             0.6        0.6        0.7        0.6        0.6        0.6        0.5        0.6
+  lower                               84.2       85.1       83.3       90.1       81.8       85.4       61.7       77.5
+  upper                               85.4       86.3       84.8       91.3       83.1       86.7       62.7       78.8
+  † full-context ground-truth accuracy < 10%: model unreliable on this task
+
+Saved → lb_results_base/faithfulness_deep.json

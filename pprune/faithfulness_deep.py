@@ -50,8 +50,14 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 from pathlib import Path
 from typing import Dict, List, Optional
+
+# Must be set before CUDA is initialized to avoid allocator fragmentation that
+# causes the first task's forward passes to silently OOM (1.58 GB reserved-but-
+# unallocated can't satisfy a contiguous 1.53 GB request without this).
+os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")
 
 import numpy as np
 import torch
@@ -276,7 +282,7 @@ def compute_perplexity_faithfulness(
     n_tasks = len(tasks)
 
     for t_idx, task in enumerate(tasks):
-        if task in existing:
+        if task in existing and existing[task].get("n", 0) > 0:
             print(f"  [{task}] SKIP (already done)  ({t_idx+1}/{n_tasks})", flush=True)
             continue
 

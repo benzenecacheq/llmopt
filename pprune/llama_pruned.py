@@ -257,8 +257,9 @@ class PrunedLlamaAttention(nn.Module):
         mode = self.pcfg.score_mode
 
         if mode == "kq_post_rope":
-            # Post-RoPE ablation: score using rotated Q and K (same vectors the
-            # attention kernel uses), to isolate the effect of pre-RoPE scoring.
+            # Post-RoPE KQ scoring: use rotated Q and K (same vectors the attention
+            # kernel uses).  Distance decay is applied when min_decay < 1.0;
+            # min_decay=1.0 preserves the original no-decay behaviour.
             _q = q_post if q_post is not None else q_raw
             q_buf_p  = _q[0, :, -q_buf_sz:, :]                           # (num_q, q_buf_sz, D)
             key_exp_p = key_states[0].repeat_interleave(q_per_kv, dim=0) # (num_q, T, D)
@@ -268,6 +269,12 @@ class PrunedLlamaAttention(nn.Module):
             kq_min   = kq_p.min(dim=1, keepdim=True).values
             kq_max   = kq_p.max(dim=1, keepdim=True).values
             head_scores = (kq_p - kq_min) / (kq_max - kq_min + cfg.score_eps)
+            if self.pcfg.min_decay < 1.0 and T > 1:
+                pos_idx = torch.arange(T, device=key_states.device, dtype=torch.float32)
+                dist    = (T - 1) - pos_idx                               # 0 = most recent
+                rate    = (1.0 - self.pcfg.min_decay) / (T - 1)
+                decay   = (1.0 - rate * dist).clamp(min=0.0)             # (T,)
+                head_scores = head_scores * decay.unsqueeze(0)            # broadcast over heads
 
         elif mode == "snapkv":
             # SnapKV [Li et al., 2024]: pool causally-masked attention weights from

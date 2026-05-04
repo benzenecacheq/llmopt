@@ -1,0 +1,514 @@
+================================================================
+decay_screen: kq_post_rope + distance decay faithfulness screen
+Tasks : passage_retrieval_en,qmsum,samsum
+N     : 20 examples per task
+================================================================
+
+--- min_decay=0.9  label=kqpr_md0.9 ---
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<03:42,  1.30it/s]
+Loading weights:   3%|▎         | 8/291 [00:00<00:23, 12.10it/s]
+Loading weights:   8%|▊         | 22/291 [00:00<00:07, 35.21it/s]
+Loading weights:  11%|█         | 31/291 [00:01<00:06, 40.61it/s]
+Loading weights:  14%|█▍        | 41/291 [00:01<00:04, 51.11it/s]
+Loading weights:  17%|█▋        | 49/291 [00:01<00:04, 56.36it/s]
+Loading weights:  20%|█▉        | 58/291 [00:01<00:03, 58.97it/s]
+Loading weights:  23%|██▎       | 67/291 [00:01<00:03, 60.22it/s]
+Loading weights:  26%|██▌       | 76/291 [00:01<00:03, 64.56it/s]
+Loading weights:  29%|██▉       | 85/291 [00:01<00:03, 65.68it/s]
+Loading weights:  32%|███▏      | 94/291 [00:02<00:03, 65.41it/s]
+Loading weights:  35%|███▌      | 103/291 [00:02<00:02, 68.71it/s]
+Loading weights:  38%|███▊      | 112/291 [00:02<00:02, 69.28it/s]
+Loading weights:  42%|████▏     | 121/291 [00:02<00:02, 69.25it/s]
+Loading weights:  45%|████▍     | 130/291 [00:02<00:02, 69.98it/s]
+Loading weights:  48%|████▊     | 139/291 [00:02<00:02, 70.18it/s]
+Loading weights:  51%|█████     | 148/291 [00:02<00:02, 69.65it/s]
+Loading weights:  54%|█████▍    | 157/291 [00:02<00:01, 69.90it/s]
+Loading weights:  57%|█████▋    | 166/291 [00:03<00:01, 72.06it/s]
+Loading weights:  60%|██████    | 175/291 [00:03<00:01, 70.19it/s]
+Loading weights:  63%|██████▎   | 184/291 [00:03<00:01, 69.39it/s]
+Loading weights:  66%|██████▋   | 193/291 [00:03<00:01, 69.20it/s]
+Loading weights:  69%|██████▉   | 202/291 [00:03<00:01, 69.93it/s]
+Loading weights:  73%|███████▎  | 211/291 [00:03<00:01, 70.11it/s]
+Loading weights:  76%|███████▌  | 220/291 [00:03<00:01, 70.84it/s]
+Loading weights:  79%|███████▊  | 229/291 [00:03<00:00, 70.34it/s]
+Loading weights:  82%|████████▏ | 238/291 [00:04<00:00, 70.56it/s]
+Loading weights:  85%|████████▍ | 247/291 [00:04<00:00, 70.54it/s]
+Loading weights:  88%|████████▊ | 256/291 [00:04<00:00, 72.49it/s]
+Loading weights:  91%|█████████ | 265/291 [00:04<00:00, 70.73it/s]
+Loading weights:  94%|█████████▍| 274/291 [00:04<00:00, 71.18it/s]
+Loading weights:  97%|█████████▋| 283/291 [00:04<00:00, 71.46it/s]
+Loading weights: 100%|██████████| 291/291 [00:04<00:00, 61.51it/s]
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<01:31,  3.18it/s]
+Loading weights:   1%|          | 2/291 [00:00<00:56,  5.10it/s]
+Loading weights:   7%|▋         | 19/291 [00:00<00:04, 54.49it/s]
+Loading weights:  10%|▉         | 28/291 [00:00<00:04, 62.90it/s]
+Loading weights:  14%|█▎        | 40/291 [00:00<00:03, 66.08it/s]
+Loading weights:  20%|█▉        | 58/291 [00:00<00:02, 86.62it/s]
+Loading weights:  23%|██▎       | 68/291 [00:01<00:02, 87.07it/s]
+Loading weights:  27%|██▋       | 78/291 [00:01<00:02, 88.83it/s]
+Loading weights:  31%|███▏      | 91/291 [00:01<00:02, 96.49it/s]
+Loading weights:  35%|███▌      | 103/291 [00:01<00:02, 93.58it/s]
+Loading weights:  39%|███▉      | 113/291 [00:01<00:01, 89.31it/s]
+Loading weights:  45%|████▍     | 130/291 [00:01<00:01, 94.92it/s]
+Loading weights:  48%|████▊     | 140/291 [00:01<00:01, 95.85it/s]
+Loading weights:  53%|█████▎    | 155/291 [00:01<00:01, 109.31it/s]
+Loading weights:  57%|█████▋    | 167/291 [00:02<00:01, 97.29it/s] 
+Loading weights:  62%|██████▏   | 181/291 [00:02<00:01, 107.18it/s]
+Loading weights:  66%|██████▋   | 193/291 [00:02<00:01, 94.25it/s] 
+Loading weights:  70%|██████▉   | 203/291 [00:02<00:00, 91.60it/s]
+Loading weights:  75%|███████▍  | 217/291 [00:02<00:00, 98.67it/s]
+Loading weights:  79%|███████▊  | 229/291 [00:02<00:00, 100.76it/s]
+Loading weights:  82%|████████▏ | 240/291 [00:02<00:00, 98.50it/s] 
+Loading weights:  87%|████████▋ | 253/291 [00:02<00:00, 103.93it/s]
+Loading weights:  91%|█████████ | 265/291 [00:03<00:00, 95.79it/s] 
+Loading weights:  95%|█████████▍| 276/291 [00:03<00:00, 98.17it/s]
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 89.35it/s]
+The following generation flags are not valid and may be ignored: ['top_p']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+The attention mask is not set and cannot be inferred from input because pad token is same as eos token. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+
+Tasks     : ['passage_retrieval_en', 'qmsum', 'samsum']
+Budget    : 4096
+Max seq   : 7168
+Data dir  : lb_data_raw/data
+Checkpoint: lb_results_base/checkpoint.json
+
+=== Pass 1: base model (full, naive) ===
+Loading meta-llama/Llama-3.1-8B ...
+
+[Pass1] Task: passage_retrieval_en
+
+[Pass1] Task: qmsum
+
+[Pass1] Task: samsum
+
+=== Pass 2: pruned model ===
+Loading meta-llama/Llama-3.1-8B ...
+Patching 32 attention layers ...
+Model ready.
+
+[Pass2] Task: passage_retrieval_en
+  WARNING: passage_retrieval_en[0] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[1] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[2] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[3] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[4] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[5] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[6] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[7] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[8] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[9] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[10] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[11] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[12] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[13] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[14] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[15] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[16] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[17] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[18] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[19] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  20/20 examples done
+
+[Pass2] Task: qmsum
+  WARNING: qmsum[0] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[1] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[2] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[3] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[4] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[5] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[6] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[7] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[8] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[9] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[10] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[11] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[12] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[13] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[14] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[15] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[16] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[17] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[18] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[19] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  20/20 examples done
+
+[Pass2] Task: samsum
+  WARNING: samsum[0] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[1] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[2] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[3] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[4] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[5] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[6] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[7] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[8] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[9] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[10] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[11] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[12] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[13] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[14] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[15] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[16] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[17] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[18] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[19] kqpr_md0.9 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  20/20 examples done
+
+=== Ground-truth scoring ===
+
+====================================================================================================================================
+Task                           N      full     naive   kq_only  kq_post_  kqpr_md0  naive_65    pruned    snapkv  streamin  vn_decay
+------------------------------------------------------------------------------------------------------------------------------------
+passage_retrieval_en         20     35.00     15.00     20.00     25.00      0.00     35.00     25.00     20.00     15.00     10.00
+qmsum                        20     10.67     14.74      8.50      8.63      0.00     11.26      7.05      8.88      4.33      7.58
+samsum                       20     16.06     16.00     16.53     18.82      0.00     16.84     14.71     18.11      5.54     18.09
+------------------------------------------------------------------------------------------------------------------------------------
+AVERAGE                              20.58     15.25     15.01     17.48      0.00     21.03     15.59     15.66      8.29     11.89
+====================================================================================================================================
+
+Ground-truth results saved to lb_results_base/results.json
+
+Finished min_decay=0.9
+
+--- min_decay=0.7  label=kqpr_md0.7 ---
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<01:57,  2.47it/s]
+Loading weights:   1%|          | 2/291 [00:00<01:07,  4.28it/s]
+Loading weights:   7%|▋         | 19/291 [00:00<00:05, 47.41it/s]
+Loading weights:  11%|█         | 31/291 [00:00<00:04, 61.15it/s]
+Loading weights:  14%|█▎        | 40/291 [00:00<00:03, 66.54it/s]
+Loading weights:  17%|█▋        | 49/291 [00:00<00:03, 68.56it/s]
+Loading weights:  23%|██▎       | 67/291 [00:01<00:02, 82.53it/s]
+Loading weights:  26%|██▋       | 77/291 [00:01<00:02, 86.66it/s]
+Loading weights:  32%|███▏      | 94/291 [00:01<00:01, 99.92it/s]
+Loading weights:  36%|███▌      | 105/291 [00:01<00:01, 98.94it/s]
+Loading weights:  42%|████▏     | 121/291 [00:01<00:01, 103.29it/s]
+Loading weights:  45%|████▌     | 132/291 [00:01<00:01, 97.92it/s] 
+Loading weights:  51%|█████     | 148/291 [00:01<00:01, 97.74it/s]
+Loading weights:  55%|█████▍    | 159/291 [00:02<00:01, 99.09it/s]
+Loading weights:  60%|██████    | 175/291 [00:02<00:01, 102.19it/s]
+Loading weights:  64%|██████▍   | 186/291 [00:02<00:01, 98.62it/s] 
+Loading weights:  68%|██████▊   | 199/291 [00:02<00:00, 105.31it/s]
+Loading weights:  73%|███████▎  | 211/291 [00:02<00:00, 94.66it/s] 
+Loading weights:  76%|███████▋  | 222/291 [00:02<00:00, 97.04it/s]
+Loading weights:  82%|████████▏ | 238/291 [00:02<00:00, 101.69it/s]
+Loading weights:  86%|████████▌ | 249/291 [00:02<00:00, 97.12it/s] 
+Loading weights:  91%|█████████ | 265/291 [00:03<00:00, 99.31it/s]
+Loading weights:  96%|█████████▌| 279/291 [00:03<00:00, 108.73it/s]
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 87.87it/s] 
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<01:21,  3.55it/s]
+Loading weights:   1%|          | 2/291 [00:00<00:52,  5.47it/s]
+Loading weights:   6%|▌         | 17/291 [00:00<00:05, 50.96it/s]
+Loading weights:  10%|▉         | 28/291 [00:00<00:03, 67.99it/s]
+Loading weights:  14%|█▎        | 40/291 [00:00<00:03, 72.57it/s]
+Loading weights:  18%|█▊        | 51/291 [00:00<00:02, 82.43it/s]
+Loading weights:  23%|██▎       | 67/291 [00:01<00:02, 85.82it/s]
+Loading weights:  28%|██▊       | 82/291 [00:01<00:02, 100.13it/s]
+Loading weights:  32%|███▏      | 94/291 [00:01<00:01, 98.74it/s] 
+Loading weights:  36%|███▌      | 105/291 [00:01<00:01, 96.85it/s]
+Loading weights:  41%|████      | 118/291 [00:01<00:01, 104.57it/s]
+Loading weights:  44%|████▍     | 129/291 [00:01<00:01, 105.91it/s]
+Loading weights:  48%|████▊     | 140/291 [00:01<00:01, 93.52it/s] 
+Loading weights:  52%|█████▏    | 150/291 [00:01<00:01, 94.51it/s]
+Loading weights:  56%|█████▌    | 163/291 [00:01<00:01, 99.22it/s]
+Loading weights:  60%|██████    | 175/291 [00:02<00:01, 95.87it/s]
+Loading weights:  64%|██████▍   | 186/291 [00:02<00:01, 98.00it/s]
+Loading weights:  68%|██████▊   | 199/291 [00:02<00:00, 105.78it/s]
+Loading weights:  73%|███████▎  | 211/291 [00:02<00:00, 100.53it/s]
+Loading weights:  76%|███████▋  | 222/291 [00:02<00:00, 96.75it/s] 
+Loading weights:  82%|████████▏ | 238/291 [00:02<00:00, 103.83it/s]
+Loading weights:  86%|████████▌ | 249/291 [00:02<00:00, 99.54it/s] 
+Loading weights:  90%|█████████ | 262/291 [00:02<00:00, 103.07it/s]
+Loading weights:  94%|█████████▍| 274/291 [00:03<00:00, 103.31it/s]
+Loading weights:  98%|█████████▊| 285/291 [00:03<00:00, 97.89it/s] 
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 91.57it/s]
+The following generation flags are not valid and may be ignored: ['top_p']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+The attention mask is not set and cannot be inferred from input because pad token is same as eos token. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+
+Tasks     : ['passage_retrieval_en', 'qmsum', 'samsum']
+Budget    : 4096
+Max seq   : 7168
+Data dir  : lb_data_raw/data
+Checkpoint: lb_results_base/checkpoint.json
+
+=== Pass 1: base model (full, naive) ===
+Loading meta-llama/Llama-3.1-8B ...
+
+[Pass1] Task: passage_retrieval_en
+
+[Pass1] Task: qmsum
+
+[Pass1] Task: samsum
+
+=== Pass 2: pruned model ===
+Loading meta-llama/Llama-3.1-8B ...
+Patching 32 attention layers ...
+Model ready.
+
+[Pass2] Task: passage_retrieval_en
+  WARNING: passage_retrieval_en[0] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[1] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[2] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[3] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[4] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[5] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[6] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[7] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[8] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[9] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[10] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[11] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[12] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[13] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[14] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[15] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[16] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[17] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[18] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[19] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  20/20 examples done
+
+[Pass2] Task: qmsum
+  WARNING: qmsum[0] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[1] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[2] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[3] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[4] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[5] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[6] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[7] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[8] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[9] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[10] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[11] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[12] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[13] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[14] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[15] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[16] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[17] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[18] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[19] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  20/20 examples done
+
+[Pass2] Task: samsum
+  WARNING: samsum[0] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[1] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[2] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[3] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[4] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[5] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[6] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[7] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[8] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[9] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[10] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[11] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[12] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[13] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[14] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[15] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[16] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[17] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[18] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[19] kqpr_md0.7 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  20/20 examples done
+
+=== Ground-truth scoring ===
+
+==============================================================================================================================================
+Task                           N      full     naive   kq_only  kq_post_  kqpr_md0  kqpr_md0  naive_65    pruned    snapkv  streamin  vn_decay
+----------------------------------------------------------------------------------------------------------------------------------------------
+passage_retrieval_en         20     35.00     15.00     20.00     25.00      0.00      0.00     35.00     25.00     20.00     15.00     10.00
+qmsum                        20     10.67     14.74      8.50      8.63      0.00      0.00     11.26      7.05      8.88      4.33      7.58
+samsum                       20     16.06     16.00     16.53     18.82      0.00      0.00     16.84     14.71     18.11      5.54     18.09
+----------------------------------------------------------------------------------------------------------------------------------------------
+AVERAGE                              20.58     15.25     15.01     17.48      0.00      0.00     21.03     15.59     15.66      8.29     11.89
+==============================================================================================================================================
+
+Ground-truth results saved to lb_results_base/results.json
+
+Finished min_decay=0.7
+
+--- min_decay=0.5  label=kqpr_md0.5 ---
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<02:23,  2.02it/s]
+Loading weights:   6%|▌         | 18/291 [00:00<00:06, 39.43it/s]
+Loading weights:  10%|▉         | 28/291 [00:00<00:04, 53.97it/s]
+Loading weights:  13%|█▎        | 38/291 [00:00<00:03, 64.92it/s]
+Loading weights:  17%|█▋        | 49/291 [00:00<00:03, 67.19it/s]
+Loading weights:  23%|██▎       | 67/291 [00:01<00:02, 86.40it/s]
+Loading weights:  27%|██▋       | 78/291 [00:01<00:02, 86.91it/s]
+Loading weights:  31%|███▏      | 91/291 [00:01<00:02, 96.89it/s]
+Loading weights:  35%|███▌      | 103/291 [00:01<00:01, 95.13it/s]
+Loading weights:  39%|███▉      | 114/291 [00:01<00:01, 93.24it/s]
+Loading weights:  43%|████▎     | 124/291 [00:01<00:01, 91.34it/s]
+Loading weights:  48%|████▊     | 139/291 [00:01<00:01, 93.35it/s]
+Loading weights:  51%|█████     | 149/291 [00:01<00:01, 94.69it/s]
+Loading weights:  55%|█████▍    | 159/291 [00:02<00:01, 95.06it/s]
+Loading weights:  60%|██████    | 175/291 [00:02<00:01, 102.10it/s]
+Loading weights:  64%|██████▍   | 186/291 [00:02<00:01, 96.26it/s] 
+Loading weights:  69%|██████▉   | 202/291 [00:02<00:00, 103.99it/s]
+Loading weights:  73%|███████▎  | 213/291 [00:02<00:00, 98.96it/s] 
+Loading weights:  78%|███████▊  | 226/291 [00:02<00:00, 104.86it/s]
+Loading weights:  82%|████████▏ | 238/291 [00:02<00:00, 97.80it/s] 
+Loading weights:  87%|████████▋ | 253/291 [00:02<00:00, 108.01it/s]
+Loading weights:  91%|█████████ | 265/291 [00:03<00:00, 102.85it/s]
+Loading weights:  95%|█████████▍| 276/291 [00:03<00:00, 99.96it/s] 
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 88.48it/s]
+
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]
+Loading weights:   0%|          | 1/291 [00:00<01:39,  2.91it/s]
+Loading weights:   1%|          | 2/291 [00:00<01:01,  4.67it/s]
+Loading weights:   7%|▋         | 19/291 [00:00<00:05, 47.98it/s]
+Loading weights:  11%|█         | 31/291 [00:00<00:04, 61.95it/s]
+Loading weights:  14%|█▍        | 42/291 [00:00<00:03, 73.62it/s]
+Loading weights:  19%|█▉        | 55/291 [00:00<00:02, 88.81it/s]
+Loading weights:  23%|██▎       | 66/291 [00:01<00:02, 94.64it/s]
+Loading weights:  26%|██▋       | 77/291 [00:01<00:02, 82.42it/s]
+Loading weights:  31%|███▏      | 91/291 [00:01<00:02, 93.30it/s]
+Loading weights:  35%|███▌      | 103/291 [00:01<00:02, 87.17it/s]
+Loading weights:  41%|████      | 118/291 [00:01<00:01, 101.79it/s]
+Loading weights:  45%|████▍     | 130/291 [00:01<00:01, 98.35it/s] 
+Loading weights:  48%|████▊     | 141/291 [00:01<00:01, 96.76it/s]
+Loading weights:  52%|█████▏    | 152/291 [00:01<00:01, 99.86it/s]
+Loading weights:  56%|█████▌    | 163/291 [00:02<00:01, 102.48it/s]
+Loading weights:  60%|██████    | 175/291 [00:02<00:01, 94.87it/s] 
+Loading weights:  65%|██████▍   | 188/291 [00:02<00:00, 103.94it/s]
+Loading weights:  68%|██████▊   | 199/291 [00:02<00:00, 105.47it/s]
+Loading weights:  73%|███████▎  | 211/291 [00:02<00:00, 97.00it/s] 
+Loading weights:  76%|███████▋  | 222/291 [00:02<00:00, 99.52it/s]
+Loading weights:  81%|████████  | 235/291 [00:02<00:00, 106.12it/s]
+Loading weights:  85%|████████▍ | 247/291 [00:02<00:00, 100.42it/s]
+Loading weights:  89%|████████▊ | 258/291 [00:02<00:00, 98.90it/s] 
+Loading weights:  94%|█████████▍| 274/291 [00:03<00:00, 102.80it/s]
+Loading weights:  98%|█████████▊| 285/291 [00:03<00:00, 99.59it/s] 
+Loading weights: 100%|██████████| 291/291 [00:03<00:00, 89.45it/s]
+The following generation flags are not valid and may be ignored: ['top_p']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+The attention mask is not set and cannot be inferred from input because pad token is same as eos token. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+
+Tasks     : ['passage_retrieval_en', 'qmsum', 'samsum']
+Budget    : 4096
+Max seq   : 7168
+Data dir  : lb_data_raw/data
+Checkpoint: lb_results_base/checkpoint.json
+
+=== Pass 1: base model (full, naive) ===
+Loading meta-llama/Llama-3.1-8B ...
+
+[Pass1] Task: passage_retrieval_en
+
+[Pass1] Task: qmsum
+
+[Pass1] Task: samsum
+
+=== Pass 2: pruned model ===
+Loading meta-llama/Llama-3.1-8B ...
+Patching 32 attention layers ...
+Model ready.
+
+[Pass2] Task: passage_retrieval_en
+  WARNING: passage_retrieval_en[0] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[1] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[2] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[3] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[4] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[5] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[6] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[7] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[8] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[9] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[10] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[11] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[12] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[13] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[14] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[15] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[16] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[17] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[18] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: passage_retrieval_en[19] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  20/20 examples done
+
+[Pass2] Task: qmsum
+  WARNING: qmsum[0] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[1] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[2] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[3] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[4] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[5] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[6] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[7] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[8] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[9] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[10] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[11] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[12] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[13] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[14] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[15] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[16] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[17] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[18] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: qmsum[19] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  20/20 examples done
+
+[Pass2] Task: samsum
+  WARNING: samsum[0] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[1] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[2] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[3] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[4] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[5] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[6] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[7] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[8] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[9] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[10] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[11] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[12] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[13] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[14] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[15] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[16] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[17] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[18] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  WARNING: samsum[19] kqpr_md0.5 failed: 'HeadFilterConfig' object has no attribute 'min_decay'
+  20/20 examples done
+
+=== Ground-truth scoring ===
+
+========================================================================================================================================================
+Task                           N      full     naive   kq_only  kq_post_  kqpr_md0  kqpr_md0  kqpr_md0  naive_65    pruned    snapkv  streamin  vn_decay
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+passage_retrieval_en         20     35.00     15.00     20.00     25.00      0.00      0.00      0.00     35.00     25.00     20.00     15.00     10.00
+qmsum                        20     10.67     14.74      8.50      8.63      0.00      0.00      0.00     11.26      7.05      8.88      4.33      7.58
+samsum                       20     16.06     16.00     16.53     18.82      0.00      0.00      0.00     16.84     14.71     18.11      5.54     18.09
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+AVERAGE                              20.58     15.25     15.01     17.48      0.00      0.00      0.00     21.03     15.59     15.66      8.29     11.89
+========================================================================================================================================================
+
+Ground-truth results saved to lb_results_base/results.json
+
+Finished min_decay=0.5
+
+================================================================
+Generation done.  Running perplexity faithfulness scoring...
+================================================================
+Terminated
+
+================================================================
+Done.  Results in decay_screen_faith.json
+================================================================

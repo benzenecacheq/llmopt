@@ -5,12 +5,22 @@ It covers architecture decisions, what was tried, what worked, and what to do ne
 
 ---
 
-## Current State (as of 2026-04-02)
+## Current State (as of 2026-04-30)
 
-- **Paper written**: `paper.md` — conference-style write-up of all findings
-- **Best config**: additive α=0.65, budget_fraction=0.65, min_decay=0.7, linear decay
-- **Evaluated on**: LongBench v1, Llama-3.1-8B (base, fp16), V100 32GB, 100 examples/task
-- **Key result**: PassageRetrieval 27 vs naive 18 (+9 pts); code tasks regress vs naive
+- **Active paper**: `paper_faithfulness_prerope.md` — faithfulness-based evaluation
+  framework with kq_post_rope as the proposed method. Substantially revised today.
+- **Best method**: `kq_post_rope` (post-RoPE KQ alignment, no decay at 104.2 perplexity
+  faithfulness). Earlier work concluded `additive` was best, but that used ground-truth
+  scoring which we now consider an unreliable metric for compression evaluation.
+- **Experiment in progress**: `decay_screen.csh` — testing whether adding distance decay
+  to kq_post_rope improves faithfulness metrics (perplexity faithfulness on 3 tasks ×
+  20 examples, min_decay ∈ {0.9, 0.7, 0.5}). Results in `decay_screen_faith.json`.
+- **Paper §4.2 is provisional**: currently describes the method with decay
+  (`score_i = kq_i · decay_i`), but kq_post_rope was implemented without decay.
+  The §4.2 description will be corrected once the decay screen results are in.
+- **Evaluated on**: LongBench v1, Llama-3.1-8B (base, fp16) + Mistral-7B-v0.3,
+  V100 32GB, 100 examples/task. All outputs in `lb_results_base/checkpoint.json`.
+- **Conda environment**: `llmopt` — use `conda run -n llmopt python ...` for all scripts.
 
 ---
 
@@ -19,13 +29,19 @@ It covers architecture decisions, what was tried, what worked, and what to do ne
 | File | Purpose |
 |---|---|
 | `llama_pruned.py` | Core module — `PrunedLlamaConfig`, `PrunedLlamaAttention`, `build_pruned_model` |
-| `longbench_eval.py` | Resumable LongBench harness — two-pass (base then pruned), checkpoint per example |
+| `longbench_eval.py` | Resumable LongBench harness — checkpoint per example, OOM recovery |
+| `faithfulness_deep.py` | Perplexity and embedding faithfulness scoring against full-context outputs |
 | `mode_compare.py` | Quick ablation — patches pcfg in-place, no model reload between modes |
-| `paper.md` | Conference paper |
+| `paper_faithfulness_prerope.md` | **Active paper** — faithfulness framework + kq_post_rope method |
+| `paper.md` | Earlier paper (additive method, GT evaluation only) — superseded |
 | `needle_test.py` | Early needle-in-haystack sanity check |
 | `eval.py` | Earlier harness (needle/QA/summarize) — superseded by longbench_eval.py |
+| `run_faithfulness_modes.sh` | Adds streaming/snapkv/vn_decay/kq_only/kq_post_rope to lb_results_base |
+| `decay_screen.csh` | Quick faithfulness screen for kq_post_rope + decay variants |
 | `lb_data_raw/data/` | LongBench JSONL files (extracted from data.zip) |
-| `lb_results/` | Evaluation outputs (`results.json`, `checkpoint.json`) |
+| `lb_results_base/` | Primary checkpoint (`checkpoint.json`, `results.json`, `faithfulness_deep.json`) |
+| `lb_results_mistral/` | Mistral-7B-v0.3 results |
+| `lb_results_streaming/` | Streaming baseline results |
 
 ---
 
@@ -41,239 +57,235 @@ class PrunedLlamaConfig:
     budget_strategy: str = "entropy" # unused in current scoring path
     decay_fn: str = "linear"         # "linear" or "exponential"
     decay_rate: float = 0.0          # unused; min_decay used instead
-    min_decay: float = 0.7           # decay value at position 0
+    min_decay: float = 0.7           # decay value at oldest position
     always_keep_last: int = 16       # unconditionally retained suffix tokens
     always_keep_first: int = 16      # unconditionally retained prefix tokens
-    score_mode: str = "additive"     # "vn_decay", "kq_only", or "additive"
-    score_alpha: float = 0.65        # weight on kq in additive mode
+    score_mode: str = "additive"     # see score modes table below
+    score_alpha: float = 0.65        # weight on kq in "additive" mode
     budget_fraction: float = 0.0     # if > 0, overrides total_budget: int(T * fraction)
     filter_prefill_only: bool = True
 ```
 
-### Scoring Function
+### Score Modes
+
+| Mode | Key/Query space | Formula | Decay |
+|---|---|---|---|
+| `kq_post_rope` | Post-RoPE | kq · decay | Only when min_decay < 1.0 (default off) |
+| `kq_only` | Pre-RoPE | kq | Never |
+| `additive` | Pre-RoPE | α·kq + (1-α)·vn·decay | Always |
+| `vn_decay` | — | vn · decay | Always |
+| `snapkv` | Post-RoPE | pooled attn weights | Never |
+| `streaming` | — | sink + recency window | Never |
+
+**Important**: `kq_post_rope` was originally coded without decay (the decay
+computation was only in the pre-RoPE `else` branch). As of 2026-04-30, decay
+is now wired into the `kq_post_rope` branch and activates when `min_decay < 1.0`.
+All existing checkpoint data for `kq_post_rope` was generated with min_decay=0.7
+in the config but the code ignored it — those runs are equivalent to min_decay=1.0
+(no decay). The decay screen will determine whether adding decay helps.
+
+### kq_post_rope Scoring (Primary Method)
 
 ```
-score_i = α · kq_i + (1 − α) · vn_i · decay_i
+kq_i    = max_{j ∈ tail} (Q_j_postRoPE · K_i_postRoPE) / √D,  normalized to [0,1]
+decay_i = min_decay + (1 − min_decay) · (i / (T−1))            [only if min_decay < 1.0]
+score_i = kq_i · decay_i                                        [or just kq_i if no decay]
 ```
 
-Where:
-- `kq_i = max_{j in tail} (Q_j_preRoPE · K_i_preRoPE) / √D`, normalized to [0,1] per head
-- `vn_i = ‖V_i‖₂ / max_j ‖V_j‖₂` (normalized L2 value norm)
-- `decay_i = min_decay + (1 − min_decay) · (i / (T−1))` — linear from min_decay at 0 to 1.0 at T-1
-- Pre-RoPE K and Q are captured via hooks before rotary embedding is applied
-- Post-RoPE K/V are still used for the actual attention computation
+- Post-RoPE Q and K — same vectors the attention kernel uses
+- Max-pooled over `q_buffer_size` tail queries (proxy for generation-phase queries)
+- Distinct from SnapKV: raw dot products, not softmax attention weights
 
-### GQA handling
+### GQA Handling
 
 Llama 3.x has 32 Q-heads and 8 KV-heads (q_per_kv=4). Scores are computed for
-all Q-heads and aggregated per KV-head via max-pooling before selecting the
-global budget positions.
+all Q-heads and aggregated per KV-head via max-pooling before global budget selection.
 
-### Budget selection
+### Budget Selection
 
 1. Always retain first `always_keep_first` and last `always_keep_last` tokens
 2. Fill remaining budget with top-scoring non-protected tokens
 3. Reconstruct causal attention mask using original (pre-pruning) positions
 
-### Forward pass guard (important)
+### Forward Pass Guard (Important)
 
-The guard in `forward()` computes `effective_budget` from `budget_fraction` if
-set, otherwise falls back to `total_budget`. This was a critical bug fix: the
-original code checked `total_budget < T` but `total_budget=999999`, so the
-filter never ran when using `budget_fraction`.
-
-```python
-effective_budget = (int(T * self.pcfg.budget_fraction)
-                    if self.pcfg.budget_fraction > 0.0
-                    else self.pcfg.total_budget)
-if is_prefill and self.pcfg.filter_prefill_only and ... and effective_budget < T:
-    key_states, value_states, retained_pos = self._run_filter_prefill(
-        q_raw, k_raw, key_states, value_states, effective_budget
-    )
-```
+`effective_budget = int(T * budget_fraction)` if `budget_fraction > 0`, else
+`total_budget`. Critical fix: original code used `total_budget=999999`, so the
+filter never activated when using `budget_fraction`.
 
 ---
 
 ## Architecture: longbench_eval.py
 
-Two-pass strategy to use one GPU efficiently:
-- **Pass 1**: load base model, run "full" (no truncation) and "naive" (left-truncate to 4096 tokens) on all tasks
-- **Pass 2**: load pruned model, run "pruned" on all tasks
+Two-pass strategy for single-GPU efficiency:
+- **Pass 1**: load base model, run "full" and "naive" on all tasks
+- **Pass 2**: load pruned model, run each compressed method
 
-Checkpointing: after every example, writes atomically to `{output}/checkpoint.json`.
-On restart, skips already-completed (task, idx, method) triples.
+Checkpointing: atomic write to `{output}/checkpoint.json` after every example.
+On restart, skips already-completed `(task, idx, method)` triples.
 
 OOM recovery: catches `torch.cuda.OutOfMemoryError`, halves `input_ids`, retries
 up to 4 times. Set `PYTORCH_ALLOC_CONF=expandable_segments:True` before running.
 
-Retrieval scorer: extracts the number from both "Paragraph 17" and bare "17"
-formats — critical because the base model outputs bare numbers.
+Key flags: `--method_label` sets the checkpoint key for a run (allows multiple
+methods to share one checkpoint file); `--naive_fraction 0.0` skips the naive
+baseline pass when adding new methods to an existing checkpoint.
+
+---
+
+## Architecture: faithfulness_deep.py
+
+Computes two faithfulness metrics against stored full-context outputs (`full` key
+in checkpoint):
+
+- **Perplexity**: teacher-forced forward pass under the full-context model.
+  `faith_ppl = exp(loss_full − loss_method) × 100`. Needs GPU and model loaded.
+  100 = equally likely; >100 = more likely (valid); <100 = less likely (diverging).
+- **Embedding**: cosine similarity via `all-MiniLM-L6-v2`, rescaled to [50, 100].
+  CPU-only. 100 = identical embedding; 50 = orthogonal.
+
+Results written to a separate JSON (e.g. `faithfulness_deep.json` or
+`decay_screen_faith.json`). Checkpoints per task; safe to resume.
 
 ---
 
 ## What Was Tried and What Worked
 
-### Score modes
+### Ground-Truth Era (paper.md)
 
-| Mode | Formula | Verdict |
-|---|---|---|
-| vn_decay | vn × decay | Fails on natural retrieval; OK on synthetic needle |
-| kq_only | kq | Good on retrieval, unstable on some summarization |
-| additive α=0.65 | 0.65·kq + 0.35·vn·decay | Best overall balance |
+Early experiments used ground-truth (GT) scores as the primary metric. Under GT:
+- `additive` α=0.65 appeared best (23.9 avg, led to paper.md)
+- `kq_post_rope` looked comparable but not clearly better
+- Decay appeared necessary — experiments without decay scored lower on GT
+- This conclusion is now suspect: GT is insensitive to approximation quality
 
-V-norm is high for numbers and rare words (works for synthetic needle), but near-zero
-for common words and prose (fails when the needle is natural language).
+### Faithfulness Era (paper_faithfulness_prerope.md)
 
-KQ alignment uses pre-RoPE keys: without this, early tokens appear irrelevant
-because RoPE rotates K vectors by position, creating artificially low dot products
-regardless of semantic content.
+After introducing faithfulness metrics, the picture changed:
 
-Additive combination gives KQ and V-norm independent "voice". Multiplicative
-combination approximates V-norm with a semantic tiebreaker — that was the old design
-and it failed on retrieval.
-
-### Budget parametrization
-
-`budget_fraction` is context-length-independent (e.g. 0.65 means keep 65% of
-each sequence's actual token count). The old `total_budget` int was context-length-
-dependent and required manual calibration per task.
-
-`min_decay` parametrizes decay by its value at the oldest position. The rate is
-auto-derived as `rate = (1 − min_decay) / (T − 1)`, so the decay profile is
-consistent regardless of T. Old fixed `decay_rate` would collapse early tokens
-to near-zero at long contexts.
-
-### Model choice
-
-Instruct models are not well-suited to LongBench prompts (which are designed for
-base models). Full scores were low (NarrativeQA=0) with instruct model.
-Switch to `meta-llama/Llama-3.1-8B` (base) for definitive runs.
-
-### Retrieval scoring fix
-
-Original `retrieval_score` required "Paragraph 17" format. Base model outputs
-bare "17". Fixed by regex that extracts the number from either format.
-
-### Sequence length for retrieval
-
-PassageRetrieval prompts are 11K-14K tokens. With `max_seq_len=7168`, the prompt
-was truncated before the model saw most paragraphs. mode_compare.py uses
-`max_seq_len=16000`; longbench_eval.py uses 7168 (a known tradeoff for V100 VRAM).
-
----
-
-## Full LongBench Results
-
-Model: Llama-3.1-8B (base), fp16, V100 32GB
-Config: additive α=0.65, budget_fraction=0.65, min_decay=0.7, q_buffer_size=128,
-        always_keep_first=16, always_keep_last=16, linear decay, max_seq_len=7168
-
-| Task | Full | Naive (4K) | Pruned (65%) |
+| Method | GT | Perplexity Faith. | Embedding Faith. |
 |---|---|---|---|
-| NarrativeQA | 5.5 | 19.5 | 3.1 |
-| Qasper | 11.1 | 11.4 | 10.1 |
-| MultifieldQA | 28.9 | 28.5 | 27.1 |
-| HotpotQA | 9.9 | 10.9 | 9.9 |
-| 2WikiMQA | 14.1 | 14.2 | 11.3 |
-| MuSiQue | 6.9 | 6.7 | 5.1 |
-| GovReport | 20.4 | 20.2 | 17.5 |
-| QMSum | 10.3 | 14.6 | 8.1 |
-| MultiNews | 1.1 | 0.8 | 1.4 |
-| TREC | 70.0 | 71.0 | 65.0 |
-| TriviaQA | 17.4 | 17.8 | 17.7 |
-| SAMSum | 16.0 | 16.4 | 15.6 |
-| PassageCount | 3.0 | 1.0 | 2.0 |
-| **PassageRetrieval** | **44.0** | **18.0** | **27.0** |
-| LCC | 68.1 | 66.5 | 57.4 |
-| RepoBench-P | 55.6 | 54.7 | 49.0 |
-| **Average** | **23.9** | **23.3** | **20.5** |
+| kq_post_rope | **23.9** | **104.2** | 85.7 |
+| SnapKV | 23.8 | 102.8 | 86.1 |
+| kq_only | 23.0 | 101.6 | 84.8 |
+| naive_65pct | 23.4 | 95.5 | **90.7** |
+| vn_decay | 17.8 | 106.2 | 78.2 |
+| Streaming | 13.4 | 68.2 | 62.2 |
 
-The paper reports 86% of full-context performance recovered. The main loss is code
-tasks (LCC -11, RepoBench -7 vs full). PassageRetrieval is the clear win (+9 vs naive).
+Key findings:
+- `kq_post_rope` (post-RoPE, no decay) is the best overall method by faithfulness
+- `kq_only` (pre-RoPE, no decay) is worse — post-RoPE beats pre-RoPE despite
+  the theoretical argument that RoPE penalizes distant tokens
+- `vn_decay` has highest perplexity but lowest embedding — "mode switching": finds
+  high-probability outputs that are semantically different from the full model's outputs
+- Adding V-norm to KQ alignment (pruned/additive) hurts both GT and faithfulness
+- Naive truncation looks competitive on GT (23.4) but is measurably worse on
+  perplexity faithfulness (95.5 vs 104.2) — a 9-point gap invisible to GT scoring
 
-NarrativeQA anomaly: naive (19.5) beats full context (5.5). Hypothesis: long story
-contexts confuse the base model; truncation incidentally removes confusing material.
+### Pre-RoPE vs Post-RoPE
+
+The code comment originally said `kq_post_rope` was "the pre-RoPE method" — this
+was wrong. Confirmed by code inspection:
+- `kq_post_rope`: uses `key_states` (post-RoPE, rotated)
+- `kq_only`: uses `k_raw` (pre-RoPE, captured before `apply_rotary_pos_emb`)
+The §5.4 ablation is a clean comparison — both modes have no decay, differing
+only in scoring space.
+
+### Decay Screen (in progress as of 2026-04-30)
+
+Early GT experiments concluded decay was not helpful. Since GT is an unreliable
+metric for compression, we are re-evaluating using perplexity faithfulness.
+`decay_screen.csh` tests min_decay ∈ {0.9, 0.7, 0.5} on passage_retrieval_en,
+qmsum, samsum (20 examples each). Results in `decay_screen_faith.json`.
+
+Decision rule: if any decay value beats no-decay kq_post_rope by >2 points on
+average perplexity faithfulness → run full 16-task evaluation with that decay.
+Otherwise → correct §4.2 in the paper to say method uses no decay.
 
 ---
 
-## Known Issues and Research Directions
+## Paper Status (paper_faithfulness_prerope.md) — 2026-04-30
 
-### Code task regression (most important)
+Revisions made today:
+- **Title**: removed "with Pre-RoPE Scoring" (post-RoPE is the winning method)
+- **Abstract, §1, §2**: reframed — pre-RoPE is a hypothesis we test, not a claim
+- **§4**: expanded substantially — opening paragraph claims kq_post_rope as a novel
+  method; §4.2 adds rationale for tail buffer, max-pooling, and decay;
+  §4.3 rewritten as "post-RoPE vs pre-RoPE" comparison; §4.5 restructured into
+  proposed method / external baselines / ablations
+- **vn_decay**: GT (17.8) and Lexical (30.2) scores filled in — data was in
+  `results.json` and `faithfulness_results.json` all along, just not tabulated
+- **§1 contributions**: kq_post_rope explicitly claimed as novel method, distinct
+  from SnapKV (same key space, different signal: raw dot products vs attn weights)
 
-LCC and RepoBench-P are worse than naive truncation. Code completion is a recency
-task — the immediately preceding lines matter most. KQ alignment may over-select
-semantically interesting tokens (identifiers, keywords) at the expense of syntactically
-necessary but low-salience tokens.
-
-**Potential fixes:**
-- Higher `always_keep_last` (e.g. 64 or 128) to unconditionally retain more recent context
-- Lower `min_decay` (e.g. 0.3 or 0.1) for stronger recency bias
-- Task-adaptive α: use α=0.9 or kq_only for code tasks, α=0.65 for QA
-
-### Per-layer budgets
-
-Early and late layers have different attention patterns. A flat 65% budget across
-all layers is likely suboptimal. Retrieval heads (which do long-range lookup) are
-concentrated in specific layers — those layers may need a larger budget.
-
-### Larger/different models
-
-Only tested on Llama-3.1-8B. Interesting to test:
-- Llama-3.1-70B (if multi-GPU available)
-- Mistral or Qwen2 families (different GQA ratios)
-- A model with flash attention for speed comparison
-
-### Efficiency measurement
-
-No wall-clock timing or VRAM measurements were taken. A real paper needs:
-- Prefill latency vs context length (full vs pruned)
-- Peak VRAM vs retention fraction
-- Throughput (tokens/sec) comparison
-
-### Comparison with baselines in code
-
-H2O, SnapKV, and StreamingLLM are not implemented here. Paper mentions them in
-related work but does not benchmark against them directly — a stronger evaluation
-would include at least one baseline.
+Still needs (pending decay screen):
+- §4.2 final score formula: currently shows `score_i = kq_i · decay_i` but code
+  has no decay for kq_post_rope. Will be corrected based on screen results.
 
 ---
 
 ## How to Resume Experiments
 
-### Run a targeted ablation on specific tasks
+### Check decay screen results
 
 ```bash
-python mode_compare.py \
-    --model meta-llama/Llama-3.2-3B-Instruct \
-    --tasks lcc,repobench-p \
-    --max_examples 30 \
-    --modes additive \
-    --alphas 0.65 \
-    --retentions 0.65 \
-    --always_keep_last 64 \
-    --output mode_compare_code.json
+python -c "
+import json
+r = json.load(open('decay_screen_faith.json'))
+ppl = r.get('perplexity', {})
+for task, scores in ppl.items():
+    print(task, {k:round(v,1) for k,v in scores.items() if not k.startswith('_')})
+"
 ```
 
-### Run full LongBench with a different config
+### Add a new method to lb_results_base
 
 ```bash
-python longbench_eval.py \
+conda run -n llmopt python longbench_eval.py \
+    --model meta-llama/Llama-3.1-8B \
+    --tasks passage_retrieval_en,qmsum,samsum \
+    --max_examples 20 \
+    --output lb_results_base \
+    --budget_fraction 0.65 \
+    --score_mode kq_post_rope \
+    --min_decay 0.7 \
+    --method_label kqpr_md0.7 \
+    --naive_fraction 0.0
+```
+
+### Score faithfulness for new methods
+
+```bash
+conda run -n llmopt python faithfulness_deep.py \
+    --model meta-llama/Llama-3.1-8B \
+    --checkpoint lb_results_base/checkpoint.json \
+    --output my_faith_results.json \
+    --perplexity --embedding
+```
+
+### Run full 16-task LongBench with a new config
+
+```bash
+conda run -n llmopt python longbench_eval.py \
     --model meta-llama/Llama-3.1-8B \
     --budget_fraction 0.65 \
-    --score_mode additive \
-    --score_alpha 0.65 \
+    --score_mode kq_post_rope \
+    --min_decay 0.7 \
     --max_seq_len 7168 \
-    --output lb_results_v2
+    --method_label kqpr_md0.7 \
+    --output lb_results_base \
+    --naive_fraction 0.0
 ```
 
 ### Check checkpoint progress
 
 ```bash
 python -c "
-import json
-cp = json.load(open('lb_results/checkpoint.json'))
-done = {(r['task'], r['idx'], r['method']) for r in cp}
-print(f'{len(done)} examples done')
+import json, collections
+cp = json.load(open('lb_results_base/checkpoint.json'))
+counts = collections.Counter(k.split('|')[2] for k in cp if k.count('|') == 2)
+for method, n in sorted(counts.items()):
+    print(f'{method}: {n}')
 "
 ```
 
@@ -286,3 +298,4 @@ print(f'{len(done)} examples done')
 - max_seq_len=7168 keeps peak VRAM below 32GB for Llama-3.1-8B
 - For mode_compare.py with 3B model, max_seq_len=16000 works
 - Set `PYTORCH_ALLOC_CONF=expandable_segments:True` to reduce fragmentation OOM
+- Perplexity faithfulness scoring is fast (forward passes only, no generation)
