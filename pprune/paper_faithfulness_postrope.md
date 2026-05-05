@@ -4,7 +4,7 @@
 
 ## Abstract
 
-Standard benchmarks for KV cache compression measure whether a compressed model gives the *correct* answer according to ground-truth labels. We argue this is the wrong objective: the goal of compression is approximation fidelity — producing the same output the full-context model would have produced. We introduce a suite of complementary faithfulness metrics that measure similarity to full-context outputs directly, and show that ground-truth rankings and faithfulness rankings disagree substantially. Using faithfulness as the primary lens, we revisit where to compute KV cache importance scores, comparing post-RoPE and pre-RoPE key-query dot products. Counterintuitively, post-RoPE scoring outperforms its pre-RoPE counterpart on all metrics despite the theoretical argument that RoPE's positional encoding penalizes distant tokens. We also evaluate a V-norm payload term as an ablation. We find that the two faithfulness metrics — perplexity-based and embedding-based — capture distinct failure modes, motivating their joint use for compression evaluation.
+Standard benchmarks for KV cache compression measure whether a compressed model gives the *correct* answer according to ground-truth labels. We argue this is the wrong objective: the goal of compression is approximation fidelity — producing the same output the full-context model would have produced. We introduce a suite of complementary faithfulness metrics that measure similarity to full-context outputs directly, and show that ground-truth rankings and faithfulness rankings disagree substantially. Using faithfulness as the primary lens, we revisit where to compute KV cache importance scores, comparing post-RoPE and pre-RoPE key-query dot products. Counterintuitively, post-RoPE scoring outperforms its pre-RoPE counterpart on all metrics despite the theoretical argument that RoPE's positional encoding penalizes distant tokens. The resulting method, kq_post_rope, matches SnapKV on ground-truth accuracy (23.9 vs. 23.8 LongBench average) while outperforming it on perplexity faithfulness (104.2 vs. 102.8) — a gap invisible to ground-truth evaluation alone. We also evaluate a V-norm payload term as an ablation. We find that the two faithfulness metrics — perplexity-based and embedding-based — capture distinct failure modes, motivating their joint use for compression evaluation.
 
 ---
 
@@ -266,18 +266,16 @@ Ground-truth scores are relatively compressed across methods: naive_65pct (23.4)
 | Method | GT↑ | Perplexity↑ | Embedding↑ | Lexical↑ |
 |---|---|---|---|---|
 | Naive_65pct | 23.4 | 95.5 | **90.7** | **57.9** |
-| kq_post_rope | **23.9** | 104.2 | 85.7 | 46.0 |
+| kq_post_rope | **23.9** | **104.2** | 85.7 | 46.0 |
 | kq_only | 23.0 | 101.6 | 84.8 | 43.9 |
 | SnapKV | 23.8 | 102.8 | 86.1 | 46.7 |
-| pruned (kq + V-norm) | 21.4 | 104.7 | 82.5 | 38.6 |
-| vn_decay | 17.8 | **106.2** | 78.2 | 30.2 |
 | Streaming | 13.4 | 68.2 | 62.2 | 11.9 |
 
 The headline finding: **on ground truth, kq_post_rope (95.6% of full), SnapKV (95.2%), and naive_65pct (93.6%) appear nearly equivalent — all within 2 points of each other. Perplexity faithfulness reveals a 9-point gap between naive_65pct (95.5) and kq_post_rope (104.2), despite ground-truth scores differing by only 0.5 points.** Naive truncation is a significantly poorer approximation of full-context behavior than ground-truth scores suggest.
 
 A perplexity score of 100 means the compressed output is exactly as likely under the full model as the full model's own greedy output. Scores below 100 mean the output is less probable — the method is diverging from the full model's distribution. Scores above 100 mean the compressed output is *more* probable than what the greedy decoder produced; this is valid and expected, since greedy decoding is path-dependent and does not find the globally most probable sequence. kq_post_rope at 104.2 occupies a slightly higher-probability region than the full model's own outputs; naive_65pct at 95.5 is measurably less plausible, reflecting operation from a truncated context.
 
-Embedding faithfulness tells a partially different story: naive_65pct scores 90.7, the highest of any method. Naive truncation preserves contiguous text from the tail, producing outputs that are semantically similar to the full model's on tasks where the tail is informative — but those outputs are less likely under the full model, revealing operation in a different regime. More striking is vn_decay: it achieves the highest perplexity faithfulness (106.2) yet the lowest embedding faithfulness among semantic methods (78.2) and the lowest ground-truth score among semantic methods (17.8 vs. 23.9 for kq_post_rope). Its outputs are *more* probable than the full model's own outputs, yet semantically further from what the full model produces and measurably less correct. This cross-metric pattern — high perplexity, low embedding, low ground truth — identifies a distinct failure mode that neither metric alone can detect. We discuss this in depth in §6.1.
+Embedding faithfulness tells a partially different story: naive_65pct scores 90.7, the highest of any method. Naive truncation preserves contiguous text from the tail, producing outputs that are semantically similar to the full model's on tasks where the tail is informative — but those outputs are less likely under the full model, revealing operation in a different regime. The V-norm ablations (§5.5) reveal a more striking cross-metric pattern — high perplexity paired with low embedding faithfulness — that identifies a distinct failure mode we discuss in §6.1.
 
 #### The GT-Faithfulness Reversal
 
