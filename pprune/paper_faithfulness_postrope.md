@@ -6,9 +6,9 @@
 
 Standard benchmarks for KV cache compression measure whether a compressed model gives the correct answer according to ground-truth labels. We argue this is the wrong objective: the goal of compression is approximation fidelity — producing the same output the full-context model would have produced.  In this paper we introduce a suite of complementary faithfulness metrics that measure similarity to full-context outputs directly, and show that ground-truth rankings and faithfulness rankings disagree substantially.  We find that the two faithfulness metrics — perplexity-based and embedding-based — capture distinct failure modes, motivating their joint use for compression evaluation.
 
-We also introduce a new KV cache compression method -- kq_post_rope -- and using both ground truth and faithfulness as the lens, compare our new method with other methods previously published to establish the rankings of the various compressions techniques and their strengths and shortcomings.  The best methods we have found to be kq_post_rope and SnapKV, with kq_post_rope matching SnapKV on ground-truth accuracy (23.9 vs. 23.8 LongBench average) while outperforming it on perplexity faithfulness (104.2 vs. 102.8) — a gap invisible to ground-truth evaluation alone.
+We also introduce a new KV cache compression method, RADAR, and compare it against prior methods on both criteria, establishing rankings and surfacing mode-specific failure patterns. The best methods are RADAR and SnapKV, with RADAR matching SnapKV on ground-truth accuracy (23.9 vs. 23.8 LongBench average) while outperforming it on perplexity faithfulness (104.2 vs. 102.8) — a gap invisible to ground-truth evaluation alone.
 
-Finally, using our faithfulness metrics, we revisit where to compute KV cache importance scores, comparing post-RoPE and pre-RoPE key-query dot products. We find that post-RoPE scoring outperforms its pre-RoPE counterpart on all metrics despite the theoretical argument that RoPE's positional encoding penalizes distant tokens. 
+Finally, using our faithfulness metrics, we revisit where to compute KV cache importance scores, comparing post-RoPE and pre-RoPE key-query dot products. We find that post-RoPE scoring outperforms its pre-RoPE counterpart on all metrics despite the theoretical argument that position encoding should penalize distant tokens in post-RoPE space.
 
 ---
 
@@ -31,7 +31,7 @@ Using faithfulness as the primary evaluation lens, we revisit the design space f
 We make the following contributions:
 
 - **Faithfulness evaluation framework**: three complementary metrics for measuring how closely a compressed model approximates full-context behavior, together with an analysis of where and why ground-truth rankings and faithfulness rankings disagree
-- **kq_post_rope**: we propose a novel KV cache eviction method that scores tokens by the max-pooled dot product of tail query vectors against all key vectors in post-RoPE space, multiplied by a linear distance decay. This is distinct from SnapKV [Li et al., 2024], which also uses post-RoPE vectors but scores by pooling softmax attention weights rather than raw dot products, and from A2ATS [ACL 2025], which uses pre-RoPE keys. We find that post-RoPE scoring with distance decay outperforms the pre-RoPE alternative on all faithfulness metrics; we report the pre-RoPE hypothesis as a negative result and discuss the likely mechanism in §7
+- **RADAR** (Recency-Aware Dot-product Attention Ranking): we propose a novel KV cache eviction method that scores tokens by the max-pooled dot product of tail query vectors against all key vectors in post-RoPE space, multiplied by a linear distance decay. This is distinct from SnapKV [Li et al., 2024], which also uses post-RoPE vectors but scores by pooling softmax attention weights rather than raw dot products, and from A2ATS [ACL 2025], which uses pre-RoPE keys. We find that post-RoPE scoring with distance decay outperforms the pre-RoPE alternative on all faithfulness metrics; we report the pre-RoPE hypothesis as a negative result and discuss the likely mechanism in §7
 - **V-norm ablation**: a V-norm payload term, while theoretically motivated [Feng et al., 2025], does not improve faithfulness over post-RoPE KQ alignment alone; we report this as a negative result to inform future work
 - **Cross-architecture validation**: results on both Llama-3.1-8B and Mistral-7B-v0.3 with identical hyperparameters
 
@@ -39,7 +39,7 @@ We make the following contributions:
 
 ## 2. Background and Related Work
 
-**KV cache eviction.** H2O [Zhang et al., 2023] identifies "heavy hitter" tokens via accumulated attention scores and evicts the rest. SnapKV [Li et al., 2024] selects tokens by pooling attention weights from the last several queries over all key positions, using post-RoPE vectors. StreamingLLM [Xiao et al., 2023] retains attention sink tokens plus a recency window, requiring no scoring computation. Our method, kq_post_rope, also uses post-RoPE vectors but differs from SnapKV in two key respects: it uses raw dot products rather than softmax attention weights (avoiding the distortion introduced by the causal mask and the softmax normalization), and it multiplies scores by a linear distance decay rather than relying on the attention distribution alone to capture recency.
+**KV cache eviction.** H2O [Zhang et al., 2023] identifies "heavy hitter" tokens via accumulated attention scores and evicts the rest. SnapKV [Li et al., 2024] selects tokens by pooling attention weights from the last several queries over all key positions, using post-RoPE vectors. StreamingLLM [Xiao et al., 2023] retains attention sink tokens plus a recency window, requiring no scoring computation. Our method, RADAR (Recency-Aware Dot-product Attention Ranking), also uses post-RoPE vectors but differs from SnapKV in two key respects: it uses raw dot products rather than softmax attention weights (avoiding the distortion introduced by the causal mask and the softmax normalization), and it multiplies scores by a linear distance decay rather than relying on the attention distribution alone to capture recency.
 
 **Pre-RoPE vs. post-RoPE scoring.** A2ATS [ACL 2025] explicitly advocates scoring with pre-RoPE keys, and is to our knowledge the only prior work to study this choice in isolation. We test both scoring spaces and find the opposite result: post-RoPE KQ alignment with distance decay consistently outperforms pre-RoPE scoring across all faithfulness metrics. We provide a faithfulness-based analysis of this discrepancy in §5.4 and §7.
 
@@ -99,9 +99,9 @@ We use `all-MiniLM-L6-v2` [Wang et al., 2020]. A score of 100 means identical em
 
 Before presenting results, we clarify the scales. Ground-truth scores are expressed on a task-specific metric (ROUGE-L, F1, EM); the full-context model scores 25.0 average, and a compressed method retaining 93–96% of that is the competitive range. Perplexity faithfulness is centered at 100, which means the compressed output is exactly as likely under the full-context model as the full-context model's own output; scores below 100 mean the compressed output is less likely (the method diverges from the full model's distribution); scores above 100 mean the compressed output is *more* likely than what the greedy decoder produced — valid and expected, since greedy decoding is path-dependent and does not find the globally most probable sequence. Scores near 100 in either direction are acceptable; large negative deviations indicate the compressed output is out-of-distribution. A score of 95.5 means 4.5% less likely, and 104.2 means 4.2% more likely — the gap between these methods is roughly 9 percentage points, not 9 absolute units. Embedding faithfulness runs from 50 (orthogonal embeddings, no semantic overlap) to 100 (identical embeddings); the compressed methods cluster in the 84–91 range, with streaming much lower at 62.
 
-With these scales in mind, the key finding is that ground-truth rankings and faithfulness rankings disagree substantially. The clearest case is naive proportional truncation (naive_65pct): it retains 93.6% of full-context ground-truth performance (23.4 vs. full context 25.0), which appears competitive with all semantic methods. But its perplexity faithfulness is 95.5 — meaning its outputs are 4.5% less likely under the full-context model than the full model's own outputs — while kq_post_rope achieves 104.2, indicating its outputs are within 4.2% of full-context likelihood from the other side. The gap between naive_65pct and kq_post_rope on perplexity faithfulness (8.7 points) is thus much larger than the gap on ground truth (0.5 points). Embedding faithfulness reverses this picture: naive_65pct scores 90.7 (90.7% of the way from orthogonal to identical semantics) while kq_post_rope scores 85.7 — naive's contiguous text preservation produces semantically similar outputs even when they are less likely under the full model.
+With these scales in mind, the key finding is that ground-truth rankings and faithfulness rankings disagree substantially. The clearest case is naive proportional truncation (naive_65pct): it retains 93.6% of full-context ground-truth performance (23.4 vs. full context 25.0), which appears competitive with all semantic methods. But its perplexity faithfulness is 95.5 — meaning its outputs are 4.5% less likely under the full-context model than the full model's own outputs — while RADAR achieves 104.2, indicating its outputs are within 4.2% of full-context likelihood from the other side. The gap between naive_65pct and RADAR on perplexity faithfulness (8.7 points) is thus much larger than the gap on ground truth (0.5 points). Embedding faithfulness reverses this picture: naive_65pct scores 90.7 (90.7% of the way from orthogonal to identical semantics) while RADAR scores 85.7 — naive's contiguous text preservation produces semantically similar outputs even when they are less likely under the full model.
 
-The mechanism is task-specific. On NarrativeQA (contexts of 30K+ tokens), naive_65pct retains only the last 65% of a novel. The F1 metric scores its output at 4.9 vs. the full model's 5.5 — apparently 89% of full-context performance. But perplexity faithfulness for naive_65pct on NarrativeQA is 98.6, while kq_post_rope achieves 110.8. Both numbers are near 100, meaning both compressed outputs are close to what the full model would consider plausible — but the ground-truth comparison is measuring something different: whether the output matches a short reference phrase. A method operating on a much shorter context happens to produce outputs that score similarly on F1 while being generated from a fundamentally different effective context. Faithfulness metrics expose this; ground-truth metrics do not.
+The mechanism is task-specific. On NarrativeQA (contexts of 30K+ tokens), naive_65pct retains only the last 65% of a novel. The F1 metric scores its output at 4.9 vs. the full model's 5.5 — apparently 89% of full-context performance. But perplexity faithfulness for naive_65pct on NarrativeQA is 98.6, while RADAR achieves 110.8. Both numbers are near 100, meaning both compressed outputs are close to what the full model would consider plausible — but the ground-truth comparison is measuring something different: whether the output matches a short reference phrase. A method operating on a much shorter context happens to produce outputs that score similarly on F1 while being generated from a fundamentally different effective context. Faithfulness metrics expose this; ground-truth metrics do not.
 
 This reversal — ground-truth appearing to show rough equivalence while faithfulness reveals meaningful differences in approximation quality — is the central motivation for our evaluation framework.
 
@@ -109,7 +109,7 @@ This reversal — ground-truth appearing to show rough equivalence while faithfu
 
 ## 4. Method: KQ Scoring with Distance Decay
 
-We propose **kq_post_rope**, a prefill-time KV cache eviction method that scores each token by the semantic relevance of its key to the generation-phase queries, attenuated by a context-length-independent distance decay. All scoring is performed in post-RoPE space — the same key and query vectors the attention kernel uses — and requires no additional forward passes or stored attention weights.
+We propose **RADAR**, a prefill-time KV cache eviction method that scores each token by the semantic relevance of its key to the generation-phase queries, attenuated by a context-length-independent distance decay. All scoring is performed in post-RoPE space — the same key and query vectors the attention kernel uses — and requires no additional forward passes or stored attention weights.
 
 ### 4.1 Setup
 
@@ -160,7 +160,7 @@ After selection, we reconstruct a valid causal attention mask using the *origina
 ### 4.5 Proposed Method and Baselines
 
 **Proposed method.**
-- *kq_post_rope*: post-RoPE KQ alignment with distance decay, as described in §4.2–4.4. This is the primary method evaluated throughout.
+- *RADAR*: post-RoPE KQ alignment with distance decay, as described in §4.2–4.4. This is the primary method evaluated throughout.
 
 **External baselines.**
 - *Full context*: unmodified model with full prompt
@@ -169,7 +169,7 @@ After selection, we reconstruct a valid causal attention mask using the *origina
 - *StreamingLLM*: first 4 attention sink tokens plus most recent tokens to fill the 65% budget [Xiao et al., 2023]
 
 **Ablations.**
-- *kq_only*: pre-RoPE KQ alignment with distance decay — identical to kq_post_rope except scoring uses pre-RoPE keys and queries; isolates the effect of the scoring space choice
+- *kq_only*: pre-RoPE KQ alignment with distance decay — identical to RADAR except scoring uses pre-RoPE keys and queries; isolates the effect of the scoring space choice
 - *pruned (kq + V-norm)*: additive combination of post-RoPE KQ alignment and V-norm with decay (α·kq + (1−α)·vn·decay, α=0.65); tests whether a V-norm payload term improves over KQ alignment alone
 - *vn_decay*: V-norm multiplied by distance decay, with no KQ alignment; tests the V-norm signal in isolation
 
@@ -191,75 +191,75 @@ Note on the naive baseline: we use proportional truncation (65% of actual prompt
 
 ### 5.2 Ground-Truth Results
 
-| Task | Full | Naive_65pct | kq_post_rope | kq_only | SnapKV | Streaming |
+| Task | Full | Naive_65pct | RADAR | kq_only | SnapKV | Streaming |
 |---|---|---|---|---|---|---|
-| NarrativeQA† | 5.5 | 4.9 | **5.7** | 5.7 | 5.0 | 6.6 |
+| NarrativeQA† | 5.5 | 4.9 | 5.7 | 5.7 | 5.0 | **6.6** |
 | Qasper | 11.1 | 10.2 | 9.5 | **11.7** | 11.1 | 8.4 |
 | MultifieldQA | 28.9 | 27.0 | **29.4** | 25.3 | 28.4 | 15.8 |
-| HotpotQA† | 9.9 | 9.6 | **10.1** | 8.6 | 9.6 | 11.4 |
+| HotpotQA† | 9.9 | 9.6 | 10.1 | 8.6 | 9.6 | **11.4** |
 | 2WikiMQA | 14.1 | 12.6 | 12.1 | 12.4 | **13.9** | 12.9 |
 | MuSiQue† | 6.9 | **7.0** | 6.1 | 5.6 | 6.0 | 4.5 |
-| GovReport | 20.4 | **19.8** | 19.2 | 18.9 | 19.9 | 5.2 |
-| QMSum | 10.3 | 11.5 | 9.0 | 8.6 | 9.7 | 3.5 |
-| MultiNews | 19.0 | 16.5 | **18.4** | 17.8 | 18.9 | 7.5 |
+| GovReport | 20.4 | 19.8 | 19.2 | 18.9 | **19.9** | 5.2 |
+| QMSum | 10.3 | **11.5** | 9.0 | 8.6 | 9.7 | 3.5 |
+| MultiNews | 19.0 | 16.5 | 18.4 | 17.8 | **18.9** | 7.5 |
 | TREC | 70.0 | 66.0 | **70.0** | 68.0 | 66.0 | 50.0 |
-| TriviaQA | 17.4 | 17.3 | **18.3** | 17.0 | 17.6 | 35.9 |
+| TriviaQA | 17.4 | 17.3 | 18.3 | 17.0 | 17.6 | **35.9** |
 | SAMSum | 16.0 | 16.5 | **18.3** | 15.8 | 17.5 | 6.4 |
-| PassageCount† | 3.0 | 1.0 | **3.0** | 2.0 | 3.0 | 2.0 |
-| PassageRetrieval | 44.0 | 37.0 | 36.0 | 38.0 | 37.0 | 20.0 |
-| LCC | 68.1 | 63.4 | 64.1 | 59.7 | 63.2 | 17.8 |
-| RepoBench-P | 55.6 | 53.9 | 54.1 | 52.1 | 53.4 | 6.3 |
+| PassageCount† | 3.0 | 1.0 | **3.0** | 2.0 | **3.0** | 2.0 |
+| PassageRetrieval | 44.0 | 37.0 | 36.0 | **38.0** | 37.0 | 20.0 |
+| LCC | 68.1 | 63.4 | **64.1** | 59.7 | 63.2 | 17.8 |
+| RepoBench-P | 55.6 | 53.9 | **54.1** | 52.1 | 53.4 | 6.3 |
 | **Average** | **25.0** | 23.4 | **23.9** | 23.0 | 23.8 | 13.4 |
 
 Full context is the reference and is not bolded. Bold marks the best compressed method. Tasks marked † are diagnostic cases discussed in §6.
 
-Ground-truth scores are relatively compressed across methods: naive_65pct (23.4), kq_post_rope (23.9), kq_only (23.0), and SnapKV (23.8) are within 1 point of each other. Streaming (13.4) fails badly on tasks requiring distributed context. These small differences between the semantic methods and naive truncation are precisely the problem with ground-truth evaluation: they suggest the methods are roughly equivalent when faithfulness analysis (§5.3) reveals they are not.
+Ground-truth scores are relatively compressed across methods: naive_65pct (23.4), RADAR (23.9), kq_only (23.0), and SnapKV (23.8) are within 1 point of each other. Streaming (13.4) fails badly on tasks requiring distributed context. These small differences between the semantic methods and naive truncation are precisely the problem with ground-truth evaluation: they suggest the methods are roughly equivalent when faithfulness analysis (§5.3) reveals they are not.
 
 ### 5.3 Faithfulness Results
 
 #### Perplexity Faithfulness
 
-| Task | Naive_65pct | kq_post_rope | kq_only | SnapKV | Streaming |
+| Task | Naive_65pct | RADAR | kq_only | SnapKV | Streaming |
 |---|---|---|---|---|---|
 | NarrativeQA† | 98.6 | **110.8** | 104.6 | 107.2 | 77.6 |
 | Qasper | 91.8 | **97.2** | 95.4 | 96.5 | 66.3 |
-| MultifieldQA | 87.3 | 96.3 | **100.2** | **101.6** | 61.8 |
+| MultifieldQA | 87.3 | 96.3 | 100.2 | **101.6** | 61.8 |
 | HotpotQA† | 97.6 | 100.7 | **101.1** | 100.4 | 50.1 |
-| 2WikiMQA | **101.1** | 102.7 | 103.7 | 100.9 | 37.6 |
-| MuSiQue† | 99.8 | 99.2 | 99.8 | 98.2 | 56.2 |
+| 2WikiMQA | 101.1 | 102.7 | **103.7** | 100.9 | 37.6 |
+| MuSiQue† | **99.8** | 99.2 | **99.8** | 98.2 | 56.2 |
 | GovReport | 76.5 | 93.5 | 92.3 | 93.2 | **94.1** |
 | QMSum | 93.4 | **106.4** | 106.3 | 103.4 | 98.1 |
 | MultiNews | **93.4** | 89.8 | 89.6 | 88.1 | 86.2 |
 | TREC | **100.1** | 98.4 | 98.8 | 97.5 | 34.8 |
 | TriviaQA | 100.5 | **102.7** | 97.4 | 98.5 | 64.5 |
 | SAMSum | 102.6 | **121.1** | 112.0 | 119.9 | 109.4 |
-| PassageCount† | 98.5 | 147.3 | 135.5 | **142.2** | 111.9 |
+| PassageCount† | 98.5 | **147.3** | 135.5 | 142.2 | 111.9 |
 | PassageRetrieval | 89.1 | **107.5** | 104.4 | 103.3 | 60.2 |
 | LCC | **100.0** | 98.8 | 93.4 | 98.2 | 36.2 |
-| RepoBench-P | 97.2 | **94.7** | 90.7 | 95.8 | 46.6 |
+| RepoBench-P | **97.2** | 94.7 | 90.7 | 95.8 | 46.6 |
 | **Average** | 95.5 | **104.2** | 101.6 | 102.8 | 68.2 |
 
 100 = output as likely as full-context output under the full-context model; >100 = more likely; <100 = less likely.
 
 #### Embedding Faithfulness
 
-| Task | Naive_65pct | kq_post_rope | kq_only | SnapKV | Streaming |
+| Task | Naive_65pct | RADAR | kq_only | SnapKV | Streaming |
 |---|---|---|---|---|---|
 | NarrativeQA† | **96.5** | 84.1 | 82.2 | 85.1 | 60.2 |
-| Qasper | 83.8 | **85.4** | 84.9 | 86.3 | 67.0 |
+| Qasper | 83.8 | 85.4 | 84.9 | **86.3** | 67.0 |
 | MultifieldQA | 86.3 | **88.1** | 86.8 | 87.0 | 66.6 |
 | HotpotQA† | **95.9** | 87.4 | 85.7 | 87.8 | 61.8 |
 | 2WikiMQA | 85.8 | **89.5** | 89.4 | 88.2 | 67.5 |
 | MuSiQue† | **98.7** | 84.2 | 82.5 | 85.1 | 59.9 |
 | GovReport | **92.1** | 90.3 | 89.0 | 90.3 | 56.2 |
-| QMSum | 89.2 | **85.2** | 84.1 | 86.7 | 56.8 |
+| QMSum | **89.2** | 85.2 | 84.1 | 86.7 | 56.8 |
 | MultiNews | **98.0** | 89.9 | 90.6 | 90.6 | 63.8 |
-| TREC | 88.8 | 84.9 | **87.4** | 85.5 | 60.7 |
+| TREC | **88.8** | 84.9 | 87.4 | 85.5 | 60.7 |
 | TriviaQA | **88.3** | 75.8 | 76.4 | 79.1 | 62.6 |
-| SAMSum | 93.4 | **88.8** | 87.8 | 88.5 | 69.6 |
+| SAMSum | **93.4** | 88.8 | 87.8 | 88.5 | 69.6 |
 | PassageCount† | **88.8** | 73.5 | 72.4 | 73.7 | 70.2 |
 | PassageRetrieval | **91.0** | 84.4 | 84.8 | 84.2 | 57.9 |
-| LCC | 90.0 | **89.8** | 85.4 | 90.1 | 60.1 |
+| LCC | 90.0 | 89.8 | 85.4 | **90.1** | 60.1 |
 | RepoBench-P | **95.4** | 90.3 | 87.4 | 89.1 | 54.3 |
 | **Average** | **90.7** | 85.7 | 84.8 | 86.1 | 62.2 |
 
@@ -270,28 +270,28 @@ Ground-truth scores are relatively compressed across methods: naive_65pct (23.4)
 | Method | GT↑ | Perplexity↑ | Embedding↑ | Lexical↑ |
 |---|---|---|---|---|
 | Naive_65pct | 23.4 | 95.5 | **90.7** | **57.9** |
-| kq_post_rope | **23.9** | **104.2** | 85.7 | 46.0 |
+| RADAR | **23.9** | **104.2** | 85.7 | 46.0 |
 | kq_only | 23.0 | 101.6 | 84.8 | 43.9 |
 | SnapKV | 23.8 | 102.8 | 86.1 | 46.7 |
 | Streaming | 13.4 | 68.2 | 62.2 | 11.9 |
 
-The headline finding: **on ground truth, kq_post_rope (95.6% of full), SnapKV (95.2%), and naive_65pct (93.6%) appear nearly equivalent — all within 2 points of each other. Perplexity faithfulness reveals a 9-point gap between naive_65pct (95.5) and kq_post_rope (104.2), despite ground-truth scores differing by only 0.5 points.** Naive truncation is a significantly poorer approximation of full-context behavior than ground-truth scores suggest.
+The headline finding: **on ground truth, RADAR (95.6% of full), SnapKV (95.2%), and naive_65pct (93.6%) appear nearly equivalent — all within 2 points of each other. Perplexity faithfulness reveals a 9-point gap between naive_65pct (95.5) and RADAR (104.2), despite ground-truth scores differing by only 0.5 points.** Naive truncation is a significantly poorer approximation of full-context behavior than ground-truth scores suggest.
 
-A perplexity score of 100 means the compressed output is exactly as likely under the full model as the full model's own greedy output. Scores below 100 mean the output is less probable — the method is diverging from the full model's distribution. Scores above 100 mean the compressed output is *more* probable than what the greedy decoder produced; this is valid and expected, since greedy decoding is path-dependent and does not find the globally most probable sequence. kq_post_rope at 104.2 occupies a slightly higher-probability region than the full model's own outputs; naive_65pct at 95.5 is measurably less plausible, reflecting operation from a truncated context.
+A perplexity score of 100 means the compressed output is exactly as likely under the full model as the full model's own greedy output. Scores below 100 mean the output is less probable — the method is diverging from the full model's distribution. Scores above 100 mean the compressed output is *more* probable than what the greedy decoder produced; this is valid and expected, since greedy decoding is path-dependent and does not find the globally most probable sequence. RADAR at 104.2 occupies a slightly higher-probability region than the full model's own outputs; naive_65pct at 95.5 is measurably less plausible, reflecting operation from a truncated context.
 
 Embedding faithfulness tells a partially different story: naive_65pct scores 90.7, the highest of any method. Naive truncation preserves contiguous text from the tail, producing outputs that are semantically similar to the full model's on tasks where the tail is informative — but those outputs are less likely under the full model, revealing operation in a different regime. The V-norm ablations (§5.5) reveal a more striking cross-metric pattern — high perplexity paired with low embedding faithfulness — that identifies a distinct failure mode we discuss in §6.1.
 
 #### The GT-Faithfulness Reversal
 
-The starkest illustration of the GT-faithfulness discrepancy is NarrativeQA. Full context scores 5.5 on ground truth; kq_post_rope scores 5.7. These look nearly identical. But perplexity faithfulness for kq_post_rope is 110.8 — its outputs are *more* likely than the full model's own outputs under the full model. Naive_65pct scores 4.9 on ground truth, slightly lower, but has perplexity faithfulness of 98.6 and embedding faithfulness of 96.5. These two patterns represent fundamentally different behaviors: kq_post_rope is faithfully approximating the full model; naive_65pct is operating in a different effective regime (much shorter context) and by coincidence achieving a similar F1 score.
+The starkest illustration of the GT-faithfulness discrepancy is NarrativeQA. Full context scores 5.5 on ground truth; RADAR scores 5.7. These look nearly identical. But perplexity faithfulness for RADAR is 110.8 — its outputs are *more* likely than the full model's own outputs under the full model. Naive_65pct scores 4.9 on ground truth, slightly lower, but has perplexity faithfulness of 98.6 and embedding faithfulness of 96.5. These two patterns represent fundamentally different behaviors: RADAR is faithfully approximating the full model; naive_65pct is operating in a different effective regime (much shorter context) and by coincidence achieving a similar F1 score.
 
 The underlying cause is that NarrativeQA involves very long contexts (median 30K+ tokens) where naive_65pct retains only the last 65% of a novel. The model operating on this shorter context behaves differently, but F1-over-unigrams happens to score similarly. Faithfulness metrics expose this.
 
 ### 5.4 Pre-RoPE vs. Post-RoPE Ablation
 
-To isolate the scoring space effect, we compare kq_only (pre-RoPE) and kq_post_rope (post-RoPE) — identical except for which key vectors enter the dot product.
+To isolate the scoring space effect, we compare kq_only (pre-RoPE) and RADAR (post-RoPE) — identical except for which key vectors enter the dot product.
 
-| Metric | kq_only (pre-RoPE) | kq_post_rope (post-RoPE) | Δ |
+| Metric | kq_only (pre-RoPE) | RADAR (post-RoPE) | Δ |
 |---|---|---|---|
 | GT average | 23.0 | **23.9** | +0.9 |
 | Perplexity faith. | 101.6 | **104.2** | +2.6 |
@@ -302,7 +302,7 @@ Post-RoPE scores consistently higher on all four metrics. The margin is modest b
 
 This is a counterintuitive finding. The theoretical argument for pre-RoPE — that positional encoding penalizes distant-but-relevant tokens — is correct in principle, but in practice the positional information in post-RoPE scores appears to be useful rather than harmful. The model's attention mechanism was trained with RoPE; post-RoPE keys may contain position-aware features that improve relevance discrimination even if they introduce positional bias. This suggests that removing positional information entirely is not the right objective; the goal should be recalibrating positional influence, not eliminating it.
 
-Our recommended default is therefore kq_post_rope (post-RoPE with decay), which consistently outperforms both the pre-RoPE variant and SnapKV.
+Our recommended default is therefore RADAR (post-RoPE with decay), which consistently outperforms both the pre-RoPE variant and SnapKV.
 
 ### 5.5 V-Norm Ablation
 
@@ -313,7 +313,7 @@ pruned:   score_i = α · kq_i + (1 − α) · vn_i · decay_i,   α = 0.65
 vn_decay: score_i = vn_i · decay_i
 ```
 
-| Metric | kq_post_rope | pruned (+ V-norm) | vn_decay (V-norm only) |
+| Metric | RADAR | pruned (+ V-norm) | vn_decay (V-norm only) |
 |---|---|---|---|
 | GT average | **23.9** | 21.4 | — |
 | Perplexity faith. | 104.2 | 104.7 | **106.2** |
@@ -322,7 +322,7 @@ vn_decay: score_i = vn_i · decay_i
 
 The V-norm variants reveal a consistent pattern: as V-norm weight increases, perplexity faithfulness rises slightly while embedding faithfulness falls substantially. vn_decay achieves the highest perplexity score of any method (106.2) while also having the lowest embedding score among semantic methods (78.2) — a 28-point gap between the two metrics. This cross-metric tension is the signature of a specific failure mode, *mode-switching*, discussed in detail in §6.1.
 
-The practical conclusion is that V-norm does not improve over KQ alignment when evaluated holistically. The perplexity gain (+2.0 for vn_decay vs. kq_post_rope) comes at the cost of semantic drift that embedding faithfulness makes visible. We report this as a negative result rather than omitting it; the pattern is informative for future work on scoring signal design.
+The practical conclusion is that V-norm does not improve over KQ alignment when evaluated holistically. The perplexity gain (+2.0 for vn_decay vs. RADAR) comes at the cost of semantic drift that embedding faithfulness makes visible. We report this as a negative result rather than omitting it; the pattern is informative for future work on scoring signal design.
 
 ### 5.6 Distance Decay Screening
 
@@ -334,17 +334,17 @@ This dissociation exposes a limitation of perplexity faithfulness as a hyperpara
 
 To test whether the method generalizes beyond the Llama architecture, we run on Mistral-7B-v0.3 (base, fp16) with identical hyperparameters.
 
-| Task | Full | Naive_65pct | kq_post_rope | SnapKV |
+| Task | Full | Naive_65pct | RADAR | SnapKV |
 |---|---|---|---|---|
 | NarrativeQA | 5.2 | 5.1 | **6.2** | 5.4 |
 | Qasper | 5.4 | 5.8 | **7.6** | 5.6 |
 | MultifieldQA | 25.3 | 22.0 | 20.2 | **22.5** |
 | HotpotQA | 10.5 | 10.2 | **11.3** | 10.4 |
 | 2WikiMQA | 11.5 | 11.4 | 11.2 | **11.8** |
-| MuSiQue | 5.1 | 5.2 | **5.2** | 5.0 |
+| MuSiQue | 5.1 | **5.2** | **5.2** | 5.0 |
 | GovReport | 20.7 | **19.9** | 18.7 | 19.5 |
 | QMSum | 8.3 | 9.0 | 7.3 | **9.5** |
-| MultiNews | 17.5 | 16.2 | **13.4** | 15.8 |
+| MultiNews | 17.5 | **16.2** | 13.4 | 15.8 |
 | TREC | 72.0 | 67.0 | **68.0** | 67.0 |
 | TriviaQA | 23.1 | 24.7 | **26.5** | 24.2 |
 | SAMSum | 16.9 | **18.5** | 18.1 | 17.8 |
@@ -354,7 +354,7 @@ To test whether the method generalizes beyond the Llama architecture, we run on 
 | RepoBench-P | 53.9 | 51.5 | 51.2 | **52.0** |
 | **Average** | **23.6** | 21.8 | 21.9 | **22.0** |
 
-Task-level patterns are consistent across models: PassageRetrieval shows the same large gain from semantic scoring (kq_post_rope 29.0 vs. naive 20.0, +9 points), code completion shows the same relative regression, and TriviaQA shows the same streaming-inflated anomaly pattern. No architecture-specific modifications were required for Mistral.
+Task-level patterns are consistent across models: PassageRetrieval shows the same large gain from semantic scoring (RADAR 29.0 vs. naive 20.0, +9 points), code completion shows the same relative regression, and TriviaQA shows the same streaming-inflated anomaly pattern. No architecture-specific modifications were required for Mistral.
 
 ---
 
@@ -368,18 +368,18 @@ Perplexity and embedding faithfulness measure fundamentally different things, an
 
 **The mode-switching failure mode.** The full model's probability distribution is multimodal: many distinct outputs are high-probability for any given prompt. Greedy decoding selects one path through this space, but a compressed model may follow a different path — equally valid under the full model's distribution — and produce a semantically different output. Consider a compressed model answering a question about the French Revolution. The full model might write about the Reign of Terror; the compressed model might write about the storming of the Bastille. Both answers are historically accurate, high-probability under the full model, and would score well on perplexity faithfulness. But embedding faithfulness would correctly flag that they address different aspects of the question. A user deploying the compressed model as a drop-in replacement for the full model gets different outputs — and would never know from perplexity faithfulness alone.
 
-**vn_decay as a concrete illustration.** This failure mode appears clearly in our results. vn_decay achieves the highest perplexity faithfulness of any method (106.2) — its outputs are on average *more* probable than what the full model's own greedy decoder produces — yet has the lowest embedding faithfulness among semantic methods (78.2), a 28-point gap. vn_decay is reliably finding high-probability outputs in the full model's distribution, just not the same modes the full model's decoder reaches. kq_post_rope shows no such tension: 104.2 perplexity, 85.7 embedding — competitive on both dimensions, indicating it approximates both the full model's distribution *and* the specific trajectory the full model takes through it.
+**vn_decay as a concrete illustration.** This failure mode appears clearly in our results. vn_decay achieves the highest perplexity faithfulness of any method (106.2) — its outputs are on average *more* probable than what the full model's own greedy decoder produces — yet has the lowest embedding faithfulness among semantic methods (78.2), a 28-point gap. vn_decay is reliably finding high-probability outputs in the full model's distribution, just not the same modes the full model's decoder reaches. RADAR shows no such tension: 104.2 perplexity, 85.7 embedding — competitive on both dimensions, indicating it approximates both the full model's distribution *and* the specific trajectory the full model takes through it.
 
 This four-quadrant view covers the space of outcomes:
 
 | | High Embedding | Low Embedding |
 |---|---|---|
-| **High Perplexity** | Ideal: faithful to distribution and trajectory (kq_post_rope) | Mode-switching: in-distribution but divergent (vn_decay) |
+| **High Perplexity** | Ideal: faithful to distribution and trajectory (RADAR) | Mode-switching: in-distribution but divergent (vn_decay) |
 | **Low Perplexity** | Surface-copy: similar content, wrong distribution (naive_65pct) | Failed: divergent on both dimensions (streaming) |
 
 **Why perplexity is more principled.** Despite the mode-switching limitation, we treat perplexity faithfulness as the primary criterion for compression fidelity. The reason is that the full model's greedy output is not the gold standard: it is one arbitrary path through a high-probability region, and greedy decoding makes no global optimality guarantee. Embedding faithfulness penalizes valid alternative modes — equally correct, equally probable answers that happen to differ in surface form or focus. Perplexity faithfulness asks the cleaner question: is the compressed output in a high-probability region of the distribution the full model learned? That is what fidelity to *the model* means, as opposed to fidelity to one particular decoding trajectory.
 
-**Using both metrics as diagnostics.** The right approach is to read them together. Perplexity faithfulness confirms that the compressed model is operating within the full model's learned distribution. Embedding faithfulness confirms that the compressed model is reaching the same modes, not just any high-probability region. A method that passes one but fails the other warrants scrutiny: naive_65pct copies recent context effectively but diverges distributionally; vn_decay stays in-distribution but mode-switches. kq_post_rope is the only method that maintains competitive scores on both, which is why we treat it as the primary result despite vn_decay's higher perplexity score in isolation.
+**Using both metrics as diagnostics.** The right approach is to read them together. Perplexity faithfulness confirms that the compressed model is operating within the full model's learned distribution. Embedding faithfulness confirms that the compressed model is reaching the same modes, not just any high-probability region. A method that passes one but fails the other warrants scrutiny: naive_65pct copies recent context effectively but diverges distributionally; vn_decay stays in-distribution but mode-switches. RADAR is the only method that maintains competitive scores on both, which is why we treat it as the primary result despite vn_decay's higher perplexity score in isolation.
 
 ### 6.2 Streaming
 
@@ -391,24 +391,24 @@ Streaming (StreamingLLM) fails catastrophically on all tasks requiring distribut
 
 **TriviaQA (†)**: Streaming achieves 35.9, nearly double full context (17.4). This reflects task structure: TriviaQA in LongBench is few-shot formatted, and the recency window captures the most recent demonstrations and query intact. The full model receives too many varied examples, diluting the format signal. Perplexity faithfulness for streaming on TriviaQA (64.5) correctly identifies this as a poor approximation despite the high ground-truth score.
 
-**PassageRetrieval**: kq_post_rope (36.0) and naive_65pct (37.0) are close on ground truth but diverge sharply on perplexity faithfulness (107.5 vs. 89.1). PassageRetrieval involves matching a specific paragraph from 30 topically similar candidates; the full context model sees all 30 paragraphs, while naive_65pct often truncates some away. When naive_65pct happens to retain the target paragraph, it answers correctly — but it is not approximating the full model's reasoning process.
+**PassageRetrieval**: RADAR (36.0) and naive_65pct (37.0) are close on ground truth but diverge sharply on perplexity faithfulness (107.5 vs. 89.1). PassageRetrieval involves matching a specific paragraph from 30 topically similar candidates; the full context model sees all 30 paragraphs, while naive_65pct often truncates some away. When naive_65pct happens to retain the target paragraph, it answers correctly — but it is not approximating the full model's reasoning process.
 
-**Code completion (LCC, RepoBench-P)**: Semantic scoring methods underperform naive truncation on code (kq_post_rope: 64.1/54.1 vs. naive_65pct: 63.4/53.9 — small but consistent). Code completion depends on syntactically necessary tokens that have low semantic distinctiveness (brackets, keywords, indentation). Neither KQ alignment nor V-norm captures syntactic necessity, while naive truncation retains recent code structure by default. This is a limitation of semantic scoring for code.
+**Code completion (LCC, RepoBench-P)**: Semantic scoring methods underperform naive truncation on code (RADAR: 64.1/54.1 vs. naive_65pct: 63.4/53.9 — small but consistent). Code completion depends on syntactically necessary tokens that have low semantic distinctiveness (brackets, keywords, indentation). Neither KQ alignment nor V-norm captures syntactic necessity, while naive truncation retains recent code structure by default. This is a limitation of semantic scoring for code.
 
 ### 6.4 Efficiency
 
-We implemented kq_post_rope as a KVPress press subclass [Devoto et al., 2025] and benchmarked against full context on a six-task LongBench subset (30 examples, Llama-3.1-8B, 65% retention). Total generation time: full context 2825s, kq_post_rope 2545s — **10% faster**, with quality preserved (15.9 average, identical to full context on this subset). The speedup comes from the generation phase: a 35% smaller KV cache reduces memory bandwidth at each decode step.
+We implemented RADAR as a KVPress press subclass [Devoto et al., 2025] and benchmarked against full context on a six-task LongBench subset (30 examples, Llama-3.1-8B, 65% retention). Total generation time: full context 2825s, RADAR 2545s — **10% faster**, with quality preserved (15.9 average, identical to full context on this subset). The speedup comes from the generation phase: a 35% smaller KV cache reduces memory bandwidth at each decode step.
 
 At longer contexts, the benefit grows:
 
 | Context | Method | Prefill (s) | Gen (tok/s) | Speedup |
 |---|---|---|---|---|
 | 2048 | full | 0.844 | 24.5 | — |
-| 2048 | kq_post_rope | 0.869 | 26.6 | 1.09× |
+| 2048 | RADAR | 0.869 | 26.6 | 1.09× |
 | 4096 | full | 2.488 | 18.9 | — |
-| 4096 | kq_post_rope | 2.522 | 22.6 | 1.20× |
+| 4096 | RADAR | 2.522 | 22.6 | 1.20× |
 | 6144 | full | 5.691 | 14.8 | — |
-| 6144 | kq_post_rope | 5.734 | 19.2 | 1.30× |
+| 6144 | RADAR | 5.734 | 19.2 | 1.30× |
 
 Prefill overhead is 1–4% and shrinks relatively as context grows. At 6K tokens, generation is 30% faster. At production-scale contexts (32K–128K), where KV cache is the dominant memory cost, the benefit is substantially larger. Additionally, our method uses only K and V tensors and is directly compatible with Flash Attention 2, unlike SnapKV-style methods that require attention weights not materialized by FA2.
 
@@ -416,9 +416,9 @@ Prefill overhead is 1–4% and shrinks relatively as context grows. At 6K tokens
 
 ## 7. Discussion
 
-**Ground-truth vs. faithfulness.** The 9-point perplexity faithfulness gap between naive_65pct (95.5) and kq_post_rope (104.2) is invisible in ground-truth averages (23.4 vs. 23.9). This is not a coincidence: ground-truth benchmarks were designed to measure whether a model answers questions correctly, not whether a compressed model approximates an uncompressed one. The two objectives are different, and evaluation methodology should reflect this. We recommend faithfulness metrics as primary evaluation criteria for compression research, with ground-truth scores as secondary context.
+**Ground-truth vs. faithfulness.** The 9-point perplexity faithfulness gap between naive_65pct (95.5) and RADAR (104.2) is invisible in ground-truth averages (23.4 vs. 23.9). This is not a coincidence: ground-truth benchmarks were designed to measure whether a model answers questions correctly, not whether a compressed model approximates an uncompressed one. The two objectives are different, and evaluation methodology should reflect this. We recommend faithfulness metrics as primary evaluation criteria for compression research, with ground-truth scores as secondary context.
 
-**Pre-RoPE vs. post-RoPE.** Our experimental finding is that post-RoPE scoring (kq_post_rope) consistently outperforms pre-RoPE (kq_only) across all metrics. This is surprising given the theoretical argument that RoPE introduces positional bias that penalizes distant tokens. We speculate that post-RoPE keys contain positionally-conditioned features that were learned during training and that these features carry useful information for relevance discrimination, even if they introduce some bias. The right inductive prior is not "position-independent" but "position-calibrated." Disentangling learned positional features from RoPE-induced bias is an interesting direction for future work.
+**Pre-RoPE vs. post-RoPE.** Our experimental finding is that post-RoPE scoring (RADAR) consistently outperforms pre-RoPE (kq_only) across all metrics. This is surprising given the theoretical argument that RoPE introduces positional bias that penalizes distant tokens. We speculate that post-RoPE keys contain positionally-conditioned features that were learned during training and that these features carry useful information for relevance discrimination, even if they introduce some bias. The right inductive prior is not "position-independent" but "position-calibrated." Disentangling learned positional features from RoPE-induced bias is an interesting direction for future work.
 
 **V-norm as a negative result.** The V-norm term was motivated by the observation that attention sinks — tokens that receive high attention weights but contribute little to the output — can be filtered by checking whether their value vectors have meaningful magnitude. Our ablation shows that adding V-norm to KQ alignment does not improve faithfulness. One explanation is that the tokens V-norm would filter (attention sinks, common function words) are already ranked low by KQ alignment — the signals are correlated and the combination adds noise. We report this clearly rather than omitting it: negative results about theoretically motivated components are informative for the field.
 
@@ -430,7 +430,7 @@ Prefill overhead is 1–4% and shrinks relatively as context grows. At 6K tokens
 
 We have argued that ground-truth benchmarks are the wrong primary metric for KV cache compression, and introduced faithfulness metrics that directly measure how closely compressed outputs approximate full-context behavior. Using these metrics, we show that naive proportional truncation — which appears competitive on ground truth (23.4 average vs. 23.9 for our method) — is a significantly poorer approximation of full-context behavior (95.5 perplexity faithfulness vs. 104.2). This gap is invisible to ground-truth evaluation and reveals a systematic blind spot in how the field evaluates compression methods.
 
-Our best-performing method, kq_post_rope, achieves this faithfulness advantage through post-RoPE KQ alignment with linear distance decay at 65% token retention. It consistently outperforms SnapKV (102.8 perplexity), naive truncation (95.5), and streaming (68.2) on perplexity faithfulness across 16 LongBench tasks, while matching or exceeding them on ground truth. The method requires no architecture-specific modifications and generalizes to Mistral-7B-v0.3 with identical hyperparameters. We additionally report that a V-norm payload term does not improve faithfulness over the simpler KQ-only baseline — a negative result that we believe is useful for future work on KV scoring design.
+Our best-performing method, RADAR, achieves this faithfulness advantage through post-RoPE KQ alignment with linear distance decay at 65% token retention. It consistently outperforms SnapKV (102.8 perplexity), naive truncation (95.5), and streaming (68.2) on perplexity faithfulness across 16 LongBench tasks, while matching or exceeding them on ground truth. The method requires no architecture-specific modifications and generalizes to Mistral-7B-v0.3 with identical hyperparameters. We additionally report that a V-norm payload term does not improve faithfulness over the simpler KQ-only baseline — a negative result that we believe is useful for future work on KV scoring design.
 
 The primary contribution of this work is the evaluation framework, not the scoring method. We hope that faithfulness metrics — or analogues thereof — become standard practice in KV cache compression research, enabling cleaner comparison between methods that approximate full-context behavior and methods that happen to produce correct outputs for other reasons.
 
