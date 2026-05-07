@@ -20,17 +20,16 @@ This distinction matters in practice. A method that truncates the prompt may acc
 
 We propose to evaluate KV cache compression using *faithfulness metrics* that compare compressed outputs directly to full-context outputs:
 
-- **Lexical faithfulness**: token-level F1 between compressed and full-context output strings
 - **Perplexity faithfulness**: how likely the full-context model considers the compressed output, normalized by how likely it considers its own output
 - **Embedding faithfulness**: cosine similarity between sentence-transformer embeddings of compressed and full-context outputs
 
-These metrics are complementary. Lexical faithfulness is strict and penalizes paraphrasing; perplexity faithfulness is robust to surface variation but anchored to model likelihood; embedding faithfulness captures semantic content independently of both phrasing and the LLM.
+These metrics are complementary: perplexity faithfulness is robust to surface variation but anchored to model likelihood; embedding faithfulness captures semantic content independently of both phrasing and the LLM.
 
 Using faithfulness as the primary evaluation lens, we revisit the design space for KV cache importance scoring. The central question is where to compute KQ dot products: in post-RoPE space (as most methods do) or in pre-RoPE space (before rotary embeddings are applied). The theoretical argument for pre-RoPE is intuitive: post-RoPE vectors encode both semantic content and absolute position, so a token at position 0 in a 10K sequence is rotated by a large angle relative to the tail queries, producing a low dot product regardless of semantic relevance. Pre-RoPE scoring removes this positional penalty. Despite this argument, our experiments find that post-RoPE KQ alignment with linear distance decay outperforms pre-RoPE scoring on all metrics; we report the pre-RoPE hypothesis as a negative result and discuss the likely mechanism in §7.
 
 We make the following contributions:
 
-- **Faithfulness evaluation framework**: three complementary metrics for measuring how closely a compressed model approximates full-context behavior, together with an analysis of where and why ground-truth rankings and faithfulness rankings disagree
+- **Faithfulness evaluation framework**: two complementary metrics for measuring how closely a compressed model approximates full-context behavior, together with an analysis of where and why ground-truth rankings and faithfulness rankings disagree
 - **RADAR** (Recency-Aware Dot-product Attention Ranking): we propose a novel KV cache eviction method that scores tokens by the max-pooled dot product of tail query vectors against all key vectors in post-RoPE space, multiplied by a linear distance decay. This is distinct from SnapKV [Li et al., 2024], which also uses post-RoPE vectors but scores by pooling softmax attention weights rather than raw dot products, and from A2ATS [ACL 2025], which uses pre-RoPE keys. We find that post-RoPE scoring with distance decay outperforms the pre-RoPE alternative on all faithfulness metrics; we report the pre-RoPE hypothesis as a negative result and discuss the likely mechanism in §7
 - **V-norm ablation**: a V-norm payload term, while theoretically motivated [Feng et al., 2025], does not improve faithfulness over post-RoPE KQ alignment alone; we report this as a negative result to inform future work
 - **Cross-architecture validation**: results on both Llama-3.1-8B and Mistral-7B-v0.3 with identical hyperparameters
@@ -71,7 +70,9 @@ Token-level F1 between the compressed output ŷ and full-context output y*, comp
 P = |ŷ ∩ y*| / |ŷ|,   R = |ŷ ∩ y*| / |y*|,   F1 = 2PR / (P + R)
 ```
 
-where ∩ denotes multiset intersection. Simple and fast, but sensitive to surface variation: semantically equivalent outputs that differ in phrasing score low. Useful as a lower bound on semantic similarity.
+where ∩ denotes multiset intersection. Simple and fast, but sensitive to surface variation: semantically equivalent outputs that differ in phrasing score low.
+
+We computed lexical faithfulness for all methods but do not report per-task results. The scores are dominated by a confound: naive proportional truncation retains the tail of the document, and on tasks where the full-context model also draws heavily from the tail, both models generate from nearly identical effective contexts and produce lexically similar outputs. The metric therefore rewards context overlap rather than compression quality. On tasks where this confound is absent, lexical faithfulness adds little beyond what perplexity and embedding faithfulness already capture. We include the definition here for completeness and because lexical F1 may be a useful diagnostic in settings where exact token sequences matter (e.g., citation extraction, structured output parsing).
 
 ### 3.3 Perplexity Faithfulness
 
@@ -267,13 +268,13 @@ Ground-truth scores are relatively compressed across methods: naive_65pct (23.4)
 
 #### Summary Across Metrics
 
-| Method | GT↑ | Perplexity↑ | Embedding↑ | Lexical↑ |
-|---|---|---|---|---|
-| Naive_65pct | 23.4 | 95.5 | **90.7** | **57.9** |
-| RADAR | **23.9** | **104.2** | 85.7 | 46.0 |
-| kq_only | 23.0 | 101.6 | 84.8 | 43.9 |
-| SnapKV | 23.8 | 102.8 | 86.1 | 46.7 |
-| Streaming | 13.4 | 68.2 | 62.2 | 11.9 |
+| Method | GT↑ | Perplexity↑ | Embedding↑ |
+|---|---|---|---|
+| Naive_65pct | 23.4 | 95.5 | **90.7** |
+| RADAR | **23.9** | **104.2** | 85.7 |
+| kq_only | 23.0 | 101.6 | 84.8 |
+| SnapKV | 23.8 | 102.8 | 86.1 |
+| Streaming | 13.4 | 68.2 | 62.2 |
 
 The headline finding: **on ground truth, RADAR (95.6% of full), SnapKV (95.2%), and naive_65pct (93.6%) appear nearly equivalent — all within 2 points of each other. Perplexity faithfulness reveals a 9-point gap between naive_65pct (95.5) and RADAR (104.2), despite ground-truth scores differing by only 0.5 points.** Naive truncation is a significantly poorer approximation of full-context behavior than ground-truth scores suggest.
 
@@ -296,9 +297,8 @@ To isolate the scoring space effect, we compare kq_only (pre-RoPE) and RADAR (po
 | GT average | 23.0 | **23.9** | +0.9 |
 | Perplexity faith. | 101.6 | **104.2** | +2.6 |
 | Embedding faith. | 84.8 | **85.7** | +0.9 |
-| Lexical faith. | 43.9 | **46.0** | +2.1 |
 
-Post-RoPE scores consistently higher on all four metrics. The margin is modest but consistent across 16 tasks and three faithfulness dimensions. The direction is unambiguous: the post-RoPE KQ signal, despite encoding position, provides a better importance signal than the purely position-independent pre-RoPE signal.
+Post-RoPE scores consistently higher on all three metrics. The margin is modest but consistent across 16 tasks and both faithfulness dimensions. The direction is unambiguous: the post-RoPE KQ signal, despite encoding position, provides a better importance signal than the purely position-independent pre-RoPE signal.
 
 This is a counterintuitive finding. The theoretical argument for pre-RoPE — that positional encoding penalizes distant-but-relevant tokens — is correct in principle, but in practice the positional information in post-RoPE scores appears to be useful rather than harmful. The model's attention mechanism was trained with RoPE; post-RoPE keys may contain position-aware features that improve relevance discrimination even if they introduce positional bias. This suggests that removing positional information entirely is not the right objective; the goal should be recalibrating positional influence, not eliminating it.
 
@@ -318,7 +318,6 @@ vn_decay: score_i = vn_i · decay_i
 | GT average | **23.9** | 21.4 | — |
 | Perplexity faith. | 104.2 | 104.7 | **106.2** |
 | Embedding faith. | **85.7** | 82.5 | 78.2 |
-| Lexical faith. | **46.0** | 38.6 | — |
 
 The V-norm variants reveal a consistent pattern: as V-norm weight increases, perplexity faithfulness rises slightly while embedding faithfulness falls substantially. vn_decay achieves the highest perplexity score of any method (106.2) while also having the lowest embedding score among semantic methods (78.2) — a 28-point gap between the two metrics. This cross-metric tension is the signature of a specific failure mode, *mode-switching*, discussed in detail in §6.1.
 
