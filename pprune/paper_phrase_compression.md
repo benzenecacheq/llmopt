@@ -10,7 +10,7 @@ These standard benchmarks for KV cache compression measure whether a  compressed
 
 Using KL faithfulness as our primary lens, we find that naïve proportional truncation — retaining the last 65% of tokens as a new,             self-consistent prompt — substantially outperforms all published KV cache pruning methods. This surprising result is not a failure of token selection; it is attributable to structural corruption inherent to the KV patching mechanism: pruning the KV cache leaves early sequence positions with no valid keys to attend, producing degenerate attention that cascades through all transformer layers.
 
-This diagnosis motivates phrase-based context compression: constructing a new prompt from context spans selected by query-document lexical overlap, with no KV patching or attention mask modification. Phrase-based compression outperforms all KV cache pruning methods on KL faithfulness across 16 LongBench tasks, using only string matching — no model internals required. — making it computationally trivial compared to attention-score-based approaches.
+This diagnosis motivates phrase-based context compression: constructing a new prompt from context spans selected by query-document lexical overlap, with no KV patching or attention mask modification. Phrase-based compression outperforms all KV cache pruning methods on KL faithfulness across 16 LongBench tasks, using only string matching — no model internals required, making it computationally trivial compared to attention-score-based approaches.
 
 ---
 
@@ -44,7 +44,7 @@ We make the following contributions:
 
 **KV cache eviction.** H2O [Zhang et al., 2023] identifies "heavy hitter" tokens via accumulated attention scores and evicts the rest. SnapKV [Li et al., 2024] selects tokens by pooling attention weights from the last several queries over all key positions, using post-RoPE vectors. StreamingLLM [Xiao et al., 2023] retains attention sink tokens plus a recency window, requiring no scoring computation. Our method, RADAR (Recency-Aware Dot-product Attention Ranking), also uses post-RoPE vectors but differs from SnapKV in two key respects: it uses raw dot products rather than softmax attention weights (avoiding the distortion introduced by the causal mask and the softmax normalization), and it multiplies scores by a linear distance decay rather than relying on the attention distribution alone to capture recency.
 
-**Pre-RoPE vs. post-RoPE scoring.** A2ATS [ACL 2025] explicitly advocates scoring with pre-RoPE keys, and is to our knowledge the only prior work to study this choice in isolation. We test both scoring spaces and find the opposite result: post-RoPE KQ alignment with distance decay consistently outperforms pre-RoPE scoring across all faithfulness metrics. We provide a faithfulness-based analysis of this discrepancy in §5.4 and §7.
+**Pre-RoPE vs. post-RoPE scoring.** A2ATS [ACL 2025] explicitly advocates scoring with pre-RoPE keys, and is to our knowledge the only prior work to study this choice in isolation. We test both scoring spaces and find the opposite result: post-RoPE KQ alignment with distance decay consistently outperforms pre-RoPE scoring across all faithfulness metrics. We provide a faithfulness-based analysis of this discrepancy in §5 and §8.
 
 **Value-norm scoring.** VATP [EMNLP 2024] scores tokens by the product of attention weight and L1 value norm, observing that attention sinks receive high attention but near-zero V-norm. Feng et al. [2025] provide a theoretical justification via an upper bound on output perturbation, recommending a two-stage selector combining attention weights with projected value norms ‖V·W^O‖₁. We test a simpler additive combination of KQ alignment and raw V-norm and find it does not improve over KQ alignment alone.
 
@@ -76,11 +76,33 @@ The metric has one important caveat: both models are conditioned on the compress
 
 ### 3.3 Naïve Truncation as a Baseline
 
-A key empirical finding motivating this work is that naïve proportional truncation — retaining the last 65% of prompt tokens as a new prompt, with a small head fraction — consistently matches or outperforms all KV cache pruning methods on KL faithfulness. On NarrativeQA, naive truncation achieves KL 0.012 vs. 0.055 for SnapKV and 0.055 for RADAR. This result was surprising and prompted the structural corruption investigation described in §4.
+A key empirical finding motivating this work is that naïve proportional truncation consistently matches or outperforms all KV cache pruning methods on KL faithfulness. The method retains 65% of the prompt tokens, split as a 10%/90% head/tail budget: the first 6.5% of tokens (literal prompt prefix) and the last 58.5% of tokens (recency tail), concatenated into a new self-consistent prompt. The middle portion is discarded. On NarrativeQA, naive truncation achieves KL 0.012 vs. 0.037 for SnapKV and 0.134 for RADAR. This result was surprising and prompted the structural corruption investigation described in §5.
 
 ## 4. Initial Experiments
 
-### 4.1 Setup
+### 4.1 Methods
+
+All methods target 65% token retention (r = 0.65). We use proportional truncation (65% of actual prompt length) rather than a fixed token budget, which would over-retain on short inputs and over-prune on long ones.
+
+**Reference.**
+
+- *Full context*: unmodified model with the complete prompt; serves as the ceiling, not a compressed method.
+
+**Prompt-construction baselines.** These methods truncate the prompt to form a shorter, self-consistent input with no KV patching or attention mask modification.
+
+- *Naive proportional truncation (Naive\_65pct)*: the prompt is split into a 10% head (literal first tokens) and a 90% recency tail, concatenated to form a new prompt at 65% of the original length.
+
+**KV pruning methods.** These methods process the full prompt, score each token's KV entry, and retain only the top-scoring positions at their original sequence indices. The causal attention mask is then reconstructed so that each query can only attend to retained positions at earlier indices. All KV pruning methods unconditionally retain the first 16 tokens (`always_keep_first=16`, preventing degenerate attention at early positions) and the last 16 tokens (`always_keep_last=16`, preserving query context). For GQA models such as Llama-3.1-8B (32 Q-heads, 8 KV-heads), scores are computed per Q-head and aggregated via max-pooling across heads sharing a KV-head before selection.
+
+- *RADAR (our method)*: raw key-query dot products in post-RoPE space, multiplied by a linear distance decay. Described in §2.
+- *SnapKV*: attention weights pooled over the last 128-token observation window [Li et al., 2024].
+- *Streaming (StreamingLLM)*: first 4 attention sink tokens plus a recency window to fill the remaining budget [Xiao et al., 2023].
+
+**Ablations.**
+
+- *kq\_only*: pre-RoPE KQ alignment with distance decay; identical to RADAR except scoring uses pre-RoPE keys and queries. Isolates the effect of the RoPE scoring space.
+
+### 4.2 Setup
 
 **Models.** Llama-3.1-8B and Mistral-7B-v0.3 (both base, not instruction-tuned) in fp16 on a single V100 32GB GPU.
 
@@ -88,9 +110,9 @@ A key empirical finding motivating this work is that naïve proportional truncat
 
 **Hyperparameters.** Retention fraction r=0.65, always_keep_first=16, always_keep_last=16, q_buffer_size=128, min_decay=0.7, decay_fn=linear.
 
-**Faithfulness evaluation.** Full-context outputs (y*) are generated first and stored. Faithfulness metrics compare all compressed outputs to these stored references. Tasks where full-context ground-truth accuracy < 10% are flagged †: the model is unreliable on these tasks, and high faithfulness would mean faithfully replicating failures.
+**Faithfulness evaluation.** Full-context outputs (y*) are generated first and stored. Faithfulness metrics compare all compressed outputs to these stored references. Tasks where full-context ground-truth accuracy < 10% are flagged †: the model is unreliable on these tasks, and high faithfulness would mean faithfully replicating failures. These cases are discussed further in §8.
 
-### 4.2 Ground-Truth Results
+### 4.3 Ground-Truth Results
 
 | Task             | Full     | Naive_65pct | RADAR    | kq_only  | SnapKV   | Streaming |
 | ---------------- | -------- | ----------- | -------- | -------- | -------- | --------- |
@@ -112,33 +134,33 @@ A key empirical finding motivating this work is that naïve proportional truncat
 | RepoBench-P      | 55.6     | 53.9        | **54.1** | 52.1     | 53.4     | 6.3       |
 | **Average**      | **25.0** | 23.4        | **23.9** | 23.0     | 23.8     | 13.4      |
 
-Full context is the reference and is not bolded. Bold marks the best compressed method. Tasks marked † are diagnostic cases discussed in §6.
+Full context is the reference and is not bolded. Bold marks the best compressed method. Tasks marked † are discussed in §8.
 
-Ground-truth scores are relatively compressed across methods: naive_65pct (23.4), RADAR (23.9), kq_only (23.0), and SnapKV (23.8) are within 1 point of each other. Streaming (13.4) fails badly on tasks requiring distributed context. These small differences between the semantic methods and naive truncation are precisely the problem with ground-truth evaluation: they suggest the methods are roughly equivalent when faithfulness analysis (§5.3) reveals they are not.
+Ground-truth scores are relatively compressed across methods: naive_65pct (23.4), RADAR (23.9), kq_only (23.0), and SnapKV (23.8) are within 1 point of each other. Streaming (13.4) fails badly on tasks requiring distributed context. These small differences between the semantic methods and naive truncation are precisely the problem with ground-truth evaluation: they suggest the methods are roughly equivalent when KL faithfulness results (§4.3) reveal they are not.
 
-### 4.3 KL Faithfulness Results
+### 4.4 KL Faithfulness Results
 
-| Task             | Naive_65pct | RADAR     | kq_only   | SnapKV    | Streaming |
-| ---------------- | ----------- | --------- | --------- | --------- | --------- |
-| NarrativeQA†     | 98.6        | **110.8** | 104.6     | 107.2     | 77.6      |
-| Qasper           | 91.8        | **97.2**  | 95.4      | 96.5      | 66.3      |
-| MultifieldQA     | 87.3        | 96.3      | 100.2     | **101.6** | 61.8      |
-| HotpotQA†        | 97.6        | 100.7     | **101.1** | 100.4     | 50.1      |
-| 2WikiMQA         | 101.1       | 102.7     | **103.7** | 100.9     | 37.6      |
-| MuSiQue†         | **99.8**    | 99.2      | **99.8**  | 98.2      | 56.2      |
-| GovReport        | 76.5        | 93.5      | 92.3      | 93.2      | **94.1**  |
-| QMSum            | 93.4        | **106.4** | 106.3     | 103.4     | 98.1      |
-| MultiNews        | **93.4**    | 89.8      | 89.6      | 88.1      | 86.2      |
-| TREC             | **100.1**   | 98.4      | 98.8      | 97.5      | 34.8      |
-| TriviaQA         | 100.5       | **102.7** | 97.4      | 98.5      | 64.5      |
-| SAMSum           | 102.6       | **121.1** | 112.0     | 119.9     | 109.4     |
-| PassageCount†    | 98.5        | **147.3** | 135.5     | 142.2     | 111.9     |
-| PassageRetrieval | 89.1        | **107.5** | 104.4     | 103.3     | 60.2      |
-| LCC              | **100.0**   | 98.8      | 93.4      | 98.2      | 36.2      |
-| RepoBench-P      | **97.2**    | 94.7      | 90.7      | 95.8      | 46.6      |
-| **Average**      | 95.5        | **104.2** | 101.6     | 102.8     | 68.2      |
+| Task             | Naive_65pct  | RADAR   | kq_only | SnapKV  | Streaming |
+| ---------------- | ------------ | ------- | ------- | ------- | --------- |
+| NarrativeQA†     | **0.0125**   | 0.1338  | 0.0549  | 0.0369  | 1.6600    |
+| Qasper           | **0.0476**   | 0.1167  | 0.0734  | 0.0709  | 0.8442    |
+| MultifieldQA     | **0.0650**   | 0.1474  | 0.1150  | 0.0909  | 1.4437    |
+| HotpotQA†        | **0.0951**   | 0.2387  | 0.1509  | 0.1267  | 1.8469    |
+| 2WikiMQA         | **0.1080**   | 0.2478  | 0.1482  | 0.1296  | 1.8172    |
+| MuSiQue†         | **0.0693**   | 0.2312  | 0.1495  | 0.1103  | 1.7458    |
+| GovReport        | **0.0268**   | 0.0645  | 0.0522  | 0.0453  | 0.4042    |
+| QMSum            | **0.0207**   | 0.0595  | 0.0331  | 0.0281  | 0.5917    |
+| MultiNews        | **0.0457**   | 0.1359  | 0.0789  | 0.1041  | 0.3616    |
+| TREC             | **0.0153**   | 0.1064  | 0.0605  | 0.0400  | 1.2739    |
+| TriviaQA         | **0.0325**   | 0.3057  | 0.1516  | 0.1037  | 1.8797    |
+| SAMSum           | **0.0103**   | 0.0900  | 0.0679  | 0.0281  | 0.8490    |
+| PassageCount†    | **0.0366**   | 0.1329  | 0.0774  | 0.0615  | 1.0148    |
+| PassageRetrieval | **0.0613**   | 0.1469  | 0.0891  | 0.0766  | 0.8533    |
+| LCC              | **0.0658**   | 0.1180  | 0.1163  | 0.0874  | 1.2237    |
+| RepoBench-P      | **0.0448**   | 0.1283  | 0.1211  | 0.0887  | 1.0459    |
+| **Average**      | **0.0473**   | 0.1502  | 0.0963  | 0.0768  | 1.1785    |
 
-0 = Probability distribution matches the unpruned model's probability distribution.  Higher scores are worse; lower scores are better.
+Values are mean KL divergence in nats over 100 examples; lower is better; 0 means identical distributions. Bold marks the best compressed method. Naive_65pct is the best method on all 16 tasks.
 
 ## 5. Structural Corruption in KV Cache Pruning
 
@@ -189,9 +211,9 @@ This is not merely a failure of the scoring heuristic — it reflects a fundamen
 
 ---
 
-## 5. Phrase-Based Context Compression
+## 6. Phrase-Based Context Compression
 
-### 5.1 Approach
+### 6.1 Approach
 
 Structural corruption is caused by the KV patching mechanism. The solution is simple: do not patch the KV cache. Instead, construct a new, shorter prompt from selected context spans and let the model process it normally. We call this *phrase-based compression*.
 
@@ -209,7 +231,7 @@ Structural corruption is caused by the KV patching mechanism. The solution is si
 
 The model receives a self-consistent sequence with no causal gaps. No KV patching, no attention mask modification, no per-token importance scores computed from model internals.
 
-### 5.2 Scoring: Why Word Overlap Works
+### 6.2 Scoring: Why Word Overlap Works
 
 The scoring function is intentionally simple. Several alternatives were considered and tested:
 
@@ -219,17 +241,17 @@ The scoring function is intentionally simple. Several alternatives were consider
 
 We use word-level overlap as the default because it is simple, requires no corpus statistics, and performs well empirically. Crucially, this scoring method has no access to the model's internals — it is pure string matching. This avoids the anti-selection trap: we are selecting phrases for their *topical relevance* to the query, not for their attention prominence.
 
-### 5.3 Phrase Boundaries
+### 6.3 Phrase Boundaries
 
-The current implementation uses fixed-size phrases of *c* tokens (default *c* = 64 or 128). This is a practical approximation to the ideal of semantically coherent spans. A variant, **phrase_sent**, splits the old context at natural sentence and paragraph boundaries (splitting on `\n` and sentence-final punctuation), producing variable-size phrases that correspond to complete thoughts. We compare fixed-size and sentence-boundary variants in §5.
+The current implementation uses fixed-size phrases of *c* tokens (default *c* = 64 or 128). This is a practical approximation to the ideal of semantically coherent spans. A variant, **phrase_sent**, splits the old context at natural sentence and paragraph boundaries (splitting on `\n` and sentence-final punctuation), producing variable-size phrases that correspond to complete thoughts. We compare fixed-size and sentence-boundary variants in §7.
 
 The longer-term vision is semantically coherent phrase identification using embedding similarity or topic segmentation, but fixed-size and sentence-boundary variants are sufficient to demonstrate the core finding.
 
 ---
 
-## 6. Phrase-based Pruning Experiments
+## 7. Phrase-based Pruning Experiments
 
-### 6.1 Setup
+### 7.1 Setup
 
 **Models.** Llama-3.1-8B (base, fp16). [Mistral-7B-v0.3 results pending.]
 
@@ -251,15 +273,15 @@ The longer-term vision is semantically coherent phrase identification using embe
 
 All compression methods target 65% token retention.
 
-**Metric.** KL faithfulness (§2.2); lower is better. Ground-truth LongBench scores reported as secondary context.
+**Metric.** KL faithfulness (§3.2); lower is better. Ground-truth LongBench scores reported as secondary context.
 
-### 6.2 Structural Corruption: Controlled Comparison
+### 7.2 Structural Corruption: Controlled Comparison
 
 [Table: naive_tail vs. naive_stream on all tasks]
 
 Across all tasks, prompt construction (naive_tail) dominates KV pruning (naive_stream) by a large margin. [Results pending full run.]
 
-### 6.3 KL Faithfulness: Main Results
+### 7.3 KL Faithfulness: Main Results
 
 [Full 16-task KL faithfulness table — to be filled when run completes]
 
@@ -276,11 +298,11 @@ Preliminary results on 6 QA tasks:
 
 phrase_word beats naive_65pct on 2WikiMQA — the first method to do so. phrase_128 wins on Qasper and MultifieldQA. phrase_sent results pending.
 
-### 5.5 Why Phrase Scoring Works: Ablation
+### 7.4 Why Phrase Scoring Works: Ablation
 
 [Anti-selection ablation table — naive_tail, naive_65pct, naive_best_pre, naive_best_post, phrase_word on 2 tasks]
 
-### 5.6 Phrase Size Sensitivity
+### 7.5 Phrase Size Sensitivity
 
 | Task | phrase_32 | phrase_64 (word) | phrase_128 | phrase_sent |
 |---|---|---|---|---|
@@ -292,19 +314,19 @@ Finer granularity (64 tokens) wins on multi-hop fact retrieval (2WikiMQA); coars
 
 ---
 
-## 7. Analysis
+## 8. Analysis
 
-### 7.1 When Phrase Selection Helps Most
+### 8.1 When Phrase Selection Helps Most
 
 Phrase selection provides the largest gains over naive recency on tasks where the required information is distributed across the document rather than concentrated in the tail. 2WikiMQA (multi-hop QA across multiple Wikipedia passages) and MultifieldQA (multi-domain passages) show the clearest benefit. NarrativeQA and MuSiQue show little or no benefit — suggesting the answer is consistently found in the recent tail, making phrase selection redundant.
 
 This is a principled limitation: phrase selection is a query-driven method and only helps when (a) the query provides a useful selection signal and (b) the relevant content is not already in the recency tail. For summarization and code completion tasks, the "query" is generic ("write a summary") and provides no useful selection signal; the method degenerates to recency-based selection.
 
-### 7.2 Comparison to KV Pruning Methods
+### 8.2 Comparison to KV Pruning Methods
 
 [To be filled — comparison table showing phrase methods vs. RADAR/SnapKV on KL and GT across all 16 tasks]
 
-### 7.3 The Role of Structural Integrity
+### 8.3 The Role of Structural Integrity
 
 The core finding is that *how* tokens are presented to the model matters as much as *which* tokens are presented. Phrase-based compression and naive truncation present a contiguous, causally complete sequence; KV pruning presents an incomplete one. The 130× KL gap between equivalent token sets under the two mechanisms makes this concrete.
 
@@ -312,7 +334,7 @@ This has implications beyond the specific methods studied here. Any approach tha
 
 ---
 
-## 8. Discussion
+## 9. Discussion
 
 **Simplicity as a feature.** Phrase-based compression requires no model introspection, no attention weight computation, no specialized CUDA kernels. The scoring is pure string matching. The construction is concatenation. This makes it immediately applicable to any transformer model, including those that use Flash Attention 2 (which does not materialize attention weights), without modification.
 
@@ -324,7 +346,7 @@ This has implications beyond the specific methods studied here. Any approach tha
 
 ---
 
-## 9. Conclusion
+## 10. Conclusion
 
 We have shown that KV cache pruning introduces structural corruption that fundamentally limits its faithfulness to the full-context model, regardless of how well the pruning method identifies important tokens. The mechanism — degenerate attention from early queries with sparse causal windows, cascading through all transformer layers — produces a 130× faithfulness gap even when token content is held constant.
 

@@ -95,14 +95,20 @@ class PrunedLlamaConfig:
     always_keep_last: int = 16          # unconditionally keep this many tail tokens
     always_keep_first: int = 16         # unconditionally keep this many head tokens
     score_mode: str = "additive"        # "kq_vn_decay" | "kq_only" | "vn_only" | "vn_decay"
-                                        # | "additive"  (alpha*kq + (1-alpha)*vn*decay)
-                                        # | "streaming" (first sink_size + recent window)
-                                        # | "kq_post_rope" (kq_only but with rotated K/Q)
-                                        # | "snapkv"    (pooled attention weights, post-RoPE)
+                                        # | "additive"    (alpha*kq + (1-alpha)*vn*decay)
+                                        # | "streaming"   (first sink_size + recent window)
+                                        # | "kq_pre_rope" (pre-RoPE KQ × decay)
+                                        # | "kq_post_rope" (post-RoPE KQ × decay)
+                                        # | "snapkv"      (pooled attention weights, post-RoPE, no decay)
+                                        # | "snapkv_decay" (snapkv + explicit exponential decay)
     score_alpha: float = 0.65           # weight on kq in "additive" mode
     sink_size: int = 4                  # attention sink tokens kept in "streaming" mode
     snapkv_window: int = 32             # observation window size for snapkv scoring
     budget_fraction: float = 0.0        # if > 0, overrides total_budget with int(T * fraction)
+    tail_budget_frac: float = 0.0       # if > 0, force the most-recent (tail_budget_frac × middle_budget)
+                                        # tokens in the middle region to always be kept; content scoring
+                                        # then selects the best of the remaining old tokens to fill the
+                                        # rest of the budget.  Used for naive_best_pre/post experiments.
     # If True, run the filter during prefill only; generation uses standard KV cache
     filter_prefill_only: bool = True
 
@@ -272,9 +278,21 @@ class PrunedLlamaAttention(nn.Module):
             if self.pcfg.min_decay < 1.0 and T > 1:
                 pos_idx = torch.arange(T, device=key_states.device, dtype=torch.float32)
                 dist    = (T - 1) - pos_idx                               # 0 = most recent
-                rate    = (1.0 - self.pcfg.min_decay) / (T - 1)
-                decay   = (1.0 - rate * dist).clamp(min=0.0)             # (T,)
-                head_scores = head_scores * decay.unsqueeze(0)            # broadcast over heads
+                if self.pcfg.decay_fn == "exponential":
+                    rate  = -math.log(max(self.pcfg.min_decay, 1e-9)) / (T - 1)
+                    decay = torch.exp(-rate * dist)
+                else:
+                    rate  = (1.0 - self.pcfg.min_decay) / (T - 1)
+                    decay = (1.0 - rate * dist).clamp(min=0.0)
+                # Additive blend (exponential only): recent tokens score ~1 regardless
+                # of content; old tokens scored by content alone.
+                # score = decay + (1 - decay) * kq
+                # Linear decay keeps the original multiplicative behaviour.
+                if self.pcfg.decay_fn == "exponential":
+                    d = decay.unsqueeze(0)
+                    head_scores = d + (1.0 - d) * head_scores
+                else:
+                    head_scores = head_scores * decay.unsqueeze(0)
 
         elif mode == "snapkv":
             # SnapKV [Li et al., 2024]: pool causally-masked attention weights from
@@ -301,6 +319,31 @@ class PrunedLlamaAttention(nn.Module):
 
             attn_w    = F.softmax(logits, dim=-1)                          # (num_q, window, T)
             head_scores = attn_w.max(dim=1).values                         # (num_q, T)
+
+        elif mode == "snapkv_decay":
+            # SnapKV with explicit exponential distance decay on top.
+            _q     = q_post if q_post is not None else q_raw
+            window = min(self.pcfg.snapkv_window, T)
+            dev    = key_states.device
+            q_win  = _q[0, :, -window:, :]
+            key_ep = key_states[0].repeat_interleave(q_per_kv, dim=0)
+            logits = torch.bmm(q_win.float(),
+                               key_ep.float().transpose(1, 2)) / math.sqrt(D)
+            q_pos  = torch.arange(T - window, T, device=dev).unsqueeze(1)
+            k_pos  = torch.arange(T,          device=dev).unsqueeze(0)
+            causal = torch.where(k_pos <= q_pos,
+                                 torch.zeros((), device=dev),
+                                 torch.full((), float('-inf'), device=dev))
+            logits = logits + causal.unsqueeze(0)
+            attn_w = F.softmax(logits, dim=-1)
+            head_scores = attn_w.max(dim=1).values                         # (num_q, T)
+            if self.pcfg.min_decay < 1.0 and T > 1:
+                pos_idx = torch.arange(T, device=dev, dtype=torch.float32)
+                dist    = (T - 1) - pos_idx
+                rate    = -math.log(max(self.pcfg.min_decay, 1e-9)) / (T - 1)
+                decay   = torch.exp(-rate * dist)
+                d = decay.unsqueeze(0)
+                head_scores = d + (1.0 - d) * head_scores
 
         else:
             # Pre-RoPE path: compute KQ using unrotated Q and K so that dot
@@ -340,8 +383,13 @@ class PrunedLlamaAttention(nn.Module):
                 decay = torch.exp(-rate * dist)
 
             decay_b = decay.unsqueeze(0)  # (1, T) broadcast-ready
-            if mode == "kq_only":
-                head_scores = kq
+            if mode in ("kq_only", "kq_pre_rope"):
+                # kq_only: no decay (legacy behaviour preserved)
+                # kq_pre_rope: additive blend — recent tokens kept regardless of content
+                if mode == "kq_pre_rope":
+                    head_scores = decay_b + (1.0 - decay_b) * kq
+                else:
+                    head_scores = kq
             elif mode == "vn_only":
                 head_scores = vn
             elif mode == "vn_decay":
@@ -369,6 +417,14 @@ class PrunedLlamaAttention(nn.Module):
         mid_start     = head_end
         mid_end       = tail_start   # exclusive
         mid_n         = max(0, mid_end - mid_start)
+
+        # Force the recency tail of the middle region when tail_budget_frac > 0.
+        # This guarantees the most-recent tokens are always kept so content scoring
+        # only has to choose among the older "head pool" tokens.
+        if self.pcfg.tail_budget_frac > 0 and mid_n > 0 and middle_budget > 0:
+            tail_keep_n = min(int(middle_budget * self.pcfg.tail_budget_frac), mid_n)
+            if tail_keep_n > 0:
+                global_scores[mid_end - tail_keep_n : mid_end] = float('inf')
 
         if middle_budget > 0 and mid_n > 0:
             mid_scores = global_scores[mid_start:mid_end].clone()

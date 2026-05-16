@@ -1,0 +1,1710 @@
+Loading meta-llama/Llama-3.1-8B ...
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 1/291 [00:00<01:54,  2.54it/s]Loading weights:   1%|          | 2/291 [00:00<01:05,  4.41it/s]Loading weights:   7%|▋         | 19/291 [00:00<00:05, 47.22it/s]Loading weights:  11%|█         | 31/291 [00:00<00:04, 62.40it/s]Loading weights:  14%|█▍        | 41/291 [00:00<00:03, 71.89it/s]Loading weights:  17%|█▋        | 50/291 [00:00<00:03, 75.89it/s]Loading weights:  22%|██▏       | 63/291 [00:01<00:02, 88.47it/s]Loading weights:  26%|██▌       | 76/291 [00:01<00:02, 86.93it/s]Loading weights:  30%|██▉       | 87/291 [00:01<00:02, 92.35it/s]Loading weights:  34%|███▍      | 100/291 [00:01<00:01, 101.61it/s]Loading weights:  38%|███▊      | 112/291 [00:01<00:01, 98.73it/s] Loading weights:  42%|████▏     | 123/291 [00:01<00:01, 95.21it/s]Loading weights:  47%|████▋     | 136/291 [00:01<00:01, 101.14it/s]Loading weights:  51%|█████     | 148/291 [00:01<00:01, 100.24it/s]Loading weights:  55%|█████▍    | 159/291 [00:02<00:01, 94.58it/s] Loading weights:  59%|█████▉    | 172/291 [00:02<00:01, 101.64it/s]Loading weights:  63%|██████▎   | 184/291 [00:02<00:01, 100.31it/s]Loading weights:  67%|██████▋   | 195/291 [00:02<00:01, 93.25it/s] Loading weights:  73%|███████▎  | 211/291 [00:02<00:00, 92.56it/s]Loading weights:  76%|███████▋  | 222/291 [00:02<00:00, 95.84it/s]Loading weights:  82%|████████▏ | 238/291 [00:02<00:00, 100.78it/s]Loading weights:  86%|████████▌ | 249/291 [00:02<00:00, 96.71it/s] Loading weights:  90%|█████████ | 262/291 [00:03<00:00, 101.69it/s]Loading weights:  94%|█████████▍| 274/291 [00:03<00:00, 95.27it/s] Loading weights:  98%|█████████▊| 284/291 [00:03<00:00, 93.21it/s]Loading weights: 100%|██████████| 291/291 [00:03<00:00, 87.16it/s]
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+
+========================================================================
+KL faithfulness evaluation
+  Tasks  : 16  (narrativeqa, qasper, multifieldqa_en, hotpotqa...)
+  Methods: 3  (naive_tail, naive_best_pre, naive_best_post)
+  N/task : 100
+  Total  : 4800 examples  (0 already done)
+========================================================================
+
+  [narrativeqa              1/16] naive_tail     (1/3)  ex    1/100  KL=0.0107  mean=0.0107  0.07ex/s  eta=22m08s  [eta=17h56m31s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex    2/100  KL=0.0029  mean=0.0068  0.07ex/s  eta=21m49s  [eta=17h50m14s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex    3/100  KL=0.0370  mean=0.0169  0.07ex/s  eta=21m33s  [eta=17h47m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex    4/100  KL=0.0019  mean=0.0131  0.08ex/s  eta=21m19s  [eta=17h45m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex    5/100  KL=0.0045  mean=0.0114  0.07ex/s  eta=21m19s  [eta=17h56m48s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex    6/100  KL=0.0036  mean=0.0101  0.07ex/s  eta=21m14s  [eta=18h03m54s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex    7/100  KL=0.0251  mean=0.0123  0.07ex/s  eta=21m08s  [eta=18h09m55s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex    8/100  KL=0.0132  mean=0.0124  0.07ex/s  eta=21m00s  [eta=18h14m41s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex    9/100  KL=0.0053  mean=0.0116  0.07ex/s  eta=20m51s  [eta=18h18m20s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   10/100  KL=0.0010  mean=0.0105  0.07ex/s  eta=20m40s  [eta=18h21m05s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   11/100  KL=0.0095  mean=0.0104  0.07ex/s  eta=20m29s  [eta=18h23m17s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   12/100  KL=0.0339  mean=0.0124  0.07ex/s  eta=20m18s  [eta=18h24m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   13/100  KL=0.0459  mean=0.0150  0.07ex/s  eta=19m20s  [eta=17h44m55s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   14/100  KL=0.0103  mean=0.0147  0.08ex/s  eta=18m52s  [eta=17h30m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   15/100  KL=0.0029  mean=0.0139  0.08ex/s  eta=18m46s  [eta=17h36m41s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   16/100  KL=0.0103  mean=0.0136  0.08ex/s  eta=18m38s  [eta=17h41m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   17/100  KL=0.0226  mean=0.0142  0.07ex/s  eta=18m30s  [eta=17h46m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   18/100  KL=0.0095  mean=0.0139  0.07ex/s  eta=18m20s  [eta=17h49m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   19/100  KL=0.0045  mean=0.0134  0.07ex/s  eta=18m09s  [eta=17h52m17s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   20/100  KL=0.0165  mean=0.0136  0.07ex/s  eta=17m59s  [eta=17h55m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   21/100  KL=0.0016  mean=0.0130  0.07ex/s  eta=17m49s  [eta=17h58m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   22/100  KL=0.0042  mean=0.0126  0.07ex/s  eta=17m38s  [eta=18h01m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   23/100  KL=0.0077  mean=0.0124  0.07ex/s  eta=17m27s  [eta=18h03m25s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   24/100  KL=0.0036  mean=0.0120  0.07ex/s  eta=17m16s  [eta=18h05m27s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   25/100  KL=0.0044  mean=0.0117  0.07ex/s  eta=17m04s  [eta=18h07m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   26/100  KL=0.0067  mean=0.0115  0.07ex/s  eta=16m52s  [eta=18h08m37s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   27/100  KL=0.0024  mean=0.0112  0.07ex/s  eta=16m40s  [eta=18h10m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   28/100  KL=0.0008  mean=0.0108  0.07ex/s  eta=16m28s  [eta=18h12m27s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   29/100  KL=0.0043  mean=0.0106  0.07ex/s  eta=16m00s  [eta=17h55m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   30/100  KL=0.0009  mean=0.0103  0.07ex/s  eta=15m49s  [eta=17h58m39s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   31/100  KL=0.0117  mean=0.0103  0.07ex/s  eta=15m38s  [eta=18h00m48s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   32/100  KL=0.0152  mean=0.0105  0.07ex/s  eta=15m26s  [eta=18h02m27s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   33/100  KL=0.0045  mean=0.0103  0.07ex/s  eta=15m14s  [eta=18h04m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   34/100  KL=0.0017  mean=0.0100  0.07ex/s  eta=15m02s  [eta=18h05m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   35/100  KL=0.0052  mean=0.0099  0.07ex/s  eta=14m37s  [eta=17h52m11s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   36/100  KL=0.0057  mean=0.0098  0.07ex/s  eta=14m26s  [eta=17h54m58s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   37/100  KL=0.0136  mean=0.0099  0.07ex/s  eta=14m14s  [eta=17h56m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   38/100  KL=0.0080  mean=0.0098  0.07ex/s  eta=13m53s  [eta=17h47m10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   39/100  KL=0.0143  mean=0.0099  0.07ex/s  eta=13m41s  [eta=17h49m10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   40/100  KL=0.0299  mean=0.0104  0.07ex/s  eta=13m29s  [eta=17h51m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   41/100  KL=0.0153  mean=0.0106  0.07ex/s  eta=13m17s  [eta=17h52m17s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   42/100  KL=0.0041  mean=0.0104  0.07ex/s  eta=13m05s  [eta=17h53m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   43/100  KL=0.0036  mean=0.0102  0.07ex/s  eta=12m52s  [eta=17h55m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   44/100  KL=0.0014  mean=0.0100  0.07ex/s  eta=12m40s  [eta=17h55m50s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   45/100  KL=0.0174  mean=0.0102  0.07ex/s  eta=12m27s  [eta=17h56m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   46/100  KL=0.0094  mean=0.0102  0.07ex/s  eta=12m14s  [eta=17h57m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   47/100  KL=0.0060  mean=0.0101  0.07ex/s  eta=12m01s  [eta=17h58m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   48/100  KL=0.0299  mean=0.0105  0.07ex/s  eta=11m48s  [eta=17h59m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   49/100  KL=0.0331  mean=0.0110  0.07ex/s  eta=11m35s  [eta=18h00m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   50/100  KL=0.0315  mean=0.0114  0.07ex/s  eta=11m22s  [eta=18h01m23s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   51/100  KL=0.0028  mean=0.0112  0.07ex/s  eta=11m09s  [eta=18h01m55s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   52/100  KL=0.0045  mean=0.0111  0.07ex/s  eta=10m56s  [eta=18h02m23s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   53/100  KL=0.0009  mean=0.0109  0.07ex/s  eta=10m43s  [eta=18h03m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   54/100  KL=0.0133  mean=0.0109  0.07ex/s  eta=10m30s  [eta=18h03m39s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   55/100  KL=0.0233  mean=0.0112  0.07ex/s  eta=10m16s  [eta=18h04m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   56/100  KL=0.0137  mean=0.0112  0.07ex/s  eta=10m03s  [eta=18h04m53s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   57/100  KL=0.0014  mean=0.0110  0.07ex/s  eta=9m50s  [eta=18h05m31s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   58/100  KL=0.0133  mean=0.0111  0.07ex/s  eta=9m37s  [eta=18h05m58s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   59/100  KL=0.0045  mean=0.0110  0.07ex/s  eta=9m23s  [eta=18h06m41s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   60/100  KL=0.0071  mean=0.0109  0.07ex/s  eta=9m10s  [eta=18h07m10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   61/100  KL=0.0191  mean=0.0110  0.07ex/s  eta=8m56s  [eta=18h07m20s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   62/100  KL=0.1101  mean=0.0126  0.07ex/s  eta=8m39s  [eta=17h59m16s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   63/100  KL=0.0190  mean=0.0127  0.07ex/s  eta=8m26s  [eta=18h00m06s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   64/100  KL=0.0434  mean=0.0132  0.07ex/s  eta=8m12s  [eta=18h00m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   65/100  KL=0.0032  mean=0.0131  0.07ex/s  eta=7m59s  [eta=18h01m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   66/100  KL=0.0262  mean=0.0133  0.07ex/s  eta=7m46s  [eta=18h01m37s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   67/100  KL=0.0044  mean=0.0131  0.07ex/s  eta=7m29s  [eta=17h53m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   68/100  KL=0.0022  mean=0.0130  0.07ex/s  eta=7m16s  [eta=17h55m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   69/100  KL=0.0062  mean=0.0129  0.07ex/s  eta=7m02s  [eta=17h55m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   70/100  KL=0.0152  mean=0.0129  0.07ex/s  eta=6m49s  [eta=17h56m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   71/100  KL=0.0152  mean=0.0129  0.07ex/s  eta=6m36s  [eta=17h56m44s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   72/100  KL=0.0013  mean=0.0128  0.07ex/s  eta=6m22s  [eta=17h57m05s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   73/100  KL=0.0508  mean=0.0133  0.07ex/s  eta=6m09s  [eta=17h57m27s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   74/100  KL=0.0018  mean=0.0131  0.07ex/s  eta=5m55s  [eta=17h57m54s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   75/100  KL=0.0017  mean=0.0130  0.07ex/s  eta=5m42s  [eta=17h58m08s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   76/100  KL=0.0018  mean=0.0128  0.07ex/s  eta=5m27s  [eta=17h52m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   77/100  KL=0.0025  mean=0.0127  0.07ex/s  eta=5m13s  [eta=17h53m17s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   78/100  KL=0.0070  mean=0.0126  0.07ex/s  eta=4m58s  [eta=17h47m24s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   79/100  KL=0.0273  mean=0.0128  0.07ex/s  eta=4m45s  [eta=17h48m06s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   80/100  KL=0.0356  mean=0.0131  0.07ex/s  eta=4m31s  [eta=17h48m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   81/100  KL=0.0118  mean=0.0131  0.07ex/s  eta=4m16s  [eta=17h42m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   82/100  KL=0.0071  mean=0.0130  0.07ex/s  eta=4m03s  [eta=17h42m51s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   83/100  KL=0.0266  mean=0.0132  0.07ex/s  eta=3m49s  [eta=17h43m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   84/100  KL=0.0093  mean=0.0131  0.07ex/s  eta=3m36s  [eta=17h44m07s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   85/100  KL=0.0094  mean=0.0131  0.07ex/s  eta=3m22s  [eta=17h39m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   86/100  KL=0.0030  mean=0.0130  0.07ex/s  eta=3m08s  [eta=17h40m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   87/100  KL=0.0065  mean=0.0129  0.07ex/s  eta=2m55s  [eta=17h40m41s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   88/100  KL=0.0162  mean=0.0129  0.07ex/s  eta=2m42s  [eta=17h41m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   89/100  KL=0.0125  mean=0.0129  0.07ex/s  eta=2m28s  [eta=17h41m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   90/100  KL=0.0038  mean=0.0128  0.07ex/s  eta=2m15s  [eta=17h41m50s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   91/100  KL=0.0070  mean=0.0128  0.07ex/s  eta=2m01s  [eta=17h42m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   92/100  KL=0.0006  mean=0.0126  0.07ex/s  eta=1m48s  [eta=17h42m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   93/100  KL=0.0090  mean=0.0126  0.07ex/s  eta=1m34s  [eta=17h43m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   94/100  KL=0.0027  mean=0.0125  0.07ex/s  eta=1m20s  [eta=17h38m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   95/100  KL=0.0061  mean=0.0124  0.07ex/s  eta=1m07s  [eta=17h34m06s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   96/100  KL=0.0141  mean=0.0124  0.07ex/s  eta=53s  [eta=17h29m14s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   97/100  KL=0.0410  mean=0.0127  0.07ex/s  eta=40s  [eta=17h30m21s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   98/100  KL=0.0072  mean=0.0127  0.07ex/s  eta=26s  [eta=17h28m20s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex   99/100  KL=0.0004  mean=0.0125  0.07ex/s  eta=13s  [eta=17h29m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_tail     (1/3)  ex  100/100  KL=0.0048  mean=0.0125  0.07ex/s  eta=0s  [eta=17h29m42s total]
+  >>> narrativeqa / naive_tail:  n=100  mean_KL=0.0125  [22m20s]
+
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex    1/100  KL=0.1141  mean=0.1141  0.09ex/s  eta=19m02s  [eta=17h28m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex    2/100  KL=0.0671  mean=0.0906  0.09ex/s  eta=19m01s  [eta=17h26m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex    3/100  KL=0.1415  mean=0.1076  0.09ex/s  eta=18m38s  [eta=17h24m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex    4/100  KL=0.0917  mean=0.1036  0.09ex/s  eta=18m28s  [eta=17h23m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex    5/100  KL=0.0216  mean=0.0872  0.09ex/s  eta=18m15s  [eta=17h21m38s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex    6/100  KL=0.5016  mean=0.1562  0.09ex/s  eta=16m49s  [eta=17h16m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex    7/100  KL=0.0610  mean=0.1426  0.09ex/s  eta=16m54s  [eta=17h15m24s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex    8/100  KL=0.1683  mean=0.1458  0.09ex/s  eta=16m52s  [eta=17h14m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex    9/100  KL=0.1478  mean=0.1461  0.09ex/s  eta=16m47s  [eta=17h12m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   10/100  KL=0.3534  mean=0.1668  0.09ex/s  eta=16m00s  [eta=17h08m04s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   11/100  KL=0.1518  mean=0.1654  0.10ex/s  eta=15m16s  [eta=17h03m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   12/100  KL=0.8336  mean=0.2211  0.10ex/s  eta=14m44s  [eta=16h58m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   13/100  KL=0.2463  mean=0.2231  0.10ex/s  eta=14m13s  [eta=16h54m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   14/100  KL=0.1864  mean=0.2204  0.10ex/s  eta=14m16s  [eta=16h53m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   15/100  KL=0.3071  mean=0.2262  0.10ex/s  eta=13m47s  [eta=16h49m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   16/100  KL=0.1388  mean=0.2207  0.10ex/s  eta=13m51s  [eta=16h48m27s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   17/100  KL=0.8259  mean=0.2563  0.10ex/s  eta=13m25s  [eta=16h43m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   18/100  KL=0.1518  mean=0.2505  0.10ex/s  eta=13m01s  [eta=16h39m38s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   19/100  KL=0.2014  mean=0.2480  0.11ex/s  eta=12m41s  [eta=16h35m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   20/100  KL=0.1127  mean=0.2412  0.10ex/s  eta=12m43s  [eta=16h35m05s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   21/100  KL=0.7618  mean=0.2660  0.11ex/s  eta=12m21s  [eta=16h30m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   22/100  KL=0.1034  mean=0.2586  0.11ex/s  eta=12m03s  [eta=16h26m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   23/100  KL=0.2721  mean=0.2592  0.11ex/s  eta=12m03s  [eta=16h26m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   24/100  KL=0.0496  mean=0.2504  0.11ex/s  eta=12m01s  [eta=16h25m25s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   25/100  KL=0.1390  mean=0.2460  0.10ex/s  eta=11m58s  [eta=16h24m39s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   26/100  KL=0.0961  mean=0.2402  0.10ex/s  eta=11m56s  [eta=16h24m01s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   27/100  KL=0.1370  mean=0.2364  0.10ex/s  eta=11m51s  [eta=16h23m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   28/100  KL=0.1264  mean=0.2325  0.10ex/s  eta=11m46s  [eta=16h22m24s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   29/100  KL=0.2423  mean=0.2328  0.10ex/s  eta=11m41s  [eta=16h21m37s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   30/100  KL=0.0833  mean=0.2278  0.10ex/s  eta=11m35s  [eta=16h20m50s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   31/100  KL=0.1272  mean=0.2246  0.10ex/s  eta=11m29s  [eta=16h20m06s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   32/100  KL=0.6418  mean=0.2376  0.10ex/s  eta=11m12s  [eta=16h16m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   33/100  KL=0.6528  mean=0.2502  0.10ex/s  eta=10m55s  [eta=16h12m39s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   34/100  KL=0.0428  mean=0.2441  0.10ex/s  eta=10m50s  [eta=16h12m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   35/100  KL=1.2938  mean=0.2741  0.10ex/s  eta=10m34s  [eta=16h08m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   36/100  KL=0.1442  mean=0.2705  0.10ex/s  eta=10m29s  [eta=16h08m16s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   37/100  KL=0.2611  mean=0.2702  0.10ex/s  eta=10m22s  [eta=16h07m41s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   38/100  KL=0.3718  mean=0.2729  0.10ex/s  eta=10m08s  [eta=16h04m28s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   39/100  KL=0.1794  mean=0.2705  0.10ex/s  eta=10m02s  [eta=16h04m01s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   40/100  KL=0.0704  mean=0.2655  0.10ex/s  eta=9m54s  [eta=16h03m22s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   41/100  KL=0.2810  mean=0.2659  0.10ex/s  eta=9m47s  [eta=16h02m55s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   42/100  KL=0.5895  mean=0.2736  0.10ex/s  eta=9m33s  [eta=15h59m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   43/100  KL=0.1127  mean=0.2698  0.10ex/s  eta=9m25s  [eta=15h59m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   44/100  KL=0.0886  mean=0.2657  0.10ex/s  eta=9m18s  [eta=15h58m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   45/100  KL=1.8961  mean=0.3020  0.10ex/s  eta=9m04s  [eta=15h55m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   46/100  KL=0.4277  mean=0.3047  0.10ex/s  eta=8m51s  [eta=15h52m39s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   47/100  KL=0.1764  mean=0.3020  0.10ex/s  eta=8m44s  [eta=15h52m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   48/100  KL=0.0704  mean=0.2971  0.10ex/s  eta=8m36s  [eta=15h52m01s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   49/100  KL=0.1541  mean=0.2942  0.10ex/s  eta=8m28s  [eta=15h51m22s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   50/100  KL=0.2881  mean=0.2941  0.10ex/s  eta=8m20s  [eta=15h50m51s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   51/100  KL=0.0740  mean=0.2898  0.10ex/s  eta=8m12s  [eta=15h50m28s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   52/100  KL=0.1585  mean=0.2873  0.10ex/s  eta=8m03s  [eta=15h50m05s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   53/100  KL=0.0833  mean=0.2834  0.10ex/s  eta=7m55s  [eta=15h49m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   54/100  KL=0.3595  mean=0.2848  0.10ex/s  eta=7m42s  [eta=15h46m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   55/100  KL=0.2489  mean=0.2842  0.10ex/s  eta=7m33s  [eta=15h46m06s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   56/100  KL=0.2127  mean=0.2829  0.10ex/s  eta=7m24s  [eta=15h45m50s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   57/100  KL=0.0841  mean=0.2794  0.10ex/s  eta=7m16s  [eta=15h45m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   58/100  KL=0.2563  mean=0.2790  0.10ex/s  eta=7m07s  [eta=15h44m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   59/100  KL=0.3522  mean=0.2802  0.10ex/s  eta=6m54s  [eta=15h41m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   60/100  KL=0.0936  mean=0.2771  0.10ex/s  eta=6m45s  [eta=15h41m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   61/100  KL=0.2419  mean=0.2766  0.10ex/s  eta=6m36s  [eta=15h41m20s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   62/100  KL=0.2023  mean=0.2754  0.10ex/s  eta=6m24s  [eta=15h38m26s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   63/100  KL=0.2914  mean=0.2756  0.10ex/s  eta=6m15s  [eta=15h38m16s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   64/100  KL=0.1777  mean=0.2741  0.10ex/s  eta=6m06s  [eta=15h37m58s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   65/100  KL=1.2065  mean=0.2884  0.10ex/s  eta=5m54s  [eta=15h35m23s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   66/100  KL=1.1729  mean=0.3018  0.10ex/s  eta=5m42s  [eta=15h32m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   67/100  KL=0.8950  mean=0.3107  0.10ex/s  eta=5m30s  [eta=15h29m51s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   68/100  KL=0.0695  mean=0.3071  0.10ex/s  eta=5m21s  [eta=15h29m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   69/100  KL=0.1969  mean=0.3055  0.10ex/s  eta=5m12s  [eta=15h29m37s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   70/100  KL=0.6418  mean=0.3103  0.10ex/s  eta=5m00s  [eta=15h26m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   71/100  KL=0.3037  mean=0.3102  0.10ex/s  eta=4m49s  [eta=15h24m20s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   72/100  KL=0.3026  mean=0.3101  0.10ex/s  eta=4m38s  [eta=15h21m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   73/100  KL=0.1744  mean=0.3083  0.10ex/s  eta=4m29s  [eta=15h21m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   74/100  KL=0.0634  mean=0.3050  0.10ex/s  eta=4m20s  [eta=15h21m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   75/100  KL=0.2429  mean=0.3041  0.10ex/s  eta=4m10s  [eta=15h21m26s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   76/100  KL=0.2082  mean=0.3029  0.10ex/s  eta=4m00s  [eta=15h19m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   77/100  KL=0.2401  mean=0.3021  0.10ex/s  eta=3m49s  [eta=15h17m10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   78/100  KL=0.1538  mean=0.3002  0.10ex/s  eta=3m39s  [eta=15h17m06s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   79/100  KL=0.0795  mean=0.2974  0.10ex/s  eta=3m30s  [eta=15h16m48s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   80/100  KL=0.1307  mean=0.2953  0.10ex/s  eta=3m20s  [eta=15h16m31s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   81/100  KL=0.1964  mean=0.2941  0.10ex/s  eta=3m09s  [eta=15h13m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   82/100  KL=0.1864  mean=0.2928  0.10ex/s  eta=3m00s  [eta=15h13m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   83/100  KL=0.1046  mean=0.2905  0.10ex/s  eta=2m50s  [eta=15h13m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   84/100  KL=0.1384  mean=0.2887  0.10ex/s  eta=2m40s  [eta=15h13m24s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   85/100  KL=0.3709  mean=0.2896  0.10ex/s  eta=2m30s  [eta=15h11m11s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   86/100  KL=0.1845  mean=0.2884  0.10ex/s  eta=2m20s  [eta=15h10m55s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   87/100  KL=0.1809  mean=0.2872  0.10ex/s  eta=2m10s  [eta=15h10m45s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   88/100  KL=0.1159  mean=0.2852  0.10ex/s  eta=2m00s  [eta=15h10m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   89/100  KL=0.1490  mean=0.2837  0.10ex/s  eta=1m51s  [eta=15h10m22s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   90/100  KL=0.0646  mean=0.2813  0.10ex/s  eta=1m41s  [eta=15h10m01s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   91/100  KL=0.3049  mean=0.2815  0.10ex/s  eta=1m30s  [eta=15h07m44s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   92/100  KL=0.0925  mean=0.2795  0.10ex/s  eta=1m20s  [eta=15h07m42s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   93/100  KL=0.2038  mean=0.2787  0.10ex/s  eta=1m10s  [eta=15h07m26s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   94/100  KL=0.0895  mean=0.2767  0.10ex/s  eta=1m00s  [eta=15h07m16s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   95/100  KL=0.0933  mean=0.2747  0.10ex/s  eta=50s  [eta=15h07m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   96/100  KL=0.6586  mean=0.2787  0.10ex/s  eta=40s  [eta=15h04m43s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   97/100  KL=0.4586  mean=0.2806  0.10ex/s  eta=30s  [eta=15h02m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   98/100  KL=0.1319  mean=0.2791  0.10ex/s  eta=20s  [eta=15h00m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex   99/100  KL=0.1132  mean=0.2774  0.10ex/s  eta=10s  [eta=15h00m37s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_pre (2/3)  ex  100/100  KL=0.2687  mean=0.2773  0.10ex/s  eta=0s  [eta=15h00m34s total]
+  >>> narrativeqa / naive_best_pre:  n=100  mean_KL=0.2773  [16m49s]
+
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex    1/100  KL=0.0970  mean=0.0970  0.09ex/s  eta=19m19s  [eta=15h00m22s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex    2/100  KL=0.3002  mean=0.1986  0.09ex/s  eta=19m03s  [eta=15h00m07s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex    3/100  KL=0.3241  mean=0.2404  0.09ex/s  eta=18m52s  [eta=14h59m54s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex    4/100  KL=0.2063  mean=0.2319  0.09ex/s  eta=18m42s  [eta=14h59m43s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex    5/100  KL=0.1836  mean=0.2222  0.09ex/s  eta=18m32s  [eta=14h59m31s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex    6/100  KL=0.0667  mean=0.1963  0.09ex/s  eta=18m21s  [eta=14h59m20s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex    7/100  KL=0.0577  mean=0.1765  0.09ex/s  eta=18m10s  [eta=14h59m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex    8/100  KL=1.0900  mean=0.2907  0.09ex/s  eta=16m58s  [eta=14h57m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex    9/100  KL=0.1400  mean=0.2740  0.09ex/s  eta=16m59s  [eta=14h57m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   10/100  KL=0.2366  mean=0.2702  0.09ex/s  eta=16m54s  [eta=14h56m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   11/100  KL=1.6964  mean=0.3999  0.09ex/s  eta=16m03s  [eta=14h54m45s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   12/100  KL=0.5013  mean=0.4083  0.09ex/s  eta=15m26s  [eta=14h52m57s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   13/100  KL=0.1502  mean=0.3885  0.09ex/s  eta=15m27s  [eta=14h52m58s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   14/100  KL=0.9544  mean=0.4289  0.10ex/s  eta=14m56s  [eta=14h51m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   15/100  KL=0.7342  mean=0.4492  0.10ex/s  eta=14m25s  [eta=14h49m16s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   16/100  KL=0.2484  mean=0.4367  0.10ex/s  eta=14m25s  [eta=14h49m16s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   17/100  KL=0.2685  mean=0.4268  0.10ex/s  eta=14m21s  [eta=14h49m05s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   18/100  KL=1.6964  mean=0.4973  0.10ex/s  eta=13m54s  [eta=14h47m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   19/100  KL=0.0727  mean=0.4750  0.10ex/s  eta=13m51s  [eta=14h47m04s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   20/100  KL=0.0595  mean=0.4542  0.10ex/s  eta=13m49s  [eta=14h47m04s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   21/100  KL=0.1208  mean=0.4383  0.10ex/s  eta=13m44s  [eta=14h47m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   22/100  KL=0.3439  mean=0.4340  0.10ex/s  eta=13m39s  [eta=14h46m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   23/100  KL=0.0835  mean=0.4188  0.09ex/s  eta=13m33s  [eta=14h46m44s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   24/100  KL=0.1585  mean=0.4080  0.09ex/s  eta=13m27s  [eta=14h46m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   25/100  KL=0.1321  mean=0.3969  0.09ex/s  eta=13m19s  [eta=14h46m27s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   26/100  KL=0.0831  mean=0.3848  0.09ex/s  eta=13m12s  [eta=14h46m22s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   27/100  KL=0.1858  mean=0.3775  0.09ex/s  eta=13m05s  [eta=14h46m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   28/100  KL=0.0442  mean=0.3656  0.09ex/s  eta=12m56s  [eta=14h46m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   29/100  KL=0.1314  mean=0.3575  0.09ex/s  eta=12m49s  [eta=14h46m04s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   30/100  KL=0.0780  mean=0.3482  0.09ex/s  eta=12m41s  [eta=14h46m01s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   31/100  KL=0.4354  mean=0.3510  0.09ex/s  eta=12m24s  [eta=14h44m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   32/100  KL=0.7499  mean=0.3635  0.09ex/s  eta=12m03s  [eta=14h42m45s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   33/100  KL=0.4102  mean=0.3649  0.09ex/s  eta=11m45s  [eta=14h40m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   34/100  KL=0.1936  mean=0.3598  0.09ex/s  eta=11m38s  [eta=14h40m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   35/100  KL=0.1067  mean=0.3526  0.09ex/s  eta=11m30s  [eta=14h41m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   36/100  KL=0.7819  mean=0.3645  0.09ex/s  eta=11m14s  [eta=14h39m27s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   37/100  KL=0.1747  mean=0.3594  0.09ex/s  eta=11m06s  [eta=14h39m24s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   38/100  KL=0.1128  mean=0.3529  0.09ex/s  eta=10m58s  [eta=14h39m23s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   39/100  KL=1.3922  mean=0.3796  0.10ex/s  eta=10m41s  [eta=14h37m39s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   40/100  KL=0.2977  mean=0.3775  0.09ex/s  eta=10m33s  [eta=14h37m38s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   41/100  KL=0.2092  mean=0.3734  0.09ex/s  eta=10m24s  [eta=14h37m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   42/100  KL=0.1485  mean=0.3680  0.09ex/s  eta=10m15s  [eta=14h37m25s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   43/100  KL=0.1618  mean=0.3633  0.09ex/s  eta=10m06s  [eta=14h37m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   44/100  KL=0.7993  mean=0.3732  0.09ex/s  eta=9m51s  [eta=14h35m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   45/100  KL=0.2564  mean=0.3706  0.09ex/s  eta=9m42s  [eta=14h35m38s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   46/100  KL=0.0608  mean=0.3638  0.09ex/s  eta=9m33s  [eta=14h35m27s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   47/100  KL=0.3354  mean=0.3632  0.09ex/s  eta=9m23s  [eta=14h35m23s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   48/100  KL=0.2977  mean=0.3619  0.09ex/s  eta=9m14s  [eta=14h35m14s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   49/100  KL=0.1523  mean=0.3576  0.09ex/s  eta=9m04s  [eta=14h35m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   50/100  KL=0.1832  mean=0.3541  0.09ex/s  eta=8m55s  [eta=14h35m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   51/100  KL=0.2238  mean=0.3515  0.09ex/s  eta=8m45s  [eta=14h34m51s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   52/100  KL=0.1859  mean=0.3484  0.09ex/s  eta=8m36s  [eta=14h34m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   53/100  KL=0.0780  mean=0.3433  0.09ex/s  eta=8m26s  [eta=14h34m41s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   54/100  KL=0.4756  mean=0.3457  0.09ex/s  eta=8m16s  [eta=14h34m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   55/100  KL=0.1513  mean=0.3422  0.09ex/s  eta=8m06s  [eta=14h34m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   56/100  KL=0.0909  mean=0.3377  0.09ex/s  eta=7m56s  [eta=14h34m22s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   57/100  KL=0.1208  mean=0.3339  0.09ex/s  eta=7m46s  [eta=14h34m16s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   58/100  KL=0.0870  mean=0.3296  0.09ex/s  eta=7m36s  [eta=14h34m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   59/100  KL=0.0975  mean=0.3257  0.09ex/s  eta=7m26s  [eta=14h34m04s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   60/100  KL=0.2202  mean=0.3239  0.09ex/s  eta=7m15s  [eta=14h33m55s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   61/100  KL=0.2068  mean=0.3220  0.09ex/s  eta=7m05s  [eta=14h33m51s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   62/100  KL=0.3366  mean=0.3222  0.09ex/s  eta=6m55s  [eta=14h33m44s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   63/100  KL=0.7226  mean=0.3286  0.09ex/s  eta=6m41s  [eta=14h32m05s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   64/100  KL=0.2166  mean=0.3269  0.09ex/s  eta=6m31s  [eta=14h32m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   65/100  KL=0.3435  mean=0.3271  0.09ex/s  eta=6m21s  [eta=14h31m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   66/100  KL=1.0115  mean=0.3375  0.09ex/s  eta=6m07s  [eta=14h30m18s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   67/100  KL=0.7468  mean=0.3436  0.09ex/s  eta=5m55s  [eta=14h28m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   68/100  KL=0.1592  mean=0.3409  0.09ex/s  eta=5m45s  [eta=14h28m55s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   69/100  KL=0.2041  mean=0.3389  0.09ex/s  eta=5m34s  [eta=14h28m50s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   70/100  KL=0.7499  mean=0.3448  0.09ex/s  eta=5m22s  [eta=14h27m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   71/100  KL=0.8566  mean=0.3520  0.09ex/s  eta=5m10s  [eta=14h25m51s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   72/100  KL=0.1914  mean=0.3497  0.09ex/s  eta=5m00s  [eta=14h25m53s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   73/100  KL=0.5309  mean=0.3522  0.09ex/s  eta=4m47s  [eta=14h24m23s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   74/100  KL=0.2279  mean=0.3505  0.09ex/s  eta=4m37s  [eta=14h24m20s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   75/100  KL=0.1849  mean=0.3483  0.09ex/s  eta=4m27s  [eta=14h24m18s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   76/100  KL=0.9563  mean=0.3563  0.09ex/s  eta=4m15s  [eta=14h22m55s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   77/100  KL=0.4520  mean=0.3576  0.09ex/s  eta=4m03s  [eta=14h21m26s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   78/100  KL=0.9422  mean=0.3651  0.09ex/s  eta=3m52s  [eta=14h20m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   79/100  KL=0.2196  mean=0.3632  0.09ex/s  eta=3m41s  [eta=14h20m01s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   80/100  KL=0.0373  mean=0.3592  0.09ex/s  eta=3m31s  [eta=14h20m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   81/100  KL=1.0281  mean=0.3674  0.09ex/s  eta=3m20s  [eta=14h18m31s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   82/100  KL=0.2216  mean=0.3656  0.09ex/s  eta=3m10s  [eta=14h18m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   83/100  KL=0.0613  mean=0.3620  0.09ex/s  eta=2m59s  [eta=14h18m31s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   84/100  KL=0.8188  mean=0.3674  0.09ex/s  eta=2m48s  [eta=14h17m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   85/100  KL=0.3856  mean=0.3676  0.10ex/s  eta=2m37s  [eta=14h15m51s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   86/100  KL=0.1288  mean=0.3648  0.10ex/s  eta=2m27s  [eta=14h15m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   87/100  KL=0.0766  mean=0.3615  0.09ex/s  eta=2m16s  [eta=14h15m51s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   88/100  KL=1.4521  mean=0.3739  0.10ex/s  eta=2m05s  [eta=14h14m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   89/100  KL=0.6123  mean=0.3766  0.10ex/s  eta=1m55s  [eta=14h13m16s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   90/100  KL=0.2364  mean=0.3750  0.10ex/s  eta=1m44s  [eta=14h13m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   91/100  KL=0.4309  mean=0.3757  0.10ex/s  eta=1m34s  [eta=14h13m14s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   92/100  KL=0.0776  mean=0.3724  0.10ex/s  eta=1m24s  [eta=14h13m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   93/100  KL=0.0963  mean=0.3695  0.10ex/s  eta=1m13s  [eta=14h13m14s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   94/100  KL=0.1592  mean=0.3672  0.09ex/s  eta=1m03s  [eta=14h13m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   95/100  KL=0.8405  mean=0.3722  0.10ex/s  eta=52s  [eta=14h11m50s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   96/100  KL=1.5549  mean=0.3845  0.10ex/s  eta=41s  [eta=14h10m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   97/100  KL=0.7506  mean=0.3883  0.10ex/s  eta=31s  [eta=14h09m21s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   98/100  KL=1.6610  mean=0.4013  0.10ex/s  eta=20s  [eta=14h08m04s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex   99/100  KL=0.0466  mean=0.3977  0.10ex/s  eta=10s  [eta=14h08m07s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [narrativeqa              1/16] naive_best_post (3/3)  ex  100/100  KL=0.2621  mean=0.3963  0.10ex/s  eta=0s  [eta=14h08m09s total]
+  >>> narrativeqa / naive_best_post:  n=100  mean_KL=0.3963  [17m23s]
+
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+Loading meta-llama/Llama-3.1-8B ...
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 1/291 [00:00<01:50,  2.63it/s]Loading weights:   1%|          | 2/291 [00:00<01:05,  4.39it/s]Loading weights:   5%|▌         | 15/291 [00:00<00:07, 37.82it/s]Loading weights:  11%|█         | 31/291 [00:00<00:04, 60.29it/s]Loading weights:  14%|█▍        | 41/291 [00:00<00:03, 69.68it/s]Loading weights:  18%|█▊        | 51/291 [00:00<00:03, 77.54it/s]Loading weights:  22%|██▏       | 64/291 [00:01<00:02, 90.86it/s]Loading weights:  26%|██▌       | 75/291 [00:01<00:02, 93.44it/s]Loading weights:  30%|██▉       | 86/291 [00:01<00:02, 82.88it/s]Loading weights:  35%|███▌      | 103/291 [00:01<00:02, 85.97it/s]Loading weights:  42%|████▏     | 121/291 [00:01<00:01, 97.28it/s]Loading weights:  45%|████▌     | 132/291 [00:01<00:01, 93.59it/s]Loading weights:  49%|████▉     | 142/291 [00:01<00:01, 94.86it/s]Loading weights:  54%|█████▍    | 157/291 [00:02<00:01, 98.06it/s]Loading weights:  58%|█████▊    | 168/291 [00:02<00:01, 100.58it/s]Loading weights:  62%|██████▏   | 181/291 [00:02<00:01, 105.09it/s]Loading weights:  66%|██████▋   | 193/291 [00:02<00:00, 102.83it/s]Loading weights:  70%|███████   | 204/291 [00:02<00:00, 99.01it/s] Loading weights:  74%|███████▎  | 214/291 [00:02<00:00, 97.41it/s]Loading weights:  79%|███████▊  | 229/291 [00:02<00:00, 103.91it/s]Loading weights:  82%|████████▏ | 240/291 [00:02<00:00, 99.05it/s] Loading weights:  88%|████████▊ | 255/291 [00:02<00:00, 110.44it/s]Loading weights:  92%|█████████▏| 267/291 [00:03<00:00, 97.15it/s] Loading weights:  97%|█████████▋| 281/291 [00:03<00:00, 106.21it/s]Loading weights: 100%|██████████| 291/291 [00:03<00:00, 87.49it/s] 
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+
+========================================================================
+KL faithfulness evaluation
+  Tasks  : 1  (2wikimqa)
+  Methods: 3  (naive_tail, naive_best_pre, naive_best_post)
+  N/task : 100
+  Total  : 300 examples  (300 already done)
+========================================================================
+
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    1/100  KL=0.2711  mean=0.2711  0.09ex/s  eta=19m22s  [eta=-1h59m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    2/100  KL=0.1031  mean=0.1871  0.08ex/s  eta=19m36s  [eta=-1h59m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    3/100  KL=0.1516  mean=0.1753  0.08ex/s  eta=19m10s  [eta=-1h59m25s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    4/100  KL=0.0059  mean=0.1329  0.08ex/s  eta=19m25s  [eta=-1h59m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    5/100  KL=0.0654  mean=0.1194  0.08ex/s  eta=19m40s  [eta=-1h58m58s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    6/100  KL=0.2554  mean=0.1421  0.08ex/s  eta=19m45s  [eta=-1h58m45s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    7/100  KL=0.1717  mean=0.1463  0.08ex/s  eta=19m43s  [eta=-1h58m31s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    8/100  KL=0.1024  mean=0.1408  0.08ex/s  eta=19m41s  [eta=-1h58m18s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    9/100  KL=0.0387  mean=0.1295  0.08ex/s  eta=19m06s  [eta=-1h58m07s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   10/100  KL=0.1277  mean=0.1293  0.08ex/s  eta=19m01s  [eta=-1h57m54s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   11/100  KL=0.0079  mean=0.1183  0.08ex/s  eta=18m55s  [eta=-1h57m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   12/100  KL=0.2481  mean=0.1291  0.08ex/s  eta=18m20s  [eta=-1h57m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   13/100  KL=0.0750  mean=0.1249  0.08ex/s  eta=17m05s  [eta=-1h57m27s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   14/100  KL=0.2993  mean=0.1374  0.09ex/s  eta=16m34s  [eta=-1h57m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   15/100  KL=0.1184  mean=0.1361  0.09ex/s  eta=16m24s  [eta=-1h57m07s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   16/100  KL=0.0928  mean=0.1334  0.09ex/s  eta=16m24s  [eta=-1h56m53s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   17/100  KL=0.0897  mean=0.1308  0.09ex/s  eta=15m34s  [eta=-1h56m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   18/100  KL=0.0386  mean=0.1257  0.09ex/s  eta=15m33s  [eta=-1h56m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   19/100  KL=0.1142  mean=0.1251  0.09ex/s  eta=14m41s  [eta=-1h56m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   20/100  KL=0.0988  mean=0.1238  0.09ex/s  eta=14m23s  [eta=-1h56m25s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   21/100  KL=0.4347  mean=0.1386  0.09ex/s  eta=13m53s  [eta=-1h56m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   22/100  KL=0.1083  mean=0.1372  0.09ex/s  eta=13m53s  [eta=-1h56m05s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   23/100  KL=0.1032  mean=0.1357  0.09ex/s  eta=13m52s  [eta=-1h55m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   24/100  KL=0.0878  mean=0.1337  0.09ex/s  eta=13m50s  [eta=-1h55m38s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   25/100  KL=0.0363  mean=0.1298  0.09ex/s  eta=13m47s  [eta=-1h55m25s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   26/100  KL=0.1559  mean=0.1308  0.09ex/s  eta=13m12s  [eta=-1h55m22s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   27/100  KL=0.0794  mean=0.1289  0.09ex/s  eta=12m53s  [eta=-1h55m14s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   28/100  KL=0.0874  mean=0.1275  0.09ex/s  eta=12m43s  [eta=-1h55m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   29/100  KL=0.4023  mean=0.1369  0.09ex/s  eta=12m39s  [eta=-1h54m50s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   30/100  KL=0.6943  mean=0.1555  0.09ex/s  eta=12m36s  [eta=-1h54m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   31/100  KL=0.0992  mean=0.1537  0.09ex/s  eta=12m31s  [eta=-1h54m23s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   32/100  KL=0.1845  mean=0.1547  0.09ex/s  eta=12m26s  [eta=-1h54m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   33/100  KL=0.0130  mean=0.1504  0.09ex/s  eta=12m20s  [eta=-1h53m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   34/100  KL=0.1454  mean=0.1502  0.09ex/s  eta=12m01s  [eta=-1h53m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   35/100  KL=0.2007  mean=0.1517  0.09ex/s  eta=11m52s  [eta=-1h53m37s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   36/100  KL=0.1142  mean=0.1506  0.09ex/s  eta=11m34s  [eta=-1h53m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   37/100  KL=0.1019  mean=0.1493  0.09ex/s  eta=11m27s  [eta=-1h53m17s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   38/100  KL=0.2394  mean=0.1517  0.09ex/s  eta=11m09s  [eta=-1h53m10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   39/100  KL=0.3094  mean=0.1557  0.09ex/s  eta=11m02s  [eta=-1h52m57s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   40/100  KL=0.1627  mean=0.1559  0.09ex/s  eta=10m55s  [eta=-1h52m44s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   41/100  KL=0.1634  mean=0.1561  0.09ex/s  eta=10m48s  [eta=-1h52m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   42/100  KL=0.0681  mean=0.1540  0.09ex/s  eta=10m29s  [eta=-1h52m24s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   43/100  KL=0.1838  mean=0.1547  0.09ex/s  eta=10m22s  [eta=-1h52m11s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   44/100  KL=0.0460  mean=0.1522  0.09ex/s  eta=10m15s  [eta=-1h51m57s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   45/100  KL=0.1792  mean=0.1528  0.09ex/s  eta=10m03s  [eta=-1h51m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   46/100  KL=0.0159  mean=0.1498  0.09ex/s  eta=9m55s  [eta=-1h51m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   47/100  KL=0.1126  mean=0.1490  0.09ex/s  eta=9m45s  [eta=-1h51m22s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   48/100  KL=0.1176  mean=0.1484  0.09ex/s  eta=9m32s  [eta=-1h51m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   49/100  KL=0.1851  mean=0.1491  0.09ex/s  eta=9m13s  [eta=-1h51m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   50/100  KL=0.0604  mean=0.1474  0.09ex/s  eta=8m59s  [eta=-1h51m01s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   51/100  KL=0.1738  mean=0.1479  0.09ex/s  eta=8m51s  [eta=-1h50m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   52/100  KL=0.0500  mean=0.1460  0.09ex/s  eta=8m43s  [eta=-1h50m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   53/100  KL=0.0457  mean=0.1441  0.09ex/s  eta=8m31s  [eta=-1h50m24s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   54/100  KL=0.2673  mean=0.1464  0.09ex/s  eta=8m19s  [eta=-1h50m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   55/100  KL=0.2486  mean=0.1482  0.09ex/s  eta=8m07s  [eta=-1h50m05s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   56/100  KL=0.0412  mean=0.1463  0.09ex/s  eta=7m53s  [eta=-1h49m58s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   57/100  KL=0.1593  mean=0.1466  0.09ex/s  eta=7m43s  [eta=-1h49m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   58/100  KL=0.0292  mean=0.1445  0.09ex/s  eta=7m34s  [eta=-1h49m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   59/100  KL=0.0851  mean=0.1435  0.09ex/s  eta=7m19s  [eta=-1h49m28s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   60/100  KL=0.0889  mean=0.1426  0.09ex/s  eta=7m06s  [eta=-1h49m21s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   61/100  KL=0.0336  mean=0.1408  0.09ex/s  eta=6m57s  [eta=-1h49m08s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   62/100  KL=0.7349  mean=0.1504  0.09ex/s  eta=6m43s  [eta=-1h49m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   63/100  KL=0.2201  mean=0.1515  0.10ex/s  eta=6m29s  [eta=-1h48m57s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   64/100  KL=0.0630  mean=0.1501  0.09ex/s  eta=6m20s  [eta=-1h48m44s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   65/100  KL=0.0780  mean=0.1490  0.10ex/s  eta=6m05s  [eta=-1h48m41s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   66/100  KL=0.0362  mean=0.1473  0.10ex/s  eta=5m56s  [eta=-1h48m28s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   67/100  KL=0.0664  mean=0.1461  0.10ex/s  eta=5m44s  [eta=-1h48m21s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   68/100  KL=0.5670  mean=0.1523  0.10ex/s  eta=5m33s  [eta=-1h48m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   69/100  KL=0.2341  mean=0.1535  0.10ex/s  eta=5m22s  [eta=-1h48m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   70/100  KL=0.4406  mean=0.1576  0.10ex/s  eta=5m11s  [eta=-1h47m53s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   71/100  KL=0.1459  mean=0.1574  0.10ex/s  eta=5m01s  [eta=-1h47m41s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   72/100  KL=0.0954  mean=0.1566  0.10ex/s  eta=4m52s  [eta=-1h47m28s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   73/100  KL=0.3185  mean=0.1588  0.10ex/s  eta=4m43s  [eta=-1h47m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   74/100  KL=0.2032  mean=0.1594  0.10ex/s  eta=4m29s  [eta=-1h47m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   75/100  KL=0.0511  mean=0.1579  0.10ex/s  eta=4m19s  [eta=-1h47m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   76/100  KL=0.0605  mean=0.1567  0.10ex/s  eta=4m07s  [eta=-1h46m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   77/100  KL=0.1007  mean=0.1559  0.10ex/s  eta=3m58s  [eta=-1h46m43s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   78/100  KL=0.1496  mean=0.1558  0.10ex/s  eta=3m47s  [eta=-1h46m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   79/100  KL=0.0045  mean=0.1539  0.10ex/s  eta=3m38s  [eta=-1h46m20s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   80/100  KL=0.1043  mean=0.1533  0.10ex/s  eta=3m27s  [eta=-1h46m10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   81/100  KL=0.1195  mean=0.1529  0.10ex/s  eta=3m16s  [eta=-1h46m01s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   82/100  KL=0.1139  mean=0.1524  0.10ex/s  eta=3m07s  [eta=-1h45m48s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   83/100  KL=0.0431  mean=0.1511  0.10ex/s  eta=2m57s  [eta=-1h45m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   84/100  KL=0.2175  mean=0.1519  0.10ex/s  eta=2m47s  [eta=-1h45m22s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   85/100  KL=0.1022  mean=0.1513  0.10ex/s  eta=2m36s  [eta=-1h45m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   86/100  KL=0.0049  mean=0.1496  0.10ex/s  eta=2m26s  [eta=-1h45m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   87/100  KL=0.0637  mean=0.1486  0.10ex/s  eta=2m16s  [eta=-1h44m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   88/100  KL=0.4899  mean=0.1525  0.09ex/s  eta=2m06s  [eta=-1h44m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   89/100  KL=0.0818  mean=0.1517  0.09ex/s  eta=1m56s  [eta=-1h44m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   90/100  KL=0.0780  mean=0.1509  0.10ex/s  eta=1m45s  [eta=-1h44m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   91/100  KL=0.1187  mean=0.1505  0.09ex/s  eta=1m35s  [eta=-1h44m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   92/100  KL=0.1018  mean=0.1500  0.09ex/s  eta=1m24s  [eta=-1h43m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   93/100  KL=0.1939  mean=0.1505  0.09ex/s  eta=1m14s  [eta=-1h43m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   94/100  KL=0.1015  mean=0.1500  0.09ex/s  eta=1m03s  [eta=-1h43m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   95/100  KL=0.0611  mean=0.1490  0.09ex/s  eta=53s  [eta=-1h43m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   96/100  KL=0.0524  mean=0.1480  0.09ex/s  eta=42s  [eta=-1h42m55s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   97/100  KL=0.0087  mean=0.1466  0.09ex/s  eta=32s  [eta=-1h42m41s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+Loading meta-llama/Llama-3.1-8B ...
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 1/291 [00:00<01:54,  2.53it/s]Loading weights:   1%|          | 2/291 [00:00<01:05,  4.43it/s]Loading weights:   7%|▋         | 19/291 [00:00<00:05, 48.71it/s]Loading weights:  11%|█         | 31/291 [00:00<00:04, 59.06it/s]Loading weights:  14%|█▍        | 41/291 [00:00<00:03, 65.93it/s]Loading weights:  19%|█▉        | 55/291 [00:00<00:02, 84.17it/s]Loading weights:  23%|██▎       | 67/291 [00:01<00:02, 87.38it/s]Loading weights:  26%|██▋       | 77/291 [00:01<00:02, 87.17it/s]Loading weights:  30%|██▉       | 87/291 [00:01<00:02, 90.01it/s]Loading weights:  35%|███▌      | 103/291 [00:01<00:01, 96.87it/s]Loading weights:  39%|███▉      | 113/291 [00:01<00:02, 88.35it/s]Loading weights:  45%|████▍     | 130/291 [00:01<00:01, 99.74it/s]Loading weights:  48%|████▊     | 141/291 [00:01<00:01, 97.39it/s]Loading weights:  53%|█████▎    | 155/291 [00:01<00:01, 108.04it/s]Loading weights:  57%|█████▋    | 167/291 [00:02<00:01, 92.52it/s] Loading weights:  63%|██████▎   | 184/291 [00:02<00:01, 101.31it/s]Loading weights:  67%|██████▋   | 195/291 [00:02<00:00, 96.51it/s] Loading weights:  73%|███████▎  | 211/291 [00:02<00:00, 102.22it/s]Loading weights:  76%|███████▋  | 222/291 [00:02<00:00, 96.96it/s] Loading weights:  80%|███████▉  | 232/291 [00:02<00:00, 97.58it/s]Loading weights:  84%|████████▍ | 244/291 [00:02<00:00, 100.78it/s]Loading weights:  88%|████████▊ | 256/291 [00:03<00:00, 99.12it/s] Loading weights:  91%|█████████▏| 266/291 [00:03<00:00, 98.62it/s]Loading weights:  95%|█████████▍| 276/291 [00:03<00:00, 98.86it/s]Loading weights: 100%|██████████| 291/291 [00:03<00:00, 87.40it/s]
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+
+========================================================================
+KL faithfulness evaluation
+  Tasks  : 1  (2wikimqa)
+  Methods: 4  (naive_tail, naive_stream, naive_best_pre, naive_best_post)
+  N/task : 100
+  Total  : 400 examples  (397 already done)
+========================================================================
+
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   98/100  KL=0.0797  mean=0.1459  25.60ex/s  eta=0s  [eta=7s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   99/100  KL=0.0492  mean=0.1449  6.34ex/s  eta=0s  [eta=7s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex  100/100  KL=0.1367  mean=0.1448  4.27ex/s  eta=0s  [eta=0s total]
+  >>> 2wikimqa / naive_tail:  n=100  mean_KL=0.1448  [23s]
+
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex    1/100  KL=nan  mean=nan  0.08ex/s  eta=19m25s  [eta=-1h59m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex    2/100  KL=nan  mean=nan  0.09ex/s  eta=18m57s  [eta=-1h59m42s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex    3/100  KL=nan  mean=nan  0.09ex/s  eta=18m05s  [eta=-1h59m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex    4/100  KL=nan  mean=nan  0.09ex/s  eta=18m03s  [eta=-1h59m21s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex    5/100  KL=nan  mean=nan  0.09ex/s  eta=18m07s  [eta=-1h59m10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex    6/100  KL=nan  mean=nan  0.09ex/s  eta=18m01s  [eta=-1h58m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex    7/100  KL=nan  mean=nan  0.09ex/s  eta=17m59s  [eta=-1h58m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex    8/100  KL=nan  mean=nan  0.09ex/s  eta=17m51s  [eta=-1h58m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex    9/100  KL=nan  mean=nan  0.09ex/s  eta=17m19s  [eta=-1h58m26s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   10/100  KL=nan  mean=nan  0.09ex/s  eta=17m13s  [eta=-1h58m14s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   11/100  KL=nan  mean=nan  0.09ex/s  eta=17m08s  [eta=-1h58m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   12/100  KL=nan  mean=nan  0.09ex/s  eta=16m35s  [eta=-1h57m53s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   13/100  KL=nan  mean=nan  0.09ex/s  eta=15m33s  [eta=-1h57m48s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   14/100  KL=nan  mean=nan  0.10ex/s  eta=15m04s  [eta=-1h57m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   15/100  KL=nan  mean=nan  0.10ex/s  eta=14m52s  [eta=-1h57m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   16/100  KL=nan  mean=nan  0.09ex/s  eta=14m50s  [eta=-1h57m18s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   17/100  KL=nan  mean=nan  0.10ex/s  eta=14m07s  [eta=-1h57m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   18/100  KL=nan  mean=nan  0.10ex/s  eta=14m04s  [eta=-1h57m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   19/100  KL=nan  mean=nan  0.10ex/s  eta=13m19s  [eta=-1h56m58s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   20/100  KL=nan  mean=nan  0.10ex/s  eta=13m00s  [eta=-1h56m50s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   21/100  KL=nan  mean=nan  0.10ex/s  eta=12m36s  [eta=-1h56m44s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   22/100  KL=nan  mean=nan  0.10ex/s  eta=12m35s  [eta=-1h56m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   23/100  KL=nan  mean=nan  0.10ex/s  eta=12m33s  [eta=-1h56m21s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   24/100  KL=nan  mean=nan  0.10ex/s  eta=12m32s  [eta=-1h56m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   25/100  KL=nan  mean=nan  0.10ex/s  eta=12m28s  [eta=-1h55m57s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   26/100  KL=nan  mean=nan  0.10ex/s  eta=11m57s  [eta=-1h55m54s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   27/100  KL=nan  mean=nan  0.10ex/s  eta=11m41s  [eta=-1h55m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   28/100  KL=nan  mean=nan  0.10ex/s  eta=11m31s  [eta=-1h55m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   29/100  KL=nan  mean=nan  0.10ex/s  eta=11m25s  [eta=-1h55m25s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   30/100  KL=nan  mean=nan  0.10ex/s  eta=11m23s  [eta=-1h55m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   31/100  KL=nan  mean=nan  0.10ex/s  eta=11m18s  [eta=-1h55m01s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   32/100  KL=nan  mean=nan  0.10ex/s  eta=11m12s  [eta=-1h54m50s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   33/100  KL=nan  mean=nan  0.10ex/s  eta=11m06s  [eta=-1h54m38s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   34/100  KL=nan  mean=nan  0.10ex/s  eta=10m49s  [eta=-1h54m31s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   35/100  KL=nan  mean=nan  0.10ex/s  eta=10m40s  [eta=-1h54m21s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   36/100  KL=nan  mean=nan  0.10ex/s  eta=10m25s  [eta=-1h54m14s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   37/100  KL=nan  mean=nan  0.10ex/s  eta=10m18s  [eta=-1h54m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   38/100  KL=nan  mean=nan  0.10ex/s  eta=10m03s  [eta=-1h53m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   39/100  KL=nan  mean=nan  0.10ex/s  eta=9m56s  [eta=-1h53m44s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   40/100  KL=nan  mean=nan  0.10ex/s  eta=9m50s  [eta=-1h53m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   41/100  KL=nan  mean=nan  0.10ex/s  eta=9m43s  [eta=-1h53m21s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   42/100  KL=nan  mean=nan  0.10ex/s  eta=9m27s  [eta=-1h53m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   43/100  KL=nan  mean=nan  0.10ex/s  eta=9m20s  [eta=-1h53m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   44/100  KL=nan  mean=nan  0.10ex/s  eta=9m13s  [eta=-1h52m51s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   45/100  KL=nan  mean=nan  0.10ex/s  eta=9m02s  [eta=-1h52m42s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   46/100  KL=nan  mean=nan  0.10ex/s  eta=8m55s  [eta=-1h52m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   47/100  KL=nan  mean=nan  0.10ex/s  eta=8m45s  [eta=-1h52m20s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   48/100  KL=nan  mean=nan  0.10ex/s  eta=8m34s  [eta=-1h52m11s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   49/100  KL=nan  mean=nan  0.10ex/s  eta=8m17s  [eta=-1h52m08s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   50/100  KL=nan  mean=nan  0.10ex/s  eta=8m05s  [eta=-1h52m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   51/100  KL=nan  mean=nan  0.10ex/s  eta=7m57s  [eta=-1h51m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   52/100  KL=nan  mean=nan  0.10ex/s  eta=7m50s  [eta=-1h51m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   53/100  KL=nan  mean=nan  0.10ex/s  eta=7m39s  [eta=-1h51m28s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   54/100  KL=nan  mean=nan  0.10ex/s  eta=7m28s  [eta=-1h51m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   55/100  KL=nan  mean=nan  0.10ex/s  eta=7m18s  [eta=-1h51m10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   56/100  KL=nan  mean=nan  0.10ex/s  eta=7m05s  [eta=-1h51m04s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   57/100  KL=nan  mean=nan  0.10ex/s  eta=6m56s  [eta=-1h50m54s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   58/100  KL=nan  mean=nan  0.10ex/s  eta=6m48s  [eta=-1h50m42s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   59/100  KL=nan  mean=nan  0.10ex/s  eta=6m35s  [eta=-1h50m37s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   60/100  KL=nan  mean=nan  0.10ex/s  eta=6m23s  [eta=-1h50m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   61/100  KL=nan  mean=nan  0.10ex/s  eta=6m15s  [eta=-1h50m18s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   62/100  KL=nan  mean=nan  0.10ex/s  eta=6m03s  [eta=-1h50m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   63/100  KL=nan  mean=nan  0.11ex/s  eta=5m51s  [eta=-1h50m07s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   64/100  KL=nan  mean=nan  0.10ex/s  eta=5m43s  [eta=-1h49m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   65/100  KL=nan  mean=nan  0.11ex/s  eta=5m30s  [eta=-1h49m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   66/100  KL=nan  mean=nan  0.11ex/s  eta=5m21s  [eta=-1h49m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   67/100  KL=nan  mean=nan  0.11ex/s  eta=5m10s  [eta=-1h49m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   68/100  KL=nan  mean=nan  0.11ex/s  eta=5m00s  [eta=-1h49m26s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   69/100  KL=nan  mean=nan  0.11ex/s  eta=4m51s  [eta=-1h49m17s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   70/100  KL=nan  mean=nan  0.11ex/s  eta=4m41s  [eta=-1h49m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   71/100  KL=nan  mean=nan  0.11ex/s  eta=4m32s  [eta=-1h48m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   72/100  KL=nan  mean=nan  0.11ex/s  eta=4m23s  [eta=-1h48m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   73/100  KL=nan  mean=nan  0.11ex/s  eta=4m14s  [eta=-1h48m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   74/100  KL=nan  mean=nan  0.11ex/s  eta=4m02s  [eta=-1h48m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   75/100  KL=nan  mean=nan  0.11ex/s  eta=3m53s  [eta=-1h48m25s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_stream   (2/4)  ex   76/100  KL=nan  mean=nan  0.11ex/s  eta=3m43s  [eta=-1h48m18s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+Loading meta-llama/Llama-3.1-8B ...
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 1/291 [00:00<02:29,  1.94it/s]Loading weights:   1%|          | 2/291 [00:00<01:25,  3.39it/s]Loading weights:   5%|▌         | 15/291 [00:00<00:09, 29.85it/s]Loading weights:   8%|▊         | 22/291 [00:00<00:07, 38.35it/s]Loading weights:  11%|█         | 32/291 [00:00<00:04, 53.40it/s]Loading weights:  14%|█▍        | 41/291 [00:01<00:03, 62.69it/s]Loading weights:  17%|█▋        | 50/291 [00:01<00:03, 66.52it/s]Loading weights:  20%|█▉        | 58/291 [00:01<00:03, 70.13it/s]Loading weights:  23%|██▎       | 68/291 [00:01<00:03, 71.52it/s]Loading weights:  26%|██▋       | 77/291 [00:01<00:03, 70.28it/s]Loading weights:  30%|██▉       | 86/291 [00:01<00:02, 73.28it/s]Loading weights:  33%|███▎      | 95/291 [00:01<00:02, 74.21it/s]Loading weights:  36%|███▌      | 104/291 [00:01<00:02, 76.58it/s]Loading weights:  38%|███▊      | 112/291 [00:02<00:02, 76.24it/s]Loading weights:  42%|████▏     | 123/291 [00:02<00:02, 83.13it/s]Loading weights:  45%|████▌     | 132/291 [00:02<00:01, 80.84it/s]Loading weights:  48%|████▊     | 141/291 [00:02<00:01, 81.90it/s]Loading weights:  52%|█████▏    | 150/291 [00:02<00:01, 81.38it/s]Loading weights:  55%|█████▍    | 159/291 [00:02<00:01, 82.64it/s]Loading weights:  58%|█████▊    | 168/291 [00:02<00:01, 81.04it/s]Loading weights:  61%|██████    | 177/291 [00:02<00:01, 81.55it/s]Loading weights:  64%|██████▍   | 186/291 [00:02<00:01, 82.07it/s]Loading weights:  67%|██████▋   | 195/291 [00:03<00:01, 79.94it/s]Loading weights:  70%|███████   | 204/291 [00:03<00:01, 80.57it/s]Loading weights:  73%|███████▎  | 213/291 [00:03<00:00, 81.48it/s]Loading weights:  76%|███████▋  | 222/291 [00:03<00:00, 80.63it/s]Loading weights:  79%|███████▉  | 231/291 [00:03<00:00, 80.04it/s]Loading weights:  82%|████████▏ | 240/291 [00:03<00:00, 78.85it/s]Loading weights:  86%|████████▌ | 249/291 [00:03<00:00, 78.12it/s]Loading weights:  89%|████████▊ | 258/291 [00:03<00:00, 76.36it/s]Loading weights:  92%|█████████▏| 267/291 [00:03<00:00, 78.17it/s]Loading weights:  95%|█████████▍| 276/291 [00:04<00:00, 78.05it/s]Loading weights:  98%|█████████▊| 285/291 [00:04<00:00, 80.25it/s]Loading weights: 100%|██████████| 291/291 [00:04<00:00, 69.82it/s]
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+
+========================================================================
+KL faithfulness evaluation
+  Tasks  : 1  (2wikimqa)
+  Methods: 4  (naive_tail, naive_stream, naive_best_pre, naive_best_post)
+  N/task : 100
+  Total  : 400 examples  (0 already done)
+========================================================================
+
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex    1/100  KL=0.2711  mean=0.2711  0.09ex/s  eta=19m21s  [eta=1h18m08s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex    2/100  KL=0.1031  mean=0.1871  0.08ex/s  eta=19m14s  [eta=1h18m14s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex    3/100  KL=0.1516  mean=0.1753  0.09ex/s  eta=18m51s  [eta=1h17m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex    4/100  KL=0.0059  mean=0.1329  0.08ex/s  eta=19m13s  [eta=1h19m21s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex    5/100  KL=0.0654  mean=0.1194  0.08ex/s  eta=19m30s  [eta=1h21m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex    6/100  KL=0.2554  mean=0.1421  0.08ex/s  eta=19m33s  [eta=1h21m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex    7/100  KL=0.1717  mean=0.1463  0.08ex/s  eta=19m35s  [eta=1h22m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex    8/100  KL=0.1024  mean=0.1408  0.08ex/s  eta=19m36s  [eta=1h23m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex    9/100  KL=0.0387  mean=0.1295  0.08ex/s  eta=19m00s  [eta=1h21m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   10/100  KL=0.1277  mean=0.1293  0.08ex/s  eta=18m58s  [eta=1h22m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   11/100  KL=0.0079  mean=0.1183  0.08ex/s  eta=18m55s  [eta=1h22m44s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   12/100  KL=0.2481  mean=0.1291  0.08ex/s  eta=18m21s  [eta=1h20m57s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   13/100  KL=0.0750  mean=0.1249  0.08ex/s  eta=17m04s  [eta=1h15m57s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   14/100  KL=0.2993  mean=0.1374  0.09ex/s  eta=16m35s  [eta=1h14m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   15/100  KL=0.1184  mean=0.1361  0.09ex/s  eta=16m28s  [eta=1h14m37s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   16/100  KL=0.0928  mean=0.1334  0.09ex/s  eta=16m26s  [eta=1h15m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   17/100  KL=0.0897  mean=0.1308  0.09ex/s  eta=15m35s  [eta=1h11m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   18/100  KL=0.0386  mean=0.1257  0.09ex/s  eta=15m34s  [eta=1h12m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   19/100  KL=0.1142  mean=0.1251  0.09ex/s  eta=14m43s  [eta=1h09m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   20/100  KL=0.0988  mean=0.1238  0.09ex/s  eta=14m25s  [eta=1h08m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   21/100  KL=0.4347  mean=0.1386  0.09ex/s  eta=13m56s  [eta=1h06m54s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   22/100  KL=0.1083  mean=0.1372  0.09ex/s  eta=13m57s  [eta=1h07m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   23/100  KL=0.1032  mean=0.1357  0.09ex/s  eta=13m56s  [eta=1h08m17s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   24/100  KL=0.0878  mean=0.1337  0.09ex/s  eta=13m54s  [eta=1h08m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   25/100  KL=0.0363  mean=0.1298  0.09ex/s  eta=13m52s  [eta=1h09m20s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   26/100  KL=0.1559  mean=0.1308  0.09ex/s  eta=13m16s  [eta=1h07m05s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   27/100  KL=0.0794  mean=0.1289  0.09ex/s  eta=12m56s  [eta=1h06m10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   28/100  KL=0.0874  mean=0.1275  0.09ex/s  eta=12m47s  [eta=1h06m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   29/100  KL=0.4023  mean=0.1369  0.09ex/s  eta=12m41s  [eta=1h06m21s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   30/100  KL=0.6943  mean=0.1555  0.09ex/s  eta=12m39s  [eta=1h06m54s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   31/100  KL=0.0992  mean=0.1537  0.09ex/s  eta=12m34s  [eta=1h07m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   32/100  KL=0.1845  mean=0.1547  0.09ex/s  eta=12m28s  [eta=1h07m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/4)  ex   33/100  KL=0.0130  mean=0.1504  0.09ex/s  eta=12m22s  [eta=1h07m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+Loading meta-llama/Llama-3.1-8B ...
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 1/291 [00:00<01:56,  2.49it/s]Loading weights:   1%|          | 2/291 [00:00<01:06,  4.32it/s]Loading weights:   6%|▌         | 18/291 [00:00<00:05, 45.76it/s]Loading weights:  11%|█         | 31/291 [00:00<00:04, 62.14it/s]Loading weights:  14%|█▎        | 40/291 [00:00<00:03, 66.88it/s]Loading weights:  18%|█▊        | 51/291 [00:00<00:03, 76.96it/s]Loading weights:  22%|██▏       | 64/291 [00:01<00:02, 88.64it/s]Loading weights:  26%|██▌       | 76/291 [00:01<00:02, 89.64it/s]Loading weights:  30%|██▉       | 86/291 [00:01<00:02, 91.60it/s]Loading weights:  33%|███▎      | 96/291 [00:01<00:02, 93.74it/s]Loading weights:  38%|███▊      | 112/291 [00:01<00:01, 100.06it/s]Loading weights:  42%|████▏     | 123/291 [00:01<00:01, 98.02it/s] Loading weights:  48%|████▊     | 139/291 [00:01<00:01, 99.94it/s]Loading weights:  52%|█████▏    | 150/291 [00:01<00:01, 99.65it/s]Loading weights:  57%|█████▋    | 166/291 [00:02<00:01, 103.63it/s]Loading weights:  61%|██████    | 177/291 [00:02<00:01, 101.08it/s]Loading weights:  66%|██████▌   | 192/291 [00:02<00:00, 113.49it/s]Loading weights:  70%|███████   | 204/291 [00:02<00:00, 96.79it/s] Loading weights:  76%|███████▌  | 220/291 [00:02<00:00, 102.16it/s]Loading weights:  79%|███████▉  | 231/291 [00:02<00:00, 100.60it/s]Loading weights:  85%|████████▍ | 247/291 [00:02<00:00, 100.13it/s]Loading weights:  89%|████████▊ | 258/291 [00:03<00:00, 100.66it/s]Loading weights:  93%|█████████▎| 272/291 [00:03<00:00, 107.55it/s]Loading weights:  97%|█████████▋| 283/291 [00:03<00:00, 93.76it/s] Loading weights: 100%|██████████| 291/291 [00:03<00:00, 88.85it/s]
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+
+========================================================================
+KL faithfulness evaluation
+  Tasks  : 1  (2wikimqa)
+  Methods: 3  (naive_tail, naive_best_pre, naive_best_post)
+  N/task : 100
+  Total  : 300 examples  (0 already done)
+========================================================================
+
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    1/100  KL=0.2711  mean=0.2711  0.09ex/s  eta=19m18s  [eta=58m25s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    2/100  KL=0.1031  mean=0.1871  0.09ex/s  eta=18m50s  [eta=57m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    3/100  KL=0.1516  mean=0.1753  0.09ex/s  eta=17m54s  [eta=54m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    4/100  KL=0.0059  mean=0.1329  0.09ex/s  eta=18m01s  [eta=55m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    5/100  KL=0.0654  mean=0.1194  0.09ex/s  eta=18m13s  [eta=56m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    6/100  KL=0.2554  mean=0.1421  0.09ex/s  eta=18m25s  [eta=57m37s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    7/100  KL=0.1717  mean=0.1463  0.08ex/s  eta=18m34s  [eta=58m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    8/100  KL=0.1024  mean=0.1408  0.08ex/s  eta=18m39s  [eta=59m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex    9/100  KL=0.0387  mean=0.1295  0.08ex/s  eta=18m10s  [eta=58m06s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   10/100  KL=0.1277  mean=0.1293  0.08ex/s  eta=18m09s  [eta=58m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   11/100  KL=0.0079  mean=0.1183  0.08ex/s  eta=18m10s  [eta=59m01s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   12/100  KL=0.2481  mean=0.1291  0.08ex/s  eta=17m38s  [eta=57m45s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   13/100  KL=0.0750  mean=0.1249  0.09ex/s  eta=16m25s  [eta=54m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   14/100  KL=0.2993  mean=0.1374  0.09ex/s  eta=15m58s  [eta=53m08s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   15/100  KL=0.1184  mean=0.1361  0.09ex/s  eta=15m53s  [eta=53m17s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   16/100  KL=0.0928  mean=0.1334  0.09ex/s  eta=15m53s  [eta=53m44s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   17/100  KL=0.0897  mean=0.1308  0.09ex/s  eta=15m04s  [eta=51m25s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   18/100  KL=0.0386  mean=0.1257  0.09ex/s  eta=15m05s  [eta=51m55s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   19/100  KL=0.1142  mean=0.1251  0.09ex/s  eta=14m15s  [eta=49m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   20/100  KL=0.0988  mean=0.1238  0.10ex/s  eta=13m58s  [eta=48m55s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   21/100  KL=0.4347  mean=0.1386  0.10ex/s  eta=13m32s  [eta=47m48s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   22/100  KL=0.1083  mean=0.1372  0.10ex/s  eta=13m33s  [eta=48m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   23/100  KL=0.1032  mean=0.1357  0.09ex/s  eta=13m33s  [eta=48m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   24/100  KL=0.0878  mean=0.1337  0.09ex/s  eta=13m33s  [eta=49m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   25/100  KL=0.0363  mean=0.1298  0.09ex/s  eta=13m30s  [eta=49m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   26/100  KL=0.1559  mean=0.1308  0.10ex/s  eta=12m56s  [eta=47m55s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   27/100  KL=0.0794  mean=0.1289  0.10ex/s  eta=12m38s  [eta=47m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   28/100  KL=0.0874  mean=0.1275  0.10ex/s  eta=12m28s  [eta=47m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   29/100  KL=0.4023  mean=0.1369  0.10ex/s  eta=12m24s  [eta=47m21s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   30/100  KL=0.6943  mean=0.1555  0.09ex/s  eta=12m21s  [eta=47m41s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   31/100  KL=0.0992  mean=0.1537  0.09ex/s  eta=12m17s  [eta=47m55s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   32/100  KL=0.1845  mean=0.1547  0.09ex/s  eta=12m12s  [eta=48m07s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   33/100  KL=0.0130  mean=0.1504  0.09ex/s  eta=12m07s  [eta=48m18s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   34/100  KL=0.1454  mean=0.1502  0.09ex/s  eta=11m49s  [eta=47m38s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   35/100  KL=0.2007  mean=0.1517  0.09ex/s  eta=11m40s  [eta=47m37s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   36/100  KL=0.1142  mean=0.1506  0.09ex/s  eta=11m23s  [eta=46m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   37/100  KL=0.1019  mean=0.1493  0.09ex/s  eta=11m17s  [eta=47m07s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   38/100  KL=0.2394  mean=0.1517  0.09ex/s  eta=11m00s  [eta=46m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   39/100  KL=0.3094  mean=0.1557  0.09ex/s  eta=10m53s  [eta=46m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   40/100  KL=0.1627  mean=0.1559  0.09ex/s  eta=10m46s  [eta=46m43s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   41/100  KL=0.1634  mean=0.1561  0.09ex/s  eta=10m40s  [eta=46m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   42/100  KL=0.0681  mean=0.1540  0.09ex/s  eta=10m22s  [eta=46m07s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   43/100  KL=0.1838  mean=0.1547  0.09ex/s  eta=10m14s  [eta=46m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   44/100  KL=0.0460  mean=0.1522  0.09ex/s  eta=10m07s  [eta=46m17s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   45/100  KL=0.1792  mean=0.1528  0.09ex/s  eta=9m56s  [eta=46m04s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   46/100  KL=0.0159  mean=0.1498  0.09ex/s  eta=9m48s  [eta=46m08s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   47/100  KL=0.1126  mean=0.1490  0.09ex/s  eta=9m38s  [eta=46m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   48/100  KL=0.1176  mean=0.1484  0.09ex/s  eta=9m26s  [eta=45m45s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   49/100  KL=0.1851  mean=0.1491  0.09ex/s  eta=9m07s  [eta=44m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   50/100  KL=0.0604  mean=0.1474  0.09ex/s  eta=8m53s  [eta=44m27s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   51/100  KL=0.1738  mean=0.1479  0.09ex/s  eta=8m45s  [eta=44m31s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   52/100  KL=0.0500  mean=0.1460  0.09ex/s  eta=8m37s  [eta=44m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   53/100  KL=0.0457  mean=0.1441  0.09ex/s  eta=8m25s  [eta=44m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   54/100  KL=0.2673  mean=0.1464  0.09ex/s  eta=8m13s  [eta=43m58s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   55/100  KL=0.2486  mean=0.1482  0.09ex/s  eta=8m02s  [eta=43m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   56/100  KL=0.0412  mean=0.1463  0.09ex/s  eta=7m48s  [eta=43m17s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   57/100  KL=0.1593  mean=0.1466  0.09ex/s  eta=7m38s  [eta=43m11s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   58/100  KL=0.0292  mean=0.1445  0.09ex/s  eta=7m29s  [eta=43m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   59/100  KL=0.0851  mean=0.1435  0.09ex/s  eta=7m15s  [eta=42m37s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   60/100  KL=0.0889  mean=0.1426  0.09ex/s  eta=7m01s  [eta=42m11s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   61/100  KL=0.0336  mean=0.1408  0.09ex/s  eta=6m53s  [eta=42m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   62/100  KL=0.7349  mean=0.1504  0.10ex/s  eta=6m39s  [eta=41m41s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   63/100  KL=0.2201  mean=0.1515  0.10ex/s  eta=6m25s  [eta=41m10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   64/100  KL=0.0630  mean=0.1501  0.10ex/s  eta=6m16s  [eta=41m11s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   65/100  KL=0.0780  mean=0.1490  0.10ex/s  eta=6m02s  [eta=40m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   66/100  KL=0.0362  mean=0.1473  0.10ex/s  eta=5m53s  [eta=40m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   67/100  KL=0.0664  mean=0.1461  0.10ex/s  eta=5m41s  [eta=40m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   68/100  KL=0.5670  mean=0.1523  0.10ex/s  eta=5m30s  [eta=39m55s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   69/100  KL=0.2341  mean=0.1535  0.10ex/s  eta=5m20s  [eta=39m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   70/100  KL=0.4406  mean=0.1576  0.10ex/s  eta=5m09s  [eta=39m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   71/100  KL=0.1459  mean=0.1574  0.10ex/s  eta=4m59s  [eta=39m24s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   72/100  KL=0.0954  mean=0.1566  0.10ex/s  eta=4m50s  [eta=39m24s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   73/100  KL=0.3185  mean=0.1588  0.10ex/s  eta=4m40s  [eta=39m22s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   74/100  KL=0.2032  mean=0.1594  0.10ex/s  eta=4m27s  [eta=38m45s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   75/100  KL=0.0511  mean=0.1579  0.10ex/s  eta=4m17s  [eta=38m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   76/100  KL=0.0605  mean=0.1567  0.10ex/s  eta=4m05s  [eta=38m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   77/100  KL=0.1007  mean=0.1559  0.10ex/s  eta=3m56s  [eta=38m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   78/100  KL=0.1496  mean=0.1558  0.10ex/s  eta=3m46s  [eta=38m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   79/100  KL=0.0045  mean=0.1539  0.10ex/s  eta=3m36s  [eta=37m58s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   80/100  KL=0.1043  mean=0.1533  0.10ex/s  eta=3m26s  [eta=37m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   81/100  KL=0.1195  mean=0.1529  0.10ex/s  eta=3m15s  [eta=37m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   82/100  KL=0.1139  mean=0.1524  0.10ex/s  eta=3m05s  [eta=37m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   83/100  KL=0.0431  mean=0.1511  0.10ex/s  eta=2m55s  [eta=37m24s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   84/100  KL=0.2175  mean=0.1519  0.10ex/s  eta=2m46s  [eta=37m23s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   85/100  KL=0.1022  mean=0.1513  0.10ex/s  eta=2m35s  [eta=37m08s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   86/100  KL=0.0049  mean=0.1496  0.10ex/s  eta=2m25s  [eta=37m06s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   87/100  KL=0.0637  mean=0.1486  0.10ex/s  eta=2m15s  [eta=37m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   88/100  KL=0.4899  mean=0.1525  0.10ex/s  eta=2m05s  [eta=37m01s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   89/100  KL=0.0818  mean=0.1517  0.10ex/s  eta=1m55s  [eta=36m58s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   90/100  KL=0.0780  mean=0.1509  0.10ex/s  eta=1m44s  [eta=36m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   91/100  KL=0.1187  mean=0.1505  0.10ex/s  eta=1m34s  [eta=36m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   92/100  KL=0.1018  mean=0.1500  0.09ex/s  eta=1m24s  [eta=36m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   93/100  KL=0.1939  mean=0.1505  0.09ex/s  eta=1m13s  [eta=36m26s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   94/100  KL=0.1015  mean=0.1500  0.09ex/s  eta=1m03s  [eta=36m21s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   95/100  KL=0.0611  mean=0.1490  0.09ex/s  eta=52s  [eta=36m10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   96/100  KL=0.0524  mean=0.1480  0.09ex/s  eta=42s  [eta=36m05s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   97/100  KL=0.0087  mean=0.1466  0.09ex/s  eta=31s  [eta=36m01s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   98/100  KL=0.0797  mean=0.1459  0.09ex/s  eta=21s  [eta=35m37s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex   99/100  KL=0.0492  mean=0.1449  0.09ex/s  eta=10s  [eta=35m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_tail     (1/3)  ex  100/100  KL=0.1367  mean=0.1448  0.09ex/s  eta=0s  [eta=35m17s total]
+  >>> 2wikimqa / naive_tail:  n=100  mean_KL=0.1448  [17m38s]
+
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex    1/100  KL=0.3460  mean=0.3460  0.08ex/s  eta=20m36s  [eta=35m10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex    2/100  KL=0.2976  mean=0.3218  0.08ex/s  eta=19m50s  [eta=35m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex    3/100  KL=0.4483  mean=0.3640  0.09ex/s  eta=18m42s  [eta=34m51s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex    4/100  KL=0.4069  mean=0.3747  0.09ex/s  eta=18m39s  [eta=34m43s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex    5/100  KL=0.1812  mean=0.3360  0.08ex/s  eta=18m40s  [eta=34m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex    6/100  KL=1.0848  mean=0.4608  0.08ex/s  eta=18m36s  [eta=34m28s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex    7/100  KL=0.6706  mean=0.4908  0.08ex/s  eta=18m28s  [eta=34m20s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex    8/100  KL=0.1767  mean=0.4515  0.08ex/s  eta=18m18s  [eta=34m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex    9/100  KL=0.1864  mean=0.4220  0.09ex/s  eta=17m41s  [eta=33m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   10/100  KL=0.4253  mean=0.4224  0.09ex/s  eta=17m33s  [eta=33m50s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   11/100  KL=0.0920  mean=0.3923  0.09ex/s  eta=17m26s  [eta=33m42s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   12/100  KL=0.2842  mean=0.3833  0.09ex/s  eta=16m54s  [eta=33m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   13/100  KL=0.5382  mean=0.3952  0.09ex/s  eta=15m50s  [eta=33m07s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   14/100  KL=0.2852  mean=0.3874  0.09ex/s  eta=15m23s  [eta=32m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   15/100  KL=0.2977  mean=0.3814  0.09ex/s  eta=15m13s  [eta=32m42s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   16/100  KL=0.6317  mean=0.3970  0.09ex/s  eta=15m09s  [eta=32m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   17/100  KL=0.5989  mean=0.4089  0.10ex/s  eta=14m24s  [eta=32m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   18/100  KL=0.4407  mean=0.4107  0.10ex/s  eta=14m21s  [eta=32m04s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   19/100  KL=0.1107  mean=0.3949  0.10ex/s  eta=13m32s  [eta=31m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   20/100  KL=0.5395  mean=0.4021  0.10ex/s  eta=13m14s  [eta=31m26s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   21/100  KL=0.3838  mean=0.4013  0.10ex/s  eta=12m51s  [eta=31m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   22/100  KL=0.2803  mean=0.3958  0.10ex/s  eta=12m50s  [eta=31m01s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   23/100  KL=0.1243  mean=0.3840  0.10ex/s  eta=12m49s  [eta=30m54s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   24/100  KL=0.2663  mean=0.3791  0.10ex/s  eta=12m46s  [eta=30m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   25/100  KL=0.2723  mean=0.3748  0.10ex/s  eta=12m43s  [eta=30m38s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   26/100  KL=0.4506  mean=0.3777  0.10ex/s  eta=12m11s  [eta=30m16s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   27/100  KL=0.4054  mean=0.3787  0.10ex/s  eta=11m54s  [eta=30m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   28/100  KL=0.7468  mean=0.3919  0.10ex/s  eta=11m45s  [eta=29m51s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   29/100  KL=0.6721  mean=0.4015  0.10ex/s  eta=11m39s  [eta=29m42s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   30/100  KL=0.7099  mean=0.4118  0.10ex/s  eta=11m36s  [eta=29m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   31/100  KL=0.1061  mean=0.4019  0.10ex/s  eta=11m30s  [eta=29m26s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   32/100  KL=0.7009  mean=0.4113  0.10ex/s  eta=11m24s  [eta=29m17s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   33/100  KL=0.3311  mean=0.4089  0.10ex/s  eta=11m18s  [eta=29m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   34/100  KL=0.3240  mean=0.4064  0.10ex/s  eta=11m01s  [eta=28m53s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   35/100  KL=6.3023  mean=0.5748  0.10ex/s  eta=10m50s  [eta=28m41s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   36/100  KL=0.1663  mean=0.5635  0.10ex/s  eta=10m35s  [eta=28m27s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   37/100  KL=0.3218  mean=0.5569  0.10ex/s  eta=10m28s  [eta=28m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   38/100  KL=0.1567  mean=0.5464  0.10ex/s  eta=10m13s  [eta=28m04s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   39/100  KL=0.5467  mean=0.5464  0.10ex/s  eta=10m07s  [eta=27m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   40/100  KL=1.0708  mean=0.5595  0.10ex/s  eta=10m00s  [eta=27m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   41/100  KL=0.2120  mean=0.5510  0.10ex/s  eta=9m54s  [eta=27m39s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   42/100  KL=0.6200  mean=0.5527  0.10ex/s  eta=9m38s  [eta=27m23s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   43/100  KL=5.7866  mean=0.6744  0.10ex/s  eta=9m30s  [eta=27m14s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   44/100  KL=0.2266  mean=0.6642  0.10ex/s  eta=9m22s  [eta=27m05s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   45/100  KL=0.1705  mean=0.6533  0.10ex/s  eta=9m12s  [eta=26m54s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   46/100  KL=0.6001  mean=0.6521  0.10ex/s  eta=9m04s  [eta=26m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   47/100  KL=0.3832  mean=0.6464  0.10ex/s  eta=8m54s  [eta=26m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   48/100  KL=0.2826  mean=0.6388  0.10ex/s  eta=8m43s  [eta=26m23s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   49/100  KL=0.7241  mean=0.6405  0.10ex/s  eta=8m26s  [eta=26m05s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   50/100  KL=0.3263  mean=0.6343  0.10ex/s  eta=8m13s  [eta=25m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   51/100  KL=0.2814  mean=0.6273  0.10ex/s  eta=8m06s  [eta=25m44s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   52/100  KL=0.2092  mean=0.6193  0.10ex/s  eta=7m58s  [eta=25m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   53/100  KL=0.4982  mean=0.6170  0.10ex/s  eta=7m47s  [eta=25m23s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   54/100  KL=0.3092  mean=0.6113  0.10ex/s  eta=7m36s  [eta=25m11s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   55/100  KL=0.2503  mean=0.6048  0.10ex/s  eta=7m26s  [eta=25m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   56/100  KL=0.3871  mean=0.6009  0.10ex/s  eta=7m13s  [eta=24m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   57/100  KL=0.4608  mean=0.5984  0.10ex/s  eta=7m04s  [eta=24m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   58/100  KL=0.1390  mean=0.5905  0.10ex/s  eta=6m55s  [eta=24m27s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   59/100  KL=0.5605  mean=0.5900  0.10ex/s  eta=6m42s  [eta=24m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   60/100  KL=0.4103  mean=0.5870  0.10ex/s  eta=6m30s  [eta=23m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   61/100  KL=0.1621  mean=0.5800  0.10ex/s  eta=6m22s  [eta=23m50s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   62/100  KL=0.7991  mean=0.5836  0.10ex/s  eta=6m10s  [eta=23m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   63/100  KL=1.3287  mean=0.5954  0.10ex/s  eta=5m57s  [eta=23m21s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   64/100  KL=0.2826  mean=0.5905  0.10ex/s  eta=5m49s  [eta=23m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   65/100  KL=0.3409  mean=0.5867  0.10ex/s  eta=5m36s  [eta=22m57s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   66/100  KL=0.1422  mean=0.5799  0.10ex/s  eta=5m27s  [eta=22m48s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   67/100  KL=0.1625  mean=0.5737  0.10ex/s  eta=5m16s  [eta=22m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   68/100  KL=0.4991  mean=0.5726  0.10ex/s  eta=5m06s  [eta=22m23s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   69/100  KL=0.3984  mean=0.5701  0.10ex/s  eta=4m57s  [eta=22m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   70/100  KL=0.5120  mean=0.5692  0.10ex/s  eta=4m46s  [eta=22m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   71/100  KL=0.2466  mean=0.5647  0.10ex/s  eta=4m37s  [eta=21m50s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   72/100  KL=0.2076  mean=0.5597  0.10ex/s  eta=4m28s  [eta=21m42s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   73/100  KL=0.2414  mean=0.5554  0.10ex/s  eta=4m19s  [eta=21m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   74/100  KL=0.5367  mean=0.5551  0.11ex/s  eta=4m07s  [eta=21m16s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   75/100  KL=0.2691  mean=0.5513  0.11ex/s  eta=3m57s  [eta=21m05s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   76/100  KL=0.3654  mean=0.5489  0.11ex/s  eta=3m47s  [eta=20m53s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   77/100  KL=2.6251  mean=0.5758  0.11ex/s  eta=3m38s  [eta=20m43s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   78/100  KL=0.5482  mean=0.5755  0.11ex/s  eta=3m28s  [eta=20m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   79/100  KL=1.1789  mean=0.5831  0.10ex/s  eta=3m20s  [eta=20m24s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   80/100  KL=0.7716  mean=0.5855  0.11ex/s  eta=3m10s  [eta=20m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   81/100  KL=0.2214  mean=0.5810  0.11ex/s  eta=3m00s  [eta=20m02s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   82/100  KL=0.6549  mean=0.5819  0.10ex/s  eta=2m51s  [eta=19m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   83/100  KL=0.2865  mean=0.5783  0.10ex/s  eta=2m42s  [eta=19m43s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   84/100  KL=0.2759  mean=0.5747  0.10ex/s  eta=2m33s  [eta=19m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   85/100  KL=0.1883  mean=0.5702  0.10ex/s  eta=2m23s  [eta=19m22s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   86/100  KL=0.2971  mean=0.5670  0.10ex/s  eta=2m14s  [eta=19m13s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   87/100  KL=0.2920  mean=0.5638  0.10ex/s  eta=2m04s  [eta=19m04s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   88/100  KL=0.4892  mean=0.5630  0.10ex/s  eta=1m55s  [eta=18m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   89/100  KL=0.2048  mean=0.5590  0.10ex/s  eta=1m46s  [eta=18m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   90/100  KL=0.3450  mean=0.5566  0.10ex/s  eta=1m36s  [eta=18m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   91/100  KL=0.2213  mean=0.5529  0.10ex/s  eta=1m26s  [eta=18m25s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   92/100  KL=0.2516  mean=0.5496  0.10ex/s  eta=1m17s  [eta=18m16s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   93/100  KL=0.4168  mean=0.5482  0.10ex/s  eta=1m07s  [eta=18m07s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   94/100  KL=0.2514  mean=0.5450  0.10ex/s  eta=58s  [eta=17m58s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   95/100  KL=0.2324  mean=0.5417  0.10ex/s  eta=48s  [eta=17m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   96/100  KL=0.1141  mean=0.5373  0.10ex/s  eta=38s  [eta=17m38s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   97/100  KL=0.2249  mean=0.5341  0.10ex/s  eta=29s  [eta=17m28s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   98/100  KL=0.4502  mean=0.5332  0.10ex/s  eta=19s  [eta=17m15s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex   99/100  KL=0.2054  mean=0.5299  0.10ex/s  eta=9s  [eta=17m06s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_pre (2/3)  ex  100/100  KL=0.7310  mean=0.5319  0.10ex/s  eta=0s  [eta=16m55s total]
+  >>> 2wikimqa / naive_best_pre:  n=100  mean_KL=0.5319  [16m11s]
+
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex    1/100  KL=0.4643  mean=0.4643  0.08ex/s  eta=20m15s  [eta=16m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex    2/100  KL=0.2827  mean=0.3735  0.08ex/s  eta=19m29s  [eta=16m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex    3/100  KL=0.2361  mean=0.3277  0.09ex/s  eta=18m28s  [eta=16m26s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex    4/100  KL=0.4489  mean=0.3580  0.09ex/s  eta=18m31s  [eta=16m17s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex    5/100  KL=0.3116  mean=0.3487  0.09ex/s  eta=18m31s  [eta=16m07s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex    6/100  KL=0.3694  mean=0.3522  0.08ex/s  eta=18m26s  [eta=15m58s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex    7/100  KL=0.2333  mean=0.3352  0.08ex/s  eta=18m20s  [eta=15m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex    8/100  KL=0.2612  mean=0.3259  0.08ex/s  eta=18m14s  [eta=15m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex    9/100  KL=0.3638  mean=0.3301  0.09ex/s  eta=17m39s  [eta=15m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   10/100  KL=0.5407  mean=0.3512  0.09ex/s  eta=17m29s  [eta=15m20s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   11/100  KL=0.3183  mean=0.3482  0.09ex/s  eta=17m22s  [eta=15m10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   12/100  KL=0.4425  mean=0.3561  0.09ex/s  eta=16m50s  [eta=14m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   13/100  KL=0.2830  mean=0.3504  0.09ex/s  eta=15m47s  [eta=14m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   14/100  KL=0.2856  mean=0.3458  0.09ex/s  eta=15m18s  [eta=14m35s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   15/100  KL=0.3335  mean=0.3450  0.09ex/s  eta=15m08s  [eta=14m26s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   16/100  KL=0.4775  mean=0.3533  0.09ex/s  eta=15m03s  [eta=14m16s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   17/100  KL=0.2490  mean=0.3471  0.10ex/s  eta=14m19s  [eta=14m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   18/100  KL=0.5868  mean=0.3605  0.10ex/s  eta=14m18s  [eta=13m54s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   19/100  KL=0.3055  mean=0.3576  0.10ex/s  eta=13m31s  [eta=13m41s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   20/100  KL=0.3758  mean=0.3585  0.10ex/s  eta=13m12s  [eta=13m30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   21/100  KL=0.3429  mean=0.3577  0.10ex/s  eta=12m48s  [eta=13m18s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   22/100  KL=0.5092  mean=0.3646  0.10ex/s  eta=12m47s  [eta=13m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   23/100  KL=0.7842  mean=0.3829  0.10ex/s  eta=12m43s  [eta=12m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   24/100  KL=0.3783  mean=0.3827  0.10ex/s  eta=12m40s  [eta=12m50s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   25/100  KL=0.4093  mean=0.3837  0.10ex/s  eta=12m36s  [eta=12m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   26/100  KL=0.1771  mean=0.3758  0.10ex/s  eta=12m04s  [eta=12m28s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   27/100  KL=0.3551  mean=0.3750  0.10ex/s  eta=11m48s  [eta=12m17s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   28/100  KL=0.5864  mean=0.3826  0.10ex/s  eta=11m37s  [eta=12m06s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   29/100  KL=0.4838  mean=0.3861  0.10ex/s  eta=11m31s  [eta=11m57s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   30/100  KL=0.3727  mean=0.3856  0.10ex/s  eta=11m28s  [eta=11m47s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   31/100  KL=0.2896  mean=0.3825  0.10ex/s  eta=11m23s  [eta=11m38s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   32/100  KL=0.3074  mean=0.3802  0.10ex/s  eta=11m17s  [eta=11m28s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   33/100  KL=0.4788  mean=0.3832  0.10ex/s  eta=11m12s  [eta=11m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   34/100  KL=0.6368  mean=0.3906  0.10ex/s  eta=10m55s  [eta=11m07s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   35/100  KL=0.3933  mean=0.3907  0.10ex/s  eta=10m46s  [eta=10m57s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   36/100  KL=0.2527  mean=0.3869  0.10ex/s  eta=10m30s  [eta=10m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   37/100  KL=0.3888  mean=0.3869  0.10ex/s  eta=10m23s  [eta=10m37s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   38/100  KL=0.4956  mean=0.3898  0.10ex/s  eta=10m08s  [eta=10m26s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   39/100  KL=0.2211  mean=0.3855  0.10ex/s  eta=10m02s  [eta=10m16s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   40/100  KL=0.4067  mean=0.3860  0.10ex/s  eta=9m55s  [eta=10m06s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   41/100  KL=1.8467  mean=0.4216  0.10ex/s  eta=9m47s  [eta=9m57s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   42/100  KL=0.2854  mean=0.4184  0.10ex/s  eta=9m31s  [eta=9m45s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   43/100  KL=0.3955  mean=0.4178  0.10ex/s  eta=9m24s  [eta=9m36s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   44/100  KL=0.3037  mean=0.4152  0.10ex/s  eta=9m17s  [eta=9m26s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   45/100  KL=0.2901  mean=0.4125  0.10ex/s  eta=9m07s  [eta=9m16s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   46/100  KL=0.2281  mean=0.4085  0.10ex/s  eta=8m59s  [eta=9m06s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   47/100  KL=0.3765  mean=0.4078  0.10ex/s  eta=8m50s  [eta=8m56s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   48/100  KL=0.3742  mean=0.4071  0.10ex/s  eta=8m39s  [eta=8m46s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   49/100  KL=0.1346  mean=0.4015  0.10ex/s  eta=8m21s  [eta=8m34s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   50/100  KL=0.4650  mean=0.4028  0.10ex/s  eta=8m09s  [eta=8m23s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   51/100  KL=0.4729  mean=0.4042  0.10ex/s  eta=8m01s  [eta=8m14s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   52/100  KL=0.2448  mean=0.4011  0.10ex/s  eta=7m54s  [eta=8m04s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   53/100  KL=0.4641  mean=0.4023  0.10ex/s  eta=7m42s  [eta=7m54s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   54/100  KL=0.3452  mean=0.4012  0.10ex/s  eta=7m32s  [eta=7m43s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   55/100  KL=0.4006  mean=0.4012  0.10ex/s  eta=7m21s  [eta=7m33s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   56/100  KL=0.3715  mean=0.4007  0.10ex/s  eta=7m09s  [eta=7m22s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   57/100  KL=0.3421  mean=0.3997  0.10ex/s  eta=7m00s  [eta=7m12s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   58/100  KL=0.3380  mean=0.3986  0.10ex/s  eta=6m51s  [eta=7m03s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   59/100  KL=0.2873  mean=0.3967  0.10ex/s  eta=6m39s  [eta=6m52s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   60/100  KL=0.5324  mean=0.3990  0.10ex/s  eta=6m27s  [eta=6m41s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   61/100  KL=0.2950  mean=0.3973  0.10ex/s  eta=6m19s  [eta=6m32s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   62/100  KL=0.3157  mean=0.3959  0.10ex/s  eta=6m07s  [eta=6m21s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   63/100  KL=0.4583  mean=0.3969  0.10ex/s  eta=5m54s  [eta=6m10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   64/100  KL=0.2254  mean=0.3943  0.10ex/s  eta=5m46s  [eta=6m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   65/100  KL=0.2271  mean=0.3917  0.10ex/s  eta=5m33s  [eta=5m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   66/100  KL=0.1582  mean=0.3881  0.10ex/s  eta=5m25s  [eta=5m40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   67/100  KL=0.4881  mean=0.3896  0.10ex/s  eta=5m14s  [eta=5m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   68/100  KL=0.4348  mean=0.3903  0.11ex/s  eta=5m03s  [eta=5m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   69/100  KL=0.6033  mean=0.3934  0.11ex/s  eta=4m54s  [eta=5m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   70/100  KL=0.5706  mean=0.3959  0.11ex/s  eta=4m44s  [eta=4m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   71/100  KL=0.3195  mean=0.3948  0.11ex/s  eta=4m34s  [eta=4m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   72/100  KL=0.2753  mean=0.3932  0.11ex/s  eta=4m26s  [eta=4m39s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   73/100  KL=0.5020  mean=0.3947  0.10ex/s  eta=4m17s  [eta=4m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   74/100  KL=0.0861  mean=0.3905  0.11ex/s  eta=4m05s  [eta=4m18s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   75/100  KL=0.2698  mean=0.3889  0.11ex/s  eta=3m55s  [eta=4m08s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   76/100  KL=0.5319  mean=0.3908  0.11ex/s  eta=3m45s  [eta=3m58s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   77/100  KL=0.2362  mean=0.3888  0.11ex/s  eta=3m36s  [eta=3m48s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   78/100  KL=0.5676  mean=0.3911  0.11ex/s  eta=3m27s  [eta=3m38s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   79/100  KL=0.1542  mean=0.3881  0.11ex/s  eta=3m18s  [eta=3m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   80/100  KL=0.6137  mean=0.3909  0.11ex/s  eta=3m09s  [eta=3m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   81/100  KL=0.4062  mean=0.3911  0.11ex/s  eta=2m59s  [eta=3m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   82/100  KL=0.3191  mean=0.3902  0.11ex/s  eta=2m50s  [eta=2m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   83/100  KL=0.2541  mean=0.3886  0.11ex/s  eta=2m41s  [eta=2m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   84/100  KL=0.4572  mean=0.3894  0.11ex/s  eta=2m32s  [eta=2m39s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   85/100  KL=0.3308  mean=0.3887  0.11ex/s  eta=2m22s  [eta=2m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   86/100  KL=0.1620  mean=0.3861  0.10ex/s  eta=2m13s  [eta=2m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   87/100  KL=0.4452  mean=0.3867  0.10ex/s  eta=2m04s  [eta=2m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   88/100  KL=0.4929  mean=0.3879  0.10ex/s  eta=1m55s  [eta=1m59s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   89/100  KL=0.5488  mean=0.3897  0.10ex/s  eta=1m45s  [eta=1m49s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   90/100  KL=0.7812  mean=0.3941  0.10ex/s  eta=1m35s  [eta=1m39s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   91/100  KL=0.3299  mean=0.3934  0.10ex/s  eta=1m26s  [eta=1m29s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   92/100  KL=0.3899  mean=0.3934  0.10ex/s  eta=1m17s  [eta=1m19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   93/100  KL=0.6772  mean=0.3964  0.10ex/s  eta=1m07s  [eta=1m09s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   94/100  KL=0.3809  mean=0.3962  0.10ex/s  eta=58s  [eta=1m00s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   95/100  KL=0.3744  mean=0.3960  0.10ex/s  eta=48s  [eta=50s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   96/100  KL=0.1856  mean=0.3938  0.10ex/s  eta=38s  [eta=40s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   97/100  KL=0.4613  mean=0.3945  0.10ex/s  eta=29s  [eta=30s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   98/100  KL=0.1470  mean=0.3920  0.10ex/s  eta=19s  [eta=19s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex   99/100  KL=0.2051  mean=0.3901  0.10ex/s  eta=9s  [eta=10s total]
+Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+  [2wikimqa                 1/1] naive_best_post (3/3)  ex  100/100  KL=0.5651  mean=0.3918  0.10ex/s  eta=0s  [eta=0s total]
+  >>> 2wikimqa / naive_best_post:  n=100  mean_KL=0.3918  [16m08s]
+
+
+========================================================================
+SUMMARY — KL(P_full || P_compressed), mean over examples (nats)
+  0 = identical distributions;  ln2≈0.693 = maximum JS divergence
+========================================================================
+Task                          naive_tail  naive_best_p  naive_best_p
+--------------------------------------------------------------------
+2wikimqa                         0.1448        0.5319        0.3918
+--------------------------------------------------------------------
+AVERAGE                           0.1448        0.5319        0.3918
+  † full-context ground-truth < 10%: model unreliable on this task
+
+Total wall time: 49m58s
+Results saved → lb_results_base/kl_naive_variants.json
