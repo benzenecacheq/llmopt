@@ -111,6 +111,10 @@ class PrunedLlamaConfig:
                                         # rest of the budget.  Used for naive_best_pre/post experiments.
     # If True, run the filter during prefill only; generation uses standard KV cache
     filter_prefill_only: bool = True
+    # If set to a list, each layer appends its global_scores (T,) cpu tensor here
+    # instead of (or in addition to) pruning.  Used by snapkv_select to extract
+    # scores for input truncation without modifying the KV cache.
+    score_capture: Optional[list] = None
 
 
 # ---------------------------------------------------------------------------
@@ -403,6 +407,9 @@ class PrunedLlamaAttention(nn.Module):
         # Global aggregation
         global_scores = self._aggregate_head_scores(head_scores)  # (T,)
 
+        if self.pcfg.score_capture is not None:
+            self.pcfg.score_capture.append(global_scores.detach().cpu())
+
         # Always-keep head and tail tokens
         if budget <= 0:
             budget = self.pcfg.total_budget
@@ -527,7 +534,7 @@ class PrunedLlamaAttention(nn.Module):
         if (is_prefill
                 and self.pcfg.filter_prefill_only
                 and self.head_filter is not None
-                and effective_budget < T):
+                and (effective_budget < T or self.pcfg.score_capture is not None)):
             key_states, value_states, retained_pos = self._run_filter_prefill(
                 q_raw, k_raw, key_states, value_states, effective_budget,
                 q_post=query_states,

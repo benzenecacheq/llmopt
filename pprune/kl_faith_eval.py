@@ -445,6 +445,14 @@ for _frac in (0.50, 0.40, 0.35):
                                                        tail_frac=0.25, fraction=_frac)
     METHOD_CONFIGS[f"phrase_w64_t25_f{_fpct}"] = None
 
+# *_select variants: use KV-pruning scoring criteria for token selection, but do a
+# clean input-truncation prefill instead of pruning the KV cache.  Separates scoring
+# quality from the structural corruption caused by the pruning mechanism itself.
+for _sel in ("snapkv_select", "radar_select"):
+    METHOD_CONFIGS[_sel] = None
+    for _frac in (0.50, 0.40, 0.35):
+        METHOD_CONFIGS[f"{_sel}_f{int(_frac*100)}"] = None
+
 
 def sent_truncate(
     input_ids: torch.Tensor,
