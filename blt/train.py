@@ -5,7 +5,6 @@ All parameters (M, Wv, Wo, FFN, embeddings, layernorms) trained with Adam.
 
 import argparse
 import math
-import os
 import random
 import time
 
@@ -30,10 +29,8 @@ class TokenDataset(Dataset):
 
     def __init__(self, tokenizer, block_size=1024, chunk_size=10000):
         from datasets import load_dataset
-        print('Loading WikiText-103 train split...')
         ds = load_dataset('Salesforce/wikitext', 'wikitext-103-raw-v1', split='train')
 
-        # Tokenize in chunks to avoid building a single giant string in RAM
         all_ids = []
         texts = [t for t in ds['text'] if t.strip()]
         for i in range(0, len(texts), chunk_size):
@@ -46,7 +43,6 @@ class TokenDataset(Dataset):
         n_blocks = len(tokens) // block_size
         tokens = tokens[:n_blocks * block_size]
         self.blocks = tokens.view(n_blocks, block_size).clone()
-        print(f'  {n_blocks:,} blocks of {block_size} tokens ({len(tokens):,} tokens total)')
 
     def __len__(self):
         return len(self.blocks)
@@ -55,26 +51,43 @@ class TokenDataset(Dataset):
         return self.blocks[idx]
 
 
+def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None):
+    torch.save({
+        'step': step,
+        'seed': seed,
+        'model_state': model.state_dict(),
+        'optimizer_state': optimizer.state_dict(),
+        'scheduler_state': scheduler.state_dict(),
+        'val_ppl': val_ppl,
+    }, path)
+
+
 def train(args):
+    log_path = args.log_file or f'run_seed{args.seed}.log'
+    log_f = open(log_path, 'a' if args.resume else 'w', buffering=1)
+
+    def log(msg):
+        log_f.write(msg + '\n')
+
     set_seed(args.seed)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'Device: {device}  |  Seed: {args.seed}')
+    log(f'Device: {device}  |  Seed: {args.seed}')
 
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
 
-    print('Building BLT model...')
+    log('Building BLT model...')
     model = build_blt_model().to(device)
     n_params = sum(p.numel() for p in set(model.parameters()))
-    print(f'  {n_params:,} unique parameters')
+    log(f'  {n_params:,} unique parameters')
 
     dataset = TokenDataset(tokenizer, block_size=args.block_size)
+    log(f'  {len(dataset):,} blocks of {args.block_size} tokens')
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True,
                         pin_memory=(device.type == 'cuda'), num_workers=2)
 
     optimizer = torch.optim.Adam(set(model.parameters()), lr=args.lr)
 
-    # Linear warmup then cosine decay
     def lr_lambda(step):
         if step < args.warmup_steps:
             return step / max(1, args.warmup_steps)
@@ -83,17 +96,24 @@ def train(args):
 
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
-    log_path = args.log_file or f'run_seed{args.seed}.log'
-    log_f = open(log_path, 'w', buffering=1)
+    start_step = 0
+    last_val_ppl = None
 
-    def log(msg):
-        print(msg)
-        log_f.write(msg + '\n')
+    if args.resume:
+        log(f'Resuming from {args.resume} ...')
+        ckpt = torch.load(args.resume, map_location=device)
+        model.load_state_dict(ckpt['model_state'])
+        optimizer.load_state_dict(ckpt['optimizer_state'])
+        scheduler.load_state_dict(ckpt['scheduler_state'])
+        start_step = ckpt['step']
+        last_val_ppl = ckpt.get('val_ppl')
+        log(f'  Resumed at step {start_step}')
 
-    log(f'seed={args.seed} lr={args.lr} batch={args.batch_size} block={args.block_size}')
-    log(f'step\telapsed\tlr\ttrain_loss\tval_ppl')
+    if not args.resume:
+        log(f'seed={args.seed} lr={args.lr} batch={args.batch_size} block={args.block_size} max_steps={args.max_steps}')
+        log(f'step\telapsed\tlr\ttrain_loss\tval_ppl')
 
-    step = 0
+    step = start_step
     t0 = time.time()
 
     model.train()
@@ -122,23 +142,22 @@ def train(args):
                                             max_tokens=args.eval_tokens)
                     model.train()
                     val_ppl = f'{ppl:.2f}'
+                    last_val_ppl = ppl
                 log(f'{step}\t{elapsed:.0f}s\t{lr_now:.2e}\t{loss.item():.4f}\t{val_ppl}')
+
+            if args.save_path and step > start_step and step % args.checkpoint_every == 0:
+                save_checkpoint(args.save_path, model, optimizer, scheduler,
+                                step, args.seed, last_val_ppl)
 
             step += 1
 
-    # Final evaluation
     model.eval()
     final_ppl = compute_perplexity(model, tokenizer, device)
     log(f'\nFinal val perplexity: {final_ppl:.2f}')
 
     if args.save_path:
-        torch.save({
-            'step': step,
-            'seed': args.seed,
-            'model_state': model.state_dict(),
-            'optimizer_state': optimizer.state_dict(),
-            'val_ppl': final_ppl,
-        }, args.save_path)
+        save_checkpoint(args.save_path, model, optimizer, scheduler,
+                        step, args.seed, final_ppl)
         log(f'Saved to {args.save_path}')
 
     log_f.close()
@@ -150,12 +169,14 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=5e-5)
     parser.add_argument('--batch-size', type=int, default=4)
     parser.add_argument('--block-size', type=int, default=1024)
-    parser.add_argument('--max-steps', type=int, default=10000)
+    parser.add_argument('--max-steps', type=int, default=50300)
     parser.add_argument('--warmup-steps', type=int, default=200)
-    parser.add_argument('--log-every', type=int, default=50)
+    parser.add_argument('--log-every', type=int, default=10)
     parser.add_argument('--eval-every', type=int, default=500)
     parser.add_argument('--eval-tokens', type=int, default=50000)
     parser.add_argument('--log-file', type=str, default=None)
     parser.add_argument('--save-path', type=str, default=None)
+    parser.add_argument('--checkpoint-every', type=int, default=500)
+    parser.add_argument('--resume', type=str, default=None)
     args = parser.parse_args()
     train(args)

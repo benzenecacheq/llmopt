@@ -15,7 +15,7 @@ class BLTAttention(nn.Module):
     def __init__(self, M_shared: nn.Parameter, Wv, Wv_bias, Wo, Wo_bias, config):
         super().__init__()
         self.M = M_shared                          # shared across all layers
-        self.scale = math.sqrt(config.n_embd)      # sqrt(768)
+        self.scale = math.sqrt(config.n_embd // config.n_head)  # sqrt(64), matches GPT-2 MHA
 
         self.Wv = nn.Parameter(Wv)
         self.Wv_bias = nn.Parameter(Wv_bias)
