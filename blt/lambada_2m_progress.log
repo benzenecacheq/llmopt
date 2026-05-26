@@ -1,0 +1,20 @@
+
+=== monitor started, checking every 60s from step 15000 every 2500 ===
+
+--- step ~15000 (log at 15000) ---
+Loaded BLT checkpoint: step=15000, val_ppl=21.78829574584961
+lambada_openai/perplexity,none: 1004.2385
+lambada_openai/acc,none: 0.1019
+done milestones: [15000]
+
+--- step ~17500 (log at 17500) ---
+Loaded BLT checkpoint: step=17500, val_ppl=21.31195640563965
+lambada_openai/perplexity,none: 873.4814
+lambada_openai/acc,none: 0.1131
+done milestones: [15000, 17500]
+
+--- step ~20000 (log at 20000) ---
+Loaded BLT checkpoint: step=20000, val_ppl=20.953134536743164
+lambada_openai/perplexity,none: 975.5697
+lambada_openai/acc,none: 0.1056
+done milestones: [15000, 17500, 20000]
