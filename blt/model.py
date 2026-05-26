@@ -49,40 +49,134 @@ class BLTAttention(nn.Module):
         return out, None   # (attn_output, past_key_values)
 
 
-def build_blt_model(pretrained='gpt2'):
+class BLT2Attention(nn.Module):
+    """
+    Two-group bilinear attention: 2 shared M matrices, each governing half the
+    value capacity (384-dim per group).  Analogous to GQA grouping.
+
+    Group 1 (heads 0-5): X @ M1 @ X^T, values projected by Wv1 (D→D/2)
+    Group 2 (heads 6-11): X @ M2 @ X^T, values projected by Wv2 (D→D/2)
+    Outputs concatenated (D) then projected through Wo.
+    """
+
+    def __init__(self, M1: nn.Parameter, M2: nn.Parameter,
+                 Wv1, Wv1_bias, Wv2, Wv2_bias, Wo, Wo_bias, config):
+        super().__init__()
+        self.M1 = M1
+        self.M2 = M2
+        self.scale = math.sqrt(config.n_embd // config.n_head)
+        self.Wv1 = nn.Parameter(Wv1)
+        self.Wv1_bias = nn.Parameter(Wv1_bias)
+        self.Wv2 = nn.Parameter(Wv2)
+        self.Wv2_bias = nn.Parameter(Wv2_bias)
+        self.Wo = nn.Parameter(Wo)
+        self.Wo_bias = nn.Parameter(Wo_bias)
+
+    def _group_attn(self, hidden_states, M, Wv, Wv_bias, causal, attention_mask):
+        scores = (hidden_states @ M) @ hidden_states.transpose(-2, -1) / self.scale
+        scores = scores + causal
+        if attention_mask is not None:
+            scores = scores + attention_mask.squeeze(1)
+        A = F.softmax(scores, dim=-1)
+        V = hidden_states @ Wv + Wv_bias
+        return A @ V
+
+    def forward(self, hidden_states, past_key_values=None, attention_mask=None,
+                encoder_hidden_states=None, encoder_attention_mask=None,
+                output_attentions=False, **kwargs):
+        B, L, D = hidden_states.shape
+
+        causal = torch.full((L, L), float('-inf'), device=hidden_states.device,
+                            dtype=hidden_states.dtype)
+        causal = torch.triu(causal, diagonal=1)
+
+        h1 = self._group_attn(hidden_states, self.M1, self.Wv1, self.Wv1_bias,
+                               causal, attention_mask)
+        h2 = self._group_attn(hidden_states, self.M2, self.Wv2, self.Wv2_bias,
+                               causal, attention_mask)
+
+        h = torch.cat([h1, h2], dim=-1)
+        out = h @ self.Wo + self.Wo_bias
+
+        return out, None
+
+
+def build_blt_model(pretrained='gpt2', num_m_groups=1):
     """
     Load pretrained GPT-2 and replace every attention layer with BLT attention.
 
-    One M matrix (768x768) is shared across all 12 layers, initialized as the
-    average of Wq @ Wk^T across layers.  Wv and Wo are kept per-layer from the
-    pretrained weights.  All other parameters are unchanged.
+    num_m_groups=1: one M (768x768) shared across all 12 layers (original BLT).
+    num_m_groups=2: two M matrices, each initialized from the Wq@Wk^T of heads
+                    0-5 and 6-11 respectively; Wv split D/2 per group.
+
+    Wv and Wo are kept per-layer from the pretrained weights.
+    All other parameters are unchanged.
     """
+    if num_m_groups not in (1, 2):
+        raise ValueError(f'num_m_groups must be 1 or 2, got {num_m_groups}')
+
     model = GPT2LMHeadModel.from_pretrained(pretrained)
     cfg = model.config
-    D = cfg.n_embd  # 768
+    D = cfg.n_embd          # 768
+    n_head = cfg.n_head     # 12
+    d_head = D // n_head    # 64
 
-    # Initialize M as average of Wq @ Wk^T across all layers.
-    # c_attn.weight shape: (768, 2304) — columns: Wq | Wk | Wv
-    M_init = torch.zeros(D, D)
-    for layer in model.transformer.h:
-        Wq = layer.attn.c_attn.weight[:, :D].detach()
-        Wk = layer.attn.c_attn.weight[:, D:2 * D].detach()
-        M_init += Wq @ Wk.T
-    M_init /= cfg.n_layer
+    if num_m_groups == 1:
+        # Initialize M as average of Wq @ Wk^T across all layers.
+        # c_attn.weight shape: (768, 2304) — columns: Wq | Wk | Wv
+        M_init = torch.zeros(D, D)
+        for layer in model.transformer.h:
+            Wq = layer.attn.c_attn.weight[:, :D].detach()
+            Wk = layer.attn.c_attn.weight[:, D:2 * D].detach()
+            M_init += Wq @ Wk.T
+        M_init /= cfg.n_layer
 
-    M_shared = nn.Parameter(M_init)
+        M_shared = nn.Parameter(M_init)
 
-    # Replace attention in every layer
-    for layer in model.transformer.h:
-        attn = layer.attn
-        Wv = attn.c_attn.weight[:, 2 * D:].detach()   # (768, 768)
-        Wv_bias = attn.c_attn.bias[2 * D:].detach()   # (768,)
-        Wo = attn.c_proj.weight.detach()               # (768, 768)
-        Wo_bias = attn.c_proj.bias.detach()            # (768,)
-        layer.attn = BLTAttention(M_shared, Wv, Wv_bias, Wo, Wo_bias, cfg)
+        for layer in model.transformer.h:
+            attn = layer.attn
+            Wv = attn.c_attn.weight[:, 2 * D:].detach()   # (768, 768)
+            Wv_bias = attn.c_attn.bias[2 * D:].detach()   # (768,)
+            Wo = attn.c_proj.weight.detach()               # (768, 768)
+            Wo_bias = attn.c_proj.bias.detach()            # (768,)
+            layer.attn = BLTAttention(M_shared, Wv, Wv_bias, Wo, Wo_bias, cfg)
 
-    # Register M at the transformer level so it appears in named_parameters
-    model.transformer.register_parameter('M_blt', M_shared)
+        model.transformer.register_parameter('M_blt', M_shared)
+
+    else:  # num_m_groups == 2
+        # Each group covers half the heads; d_group = 6 * 64 = 384.
+        # M_g initialized from Wq_g @ Wk_g^T averaged over all layers.
+        n_g = n_head // 2        # 6
+        d_g = n_g * d_head       # 384
+
+        M1_init = torch.zeros(D, D)
+        M2_init = torch.zeros(D, D)
+        for layer in model.transformer.h:
+            Wq = layer.attn.c_attn.weight[:, :D].detach()      # (768, 768)
+            Wk = layer.attn.c_attn.weight[:, D:2 * D].detach() # (768, 768)
+            M1_init += Wq[:, :d_g] @ Wk[:, :d_g].T   # (768,384)@(384,768)
+            M2_init += Wq[:, d_g:] @ Wk[:, d_g:].T
+        M1_init /= cfg.n_layer
+        M2_init /= cfg.n_layer
+
+        M1 = nn.Parameter(M1_init)
+        M2 = nn.Parameter(M2_init)
+
+        for layer in model.transformer.h:
+            attn = layer.attn
+            Wv = attn.c_attn.weight[:, 2 * D:].detach()  # (768, 768)
+            Wv_bias = attn.c_attn.bias[2 * D:].detach()  # (768,)
+            Wo = attn.c_proj.weight.detach()              # (768, 768)
+            Wo_bias = attn.c_proj.bias.detach()           # (768,)
+            Wv1 = Wv[:, :d_g]           # (768, 384)
+            Wv1_bias = Wv_bias[:d_g]    # (384,)
+            Wv2 = Wv[:, d_g:]           # (768, 384)
+            Wv2_bias = Wv_bias[d_g:]    # (384,)
+            layer.attn = BLT2Attention(M1, M2, Wv1, Wv1_bias, Wv2, Wv2_bias,
+                                       Wo, Wo_bias, cfg)
+
+        model.transformer.register_parameter('M_blt_1', M1)
+        model.transformer.register_parameter('M_blt_2', M2)
 
     return model
 

@@ -58,6 +58,36 @@ def compute_perplexity(model, tokenizer, device, stride=512, max_length=1024,
     return ppl.item()
 
 
+def compute_cloze_accuracy(model, tokenizer, device, max_length=1024, max_samples=200):
+    """Greedy last-word accuracy on LAMBADA validation passages.
+
+    Uses max_samples for speed during training monitoring; run lm_eval for the
+    full benchmark score.
+    """
+    from datasets import load_dataset
+    ds = load_dataset('cimec/lambada', split='validation')
+    correct = 0
+    total = 0
+    for item in ds:
+        text = item['text']
+        if not text.strip():
+            continue
+        ids = tokenizer(text, add_special_tokens=False, truncation=False)['input_ids']
+        if len(ids) < 2:
+            continue
+        ids = ids[-max_length:]
+        target = ids[-1]
+        context = torch.tensor([ids[:-1]], device=device)
+        with torch.no_grad():
+            logits = model(input_ids=context).logits[0, -1, :]
+        if logits.argmax().item() == target:
+            correct += 1
+        total += 1
+        if max_samples and total >= max_samples:
+            break
+    return correct / total if total > 0 else 0.0
+
+
 if __name__ == '__main__':
     import argparse
     from model import build_blt_model

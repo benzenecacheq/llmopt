@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import GPT2Tokenizer
 
 from model import build_blt_model
-from evaluate import compute_perplexity
+from evaluate import compute_perplexity, compute_cloze_accuracy
 from transformers import GPT2LMHeadModel
 
 
@@ -56,7 +56,52 @@ class TokenDataset(Dataset):
         return len(self.blocks)
 
     def __getitem__(self, idx):
-        return self.blocks[idx]
+        x = self.blocks[idx]
+        return x, x
+
+
+class ClozeDataset(Dataset):
+    """LAMBADA passages with loss computed only on the final token.
+
+    Each item is the last max_length tokens of a training document, with labels
+    masked to -100 everywhere except the last position. This trains the model
+    directly on the last-word prediction task that LAMBADA tests.
+    """
+
+    def __init__(self, tokenizer, max_length=1024, split='train'):
+        from datasets import load_dataset
+        ds = load_dataset('cimec/lambada', split=split)
+
+        self.items = []
+        for text in ds['text']:
+            if not text.strip():
+                continue
+            ids = tokenizer(text, add_special_tokens=False,
+                            truncation=False)['input_ids']
+            if len(ids) < 2:
+                continue
+            ids = ids[-max_length:]       # keep story ending, including last word
+            labels = [-100] * len(ids)
+            labels[-1] = ids[-1]          # only the final token contributes to loss
+            self.items.append((ids, labels))
+
+    def __len__(self):
+        return len(self.items)
+
+    def __getitem__(self, idx):
+        return self.items[idx]
+
+
+def cloze_collate(batch):
+    """Left-pad variable-length (input_ids, labels) pairs to batch max length."""
+    max_len = max(len(ids) for ids, _ in batch)
+    padded_ids = torch.zeros(len(batch), max_len, dtype=torch.long)
+    padded_labels = torch.full((len(batch), max_len), -100, dtype=torch.long)
+    for i, (ids, labels) in enumerate(batch):
+        L = len(ids)
+        padded_ids[i, max_len - L:] = torch.tensor(ids, dtype=torch.long)
+        padded_labels[i, max_len - L:] = torch.tensor(labels, dtype=torch.long)
+    return padded_ids, padded_labels
 
 
 def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None):
@@ -88,8 +133,8 @@ def train(args):
         log('Building baseline GPT-2 model...')
         model = GPT2LMHeadModel.from_pretrained('gpt2').to(device)
     else:
-        log('Building BLT model...')
-        model = build_blt_model().to(device)
+        log(f'Building BLT model (num_m_groups={args.num_m_groups})...')
+        model = build_blt_model(num_m_groups=args.num_m_groups).to(device)
     # Deduplicate shared parameters (e.g. BLT's shared M matrix) preserving
     # insertion order so optimizer state is stable across resume.
     seen_ids = set()
@@ -101,10 +146,17 @@ def train(args):
     n_params = sum(p.numel() for p in unique_params)
     log(f'  {n_params:,} unique parameters')
 
-    dataset = TokenDataset(tokenizer, block_size=args.block_size, dataset=args.dataset)
-    log(f'  {len(dataset):,} blocks of {args.block_size} tokens ({args.dataset})')
-    loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True,
-                        pin_memory=(device.type == 'cuda'), num_workers=2)
+    if args.dataset == 'lambada_cloze':
+        dataset = ClozeDataset(tokenizer, max_length=args.block_size)
+        log(f'  {len(dataset):,} passages for cloze training (lambada_cloze)')
+        loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True,
+                            collate_fn=cloze_collate,
+                            pin_memory=(device.type == 'cuda'), num_workers=2)
+    else:
+        dataset = TokenDataset(tokenizer, block_size=args.block_size, dataset=args.dataset)
+        log(f'  {len(dataset):,} blocks of {args.block_size} tokens ({args.dataset})')
+        loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True,
+                            pin_memory=(device.type == 'cuda'), num_workers=2)
 
     optimizer = torch.optim.Adam(unique_params, lr=args.lr)
 
@@ -148,8 +200,10 @@ def train(args):
             if step >= args.max_steps:
                 break
 
-            batch = batch.to(device)
-            out = model(input_ids=batch, labels=batch)
+            input_ids, labels = batch
+            input_ids = input_ids.to(device)
+            labels = labels.to(device)
+            out = model(input_ids=input_ids, labels=labels)
             loss = out.loss
 
             optimizer.zero_grad()
@@ -164,12 +218,17 @@ def train(args):
                 val_ppl = ''
                 if step % args.eval_every == 0:
                     model.eval()
-                    ppl = compute_perplexity(model, tokenizer, device,
-                                            max_tokens=args.eval_tokens,
-                                            dataset=args.dataset)
+                    if args.dataset == 'lambada_cloze':
+                        acc = compute_cloze_accuracy(model, tokenizer, device)
+                        val_ppl = f'{acc:.4f}'
+                        last_val_ppl = acc
+                    else:
+                        ppl = compute_perplexity(model, tokenizer, device,
+                                                max_tokens=args.eval_tokens,
+                                                dataset=args.dataset)
+                        val_ppl = f'{ppl:.2f}'
+                        last_val_ppl = ppl
                     model.train()
-                    val_ppl = f'{ppl:.2f}'
-                    last_val_ppl = ppl
                 log(f'{step}\t{elapsed:.0f}s\t{lr_now:.2e}\t{loss.item():.4f}\t{val_ppl}')
 
             if args.save_path and step > start_step and step % args.checkpoint_every == 0:
@@ -209,7 +268,9 @@ if __name__ == '__main__':
                         help='Load model weights only (fresh optimizer/scheduler)')
     parser.add_argument('--baseline', action='store_true',
                         help='Fine-tune vanilla GPT-2 instead of BLT')
+    parser.add_argument('--num-m-groups', type=int, default=1, choices=[1, 2],
+                        help='Number of shared M matrices (1=original BLT, 2=GQA-like)')
     parser.add_argument('--dataset', type=str, default='wikitext103',
-                        choices=['wikitext103', 'lambada'])
+                        choices=['wikitext103', 'lambada', 'lambada_cloze'])
     args = parser.parse_args()
     train(args)

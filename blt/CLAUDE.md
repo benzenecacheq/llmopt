@@ -12,75 +12,71 @@ The key architectural idea: replace per-layer Wq and Wk with a single shared M m
 
 ## Completed runs
 - **BLT WikiText-103**: DONE. `run_seed42.pt`, 50,300 steps, final val_ppl = **21.50** (beats GPT-2 baseline of 26.39).
-- **Baseline GPT-2 WikiText-103 fine-tune**: Stopped at step 33,930, val_ppl ~14.91. `run_baseline_seed42.pt`. Not resumed (plateaued, decided to focus on LAMBADA).
+- **Baseline GPT-2 WikiText-103 fine-tune**: Stopped at step 33,930, val_ppl ~14.91. `run_baseline_seed42.pt`. Not resumed (plateaued).
+- **BLT LAMBADA full-text fine-tune**: `run_lambada_seed42.pt`. Plateaued ~step 3500. LAMBADA benchmark acc 0.102 (worse than 0.114 before fine-tune).
+- **BLT cloze fine-tune**: `run_cloze_seed42.pt`. Killed at step 7500. Catastrophic overfitting — train loss → 0 on 2,661 examples, LAMBADA benchmark acc collapsed to 0.065. Experiment abandoned.
 
 ## Benchmark results (lm-eval-harness)
-Stored in `lm_eval_baseline.json` (pretrained GPT-2) and `lm_eval_blt.json` (BLT after WikiText-103 training).
 
-| Task | GPT-2 (pretrained) | BLT |
-|------|--------------------|-----|
-| LAMBADA acc | 0.242 | 0.114 |
-| LAMBADA ppl | 83.0 | 1307.5 |
-| HellaSwag acc_norm | 0.291 | 0.275 |
-| PIQA acc_norm | 0.560 | 0.541 |
-| Winogrande acc | 0.502 | 0.507 |
+| Task | GPT-2 (pretrained) | BLT (WikiText) | BLT (cloze, step 7500) |
+|------|--------------------|----------------|------------------------|
+| LAMBADA acc | 0.242 | 0.114 | 0.065 |
+| LAMBADA ppl | 83.0 | 1307.5 | 590,704 |
+| HellaSwag acc_norm | 0.291 | 0.275 | — |
+| PIQA acc_norm | 0.560 | 0.541 | — |
+| Winogrande acc | 0.502 | 0.507 | — |
 
-BLT is close to GPT-2 on all tasks except LAMBADA, where it collapses. Hypothesis: combination of domain mismatch (BLT trained on WikiText-103 encyclopedia text; LAMBADA is book/narrative text) and possible architectural limitation (shared M restricts attention diversity across heads). Running LAMBADA fine-tune to separate these factors empirically.
+Result files: `lm_eval_baseline.json`, `lm_eval_blt.json`, `lm_eval_cloze_blt.json`.
 
-## Currently running: LAMBADA fine-tune
+BLT is close to GPT-2 on all tasks except LAMBADA. Every fine-tuning intervention has made LAMBADA worse (domain shift + catastrophic forgetting). Cloze training was completely ineffective — 2,661 examples is too small; the model memorizes them without generalizing.
+
+## Next experiment: Two-M (GQA-like) architecture
+**Hypothesis**: The shared-M limitation means all 12 heads use the same attention pattern. Two M matrices (6 heads each) give more head diversity, analogous to GQA grouping.
+
+**Implementation** (already in `model.py`):
+- `BLT2Attention`: 2 shared M matrices (M1, M2), each 768×768
+- Group 1 (heads 0-5): attention via M1, value projection Wv1 (768→384)
+- Group 2 (heads 6-11): attention via M2, value projection Wv2 (768→384)
+- Outputs concatenated (768) then projected through Wo
+- M1 initialized from Wq[:, 0:384] @ Wk[:, 0:384].T averaged over layers; M2 from heads 6-11
+
+**To run**:
 ```
-conda run -n blt python train.py --seed 42 --dataset lambada \
-  --finetune run_seed42.pt --save-path run_lambada_seed42.pt \
-  --log-file run_lambada_seed42.log --lr 1e-5 --max-steps 61500 --warmup-steps 100
+conda run -n blt python train.py --seed 42 --num-m-groups 2 \
+  --save-path run_2m_seed42.pt --log-file run_2m_seed42.log \
+  --lr 5e-5 --max-steps 50300 --warmup-steps 200
 ```
-- At ~step 860 when last checked (step 0 val_ppl = 19.69 on WikiText-103 val)
-- Checkpoint every 500 steps to `run_lambada_seed42.pt`
-- Monitor running: `monitor_lambada.log` — **BUT THIS IS BROKEN** (see below)
-
-## Fixed bugs (session 2026-05-26)
-- **`set(model.parameters())` ordering bug**: `set()` is unordered, so optimizer state indices shift between runs, corrupting resume. Fixed by using stable id-based deduplication (`unique_params` list) everywhere in train.py.
-- **evaluate.py**: Added `dataset` parameter so LAMBADA val ppl is monitored during LAMBADA fine-tuning (not WikiText-103 val).
-- **train.py**: `--finetune` flag added to load model weights only with fresh optimizer/scheduler (use this when switching datasets; `--resume` for mid-run recovery on same dataset).
-- **LAMBADA dataset OOM**: `cimec/lambada` docs average ~90K tokens each; fixed by forcing `chunk_size=1` when `dataset='lambada'`.
-
-## Known issue: plateau monitor watches wrong metric
-`monitor_plateau.py` watches val_ppl from `evaluate.py`, which always evaluates on **WikiText-103 validation**. During LAMBADA fine-tuning, WikiText-103 val_ppl rises due to domain shift — the monitor will fire prematurely (~step 2000) thinking it plateaued.
-
-**TODO**: Kill monitor, fix `evaluate.py` to support a `--dataset` argument for LAMBADA val evaluation, restart training with proper monitoring. We are only at ~step 860 so restart cost is low.
-
-## To restart LAMBADA fine-tune after fixing evaluate.py
-1. Kill any running monitor_plateau.py and train.py processes
-2. Fix evaluate.py to support LAMBADA val split
-3. Run:
+Then evaluate:
 ```
-conda run -n blt python train.py --seed 42 --dataset lambada \
-  --finetune run_seed42.pt --save-path run_lambada_seed42.pt \
-  --log-file run_lambada_seed42.log --lr 1e-5 --max-steps 61500 --warmup-steps 100
+conda run -n blt python blt_lm_eval.py \
+  --checkpoint run_2m_seed42.pt --num-m-groups 2 \
+  --output lm_eval_2m_blt.json
 ```
-4. Run monitor with correct val metric
 
-## To resume LAMBADA fine-tune (if it crashed mid-run, after evaluate.py is fixed)
-```
-conda run -n blt python train.py --seed 42 --dataset lambada \
-  --resume run_lambada_seed42.pt --save-path run_lambada_seed42.pt \
-  --log-file run_lambada_seed42.log --lr 1e-5 --max-steps 61500
-```
+## Fixed bugs (sessions 2026-05-26)
+- **`set(model.parameters())` ordering bug**: `set()` is unordered, so optimizer state indices shift between runs, corrupting resume. Fixed with stable id-based deduplication in train.py.
+- **evaluate.py**: Added `dataset` parameter for LAMBADA val ppl monitoring.
+- **train.py**: `--finetune` flag added (weights only, fresh optimizer/scheduler).
+- **LAMBADA dataset OOM**: `chunk_size=1` forced when `dataset='lambada'`.
+- **blt_lm_eval.py `device` property**: `LM` base class has `device` as read-only; fixed to `self._device`.
 
 ## Python environment
 Must use the `blt` conda environment. The default conda env has `mytorch` on the path which shadows `torch` and `transformers`.
 
 ## Files
-- `model.py` — BLTAttention and build_blt_model()
-- `train.py` — training harness. Key flags: `--resume` (full state), `--finetune` (weights only, fresh optimizer), `--dataset {wikitext103,lambada}`, `--baseline` (use GPT-2 instead of BLT)
-- `evaluate.py` — sliding-window perplexity on WikiText-103 validation (needs LAMBADA support added)
-- `blt_lm_eval.py` — lm-eval-harness wrapper for benchmark evals
+- `model.py` — BLTAttention (1-M), BLT2Attention (2-M), build_blt_model(num_m_groups=1|2)
+- `train.py` — training harness. Key flags: `--resume`, `--finetune`, `--dataset`, `--baseline`, `--num-m-groups`
+- `evaluate.py` — sliding-window perplexity (WikiText-103 or LAMBADA val); compute_cloze_accuracy
+- `blt_lm_eval.py` — lm-eval-harness wrapper; supports `--num-m-groups`
 - `monitor_plateau.py` — watches a training log and fires a shell command on plateau
 - `generate.py` — sanity-check text generation from a checkpoint
-- `run_seed42.log` / `run_seed42.pt` — completed BLT WikiText-103 run
-- `run_baseline_seed42.log` / `run_baseline_seed42.pt` — stopped baseline fine-tune
-- `run_lambada_seed42.log` / `run_lambada_seed42.pt` — LAMBADA fine-tune (in progress)
-- `monitor_lambada.log` — plateau monitor log (currently broken, watching wrong metric)
-- `lm_eval_baseline.json` / `lm_eval_blt.json` — benchmark results
+- `run_seed42.pt/.log` — BLT WikiText-103 (50,300 steps, val_ppl=21.50) — **primary 1-M checkpoint**
+- `run_baseline_seed42.pt/.log` — stopped baseline fine-tune
+- `run_lambada_seed42.pt/.log` — LAMBADA full-text fine-tune (plateaued, abandoned)
+- `run_cloze_seed42.pt/.log` — cloze fine-tune (killed step 7500, catastrophic overfit)
+- `lm_eval_baseline.json` — pretrained GPT-2 benchmark scores
+- `lm_eval_blt.json` — BLT after WikiText-103 training
+- `lm_eval_cloze_blt.json` — BLT after cloze fine-tune (worse on everything)
 
 ## Broader project context
 This `blt` branch lives alongside `pprune/` (a KV cache pruning paper). BLT is a separate experiment, likely for comparison purposes.
