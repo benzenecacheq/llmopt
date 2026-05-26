@@ -1,4 +1,4 @@
-"""Perplexity evaluation on WikiText-103 validation set."""
+"""Perplexity evaluation on WikiText-103 or LAMBADA validation set."""
 
 import torch
 from datasets import load_dataset
@@ -7,15 +7,19 @@ from tqdm import tqdm
 
 
 def compute_perplexity(model, tokenizer, device, stride=512, max_length=1024,
-                       dataset_split='validation', max_tokens=None):
+                       dataset_split='validation', max_tokens=None, dataset='wikitext103'):
     """
-    Sliding-window perplexity on WikiText-103.
+    Sliding-window perplexity on WikiText-103 (default) or LAMBADA validation set.
 
     stride=512 with max_length=1024 means each window overlaps by 512 tokens;
     only the last `stride` tokens of each window contribute to the NLL estimate.
     """
-    dataset = load_dataset('Salesforce/wikitext', 'wikitext-103-raw-v1', split=dataset_split)
-    text = '\n\n'.join(dataset['text'])
+    if dataset == 'lambada':
+        ds = load_dataset('cimec/lambada', split='validation')
+        text = '\n\n'.join(t for t in ds['text'] if t.strip())
+    else:
+        ds = load_dataset('Salesforce/wikitext', 'wikitext-103-raw-v1', split=dataset_split)
+        text = '\n\n'.join(ds['text'])
 
     encodings = tokenizer(text, return_tensors='pt')
     input_ids = encodings.input_ids[0]   # (N_tokens,)

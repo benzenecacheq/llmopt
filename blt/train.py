@@ -15,6 +15,7 @@ from transformers import GPT2Tokenizer
 
 from model import build_blt_model
 from evaluate import compute_perplexity
+from transformers import GPT2LMHeadModel
 
 
 def set_seed(seed: int):
@@ -25,14 +26,21 @@ def set_seed(seed: int):
 
 
 class TokenDataset(Dataset):
-    """WikiText-103 training tokens chunked into fixed-length blocks."""
+    """Text dataset chunked into fixed-length blocks. Supports wikitext103 and lambada."""
 
-    def __init__(self, tokenizer, block_size=1024, chunk_size=10000):
+    def __init__(self, tokenizer, block_size=1024, dataset='wikitext103', chunk_size=10000):
         from datasets import load_dataset
-        ds = load_dataset('Salesforce/wikitext', 'wikitext-103-raw-v1', split='train')
+
+        if dataset == 'lambada':
+            ds = load_dataset('cimec/lambada', split='train')
+            texts = [t for t in ds['text'] if t.strip()]
+            # LAMBADA docs are ~90K tokens each; tokenize one at a time to avoid OOM
+            chunk_size = 1
+        else:
+            ds = load_dataset('Salesforce/wikitext', 'wikitext-103-raw-v1', split='train')
+            texts = [t for t in ds['text'] if t.strip()]
 
         all_ids = []
-        texts = [t for t in ds['text'] if t.strip()]
         for i in range(0, len(texts), chunk_size):
             chunk_text = '\n\n'.join(texts[i:i + chunk_size])
             ids = tokenizer(chunk_text, return_tensors='pt',
@@ -76,17 +84,29 @@ def train(args):
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
 
-    log('Building BLT model...')
-    model = build_blt_model().to(device)
-    n_params = sum(p.numel() for p in set(model.parameters()))
+    if args.baseline:
+        log('Building baseline GPT-2 model...')
+        model = GPT2LMHeadModel.from_pretrained('gpt2').to(device)
+    else:
+        log('Building BLT model...')
+        model = build_blt_model().to(device)
+    # Deduplicate shared parameters (e.g. BLT's shared M matrix) preserving
+    # insertion order so optimizer state is stable across resume.
+    seen_ids = set()
+    unique_params = []
+    for p in model.parameters():
+        if id(p) not in seen_ids:
+            seen_ids.add(id(p))
+            unique_params.append(p)
+    n_params = sum(p.numel() for p in unique_params)
     log(f'  {n_params:,} unique parameters')
 
-    dataset = TokenDataset(tokenizer, block_size=args.block_size)
-    log(f'  {len(dataset):,} blocks of {args.block_size} tokens')
+    dataset = TokenDataset(tokenizer, block_size=args.block_size, dataset=args.dataset)
+    log(f'  {len(dataset):,} blocks of {args.block_size} tokens ({args.dataset})')
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True,
                         pin_memory=(device.type == 'cuda'), num_workers=2)
 
-    optimizer = torch.optim.Adam(set(model.parameters()), lr=args.lr)
+    optimizer = torch.optim.Adam(unique_params, lr=args.lr)
 
     def lr_lambda(step):
         if step < args.warmup_steps:
@@ -108,6 +128,12 @@ def train(args):
         start_step = ckpt['step']
         last_val_ppl = ckpt.get('val_ppl')
         log(f'  Resumed at step {start_step}')
+
+    if args.finetune:
+        log(f'Fine-tuning from {args.finetune} (fresh optimizer/scheduler) ...')
+        ckpt = torch.load(args.finetune, map_location=device)
+        model.load_state_dict(ckpt['model_state'])
+        log(f'  Loaded weights from step {ckpt["step"]}, val_ppl={ckpt.get("val_ppl")}')
 
     if not args.resume:
         log(f'seed={args.seed} lr={args.lr} batch={args.batch_size} block={args.block_size} max_steps={args.max_steps}')
@@ -139,7 +165,8 @@ def train(args):
                 if step % args.eval_every == 0:
                     model.eval()
                     ppl = compute_perplexity(model, tokenizer, device,
-                                            max_tokens=args.eval_tokens)
+                                            max_tokens=args.eval_tokens,
+                                            dataset=args.dataset)
                     model.train()
                     val_ppl = f'{ppl:.2f}'
                     last_val_ppl = ppl
@@ -178,5 +205,11 @@ if __name__ == '__main__':
     parser.add_argument('--save-path', type=str, default=None)
     parser.add_argument('--checkpoint-every', type=int, default=500)
     parser.add_argument('--resume', type=str, default=None)
+    parser.add_argument('--finetune', type=str, default=None,
+                        help='Load model weights only (fresh optimizer/scheduler)')
+    parser.add_argument('--baseline', action='store_true',
+                        help='Fine-tune vanilla GPT-2 instead of BLT')
+    parser.add_argument('--dataset', type=str, default='wikitext103',
+                        choices=['wikitext103', 'lambada'])
     args = parser.parse_args()
     train(args)
