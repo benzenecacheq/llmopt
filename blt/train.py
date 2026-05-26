@@ -36,6 +36,11 @@ class TokenDataset(Dataset):
             texts = [t for t in ds['text'] if t.strip()]
             # LAMBADA docs are ~90K tokens each; tokenize one at a time to avoid OOM
             chunk_size = 1
+        elif dataset == 'pg19':
+            ds = load_dataset('emozilla/pg19', split='train')
+            texts = [t for t in ds['text'] if t.strip()]
+            # pg19 books are 4M+ chars each; tokenize one at a time to avoid OOM
+            chunk_size = 1
         else:
             ds = load_dataset('Salesforce/wikitext', 'wikitext-103-raw-v1', split='train')
             texts = [t for t in ds['text'] if t.strip()]
@@ -271,6 +276,6 @@ if __name__ == '__main__':
     parser.add_argument('--num-m-groups', type=int, default=1, choices=[1, 2],
                         help='Number of shared M matrices (1=original BLT, 2=GQA-like)')
     parser.add_argument('--dataset', type=str, default='wikitext103',
-                        choices=['wikitext103', 'lambada', 'lambada_cloze'])
+                        choices=['wikitext103', 'lambada', 'lambada_cloze', 'pg19'])
     args = parser.parse_args()
     train(args)

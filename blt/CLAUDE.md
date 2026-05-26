@@ -30,6 +30,26 @@ Result files: `lm_eval_baseline.json`, `lm_eval_blt.json`, `lm_eval_cloze_blt.js
 
 BLT is close to GPT-2 on all tasks except LAMBADA. Every fine-tuning intervention has made LAMBADA worse (domain shift + catastrophic forgetting). Cloze training was completely ineffective — 2,661 examples is too small; the model memorizes them without generalizing.
 
+## Planned: pg19 training (data hypothesis test)
+WikiText-103 is encyclopedia text; LAMBADA is narrative fiction. The LAMBADA failure
+may be data mismatch rather than architecture. pg19 (Project Gutenberg pre-1919 books,
+~10.5B tokens, `emozilla/pg19`) is the right domain. Plan: train both 1-M and 2-M on
+pg19, compare LAMBADA scores. If both beat WikiText-trained models, data was the problem.
+
+**To run 1-M on pg19**:
+```
+conda run -n blt python train.py --seed 42 --dataset pg19 \
+  --save-path run_pg19_seed42.pt --log-file run_pg19_seed42.log \
+  --lr 5e-5 --max-steps 50300 --warmup-steps 200
+```
+
+**To run 2-M on pg19**:
+```
+conda run -n blt python train.py --seed 42 --dataset pg19 --num-m-groups 2 \
+  --save-path run_2m_pg19_seed42.pt --log-file run_2m_pg19_seed42.log \
+  --lr 5e-5 --max-steps 50300 --warmup-steps 200
+```
+
 ## Next experiment: Two-M (GQA-like) architecture
 **Hypothesis**: The shared-M limitation means all 12 heads use the same attention pattern. Two M matrices (6 heads each) give more head diversity, analogous to GQA grouping.
 
