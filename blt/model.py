@@ -101,13 +101,15 @@ class BLT2Attention(nn.Module):
         return out, None
 
 
-def build_blt_model(pretrained='gpt2', num_m_groups=1):
+def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False):
     """
     Load pretrained GPT-2 and replace every attention layer with BLT attention.
 
     num_m_groups=1: one M (768x768) shared across all 12 layers (original BLT).
     num_m_groups=2: two M matrices, each initialized from the Wq@Wk^T of heads
                     0-5 and 6-11 respectively; Wv split D/2 per group.
+
+    random_m: if True, initialize M with N(0, 1/sqrt(D)) instead of Wq@Wk^T.
 
     Wv and Wo are kept per-layer from the pretrained weights.
     All other parameters are unchanged.
@@ -122,14 +124,17 @@ def build_blt_model(pretrained='gpt2', num_m_groups=1):
     d_head = D // n_head    # 64
 
     if num_m_groups == 1:
-        # Initialize M as average of Wq @ Wk^T across all layers.
-        # c_attn.weight shape: (768, 2304) — columns: Wq | Wk | Wv
-        M_init = torch.zeros(D, D)
-        for layer in model.transformer.h:
-            Wq = layer.attn.c_attn.weight[:, :D].detach()
-            Wk = layer.attn.c_attn.weight[:, D:2 * D].detach()
-            M_init += Wq @ Wk.T
-        M_init /= cfg.n_layer
+        if random_m:
+            M_init = torch.randn(D, D) / math.sqrt(D)
+        else:
+            # Initialize M as average of Wq @ Wk^T across all layers.
+            # c_attn.weight shape: (768, 2304) — columns: Wq | Wk | Wv
+            M_init = torch.zeros(D, D)
+            for layer in model.transformer.h:
+                Wq = layer.attn.c_attn.weight[:, :D].detach()
+                Wk = layer.attn.c_attn.weight[:, D:2 * D].detach()
+                M_init += Wq @ Wk.T
+            M_init /= cfg.n_layer
 
         M_shared = nn.Parameter(M_init)
 
@@ -149,15 +154,19 @@ def build_blt_model(pretrained='gpt2', num_m_groups=1):
         n_g = n_head // 2        # 6
         d_g = n_g * d_head       # 384
 
-        M1_init = torch.zeros(D, D)
-        M2_init = torch.zeros(D, D)
-        for layer in model.transformer.h:
-            Wq = layer.attn.c_attn.weight[:, :D].detach()      # (768, 768)
-            Wk = layer.attn.c_attn.weight[:, D:2 * D].detach() # (768, 768)
-            M1_init += Wq[:, :d_g] @ Wk[:, :d_g].T   # (768,384)@(384,768)
-            M2_init += Wq[:, d_g:] @ Wk[:, d_g:].T
-        M1_init /= cfg.n_layer
-        M2_init /= cfg.n_layer
+        if random_m:
+            M1_init = torch.randn(D, D) / math.sqrt(D)
+            M2_init = torch.randn(D, D) / math.sqrt(D)
+        else:
+            M1_init = torch.zeros(D, D)
+            M2_init = torch.zeros(D, D)
+            for layer in model.transformer.h:
+                Wq = layer.attn.c_attn.weight[:, :D].detach()      # (768, 768)
+                Wk = layer.attn.c_attn.weight[:, D:2 * D].detach() # (768, 768)
+                M1_init += Wq[:, :d_g] @ Wk[:, :d_g].T   # (768,384)@(384,768)
+                M2_init += Wq[:, d_g:] @ Wk[:, d_g:].T
+            M1_init /= cfg.n_layer
+            M2_init /= cfg.n_layer
 
         M1 = nn.Parameter(M1_init)
         M2 = nn.Parameter(M2_init)

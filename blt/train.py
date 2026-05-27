@@ -5,6 +5,7 @@ All parameters (M, Wv, Wo, FFN, embeddings, layernorms) trained with Adam.
 
 import argparse
 import math
+import os
 import random
 import time
 
@@ -26,7 +27,7 @@ def set_seed(seed: int):
 
 
 class TokenDataset(Dataset):
-    """Text dataset chunked into fixed-length blocks. Supports wikitext103 and lambada."""
+    """Text dataset chunked into fixed-length blocks. Supports wikitext103, lambada, pg19, openwebtext."""
 
     def __init__(self, tokenizer, block_size=1024, dataset='wikitext103', chunk_size=10000):
         from datasets import load_dataset
@@ -41,6 +42,11 @@ class TokenDataset(Dataset):
             texts = [t for t in ds['text'] if t.strip()]
             # pg19 books are 4M+ chars each; tokenize one at a time to avoid OOM
             chunk_size = 1
+        elif dataset == 'openwebtext':
+            # Full OWT is 8M docs (~5B tokens); loading all into memory OOMs.
+            # 200K docs ≈ 200M tokens, enough for a 50K-step run with ~1 epoch.
+            ds = load_dataset('Skylion007/openwebtext', split='train[:200000]')
+            texts = [t for t in ds['text'] if t.strip()]
         else:
             ds = load_dataset('Salesforce/wikitext', 'wikitext-103-raw-v1', split='train')
             texts = [t for t in ds['text'] if t.strip()]
@@ -110,6 +116,7 @@ def cloze_collate(batch):
 
 
 def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None):
+    tmp = path + '.tmp'
     torch.save({
         'step': step,
         'seed': seed,
@@ -117,7 +124,11 @@ def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None)
         'optimizer_state': optimizer.state_dict(),
         'scheduler_state': scheduler.state_dict(),
         'val_ppl': val_ppl,
-    }, path)
+    }, tmp)
+    # Keep previous checkpoint as .bak so a power cut during write leaves a fallback.
+    if os.path.exists(path):
+        os.replace(path, path + '.bak')
+    os.replace(tmp, path)
 
 
 def train(args):
@@ -138,8 +149,8 @@ def train(args):
         log('Building baseline GPT-2 model...')
         model = GPT2LMHeadModel.from_pretrained('gpt2').to(device)
     else:
-        log(f'Building BLT model (num_m_groups={args.num_m_groups})...')
-        model = build_blt_model(num_m_groups=args.num_m_groups).to(device)
+        log(f'Building BLT model (num_m_groups={args.num_m_groups}, random_m={args.random_m})...')
+        model = build_blt_model(num_m_groups=args.num_m_groups, random_m=args.random_m).to(device)
     # Deduplicate shared parameters (e.g. BLT's shared M matrix) preserving
     # insertion order so optimizer state is stable across resume.
     seen_ids = set()
@@ -275,7 +286,9 @@ if __name__ == '__main__':
                         help='Fine-tune vanilla GPT-2 instead of BLT')
     parser.add_argument('--num-m-groups', type=int, default=1, choices=[1, 2],
                         help='Number of shared M matrices (1=original BLT, 2=GQA-like)')
+    parser.add_argument('--random-m', action='store_true',
+                        help='Initialize M randomly N(0, 1/sqrt(D)) instead of from Wq@Wk^T')
     parser.add_argument('--dataset', type=str, default='wikitext103',
-                        choices=['wikitext103', 'lambada', 'lambada_cloze', 'pg19'])
+                        choices=['wikitext103', 'lambada', 'lambada_cloze', 'pg19', 'openwebtext'])
     args = parser.parse_args()
     train(args)
