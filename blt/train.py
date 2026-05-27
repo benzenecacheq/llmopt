@@ -43,9 +43,9 @@ class TokenDataset(Dataset):
             # pg19 books are 4M+ chars each; tokenize one at a time to avoid OOM
             chunk_size = 1
         elif dataset == 'openwebtext':
-            # Full OWT is 8M docs (~5B tokens); loading all into memory OOMs.
-            # 200K docs ≈ 200M tokens, enough for a 50K-step run with ~1 epoch.
-            ds = load_dataset('Skylion007/openwebtext', split='train[:200000]')
+            # Full OWT is 8M docs (~8B tokens); loading all into memory OOMs.
+            # 1M docs ≈ 1B tokens, enough for a ~250K-step run with ~1 epoch.
+            ds = load_dataset('Skylion007/openwebtext', split='train[:1000000]')
             texts = [t for t in ds['text'] if t.strip()]
         else:
             ds = load_dataset('Salesforce/wikitext', 'wikitext-103-raw-v1', split='train')
@@ -205,10 +205,11 @@ def train(args):
 
     if not args.resume:
         log(f'seed={args.seed} lr={args.lr} batch={args.batch_size} block={args.block_size} max_steps={args.max_steps}')
-        log(f'step\telapsed\tlr\ttrain_loss\tval_ppl')
+        log(f'step\telapsed\tlr\ttrain_loss\tval_ppl\tlambada_acc')
 
     step = start_step
     t0 = time.time()
+    last_lambada_acc = None
 
     model.train()
     while step < args.max_steps:
@@ -232,6 +233,7 @@ def train(args):
                 elapsed = time.time() - t0
                 lr_now = scheduler.get_last_lr()[0]
                 val_ppl = ''
+                lambada_acc = ''
                 if step % args.eval_every == 0:
                     model.eval()
                     if args.dataset == 'lambada_cloze':
@@ -245,7 +247,12 @@ def train(args):
                         val_ppl = f'{ppl:.2f}'
                         last_val_ppl = ppl
                     model.train()
-                log(f'{step}\t{elapsed:.0f}s\t{lr_now:.2e}\t{loss.item():.4f}\t{val_ppl}')
+                if args.lambada_eval_every and step % args.lambada_eval_every == 0:
+                    model.eval()
+                    last_lambada_acc = compute_cloze_accuracy(model, tokenizer, device)
+                    lambada_acc = f'{last_lambada_acc:.4f}'
+                    model.train()
+                log(f'{step}\t{elapsed:.0f}s\t{lr_now:.2e}\t{loss.item():.4f}\t{val_ppl}\t{lambada_acc}')
 
             if args.save_path and step > start_step and step % args.checkpoint_every == 0:
                 save_checkpoint(args.save_path, model, optimizer, scheduler,
@@ -288,6 +295,8 @@ if __name__ == '__main__':
                         help='Number of shared M matrices (1=original BLT, 2=GQA-like)')
     parser.add_argument('--random-m', action='store_true',
                         help='Initialize M randomly N(0, 1/sqrt(D)) instead of from Wq@Wk^T')
+    parser.add_argument('--lambada-eval-every', type=int, default=2000,
+                        help='Evaluate LAMBADA cloze accuracy every N steps (0 to disable)')
     parser.add_argument('--dataset', type=str, default='wikitext103',
                         choices=['wikitext103', 'lambada', 'lambada_cloze', 'pg19', 'openwebtext'])
     args = parser.parse_args()
