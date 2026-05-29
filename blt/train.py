@@ -218,6 +218,10 @@ def train(args):
                 break
 
             input_ids, labels = batch
+            # Skip batches with out-of-range token IDs (rare OWT corruption)
+            if input_ids.max() >= 50257 or input_ids.min() < 0:
+                step += 1
+                continue
             input_ids = input_ids.to(device)
             labels = labels.to(device)
             out = model(input_ids=input_ids, labels=labels)
