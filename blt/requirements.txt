@@ -1,0 +1,19 @@
+# BLT environment requirements
+# V100 (CC 7.0) requires torch==2.3.1 — newer versions drop CC 7.0 support.
+# Install torch first from the cu121 index, then the rest normally:
+#
+#   pip install torch==2.3.1 torchvision==0.18.1 --index-url https://download.pytorch.org/whl/cu121
+#   pip install -r requirements.txt
+
+torch==2.3.1+cu121
+torchvision==0.18.1+cu121
+transformers==4.46.3
+datasets==4.8.5
+accelerate==1.13.0
+lm_eval==0.4.12
+evaluate==0.4.6
+numpy==2.4.6
+scipy==1.17.1
+nltk==3.9.4
+rouge_score==0.1.2
+sacrebleu==2.6.0
