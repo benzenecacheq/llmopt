@@ -43,9 +43,9 @@ class TokenDataset(Dataset):
             # pg19 books are 4M+ chars each; tokenize one at a time to avoid OOM
             chunk_size = 1
         elif dataset == 'openwebtext':
-            # Full OWT is 8M docs (~8B tokens); loading all into memory OOMs.
-            # 1M docs ≈ 1B tokens, enough for a ~250K-step run with ~1 epoch.
-            ds = load_dataset('Skylion007/openwebtext', split='train[:1000000]')
+            # Full OWT is 8M docs (~8B tokens). 2M docs ≈ 2B tokens ≈ Chinchilla-optimal
+            # for 117M params; fits in 64GB RAM (~40GB).
+            ds = load_dataset('Skylion007/openwebtext', split='train[:2000000]')
             texts = [t for t in ds['text'] if t.strip()]
         else:
             ds = load_dataset('Salesforce/wikitext', 'wikitext-103-raw-v1', split='train')
