@@ -162,6 +162,28 @@ DATASET2MAXLEN = {
     "passage_count": 32, "passage_retrieval_en": 32, "lcc": 64, "repobench-p": 64,
 }
 
+# Token IDs (Llama-3.1 tokenizer) at which y* generation should stop.
+# Short-answer tasks stop at the first newline (\n=198, \n\n=271) so that
+# the y* contains only the answer and not the model regurgitating the next
+# few-shot example from the compressed context.
+# Long-form summarisation tasks (gov_report, qmsum, multi_news, samsum) omit
+# stop tokens so the full generated summary is captured.
+YSTAR_STOP_TOKENS: Dict[str, list] = {
+    "narrativeqa":          [198, 271],
+    "qasper":               [198, 271],
+    "multifieldqa_en":      [198, 271],
+    "hotpotqa":             [198, 271],
+    "2wikimqa":             [198, 271],
+    "musique":              [198, 271],
+    "trec":                 [198, 271],
+    "triviaqa":             [198, 271],
+    "passage_count":        [198, 271],
+    "passage_retrieval_en": [198, 271],
+    "lcc":                  [198, 271],
+    "repobench-p":          [198, 271],
+    # gov_report, qmsum, multi_news, samsum: no stop tokens
+}
+
 # The compressed prefill uses a manual matmul (T × budget × n_heads × fp32) that
 # can OOM at long contexts.  Cap compressed prompts conservatively.
 # The full-model teacher-forced forward uses SDPA and can handle longer inputs.
@@ -234,7 +256,11 @@ METHOD_CONFIGS["naive_best_post"] = PrunedLlamaConfig(score_mode="kq_post_rope",
 # Dispatch is via CHUNK_CONFIGS keyed by method name.
 for _cm in ("chunk_best", "chunk_word", "chunk_bm25", "chunk_32", "chunk_128", "chunk_word128", "chunk_sent",
             "phrase_w32_t0", "phrase_w64_t0", "phrase_w32_t50", "phrase_w64_t50",
-            "phrase_w64_t25", "phrase_w64_t75"):
+            "phrase_w64_t25", "phrase_w64_t75",
+            "chunk_word128_t25", "chunk_word128_t50", "chunk_128_t25", "chunk_128_t50",
+            "chunk_word96_t20", "chunk_word96_t25", "chunk_word96_t30",
+            "chunk_word128_t20", "chunk_word128_t30",
+            "chunk_word160_t20", "chunk_word160_t25", "chunk_word160_t30"):
     METHOD_CONFIGS[_cm] = None
 
 
@@ -425,8 +451,22 @@ CHUNK_CONFIGS: Dict[str, dict] = {
     "phrase_w32_t50": dict(chunk_size=32, scoring="word", tail_frac=0.5),
     "phrase_w64_t50": dict(chunk_size=64, scoring="word", tail_frac=0.5),
     # Tail-fraction sweep: w64 × {0.25, 0.75}
-    "phrase_w64_t25": dict(chunk_size=64, scoring="word", tail_frac=0.25),
-    "phrase_w64_t75": dict(chunk_size=64, scoring="word", tail_frac=0.75),
+    "phrase_w64_t25": dict(chunk_size=64,  scoring="word",  tail_frac=0.25),
+    "phrase_w64_t75": dict(chunk_size=64,  scoring="word",  tail_frac=0.75),
+    # 128-token chunk × {word, token} scoring × {0.25, 0.50} tail_frac
+    "chunk_word128_t25": dict(chunk_size=128, scoring="word",  tail_frac=0.25),
+    "chunk_word128_t50": dict(chunk_size=128, scoring="word",  tail_frac=0.50),
+    "chunk_128_t25":     dict(chunk_size=128, scoring="token", tail_frac=0.25),
+    "chunk_128_t50":     dict(chunk_size=128, scoring="token", tail_frac=0.50),
+    # Chunk size × tail_frac grid: {96, 128, 160} × {0.20, 0.25, 0.30}
+    "chunk_word96_t20":  dict(chunk_size=96,  scoring="word",  tail_frac=0.20),
+    "chunk_word96_t25":  dict(chunk_size=96,  scoring="word",  tail_frac=0.25),
+    "chunk_word96_t30":  dict(chunk_size=96,  scoring="word",  tail_frac=0.30),
+    "chunk_word128_t20": dict(chunk_size=128, scoring="word",  tail_frac=0.20),
+    "chunk_word128_t30": dict(chunk_size=128, scoring="word",  tail_frac=0.30),
+    "chunk_word160_t20": dict(chunk_size=160, scoring="word",  tail_frac=0.20),
+    "chunk_word160_t25": dict(chunk_size=160, scoring="word",  tail_frac=0.25),
+    "chunk_word160_t30": dict(chunk_size=160, scoring="word",  tail_frac=0.30),
 }
 
 # Multi-compression sweep: naive, RADAR (kq_post_rope), SnapKV, phrase_w64_t25 at 50/40/35%
@@ -448,10 +488,30 @@ for _frac in (0.50, 0.40, 0.35):
 # *_select variants: use KV-pruning scoring criteria for token selection, but do a
 # clean input-truncation prefill instead of pruning the KV cache.  Separates scoring
 # quality from the structural corruption caused by the pruning mechanism itself.
+# Compression sweep for top zero-overhead chunk methods
+for _frac in (0.50, 0.40, 0.35):
+    _fpct = int(_frac * 100)
+    CHUNK_CONFIGS[f"chunk_word160_t25_f{_fpct}"] = dict(chunk_size=160, scoring="word",
+                                                         tail_frac=0.25, fraction=_frac)
+    METHOD_CONFIGS[f"chunk_word160_t25_f{_fpct}"] = None
+    CHUNK_CONFIGS[f"chunk_word128_t20_f{_fpct}"] = dict(chunk_size=128, scoring="word",
+                                                         tail_frac=0.20, fraction=_frac)
+    METHOD_CONFIGS[f"chunk_word128_t20_f{_fpct}"] = None
+
 for _sel in ("snapkv_select", "radar_select"):
     METHOD_CONFIGS[_sel] = None
     for _frac in (0.50, 0.40, 0.35):
         METHOD_CONFIGS[f"{_sel}_f{int(_frac*100)}"] = None
+    for _nl in (1, 4, 8):
+        METHOD_CONFIGS[f"{_sel}_l{_nl}"] = None
+
+# Vocabulary-salience selection methods (static lookup, zero forward-pass overhead).
+# Variants: stat (mean|max|median) × compression × unseen policy (keep|drop).
+for _stat in ("mean", "max", "median"):
+    METHOD_CONFIGS[f"salience_{_stat}"] = None          # 65% keep-unseen
+    METHOD_CONFIGS[f"salience_{_stat}_drop"] = None     # 65% unseen→global-mean
+    for _frac in (0.50, 0.40, 0.35):
+        METHOD_CONFIGS[f"salience_{_stat}_f{int(_frac*100)}"] = None
 
 
 def sent_truncate(

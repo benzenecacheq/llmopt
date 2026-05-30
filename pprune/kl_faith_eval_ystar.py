@@ -42,7 +42,15 @@ os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")
 import numpy as np
 import torch
 import torch.nn.functional as F
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from contextlib import nullcontext
+from transformers import AutoModelForCausalLM, AutoTokenizer, LogitsProcessor, LogitsProcessorList
+
+try:
+    from kvpress import PyramidKVPress as _PyramidKVPress
+    _KVPRESS_AVAILABLE = True
+except ImportError:
+    _PyramidKVPress = None
+    _KVPRESS_AVAILABLE = False
 
 from llama_pruned import (
     HeadFilterConfig,
@@ -74,7 +82,93 @@ from kl_faith_eval import (
     save_ckpt,
     fmt_duration,
     fmt_eta,
+    YSTAR_STOP_TOKENS,
 )
+
+# ---------------------------------------------------------------------------
+# Timing helpers
+# ---------------------------------------------------------------------------
+
+class _FirstTokenTimer(LogitsProcessor):
+    """Captures wall-clock TTFT via the first LogitsProcessor callback in generate()."""
+    def __init__(self) -> None:
+        self._t0: Optional[float] = None
+        self.ttft_s: Optional[float] = None
+
+    def arm(self) -> None:
+        torch.cuda.synchronize()
+        self._t0 = time.perf_counter()
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        if self.ttft_s is None and self._t0 is not None:
+            torch.cuda.synchronize()
+            self.ttft_s = time.perf_counter() - self._t0
+        return scores
+
+
+@torch.inference_mode()
+def time_comp_prefill_decode(
+    model,
+    comp_ids: torch.Tensor,
+    ystar: torch.Tensor,
+    pcfg: Optional[PrunedLlamaConfig],
+    device: str,
+    n_decode: int = 5,
+    press=None,
+) -> dict:
+    """Measure TTFT and TPT for a compression method.
+
+    TTFT: wall time to process the compressed context in a single prefill pass.
+    TPT:  mean wall time per single-token decode step (KV cache grown from prefill).
+
+    For KV-pruning methods (pcfg set), pruning fires during the prefill.
+    For select methods (pcfg=None), comp_ids is already the scored subset.
+    For kvpress methods (press set), the press context manager wraps the prefill.
+    sel_ms (scoring-pass overhead) must be timed separately in the main loop.
+    """
+    n_decode = min(n_decode, max(ystar.shape[0], 1))
+    comp_input = comp_ids.to(device)
+    originals  = None
+    if pcfg is not None:
+        originals = patch_model(model, pcfg, device)
+
+    ctx = press(model) if press is not None else nullcontext()
+    ttft_ms = tpt_ms = None
+    try:
+        torch.cuda.synchronize()
+        t0  = time.perf_counter()
+        with ctx:
+            out = model(
+                input_ids=comp_input,
+                attention_mask=torch.ones_like(comp_input),
+                use_cache=True,
+            )
+        torch.cuda.synchronize()
+        ttft_ms = (time.perf_counter() - t0) * 1000
+
+        kv = out.past_key_values
+        del out
+        step_ms: list = []
+        for i in range(n_decode):
+            tok = ystar[i : i + 1].unsqueeze(0).to(device)
+            torch.cuda.synchronize()
+            ts       = time.perf_counter()
+            step_out = model(input_ids=tok, past_key_values=kv, use_cache=True)
+            torch.cuda.synchronize()
+            step_ms.append((time.perf_counter() - ts) * 1000)
+            kv = step_out.past_key_values
+        del kv
+        tpt_ms = sum(step_ms) / len(step_ms) if step_ms else None
+
+    except torch.cuda.OutOfMemoryError:
+        torch.cuda.empty_cache()
+    finally:
+        if originals is not None:
+            unpatch_model(model, originals)
+
+    torch.cuda.empty_cache()
+    return {"ttft_ms": ttft_ms, "tpt_ms": tpt_ms}
+
 
 # ---------------------------------------------------------------------------
 # SnapKV-scored input selection (snapkv_select family)
@@ -90,15 +184,15 @@ def scored_select_ids(
     min_decay: float = 0.7,
     always_keep_first: int = 16,
     always_keep_last: int = 16,
+    n_score_layers: Optional[int] = None,
 ) -> Optional[torch.Tensor]:
     """
-    Score tokens via a forward pass using the given score_mode (averaged across
-    all layers), then return the top-k as a clean input tensor for honest prefill.
-
-    Ablation for the structural-corruption claim: same scoring as KV-pruning methods
-    but applied as input truncation — no KV cache corruption.  Returns None on OOM.
+    Score tokens via a forward pass using the given score_mode, then return the
+    top-k as a clean input tensor for honest prefill.  No KV cache corruption.
 
     score_mode: "snapkv" or "kq_post_rope" (RADAR)
+    n_score_layers: use only the first N layers for scoring (None = all layers).
+                    Cheaper proxy experiment: 1, 4, 8 vs. full 32.
     """
     T = full_ids.shape[1]
     budget = max(1, int(T * fraction))
@@ -115,6 +209,14 @@ def scored_select_ids(
         score_capture=score_capture,
     )
     originals = patch_model(model, pcfg, device)
+
+    # For partial-layer scoring: disable head_filter on layers beyond n_score_layers.
+    # Those layers still run as PrunedLlamaAttention but with head_filter=None,
+    # so they skip _run_filter_prefill entirely and behave like standard attention.
+    if n_score_layers is not None:
+        for layer_idx, layer in enumerate(model.model.layers):
+            if layer_idx >= n_score_layers:
+                layer.self_attn.head_filter = None
 
     try:
         _ = model(
@@ -159,13 +261,162 @@ def scored_select_ids(
 # Compressed prompt construction (mirrors kl_faith_eval.kl_for_example)
 # ---------------------------------------------------------------------------
 
-# Maps select method name → (score_mode, fraction)
+# Maps select method name → (score_mode, fraction, n_score_layers)
+# n_score_layers=None means use all layers.
 _SELECT_METHODS = {}
 for _name, _mode in [("snapkv_select", "snapkv"), ("radar_select", "kq_post_rope")]:
-    _SELECT_METHODS[_name] = (_mode, 0.65)
+    _SELECT_METHODS[_name] = (_mode, 0.65, None)
     for _frac in (0.50, 0.40, 0.35):
         _fpct = int(_frac * 100)
-        _SELECT_METHODS[f"{_name}_f{_fpct}"] = (_mode, _frac)
+        _SELECT_METHODS[f"{_name}_f{_fpct}"] = (_mode, _frac, None)
+    # Layer ablation: snapkv_select and radar_select at 65% with 1/4/8 scoring layers
+    for _nl in (1, 4, 8):
+        _SELECT_METHODS[f"{_name}_l{_nl}"] = (_mode, 0.65, _nl)
+
+
+# ---------------------------------------------------------------------------
+# Vocabulary-salience selection (static lookup table, zero inference overhead)
+# ---------------------------------------------------------------------------
+
+# Maps salience method name → (stat, fraction, unseen_policy)
+# stat:          which aggregation to use from the calibration table
+# unseen_policy: "keep"  → unseen tokens always selected (score = +inf)
+#                "global"→ unseen tokens get the saved global mean score
+_SALIENCE_METHODS: dict = {}
+for _stat in ("mean", "max", "median"):
+    _SALIENCE_METHODS[f"salience_{_stat}"]       = (_stat, 0.65, "keep")
+    _SALIENCE_METHODS[f"salience_{_stat}_drop"]  = (_stat, 0.65, "global")
+    for _frac in (0.50, 0.40, 0.35):
+        _SALIENCE_METHODS[f"salience_{_stat}_f{int(_frac*100)}"] = (_stat, _frac, "keep")
+
+_salience_cache: Optional[dict] = None   # loaded once per process
+
+# ---------------------------------------------------------------------------
+# KVPress-based methods (uses kvpress context manager; no llama_pruned patching)
+# ---------------------------------------------------------------------------
+
+_KVPRESS_METHODS: dict = {}
+if _KVPRESS_AVAILABLE:
+    _KVPRESS_METHODS["pyramidkv"] = _PyramidKVPress(
+        compression_ratio=0.35,   # keep 65% — matches r=0.65
+        window_size=128,
+        beta=20,
+    )
+    _KVPRESS_METHODS["pyramidkv_f50"] = _PyramidKVPress(
+        compression_ratio=0.50,   # keep 50%
+        window_size=128,
+        beta=20,
+    )
+    _KVPRESS_METHODS["pyramidkv_f40"] = _PyramidKVPress(
+        compression_ratio=0.60,   # keep 40%
+        window_size=128,
+        beta=20,
+    )
+    _KVPRESS_METHODS["pyramidkv_f35"] = _PyramidKVPress(
+        compression_ratio=0.65,   # keep 35%
+        window_size=128,
+        beta=20,
+    )
+    # "short" variants: identical compression config, but gt_eval_compression.py
+    # caps their input at max_seq_comp (~4096) instead of max_seq_full (~7168).
+    # This isolates the effect of long-context prefill from compression quality.
+    _KVPRESS_METHODS["pyramidkv_short"] = _PyramidKVPress(
+        compression_ratio=0.35,   # keep 65% — same as pyramidkv
+        window_size=128,
+        beta=20,
+    )
+    # "clean_first" variant: same compression config, but gt_eval_compression.py
+    # prefills only full_ids[:, :-1] and then decodes last_tok against the
+    # compressed KV cache.  T1 therefore attends to compressed context (same
+    # as T2+), eliminating the full-prefill first-token advantage.
+    _KVPRESS_METHODS["pyramidkv_clean_first"] = _PyramidKVPress(
+        compression_ratio=0.35,   # keep 65% — same as pyramidkv
+        window_size=128,
+        beta=20,
+    )
+    _KVPRESS_METHODS["pyramidkv_f50_clean_first"] = _PyramidKVPress(
+        compression_ratio=0.50,   # keep 50% — same as pyramidkv_f50
+        window_size=128,
+        beta=20,
+    )
+    _KVPRESS_METHODS["pyramidkv_f40_clean_first"] = _PyramidKVPress(
+        compression_ratio=0.60,   # keep 40% — same as pyramidkv_f40
+        window_size=128,
+        beta=20,
+    )
+    _KVPRESS_METHODS["pyramidkv_f35_clean_first"] = _PyramidKVPress(
+        compression_ratio=0.65,   # keep 35% — same as pyramidkv_f35
+        window_size=128,
+        beta=20,
+    )
+    for _cm in _KVPRESS_METHODS:
+        METHOD_CONFIGS[_cm] = None
+
+
+def load_salience_table(path: str) -> dict:
+    """Load calibration table from disk; cache in module-level variable."""
+    global _salience_cache
+    if _salience_cache is None:
+        _salience_cache = torch.load(path, map_location="cpu", weights_only=True)
+        print(f"Salience table loaded: {path}  "
+              f"(vocab={_salience_cache['vocab_size']}, "
+              f"seqs={_salience_cache.get('total_seqs','?')})", flush=True)
+    return _salience_cache
+
+
+def salience_select_ids(
+    full_ids: torch.Tensor,         # (1, T)
+    table: dict,
+    stat: str          = "mean",    # "mean" | "max" | "median"
+    fraction: float    = 0.65,
+    unseen_policy: str = "keep",    # "keep" | "global"
+    always_keep_first: int = 16,
+    always_keep_last:  int = 16,
+) -> torch.Tensor:
+    """Select the top-fraction tokens by pre-computed salience score.
+
+    No model forward pass.  Runs in microseconds — pure tensor indexing.
+
+    unseen_policy="keep"  : tokens absent from calibration corpus get score=+inf
+                            (always retained — they're rare and may be critical).
+    unseen_policy="global": unseen tokens get the global mean score of seen tokens.
+    """
+    token_ids = full_ids[0]                       # (T,)
+    T         = token_ids.shape[0]
+    budget    = max(1, int(T * fraction))
+
+    scores_table: torch.Tensor = table[stat]      # (vocab_size,)
+    raw_scores = scores_table[token_ids]           # (T,) — lookup per position
+
+    unseen_mask = raw_scores < 0                   # sentinel = -1.0
+    if unseen_mask.any():
+        if unseen_policy == "keep":
+            raw_scores = raw_scores.clone()
+            raw_scores[unseen_mask] = float("inf")
+        else:
+            raw_scores = raw_scores.clone()
+            raw_scores[unseen_mask] = table[f"global_{stat}"]
+
+    # always_keep_first / always_keep_last logic (mirrors scored_select_ids)
+    head_end   = min(always_keep_first, T)
+    tail_start = max(head_end, T - always_keep_last)
+    always_set = set(range(head_end)) | set(range(tail_start, T))
+
+    mid_start     = head_end
+    mid_end       = tail_start
+    mid_n         = max(0, mid_end - mid_start)
+    middle_budget = max(0, budget - len(always_set))
+
+    if middle_budget > 0 and mid_n > 0:
+        mid_scores = raw_scores[mid_start:mid_end]
+        topk       = min(middle_budget, mid_n)
+        _, top_idx = mid_scores.topk(topk)
+        keep_set   = always_set | {mid_start + i for i in top_idx.tolist()}
+    else:
+        keep_set = always_set
+
+    retained = torch.tensor(sorted(keep_set), dtype=torch.long)
+    return full_ids[:, retained]
 
 
 def make_comp_ids(
@@ -176,6 +427,7 @@ def make_comp_ids(
     max_seq_comp: int,
     model=None,
     device: str = "cuda",
+    salience_table: Optional[dict] = None,
 ) -> torch.Tensor:
     """Return the compressed prompt token ids for a given method."""
     if method == "naive_65pct":
@@ -194,9 +446,19 @@ def make_comp_ids(
                  if question_text else None)
         comp_ids = chunk_truncate(full_ids, q_ids, tokenizer=tokenizer, **CHUNK_CONFIGS[method])
     elif method in _SELECT_METHODS and model is not None:
-        score_mode, frac = _SELECT_METHODS[method]
-        ids = scored_select_ids(model, full_ids, device, score_mode=score_mode, fraction=frac)
+        score_mode, frac, n_layers = _SELECT_METHODS[method]
+        ids = scored_select_ids(model, full_ids, device, score_mode=score_mode,
+                                fraction=frac, n_score_layers=n_layers)
         comp_ids = ids if ids is not None else naive_truncate(full_ids, fraction=frac, head_frac=0.10)
+    elif method in _SALIENCE_METHODS and salience_table is not None:
+        stat, frac, unseen_policy = _SALIENCE_METHODS[method]
+        comp_ids = salience_select_ids(full_ids, salience_table,
+                                       stat=stat, fraction=frac,
+                                       unseen_policy=unseen_policy)
+    elif method in _KVPRESS_METHODS:
+        # KV compression is handled by the kvpress hook during the forward pass.
+        # Return the full context (caller passes max_seq_full as max_seq_comp for these methods).
+        comp_ids = full_ids.clone()
     else:
         comp_ids = full_ids.clone()
 
@@ -215,14 +477,21 @@ def generate_ystar(
     max_new_tokens: int,
     max_seq_full: int,
     device: str,
+    stop_token_ids: Optional[list] = None,
 ):
     """Generate y* from the uncompressed model.
 
-    Returns (gen_tokens, log_p_full) where:
+    Returns (gen_tokens, log_p_full, timing) where:
       gen_tokens  : (n_gen,)        int64 — greedy tokens
       log_p_full  : (n_gen, vocab)  float32 — log-softmax at each step
+      timing      : dict with ttft_ms and tpt_ms, or None on cache hit / OOM
 
-    Returns (None, None) on OOM or empty generation.
+    Returns (None, None, None) on OOM or empty generation.
+
+    stop_token_ids: if given, generation halts when any of these token IDs is
+    produced (in addition to EOS).  Pass YSTAR_STOP_TOKENS[task] for short-answer
+    tasks so that y* contains only the answer and not the model regurgitating the
+    next few-shot context block.
     """
     prompt_ids = full_ids
     if prompt_ids.shape[1] > max_seq_full:
@@ -230,32 +499,55 @@ def generate_ystar(
     prompt_ids = prompt_ids.to(device)
     n_prompt = prompt_ids.shape[1]
 
+    # Build the full set of token IDs that should end generation
+    eos_id = model.config.eos_token_id
+    if isinstance(eos_id, int):
+        eos_id = [eos_id]
+    elif eos_id is None:
+        eos_id = []
+    extra = stop_token_ids or []
+    all_stop = list(dict.fromkeys(eos_id + extra))  # deduplicated, order-preserving
+
+    timer = _FirstTokenTimer()
     try:
+        timer.arm()
         out = model.generate(
             input_ids=prompt_ids,
             attention_mask=torch.ones_like(prompt_ids),
             max_new_tokens=max_new_tokens,
             do_sample=False,
+            eos_token_id=all_stop,
             return_dict_in_generate=True,
             output_scores=True,
+            logits_processor=LogitsProcessorList([timer]),
         )
     except torch.cuda.OutOfMemoryError:
         torch.cuda.empty_cache()
-        return None, None
+        return None, None, None
+
+    torch.cuda.synchronize()
+    t_total_s = time.perf_counter() - timer._t0 if timer._t0 is not None else None
 
     if not out.scores:
-        return None, None
+        return None, None, None
 
-    gen_tokens = out.sequences[0, n_prompt:].cpu()            # (n_gen,)
-    raw_logits = torch.stack([s[0] for s in out.scores], dim=0)  # (n_gen, vocab)
+    gen_tokens = out.sequences[0, n_prompt:].cpu()
+    raw_logits = torch.stack([s[0] for s in out.scores], dim=0)
     log_p_full = F.log_softmax(raw_logits.float(), dim=-1).cpu()
 
     del out
     torch.cuda.empty_cache()
 
     if gen_tokens.shape[0] == 0:
-        return None, None
-    return gen_tokens, log_p_full
+        return None, None, None
+
+    n_gen  = gen_tokens.shape[0]
+    timing = None
+    if timer.ttft_s is not None and t_total_s is not None:
+        tpt_s  = (t_total_s - timer.ttft_s) / max(n_gen - 1, 1)
+        timing = {"ttft_ms": timer.ttft_s * 1000, "tpt_ms": tpt_s * 1000}
+
+    return gen_tokens, log_p_full, timing
 
 
 @torch.inference_mode()
@@ -265,12 +557,59 @@ def get_comp_log_probs(
     ystar: torch.Tensor,
     pcfg: Optional[PrunedLlamaConfig],
     device: str,
+    press=None,
 ) -> Optional[torch.Tensor]:
     """Teacher-force compressed model on [comp_ids + ystar].
 
     Returns log_p_comp (n_gen, vocab) float32, or None on OOM/shape mismatch.
+
+    pcfg and press are mutually exclusive:
+      pcfg  — our PrunedLlamaAttention monkey-patching
+      press — a kvpress context manager (e.g. PyramidKVPress)
+
+    For press methods: kvpress compresses the KV *cache* (stored K/V pairs), not
+    the attention computation itself.  A single-pass teacher-force over
+    [comp_ids + ystar] gives KL≈0 because the compression hooks only prune what
+    gets stored in past_key_values — the causal attention scores are unchanged.
+    The correct evaluation path is:
+      1. Prefill comp_ids under press → pruned KV cache
+      2. Step-decode each ystar token using the pruned cache
+    This matches how PyramidKVPress is used in practice (generate() style).
     """
     n_gen = ystar.shape[0]
+
+    if press is not None:
+        comp_input = comp_ids.to(device)
+        try:
+            with press(model):
+                out = model(
+                    input_ids=comp_input,
+                    attention_mask=torch.ones_like(comp_input),
+                    use_cache=True,
+                )
+            kv = out.past_key_values
+            # out.logits[0, -1, :] is P_comp predicting y*[0]; capture before
+            # del out or position 0 is lost (off-by-one bug in step-decode loop).
+            logits_list = [out.logits[0, -1, :].float()]
+            del out
+
+            for t in range(n_gen - 1):
+                tok = ystar[t : t + 1].unsqueeze(0).to(device)
+                step_out = model(input_ids=tok, past_key_values=kv, use_cache=True)
+                logits_list.append(step_out.logits[0, -1, :].float())
+                kv = step_out.past_key_values
+            del kv
+
+            if not logits_list:
+                return None
+            comp_logits = torch.stack(logits_list, dim=0)   # (n_gen, vocab)
+        except torch.cuda.OutOfMemoryError:
+            torch.cuda.empty_cache()
+            return None
+
+        return F.log_softmax(comp_logits, dim=-1).cpu()
+
+    # --- Standard path: single forward pass over [comp_ids + ystar] ---
     full_input = torch.cat([comp_ids.to(device), ystar.unsqueeze(0).to(device)], dim=1)
     n_prompt_comp = comp_ids.shape[1]
 
@@ -359,6 +698,8 @@ def run_eval(
     device: str,
     max_new_tokens_override: Optional[int] = None,
     ystar_cache_path: Optional[Path] = None,
+    do_timing: bool = False,
+    salience_table: Optional[dict] = None,
 ):
     ckpt  = load_ckpt(output_path)
     cache = load_ystar_cache(ystar_cache_path) if ystar_cache_path else {}
@@ -423,11 +764,15 @@ def run_eval(
             # --- Step 1: generate y* and P_full (once per example, cache if possible) ---
             ystar, log_p_full = get_from_cache(cache, task, idx)
             if ystar is None:
-                ystar, log_p_full = generate_ystar(model, full_ids, max_new, max_seq_full, device)
+                ystar, log_p_full, full_timing = generate_ystar(
+                    model, full_ids, max_new, max_seq_full, device,
+                    stop_token_ids=YSTAR_STOP_TOKENS.get(task),
+                )
                 if ystar is not None and ystar_cache_path:
                     put_in_cache(cache, task, idx, ystar, log_p_full)
                     save_ystar_cache(cache, ystar_cache_path)
-                    print(f"  [cached y* for {task}|{idx}]", flush=True)
+                    ttft_str = f"  ttft={full_timing['ttft_ms']:.0f}ms  tpt={full_timing['tpt_ms']:.1f}ms" if full_timing else ""
+                    print(f"  [cached y* for {task}|{idx}{ttft_str}]", flush=True)
             else:
                 print(f"  [y* cache hit: {task}|{idx}  n_gen={ystar.shape[0]}]", flush=True)
 
@@ -449,11 +794,23 @@ def run_eval(
                     task_done  += 1
                     continue
 
-                pcfg     = METHOD_CONFIGS.get(method)
-                comp_ids = make_comp_ids(full_ids, method, tokenizer, question_text, max_seq_comp,
-                                         model=model, device=device)
+                pcfg  = METHOD_CONFIGS.get(method)
+                press = _KVPRESS_METHODS.get(method)
 
-                log_p_comp = get_comp_log_probs(model, comp_ids, ystar, pcfg, device)
+                # kvpress methods process the full context internally; use max_seq_full
+                effective_max = max_seq_full if press is not None else max_seq_comp
+
+                if do_timing:
+                    torch.cuda.synchronize()
+                t_sel    = time.perf_counter()
+                comp_ids = make_comp_ids(full_ids, method, tokenizer, question_text, effective_max,
+                                         model=model, device=device,
+                                         salience_table=salience_table)
+                if do_timing:
+                    torch.cuda.synchronize()
+                sel_ms = (time.perf_counter() - t_sel) * 1000
+
+                log_p_comp = get_comp_log_probs(model, comp_ids, ystar, pcfg, device, press=press)
 
                 if log_p_comp is not None:
                     kl = kl_divergence(log_p_full, log_p_comp)
@@ -461,6 +818,14 @@ def run_eval(
                 else:
                     ckpt[ck_key] = None
                     kl = None
+
+                if do_timing:
+                    t_key = f"T|{ck_key}"
+                    if t_key not in ckpt:
+                        timed           = time_comp_prefill_decode(model, comp_ids, ystar, pcfg, device,
+                                                                    press=press)
+                        timed["sel_ms"] = sel_ms
+                        ckpt[t_key]     = timed
 
                 save_ckpt(ckpt, output_path)
                 grand_done += 1
@@ -478,7 +843,6 @@ def run_eval(
                 )
 
         task_elapsed = time.time() - task_start
-        # Task summary per method
         print(f"\n  --- {task} summary ---")
         per_method = {}
         for m in methods:
@@ -487,6 +851,23 @@ def run_eval(
             mean = np.mean(scores) if scores else float("nan")
             per_method[m] = mean
             print(f"  {m:<24}  n={len(scores)}  mean_KL={mean:.4f}")
+
+        if do_timing:
+            print(f"\n  --- {task} timing (ms) ---")
+            print(f"  {'method':<24}  {'sel_ms':>8}  {'ttft_ms':>9}  {'total_ttft':>11}  {'tpt_ms':>8}")
+            for m in methods:
+                t_vals = [ckpt[f"T|{task}|{m}|{i}"]
+                          for i in range(n_ex)
+                          if isinstance(ckpt.get(f"T|{task}|{m}|{i}"), dict)]
+                if not t_vals:
+                    continue
+                def _avg(key):
+                    vals = [v[key] for v in t_vals if v.get(key) is not None]
+                    return sum(vals) / len(vals) if vals else float("nan")
+                sel  = _avg("sel_ms");  ttft = _avg("ttft_ms");  tpt = _avg("tpt_ms")
+                tot  = sel + ttft
+                print(f"  {m:<24}  {sel:>8.1f}  {ttft:>9.1f}  {tot:>11.1f}  {tpt:>8.2f}")
+
         print(f"  [{fmt_duration(task_elapsed)}]\n")
 
     # ---------------------------------------------------------------------------
@@ -524,6 +905,26 @@ def run_eval(
     )
     print(avg)
 
+    if do_timing:
+        print(f"\n{'='*72}")
+        print(f"TIMING SUMMARY (ms) — sel_ms=scoring pass, ttft_ms=compressed prefill, tpt_ms=per-token decode")
+        print(f"{'='*72}")
+        th = f"{'Method':<26}  {'sel_ms':>8}  {'ttft_ms':>9}  {'total_ttft':>11}  {'tpt_ms':>8}"
+        print(th); print("-" * len(th))
+        for m in methods:
+            t_vals = [ckpt[f"T|{task}|{m}|{i}"]
+                      for task in tasks
+                      for i in range(max_examples)
+                      if isinstance(ckpt.get(f"T|{task}|{m}|{i}"), dict)]
+            if not t_vals:
+                continue
+            def _avg(key):
+                vals = [v[key] for v in t_vals if v.get(key) is not None]
+                return sum(vals) / len(vals) if vals else float("nan")
+            sel  = _avg("sel_ms");  ttft = _avg("ttft_ms");  tpt = _avg("tpt_ms")
+            tot  = sel + ttft
+            print(f"{m:<26}  {sel:>8.1f}  {ttft:>9.1f}  {tot:>11.1f}  {tpt:>8.2f}")
+
     total_elapsed = time.time() - grand_start
     print(f"\nTotal wall time: {fmt_duration(total_elapsed)}")
     print(f"Results saved → {output_path}")
@@ -558,6 +959,10 @@ def parse_args():
     p.add_argument("--ystar_cache",    default="lb_results_base/ystar_cache.pt",
                    help="Path to cache y* tokens and full-model logits across runs")
     p.add_argument("--device",         default="cuda")
+    p.add_argument("--timing",         action="store_true",
+                   help="Measure TTFT and TPT for each method (adds ~20-30%% overhead)")
+    p.add_argument("--salience_table", default=None,
+                   help="Path to token salience .pt file (from calibrate_token_salience.py)")
     return p.parse_args()
 
 
@@ -582,6 +987,10 @@ def main():
     )
     model.eval()
 
+    sal_table = None
+    if args.salience_table:
+        sal_table = load_salience_table(args.salience_table)
+
     run_eval(
         model, tokenizer,
         tasks=tasks,
@@ -592,6 +1001,8 @@ def main():
         device=args.device,
         max_new_tokens_override=args.max_new_tokens,
         ystar_cache_path=Path(args.ystar_cache) if args.ystar_cache else None,
+        do_timing=args.timing,
+        salience_table=sal_table,
     )
 
 
