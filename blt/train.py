@@ -146,8 +146,13 @@ def train(args):
     tokenizer.pad_token = tokenizer.eos_token
 
     if args.baseline:
-        log('Building baseline GPT-2 model...')
-        model = GPT2LMHeadModel.from_pretrained('gpt2').to(device)
+        if args.random_m:
+            from transformers import GPT2Config
+            log('Building baseline GPT-2 model (random init)...')
+            model = GPT2LMHeadModel(GPT2Config()).to(device)
+        else:
+            log('Building baseline GPT-2 model (pretrained)...')
+            model = GPT2LMHeadModel.from_pretrained('gpt2').to(device)
     else:
         log(f'Building BLT model (num_m_groups={args.num_m_groups}, random_m={args.random_m})...')
         model = build_blt_model(num_m_groups=args.num_m_groups, random_m=args.random_m).to(device)
