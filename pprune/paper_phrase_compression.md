@@ -440,6 +440,8 @@ Compression is only worthwhile if it makes inference faster. We measure two quan
 
 Chunk methods cut TTFT by 60–74% simply by feeding the model a shorter prompt. SnapKV-Select saves only 29% at 65% because its ~2500ms attention scoring step nearly cancels the prefill savings; the gap widens as the budget tightens, but chunk methods remain 2× faster than sel at every rate. PyramidKV goes the other direction entirely: it performs a full prefill before pruning the KV cache in-place, so its TTFT exceeds full context by 11–13% regardless of retention rate.
 
+Stock SnapKV KV pruning has the same full-prefill overhead: mean TTFT is 6628ms at 65% retention, essentially identical to PyramidKV and 47% slower than SnapKV-Select despite using the same attention scoring. SnapKV-Select is therefore strictly better than stock SnapKV on both dimensions simultaneously — lower KL faithfulness (0.134 vs. 0.188, §7.2) and lower TTFT (4517ms vs. 6628ms) — because applying the scoring signal as prompt construction avoids the KV-patching overhead entirely.
+
 **Decode speed (TPT)** improves for all compressed methods because fewer retained tokens means a smaller KV cache to scan at each decode step. TPT depends on KV cache size, not on how tokens were selected. At 65% retention, mean TPT drops from 67.5 ms/tok (full) to ~54 ms/tok (~20% faster) for all methods including PyramidKV; at 35% retention, chunk methods reach ~48 ms/tok and PyramidKV reaches ~44 ms/tok (~29–35% faster).
 
 ### 7.4 Ground-Truth Task Accuracy
