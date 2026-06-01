@@ -427,33 +427,20 @@ PyramidKV shows a counterintuitive compression trajectory: mean KL is 1.394 at 6
 
 ### 7.3 Inference Performance
 
-Compression is only worthwhile if it makes inference faster. We measure two quantities: **time to first token (TTFT)**, the wall-clock time from receiving a prompt to producing the first output token (dominated by the prefill pass), and **time per output token (TPT)**, the mean decode step time (dominated by KV cache memory bandwidth). All measurements are on a single V100 32GB GPU using Llama-3.1-8B fp16. TTFT for chunk methods includes selection overhead (~3ms); TTFT for SnapKV-Select includes its full scoring pass.
+Compression is only worthwhile if it makes inference faster. We measure two quantities: **time to first token (TTFT)**, the wall-clock time from receiving a prompt to producing the first output token (dominated by the prefill pass), and **time per output token (TPT)**, the mean decode step time (dominated by KV cache memory bandwidth). All measurements are on a single V100 32GB GPU using Llama-3.1-8B fp16. TTFT for chunk methods includes selection overhead (~3ms); TTFT for SnapKV-Select includes its full scoring pass. Means are over 100 examples × 5 tasks.
 
-**TTFT by task at 65% retention** (mean over 100 examples per task; cw160 = chunk\_word160\_t25, cw128 = chunk\_word128\_t20, sel = SnapKV-Select):
+**Mean TTFT by retention rate** (Full context baseline: 6348 ms):
 
-| Task | Full (ms) | cw160 | Savings || cw128 | Savings || sel | Savings |
-|---|---|---|---|-|---|---|-|---|---|
-| 2WikiMQA | 6390 | 2543 | 60% || 2483 | 61% || 5160 | 19% |
-| MultifieldQA | 6086 | 2300 | 62% || 2250 | 63% || 4429 | 27% |
-| Qasper | 4584 | 2160 | 53% || 2121 | 54% || 4895 | −7% |
-| RepoBench-P | 7224 | 2668 | 63% || 2585 | 64% || 4281 | 41% |
-| TriviaQA | 7455 | 2717 | 64% || 2675 | 64% || 4049 | 46% |
-| **Mean** | **6348** | **2520** | **60%** || **2464** | **61%** || **4517** | **29%** |
+| Retention | cw160 | Savings | cw128 | Savings | sel | Savings | Pyr | Overhead |
+|---|---|---|---|---|---|---|---|---|
+| 65% | 2520 ms | 60% | 2464 ms | 61% | 4517 ms | 29% | 7022 ms | +11% |
+| 50% | 2174 ms | 66% | 2139 ms | 66% | 4335 ms | 32% | 7109 ms | +12% |
+| 40% | 1847 ms | 71% | 1838 ms | 71% | 4037 ms | 36% | 7135 ms | +12% |
+| 35% | 1675 ms | 74% | 1666 ms | 74% | 3880 ms | 39% | 7143 ms | +13% |
 
-Chunk methods cut TTFT by 60% at 65% retention — the prefill is simply over a much shorter prompt. SnapKV-Select (sel) saves only 29% on average because its ~2500ms scoring overhead nearly cancels the prefill savings; on Qasper, where the full context is already short, sel is *slower* than full-context inference.
+Chunk methods cut TTFT by 60–74% simply by feeding the model a shorter prompt. SnapKV-Select saves only 29% at 65% because its ~2500ms attention scoring step nearly cancels the prefill savings; the gap widens as the budget tightens, but chunk methods remain 2× faster than sel at every rate. PyramidKV goes the other direction entirely: it performs a full prefill before pruning the KV cache in-place, so its TTFT exceeds full context by 11–13% regardless of retention rate.
 
-**Mean TTFT savings across 5 tasks by retention ratio:**
-
-| Retention | cw160 TTFT | Savings | cw128 TTFT | Savings | sel TTFT | Savings |
-|---|---|---|---|---|---|---|
-| 65% | 2520 ms | 60% | 2464 ms | 61% | 4517 ms | 29% |
-| 50% | 2174 ms | 66% | 2139 ms | 66% | 4335 ms | 32% |
-| 40% | 1847 ms | 71% | 1838 ms | 71% | 4037 ms | 36% |
-| 35% | 1675 ms | 74% | 1666 ms | 74% | 3880 ms | 39% |
-
-At 40% retention, chunk methods achieve 71% TTFT reduction — cutting prefill time by more than 3×. Even at the most aggressive 35% budget, sel cannot match chunk methods despite using SnapKV's attention scoring, because the scoring overhead is nearly constant while the prefill savings grow with compression.
-
-**Decode speed (TPT)** improves for all compressed methods because fewer retained tokens means a smaller KV cache to scan at each decode step. All three methods are essentially identical at a given retention level — TPT depends on KV cache size, not scoring method. At 65% retention, mean TPT drops from 67.5 ms/tok (full) to ~54 ms/tok (~20% faster); at 35% retention it drops to ~48 ms/tok (~29% faster).
+**Decode speed (TPT)** improves for all compressed methods because fewer retained tokens means a smaller KV cache to scan at each decode step. TPT depends on KV cache size, not on how tokens were selected. At 65% retention, mean TPT drops from 67.5 ms/tok (full) to ~54 ms/tok (~20% faster) for all methods including PyramidKV; at 35% retention, chunk methods reach ~48 ms/tok and PyramidKV reaches ~44 ms/tok (~29–35% faster).
 
 ### 7.4 Ground-Truth Task Accuracy
 
