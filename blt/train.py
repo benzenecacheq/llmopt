@@ -43,25 +43,38 @@ class TokenDataset(Dataset):
             # pg19 books are 4M+ chars each; tokenize one at a time to avoid OOM
             chunk_size = 1
         elif dataset == 'openwebtext':
-            # Full OWT is 8M docs (~8B tokens). 2M docs ≈ 2B tokens ≈ Chinchilla-optimal
-            # for 117M params; fits in 64GB RAM (~40GB).
-            ds = load_dataset('Skylion007/openwebtext', split='train[:2000000]')
-            texts = [t for t in ds['text'] if t.strip()]
+            cache_path = os.path.expanduser('~/.cache/blt_owt_2m_blocks.pt')
+            if os.path.exists(cache_path):
+                self.blocks = torch.load(cache_path)
+                return
+            # Load first 21 parquet files directly from local cache (~2.1M docs).
+            # Bulk Arrow load is far faster than streaming row-by-row.
+            import glob
+            parquet_dir = os.path.expanduser(
+                '~/.cache/huggingface/hub/datasets--Skylion007--openwebtext/'
+                'snapshots/b4325f019c648b1641a1784748667e8b74e5e064/plain_text/')
+            files = sorted(glob.glob(parquet_dir + 'train-*.parquet'))[:21]
+            ds = load_dataset('parquet', data_files={'train': files}, split='train')
+            texts = [t for t in ds['text'] if t.strip()][:2000000]
+            del ds
         else:
             ds = load_dataset('Salesforce/wikitext', 'wikitext-103-raw-v1', split='train')
             texts = [t for t in ds['text'] if t.strip()]
 
+        if 'ds' in dir():
+            del ds
         all_ids = []
         for i in range(0, len(texts), chunk_size):
-            chunk_text = '\n\n'.join(texts[i:i + chunk_size])
-            ids = tokenizer(chunk_text, return_tensors='pt',
-                            truncation=False).input_ids[0]
-            all_ids.append(ids)
+            encs = tokenizer._tokenizer.encode_batch(texts[i:i + chunk_size])
+            all_ids.append(torch.tensor([t for enc in encs for t in enc.ids],
+                                        dtype=torch.long))
 
         tokens = torch.cat(all_ids)
+        del all_ids
         n_blocks = len(tokens) // block_size
-        tokens = tokens[:n_blocks * block_size]
-        self.blocks = tokens.view(n_blocks, block_size).clone()
+        self.blocks = tokens[:n_blocks * block_size].view(n_blocks, block_size).clone()
+        if dataset == 'openwebtext':
+            torch.save(self.blocks, cache_path)
 
     def __len__(self):
         return len(self.blocks)
@@ -142,15 +155,22 @@ def train(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     log(f'Device: {device}  |  Seed: {args.seed}')
 
-    tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+    from transformers import GPT2TokenizerFast
+    tokenizer = GPT2TokenizerFast.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
 
     if args.baseline:
-        log('Building baseline GPT-2 model...')
-        model = GPT2LMHeadModel.from_pretrained('gpt2').to(device)
+        if args.from_scratch:
+            log('Building GPT-2 model from scratch (random init)...')
+            from transformers import GPT2Config
+            model = GPT2LMHeadModel(GPT2Config()).to(device)
+        else:
+            log('Building baseline GPT-2 model (pretrained)...')
+            model = GPT2LMHeadModel.from_pretrained('gpt2').to(device)
     else:
-        log(f'Building BLT model (num_m_groups={args.num_m_groups}, random_m={args.random_m})...')
-        model = build_blt_model(num_m_groups=args.num_m_groups, random_m=args.random_m).to(device)
+        log(f'Building BLT model (num_m_groups={args.num_m_groups}, random_m={args.random_m}, from_scratch={args.from_scratch})...')
+        model = build_blt_model(num_m_groups=args.num_m_groups, random_m=args.random_m,
+                                from_scratch=args.from_scratch).to(device)
     # Deduplicate shared parameters (e.g. BLT's shared M matrix) preserving
     # insertion order so optimizer state is stable across resume.
     seen_ids = set()
@@ -303,5 +323,7 @@ if __name__ == '__main__':
                         help='Evaluate LAMBADA cloze accuracy every N steps (0 to disable)')
     parser.add_argument('--dataset', type=str, default='wikitext103',
                         choices=['wikitext103', 'lambada', 'lambada_cloze', 'pg19', 'openwebtext'])
+    parser.add_argument('--from-scratch', action='store_true',
+                        help='Randomly initialize all weights (no pretrained GPT-2 load)')
     args = parser.parse_args()
     train(args)

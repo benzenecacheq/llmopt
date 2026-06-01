@@ -2,7 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import GPT2LMHeadModel
+from transformers import GPT2Config, GPT2LMHeadModel
 
 
 class BLTAttention(nn.Module):
@@ -101,23 +101,25 @@ class BLT2Attention(nn.Module):
         return out, None
 
 
-def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False):
+def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False, from_scratch=False):
     """
-    Load pretrained GPT-2 and replace every attention layer with BLT attention.
+    Build a GPT-2 model with BLT attention replacing every attention layer.
 
     num_m_groups=1: one M (768x768) shared across all 12 layers (original BLT).
-    num_m_groups=2: two M matrices, each initialized from the Wq@Wk^T of heads
-                    0-5 and 6-11 respectively; Wv split D/2 per group.
+    num_m_groups=2: two M matrices, each governing half the value capacity.
 
-    random_m: if True, initialize M with N(0, 1/sqrt(D)) instead of Wq@Wk^T.
-
-    Wv and Wo are kept per-layer from the pretrained weights.
-    All other parameters are unchanged.
+    random_m: initialize M with N(0, 1/sqrt(D)) instead of Wq@Wk^T average.
+    from_scratch: randomly initialize all weights (do not load pretrained GPT-2).
+                  Forces random_m=True since there are no Wq/Wk to average.
     """
     if num_m_groups not in (1, 2):
         raise ValueError(f'num_m_groups must be 1 or 2, got {num_m_groups}')
 
-    model = GPT2LMHeadModel.from_pretrained(pretrained)
+    if from_scratch:
+        model = GPT2LMHeadModel(GPT2Config())
+        random_m = True   # no pretrained Wq/Wk to average
+    else:
+        model = GPT2LMHeadModel.from_pretrained(pretrained)
     cfg = model.config
     D = cfg.n_embd          # 768
     n_head = cfg.n_head     # 12
