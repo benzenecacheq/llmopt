@@ -488,67 +488,111 @@ Ground-truth accuracy is not our primary faithfulness metric — it is too coars
 
 That said, ground-truth accuracy serves an essential role as a final sanity check. If a compression method were doing something catastrophically wrong — collapsing outputs, hallucinating context, or systematically destroying task-relevant information — it would surface here even when KL divergence might not. We include these results to confirm that nothing unexpectedly stupid is happening.
 
-Ground-truth scores measure whether the model produces a correct answer on each LongBench example. Each table shows absolute scores with Δ% = (compressed − full) / full × 100 per method, plus mean |Δ%| as a summary row. Results are pending for 11 tasks; tables will be updated when complete.
+Ground-truth scores measure whether the model produces a correct answer on each LongBench example. Each table shows absolute scores with Δ% = (compressed − full) / full × 100 per method, plus mean |Δ%| as a summary row.
 
 Column abbreviations: **cw160** = chunk\_word160\_t25, **cw128** = chunk\_word128\_t20, **sel** = SnapKV-Select (prompt construction with SnapKV scoring), **naive** = naive truncation, **snapkv** = SnapKV KV pruning, **radar** = RADAR KV pruning.
 
 Absolute scores alone are misleading as a compression metric. When the full-context model already scores near chance — as on NarrativeQA (5.5) and tasks flagged † — small fluctuations in either direction are noise rather than signal. A method scoring 8.0 when the full model scores 5.5 has not improved; it has simply drifted. The Δ% captures this: it measures how much compression changed the model's task performance, regardless of direction, and is zero only when compression is invisible to the task.
 
-**65% retention** (5 of 16 tasks)
+**65% retention**
 
 | Task | Full | naive | Δ% | cw160 | Δ% | cw128 | Δ% | sel | Δ% | snapkv | Δ% | radar | Δ% | pyramid | Δ% |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2WikiMQA† | 14.1 | 12.6 | −11% | 11.5 | −18% | 10.7 | −24% | 11.2 | −21% | 13.9 | −1% | 12.1 | −14% | 13.9 | −1% |
-| HotpotQA† | 9.9 | 9.6 | −3% | 10.2 | +2% | 9.2 | −7% | 10.4 | +4% | 9.6 | −3% | 10.1 | +2% | 10.2 | +3% |
-| NarrativeQA† | 5.5 | 4.9 | −11% | 4.3 | −22% | 4.3 | −22% | 3.4 | −38% | 5.0 | −9% | 5.7 | +4% | 5.6 | +2% |
-| Qasper | 11.1 | 10.2 | −8% | 10.6 | −4% | 10.3 | −7% | 12.2 | +10% | 11.1 | 0% | 9.5 | −14% | 11.8 | +6% |
-| TriviaQA | 17.4 | 17.3 | −1% | 16.9 | −3% | 17.2 | −1% | 17.5 | +0% | 17.6 | +1% | 18.3 | +5% | 17.5 | +1% |
-| **Average** | **11.6** | **10.9** | | **10.7** | | **10.3** | | **10.9** | | **11.4** | | **11.1** | | **11.8** | |
-| **mean \|Δ%\|** | | | **7%** | | **10%** | | **12%** | | **15%** | | **3%** | | **8%** | | **3%** |
+| NarrativeQA† | 5.5 | 4.9 | -11% | 4.3 | -23% | 4.3 | -23% | 3.4 | -38% | 5.0 | -9% | 5.7 | +4% | 5.6 | +2% |
+| Qasper† | 11.1 | 10.2 | -8% | 10.6 | -4% | 10.3 | -7% | 12.2 | +10% | 11.1 | +0% | 9.5 | -14% | 11.8 | +6% |
+| MultifieldQA | 28.9 | 27.0 | -7% | 28.1 | -3% | 25.3 | -12% | 26.9 | -7% | 28.4 | -2% | 29.4 | +2% | 29.6 | +2% |
+| HotpotQA† | 9.9 | 9.6 | -3% | 10.2 | +3% | 9.2 | -7% | 10.4 | +5% | 9.6 | -3% | 10.1 | +2% | 10.2 | +3% |
+| 2WikiMQA† | 14.1 | 12.6 | -11% | 11.5 | -18% | 10.7 | -24% | 11.2 | -21% | 13.9 | -1% | 12.1 | -14% | 13.9 | -1% |
+| MuSiQue† | 6.9 | 7.0 | +1% | 6.4 | -8% | 6.1 | -12% | 5.5 | -20% | 6.0 | -13% | 6.1 | -12% | 7.1 | +3% |
+| GovReport | 20.4 | 19.8 | -3% | 20.0 | -2% | 19.7 | -3% | 19.2 | -6% | 19.9 | -2% | 19.2 | -6% | 20.3 | -0% |
+| QMSum† | 10.3 | 11.5 | +12% | 10.4 | +1% | 9.3 | -10% | 9.2 | -11% | 9.7 | -6% | 9.0 | -13% | 9.4 | -9% |
+| MultiNews | 19.0 | 16.5 | -13% | 16.5 | -13% | 16.4 | -14% | 16.8 | -11% | 18.9 | -1% | 18.4 | -3% | 18.1 | -5% |
+| TREC | 70.0 | 66.0 | -6% | 68.0 | -3% | 70.0 | +0% | 67.0 | -4% | 66.0 | -6% | 70.0 | +0% | 71.0 | +1% |
+| TriviaQA | 17.4 | 17.3 | -1% | 16.9 | -3% | 17.2 | -1% | 17.5 | +0% | 17.6 | +1% | 18.3 | +5% | 17.5 | +1% |
+| SAMSum | 16.0 | 16.5 | +3% | 16.2 | +1% | 16.5 | +3% | 15.2 | -5% | 17.5 | +9% | 18.3 | +14% | 16.3 | +2% |
+| PassageCount† | 3.0 | 1.0 | -67% | 2.0 | -33% | 2.0 | -33% | 3.0 | +0% | 3.0 | +0% | 3.0 | +0% | 3.0 | +0% |
+| PassageRetrieval | 44.0 | 37.0 | -16% | 27.0 | -39% | 29.0 | -34% | 31.0 | -30% | 37.0 | -16% | 36.0 | -18% | 44.0 | +0% |
+| LCC | 68.1 | 63.4 | -7% | 61.1 | -10% | 61.3 | -10% | 65.1 | -4% | 63.2 | -7% | 64.1 | -6% | 68.5 | +1% |
+| RepoBench-P | 55.6 | 53.9 | -3% | 48.1 | -13% | 50.7 | -9% | 56.4 | +2% | 53.4 | -4% | 54.1 | -3% | 56.0 | +1% |
+| **Average** | **25.0** | **23.4** | | **22.3** | | **22.4** | | **23.1** | | **23.8** | | **24.0** | | **25.1** | |
+| **mean \|Δ%\|** | | | **11%** | | **11%** | | **13%** | | **11%** | | **5%** | | **7%** | | **2%** |
 
-**50% retention** (5 of 16 tasks)
-
-| Task | Full | naive | Δ% | cw160 | Δ% | cw128 | Δ% | sel | Δ% | snapkv | Δ% | radar | Δ% | pyramid | Δ% |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2WikiMQA† | 14.1 | 12.7 | −10% | 11.6 | −17% | 12.9 | −8% | 11.8 | −16% | 11.2 | −21% | 10.8 | −23% | 13.8 | −2% |
-| HotpotQA† | 9.9 | 8.9 | −11% | 9.8 | −1% | 9.2 | −7% | 9.9 | +0% | 8.5 | −14% | 6.9 | −30% | 9.6 | −3% |
-| NarrativeQA† | 5.5 | 5.7 | +5% | 4.3 | −22% | 4.2 | −24% | 3.7 | −33% | 8.0 | +47% | 3.7 | −32% | 6.8 | +24% |
-| Qasper | 11.1 | 8.6 | −23% | 11.0 | −0% | 9.9 | −11% | 12.7 | +15% | 10.5 | −6% | 10.0 | −10% | 9.8 | −11% |
-| TriviaQA | 17.4 | 17.4 | −0% | 17.5 | +1% | 16.8 | −4% | 17.1 | −2% | 18.5 | +6% | 19.3 | +11% | 17.3 | −0% |
-| **Average** | **11.6** | **10.7** | | **10.9** | | **10.6** | | **11.0** | | **11.3** | | **10.2** | | **11.5** | |
-| **mean \|Δ%\|** | | | **10%** | | **8%** | | **11%** | | **13%** | | **19%** | | **21%** | | **8%** |
-
-**40% retention** (5 of 16 tasks)
-
-| Task | Full | naive | Δ% | cw160 | Δ% | cw128 | Δ% | sel | Δ% | snapkv | Δ% | radar | Δ% | pyramid | Δ% |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2WikiMQA† | 14.1 | 13.9 | −1% | 11.2 | −20% | 12.5 | −11% | 11.2 | −21% | 9.2 | −34% | 15.4 | +10% | 13.9 | −1% |
-| HotpotQA† | 9.9 | 10.6 | +7% | 9.9 | −1% | 10.8 | +8% | 10.1 | +2% | 7.2 | −27% | 6.4 | −36% | 9.4 | −5% |
-| NarrativeQA† | 5.5 | 5.8 | +5% | 4.3 | −22% | 5.4 | −1% | 3.9 | −30% | 7.5 | +38% | 1.4 | −75% | 6.8 | +23% |
-| Qasper | 11.1 | 7.9 | −28% | 9.2 | −17% | 9.4 | −15% | 10.9 | −2% | 7.4 | −33% | 9.5 | −15% | 11.3 | +2% |
-| TriviaQA | 17.4 | 17.3 | −1% | 17.0 | −3% | 16.9 | −3% | 17.8 | +2% | 15.9 | −9% | 21.4 | +22% | 17.4 | +0% |
-| **Average** | **11.6** | **11.1** | | **10.3** | | **11.0** | | **10.8** | | **9.5** | | **10.8** | | **11.8** | |
-| **mean \|Δ%\|** | | | **8%** | | **13%** | | **8%** | | **11%** | | **28%** | | **31%** | | **6%** |
-
-**35% retention** (5 of 16 tasks)
+**50% retention**
 
 | Task | Full | naive | Δ% | cw160 | Δ% | cw128 | Δ% | sel | Δ% | snapkv | Δ% | radar | Δ% | pyramid | Δ% |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2WikiMQA† | 14.1 | 11.0 | −22% | 11.1 | −21% | 11.3 | −19% | 12.1 | −14% | 8.6 | −39% | 12.6 | −11% | 14.6 | +4% |
-| HotpotQA† | 9.9 | 11.4 | +15% | 9.4 | −5% | 10.0 | +1% | 10.0 | +1% | 6.5 | −34% | 5.2 | −47% | 10.0 | +1% |
-| NarrativeQA† | 5.5 | 7.8 | +42% | 3.9 | −28% | 3.9 | −29% | 4.1 | −26% | 6.7 | +21% | 1.1 | −81% | 6.4 | +16% |
-| Qasper | 11.1 | 7.7 | −31% | 8.6 | −22% | 9.0 | −18% | 13.6 | +23% | 7.2 | −35% | 7.6 | −32% | 10.8 | −3% |
-| TriviaQA | 17.4 | 17.3 | −1% | 16.9 | −3% | 16.8 | −3% | 17.7 | +2% | 16.4 | −6% | 19.0 | +9% | 17.4 | +0% |
-| **Average** | **11.6** | **11.0** | | **10.0** | | **10.2** | | **11.5** | | **9.1** | | **9.1** | | **11.8** | |
-| **mean \|Δ%\|** | | | **22%** | | **16%** | | **14%** | | **13%** | | **27%** | | **36%** | | **5%** |
+| NarrativeQA† | 5.5 | 5.7 | +4% | 4.3 | -22% | 4.2 | -24% | 3.7 | -33% | 8.0 | +46% | 3.7 | -32% | 6.8 | +24% |
+| Qasper† | 11.1 | 8.6 | -23% | 11.0 | -0% | 9.9 | -11% | 12.7 | +15% | 10.5 | -6% | 10.0 | -10% | 9.8 | -11% |
+| MultifieldQA | 28.9 | 23.0 | -20% | 27.4 | -5% | 24.8 | -14% | 25.4 | -12% | 25.8 | -11% | 18.6 | -36% | 29.5 | +2% |
+| HotpotQA† | 9.9 | 8.9 | -10% | 9.8 | -1% | 9.2 | -7% | 9.9 | +0% | 8.5 | -14% | 6.9 | -30% | 9.6 | -3% |
+| 2WikiMQA† | 14.1 | 12.7 | -10% | 11.6 | -17% | 12.9 | -9% | 11.8 | -17% | 11.2 | -21% | 10.8 | -23% | 13.8 | -2% |
+| MuSiQue† | 6.9 | 5.8 | -17% | 7.0 | +2% | 6.7 | -3% | 6.6 | -4% | 5.4 | -22% | 3.3 | -52% | 6.8 | -2% |
+| GovReport | 20.4 | 19.5 | -4% | 19.0 | -7% | 18.5 | -9% | 18.8 | -8% | 18.3 | -10% | 17.3 | -15% | 19.5 | -4% |
+| QMSum† | 10.3 | 9.5 | -8% | 9.9 | -4% | 9.0 | -12% | 9.3 | -10% | 9.1 | -12% | 8.4 | -19% | 9.7 | -6% |
+| MultiNews | 19.0 | 17.5 | -8% | 16.3 | -14% | 15.9 | -16% | 16.2 | -14% | 16.0 | -16% | 9.9 | -48% | 15.4 | -19% |
+| TREC | 70.0 | 63.0 | -10% | 64.0 | -9% | 65.0 | -7% | 66.0 | -6% | 57.0 | -19% | 57.0 | -19% | 68.0 | -3% |
+| TriviaQA | 17.4 | 17.4 | -0% | 17.5 | +1% | 16.8 | -3% | 17.1 | -2% | 18.5 | +7% | 19.3 | +11% | 17.3 | -0% |
+| SAMSum | 16.0 | 17.7 | +11% | 16.3 | +2% | 16.8 | +5% | 14.6 | -9% | 18.0 | +13% | 13.8 | -14% | 17.6 | +10% |
+| PassageCount† | 3.0 | 2.0 | -33% | 2.0 | -33% | 2.0 | -33% | 2.0 | -33% | 2.0 | -33% | 1.0 | -67% | 3.0 | +0% |
+| PassageRetrieval | 44.0 | 21.0 | -52% | 33.0 | -25% | 27.0 | -39% | 39.0 | -11% | 18.0 | -59% | 6.0 | -86% | 43.0 | -2% |
+| LCC | 68.1 | 61.6 | -10% | 61.6 | -9% | 62.5 | -8% | 64.6 | -5% | 58.5 | -14% | 49.1 | -28% | 63.9 | -6% |
+| RepoBench-P | 55.6 | 51.4 | -7% | 49.8 | -10% | 48.7 | -12% | 57.2 | +3% | 45.2 | -19% | 40.1 | -28% | 52.8 | -5% |
+| **Average** | **25.0** | **21.6** | | **22.5** | | **21.9** | | **23.4** | | **20.6** | | **17.2** | | **24.2** | |
+| **mean \|Δ%\|** | | | **14%** | | **10%** | | **13%** | | **11%** | | **20%** | | **32%** | | **6%** |
+
+**40% retention**
+
+| Task | Full | naive | Δ% | cw160 | Δ% | cw128 | Δ% | sel | Δ% | snapkv | Δ% | radar | Δ% | pyramid | Δ% |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| NarrativeQA† | 5.5 | 5.8 | +5% | 4.3 | -22% | 5.4 | -1% | 3.9 | -30% | 7.5 | +37% | 1.4 | -75% | 6.8 | +23% |
+| Qasper† | 11.1 | 7.9 | -29% | 9.2 | -17% | 9.4 | -15% | 10.9 | -2% | 7.4 | -33% | 9.5 | -15% | 11.3 | +2% |
+| MultifieldQA | 28.9 | 23.3 | -19% | 24.7 | -15% | 23.4 | -19% | 24.4 | -16% | 22.0 | -24% | 15.7 | -46% | 29.5 | +2% |
+| HotpotQA† | 9.9 | 10.6 | +7% | 9.9 | -0% | 10.8 | +9% | 10.1 | +2% | 7.2 | -27% | 6.4 | -35% | 9.4 | -5% |
+| 2WikiMQA† | 14.1 | 13.9 | -1% | 11.2 | -20% | 12.5 | -11% | 11.2 | -21% | 9.2 | -35% | 15.4 | +9% | 13.9 | -2% |
+| MuSiQue† | 6.9 | 4.7 | -32% | 6.4 | -7% | 6.5 | -5% | 6.1 | -12% | 4.1 | -40% | 2.5 | -64% | 6.7 | -3% |
+| GovReport | 20.4 | 19.9 | -2% | 18.6 | -9% | 19.0 | -7% | 17.9 | -12% | 16.9 | -17% | 16.8 | -18% | 19.1 | -6% |
+| QMSum† | 10.3 | 9.7 | -6% | 9.6 | -7% | 10.1 | -2% | 9.0 | -13% | 9.1 | -11% | 5.7 | -45% | 10.0 | -3% |
+| MultiNews | 19.0 | 16.7 | -12% | 16.1 | -15% | 16.1 | -15% | 16.0 | -16% | 11.0 | -42% | 8.2 | -57% | 15.9 | -16% |
+| TREC | 70.0 | 65.0 | -7% | 67.0 | -4% | 68.0 | -3% | 64.0 | -9% | 49.0 | -30% | 43.0 | -39% | 70.0 | +0% |
+| TriviaQA | 17.4 | 17.3 | -1% | 17.0 | -2% | 16.9 | -3% | 17.8 | +2% | 15.9 | -9% | 21.4 | +23% | 17.4 | +0% |
+| SAMSum | 16.0 | 17.2 | +7% | 16.5 | +3% | 16.6 | +4% | 15.1 | -6% | 15.6 | -2% | 12.7 | -21% | 18.1 | +13% |
+| PassageCount† | 3.0 | 3.0 | +0% | 3.0 | +0% | 3.0 | +0% | 2.0 | -33% | 0.0 | -100% | 0.0 | -100% | 3.0 | +0% |
+| PassageRetrieval | 44.0 | 12.0 | -73% | 24.0 | -45% | 24.0 | -45% | 38.0 | -14% | 8.0 | -82% | 4.0 | -91% | 43.0 | -2% |
+| LCC | 68.1 | 58.7 | -14% | 62.5 | -8% | 61.2 | -10% | 60.3 | -11% | 46.7 | -31% | 42.5 | -38% | 68.4 | +0% |
+| RepoBench-P | 55.6 | 52.2 | -6% | 49.3 | -11% | 49.6 | -11% | 55.0 | -1% | 39.1 | -30% | 35.5 | -36% | 54.4 | -2% |
+| **Average** | **25.0** | **21.1** | | **21.8** | | **22.0** | | **22.6** | | **16.8** | | **15.0** | | **24.8** | |
+| **mean \|Δ%\|** | | | **14%** | | **12%** | | **10%** | | **12%** | | **34%** | | **44%** | | **5%** |
+
+**35% retention**
+
+| Task | Full | naive | Δ% | cw160 | Δ% | cw128 | Δ% | sel | Δ% | snapkv | Δ% | radar | Δ% | pyramid | Δ% |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| NarrativeQA† | 5.5 | 7.8 | +41% | 3.9 | -29% | 3.9 | -30% | 4.1 | -26% | 6.7 | +21% | 1.1 | -81% | 6.4 | +16% |
+| Qasper† | 11.1 | 7.7 | -31% | 8.6 | -22% | 9.0 | -19% | 13.6 | +23% | 7.2 | -35% | 7.6 | -32% | 10.8 | -3% |
+| MultifieldQA | 28.9 | 21.2 | -27% | 27.0 | -7% | 24.0 | -17% | 23.5 | -19% | 19.0 | -34% | 15.5 | -46% | 30.0 | +4% |
+| HotpotQA† | 9.9 | 11.4 | +16% | 9.4 | -5% | 10.0 | +1% | 10.0 | +1% | 6.5 | -34% | 5.2 | -47% | 10.0 | +1% |
+| 2WikiMQA† | 14.1 | 11.0 | -22% | 11.1 | -21% | 11.3 | -20% | 12.1 | -14% | 8.6 | -39% | 12.6 | -11% | 14.6 | +4% |
+| MuSiQue† | 6.9 | 4.7 | -31% | 7.1 | +2% | 6.1 | -11% | 6.4 | -8% | 5.4 | -22% | 2.5 | -64% | 6.5 | -6% |
+| GovReport | 20.4 | 18.7 | -8% | 19.2 | -6% | 19.1 | -6% | 17.4 | -15% | 16.3 | -20% | 15.5 | -24% | 19.0 | -7% |
+| QMSum† | 10.3 | 9.9 | -4% | 9.2 | -11% | 10.0 | -3% | 8.9 | -14% | 8.3 | -19% | 4.5 | -56% | 10.2 | -1% |
+| MultiNews | 19.0 | 16.7 | -12% | 16.0 | -16% | 15.3 | -19% | 15.7 | -17% | 8.7 | -54% | 7.4 | -61% | 15.8 | -17% |
+| TREC | 70.0 | 60.0 | -14% | 68.0 | -3% | 68.0 | -3% | 60.0 | -14% | 52.0 | -26% | 30.0 | -57% | 69.0 | -1% |
+| TriviaQA | 17.4 | 17.3 | -0% | 16.9 | -3% | 16.8 | -3% | 17.7 | +2% | 16.4 | -6% | 19.0 | +9% | 17.4 | +0% |
+| SAMSum | 16.0 | 17.6 | +10% | 17.0 | +6% | 17.8 | +11% | 14.3 | -10% | 12.4 | -23% | 11.3 | -29% | 17.3 | +8% |
+| PassageCount† | 3.0 | 3.0 | +0% | 2.0 | -33% | 3.0 | +0% | 2.0 | -33% | 0.0 | -100% | 1.0 | -67% | 3.0 | +0% |
+| PassageRetrieval | 44.0 | 12.0 | -73% | 29.0 | -34% | 19.0 | -57% | 36.0 | -18% | 6.0 | -86% | 3.0 | -93% | 44.0 | +0% |
+| LCC | 68.1 | 62.4 | -8% | 62.9 | -8% | 60.9 | -11% | 61.0 | -10% | 42.9 | -37% | 45.4 | -33% | 67.0 | -2% |
+| RepoBench-P | 55.6 | 50.6 | -9% | 50.5 | -9% | 49.2 | -12% | 56.0 | +1% | 39.6 | -29% | 37.2 | -33% | 55.1 | -1% |
+| **Average** | **25.0** | **20.8** | | **22.4** | | **21.5** | | **22.4** | | **16.0** | | **13.7** | | **24.8** | |
+| **mean \|Δ%\|** | | | **19%** | | **13%** | | **14%** | | **14%** | | **37%** | | **47%** | | **4%** |
 
 Tasks marked † have full-context scores below 15; their Δ% values are noisier and should be interpreted cautiously.
 
 These results validate every key claim of this paper, and they do so independently of KL faithfulness — which makes the agreement all the more striking.
 
-**KL faithfulness is the right metric.** KL divergence predicted that KV pruning would degrade at higher compression rates while prompt construction would not. The ground-truth results confirm this exactly: SnapKV's mean |Δ%| rises from 3% at 65% to 28% at 40%; RADAR's rises from 8% to 36%. Prompt-construction methods show no such trajectory. A metric that correctly predicts the shape of a degradation curve before the ground-truth data is collected is doing its job.
+**KL faithfulness is the right metric.** KL divergence predicted that KV pruning would degrade at higher compression rates while prompt construction would not. The ground-truth results confirm this exactly: SnapKV's mean |Δ%| rises from 5% at 65% to 34% at 40%; RADAR's rises from 7% to 44%. Prompt-construction methods show no such trajectory. A metric that correctly predicts the shape of a degradation curve before the ground-truth data is collected is doing its job.
 
-**KV pruning has a structural problem — except PyramidKV.** SnapKV and RADAR show systematic compression-dependent degradation: as causal gaps multiply with tighter compression, quality collapses. PyramidKV tells a different story. Its mean |Δ%| stays at 3–8% across all four retention rates — matching SnapKV's best (3% at 65%) while SnapKV reaches 28% at 40%. This is consistent with the §4.3 finding that PyramidKV leads all compressed methods in ground-truth average at 25.2, and maintains 24.8 even at 35% retention. PyramidKV's layer-adaptive budget allocation evidently preserves task-relevant tokens more robustly than uniform KV pruning under compression pressure. The cost is captured by KL faithfulness (§4.4, §7.2): PyramidKV's stable GT comes with order-of-magnitude higher KL divergence, reflecting the structural corruption from KV patching that ground-truth accuracy cannot detect.
+**KV pruning has a structural problem — PyramidKV included, but differently.** SnapKV and RADAR show systematic compression-dependent degradation: as causal gaps multiply with tighter compression, quality collapses. PyramidKV's mean |Δ%| stays at 2–6% across all four retention rates — superficially stable where SnapKV reaches 34% at 40%. But the source of that stability shifts with budget. At 65–40% retention, clean_first ablations (§7.5) show negligible delta (≤0.32 points), indicating that PyramidKV's layer-adaptive allocation genuinely preserves task-relevant tokens at moderate budgets. At 35% retention, removing the first-token privilege collapses performance by 15.7 points on average; the apparent stability of 24.8 is almost entirely explained by a single token that attended to the full uncompressed context during prefill, not by the quality of the compression. In both regimes, the cost is captured by KL faithfulness (§4.4, §7.2): PyramidKV's stable GT comes with order-of-magnitude higher KL divergence, reflecting structural corruption from KV patching that ground-truth accuracy cannot detect.
 
 **Prompt construction is the right approach.** Across all four compression budgets, prompt-construction methods (naive, cw160, cw128, sel) stay within 7–22% of full-context performance. They do not degrade with compression aggressiveness the way KV pruning does. Reconstructing a clean prompt from selected tokens sidesteps the structural problem entirely.
 
@@ -562,7 +606,7 @@ PyramidKV is the strongest method in this paper on ground truth: 25.2 average ac
 
 **KL faithfulness.** PyramidKV's mean KL divergence from the full model (1.394 nats at 65% retention) is 9.7× higher than cw128 (0.144) and 8.0× higher than naive truncation (0.175) — the worst result of any method evaluated, by a wide margin (§4.4, §7.2). Even at 35% retention, where the layer-budget clamping artifact resolves and KL improves to 0.837 nats, PyramidKV remains 3.7× worse than cw128 at the same budget (0.228). The KL gap is structural, not a configuration artifact.
 
-**Inference speed.** PyramidKV's speed profile is the inverse of chunk compression. Because it performs a full prefill over the uncompressed prompt before pruning the KV cache, its TTFT is essentially unchanged from full context — and in practice slightly worse: 6917ms vs. 6348ms full-context mean across five tasks (a 9% overhead from the in-place compression step). By contrast, cw128 achieves 2464ms TTFT at 65% retention, 61% faster than full context, because it feeds the model a shorter prompt from the start. PyramidKV's only speed benefit is in time per output token: 54.1ms vs. 67.5ms full-context (20% faster), because the compressed KV cache reduces memory bandwidth at each decode step. This TPT benefit is identical to what chunk methods achieve at the same retention level — it follows from KV cache size, not from the pruning method. PyramidKV provides no latency advantage for interactive applications and equivalent throughput to chunk methods for batch generation.
+**Inference speed.** PyramidKV's speed profile is the inverse of chunk compression. Because it performs a full prefill over the uncompressed prompt before pruning the KV cache, its TTFT is essentially unchanged from full context — and in practice slightly worse: 7022ms vs. 6348ms full-context mean across five tasks (an 11% overhead from the in-place compression step). SnapKV KV pruning shows the same pattern: 6628ms TTFT (4% overhead), confirming that near-full-context TTFT is a property of the KV-pruning approach in general, not a quirk of PyramidKV's implementation. By contrast, cw128 achieves 2464ms TTFT at 65% retention, 61% faster than full context, because it feeds the model a shorter prompt from the start. PyramidKV's only speed benefit is in time per output token: 54.2ms vs. 67.5ms full-context (20% faster), because the compressed KV cache reduces memory bandwidth at each decode step. This TPT benefit is identical to what chunk methods achieve at the same retention level — it follows from KV cache size, not from the pruning method. PyramidKV provides no latency advantage for interactive applications and equivalent throughput to chunk methods for batch generation.
 
 **First-token privilege.** Standard PyramidKV generation has a structural asymmetry: T1 is produced by dense attention over the full uncompressed context (the prefill forward pass runs over all tokens before compression occurs), while T2 and beyond attend only to the compressed KV cache. To isolate how much of PyramidKV's GT advantage derives from this privilege, we implemented a `clean_first` variant: the prefix `full_ids[:, :-1]` is prefilled under PyramidKV compression, and the final token is then decoded against the compressed cache, so T1 and all subsequent tokens attend only to the compressed context.
 
@@ -570,9 +614,9 @@ At 65% retention, the difference is negligible: `clean_first` scores within 0.19
 
 At 35% retention, the result is starkly different. Removing the first-token privilege collapses performance by 15.7 points on average. The drops are largest on retrieval-heavy tasks: LCC (−62.8), PassageRetrieval (−44.0), TREC (−41.0), TriviaQA (−17.4), SAMSum (−17.3). Several tasks fall to zero. The 35% retention standard score of 24.8 — apparently competitive with full context — is almost entirely explained by a single token that attended to the full uncompressed context during prefill.
 
-Results at 50% and 40% retention are pending; they will establish where the transition occurs between negligible first-token advantage (65%) and dominant first-token advantage (35%).
+At 50% retention, the difference is again negligible: mean delta = −0.16, with no task collapsing. At 40% retention, the same: mean delta = −0.32. Across three successive compression rates, removing the first-token privilege changes GT scores by less than 0.4 points on average. The transition between 40% and 35% is abrupt: a privilege that accounts for essentially nothing at 40% accounts for nearly all of PyramidKV's GT performance at 35%.
 
-**Synthesis.** Ground-truth evaluation cannot distinguish PyramidKV from a genuinely high-quality compression method. Its 25.2 average at 65% retention is the best result in this paper — yet it is driven by factors orthogonal to compression quality: a first-token privilege that GT is blind to, a faithfulness gap 9.7× larger than the cheapest prompt-construction baseline, and a TTFT that exceeds full context. None of these failures appear in the GT table. The KL metric (§3.2) detects the faithfulness gap; the timing data detects the speed gap; the `clean_first` ablation isolates the mechanism by which GT is gamed. Together they illustrate why a single accuracy metric is insufficient to characterize compression quality — and why the evaluation framework proposed in this paper is necessary to distinguish methods that approximate full-context behavior from methods that produce correct answers for other reasons.
+**Synthesis.** Ground-truth evaluation cannot distinguish PyramidKV from a genuinely high-quality compression method. Its 25.2 average at 65% retention is the best result in this paper — yet at tight budgets (35% retention) the score is almost entirely explained by a single privileged token, the faithfulness gap is 3.7× worse than the best prompt-construction baseline at the same budget, and TTFT exceeds full context. None of these failures appear in the GT table. The KL metric (§3.2) detects the faithfulness gap; the timing data detects the speed gap; the `clean_first` ablation isolates the mechanism by which GT is gamed — and shows the effect is negligible at 65%/50%/40% but catastrophic at 35%. Together they illustrate why a single accuracy metric is insufficient to characterize compression quality — and why the evaluation framework proposed in this paper is necessary to distinguish methods that approximate full-context behavior from methods that produce correct answers for other reasons.
 
 ---
 
