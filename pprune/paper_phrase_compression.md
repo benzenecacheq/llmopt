@@ -328,28 +328,6 @@ All compression methods target 65% token retention unless otherwise noted. Pyram
 
 ### 7.2 KL Faithfulness: Main Results
 
-**Table 1. KL Faithfulness at 65% retention (lower is better). Naive = naive\_65pct; Sel = SnapKV-Select; cw160 = chunk\_word160\_t25; cw128 = chunk\_word128\_t20; PyramidKV = KV cache pruning with layer-adaptive pyramid budget. Bold = best among prompt-construction methods per row. PyramidKV is excluded from bold competition as a qualitatively different compression class.**
-
-| Task             | Naive      | SnapKV | Sel            | cw160          | cw128          | PyramidKV |
-|------------------|------------|--------|----------------|----------------|----------------|-----------|
-| 2WikiMQA         | 0.221      | 0.254  | **0.096**      | 0.121          | 0.117          | 2.422     |
-| MultifieldQA     | 0.262      | 0.186  | 0.118          | **0.109**      | 0.114          | 1.535     |
-| Qasper           | 0.281      | 0.223  | 0.163          | 0.139          | **0.131**      | 1.229     |
-| QMSum            | 0.081      | 0.117  | 0.071          | **0.058**      | 0.060          | 0.438     |
-| RepoBench-P      | 0.048      | 0.106  | 0.051          | 0.052          | **0.046**      | 1.052     |
-| TriviaQA         | 0.076      | 0.122  | **0.060**      | 0.076          | 0.062          | 1.647     |
-| GovReport        | 0.280      | 0.374  | **0.208**      | 0.385          | 0.385          | 0.334     |
-| HotpotQA         | 0.203      | 0.246  | 0.189          | **0.124**      | 0.125          | 2.181     |
-| LCC              | **0.076**  | 0.112  | 0.089          | 0.122          | 0.125          | 1.142     |
-| MultiNews        | 0.585      | 0.407  | **0.511**      | 0.644          | 0.647          | 0.721     |
-| MuSiQue          | 0.197      | 0.283  | 0.198          | 0.135          | **0.118**      | 2.523     |
-| NarrativeQA      | 0.022      | 0.060  | 0.022          | 0.023          | **0.020**      | 1.338     |
-| PassageCount     | **0.059**  | 0.114  | **0.059**      | 0.067          | 0.067          | 1.626     |
-| PassageRetrieval | 0.188      | 0.211  | 0.188          | 0.164          | **0.144**      | 1.416     |
-| SAMSum           | **0.011**  | 0.048  | 0.024          | 0.025          | 0.014          | 1.182     |
-| TREC             | 0.202      | 0.146  | **0.095**      | 0.112          | 0.128          | 1.526     |
-| **Mean (16 tasks)** | 0.175   | 0.188  | **0.134**      | 0.147          | 0.144          | 1.395     |
-
 On the 6 primary tasks, cw128 leads with mean KL 0.089, with cw160 (0.092) and SnapKV-Select (0.093) close behind. Both chunk methods beat naive on five of six primary tasks; on RepoBench-P, cw128 (0.046) edges naive (0.048) while cw160 (0.052) falls slightly behind. SnapKV-Select's scoring overhead (~2500ms per example, see §7.3) makes it impractical for latency-sensitive deployment; chunk selection achieves comparable quality at ~3ms selection cost.
 
 Across all 16 tasks, cw128 wins outright on NarrativeQA, Qasper, MuSiQue, and PassageRetrieval; cw160 wins on MultifieldQA, HotpotQA, and QMSum; SnapKV-Select leads on 2WikiMQA, GovReport, TriviaQA, TREC, and MultiNews (among prompt-construction methods). Naive truncation wins on LCC and SAMSum, where the relevant signal is already concentrated in the recency tail. MultiNews remains the outlier where SnapKV KV pruning (0.407) outperforms all prompt-construction methods — consistent with the multi-document structure noted in §8.2. The cw160 and cw128 results are close at 16-task mean (0.147 vs. 0.144); cw128 is marginally preferred at both the 6-task and 16-task level.
@@ -358,7 +336,7 @@ PyramidKV tells a strikingly different story. Despite being a sophisticated KV c
 
 *Note: PyramidKV values corrected from the original submission. The prior evaluation had two bugs: (1) y* generation for short-answer tasks was not stopped at the answer boundary, contaminating y* with a continuation of the few-shot context; and (2) an off-by-one error in the kvpress step-decode path caused the logit predicting y*[0] to be discarded, shifting all token distributions by one step. Bug (2) inflated PyramidKV KL from ~1.4 nats to ~10–12 nats. All values in this table have been recomputed with the corrected y* (v3 rerun, n=100).*
 
-**Tables 2a–2d. KL Faithfulness across compression rates (lower is better). Sel = SnapKV-Select; cw160 = chunk\_word160\_t25; cw128 = chunk\_word128\_t20; SnapKV = SnapKV KV pruning; Pyr = PyramidKV. Bold = best among prompt-construction methods per row. PyramidKV excluded from bold competition. 65% values match Table 1.**
+**Tables 2a–2d. KL Faithfulness across compression rates (lower is better). Sel = SnapKV-Select; cw160 = chunk\_word160\_t25; cw128 = chunk\_word128\_t20; SnapKV = SnapKV KV pruning; Pyr = PyramidKV. Bold = best among prompt-construction methods per row. PyramidKV excluded from bold competition.**
 
 **Table 2a. 65% retention.**
 
@@ -448,7 +426,7 @@ PyramidKV tells a strikingly different story. Despite being a sophisticated KV c
 | RepoBench-P | **0.087** | 0.107 | 0.107 | 0.107 | 0.635 | 0.511 |
 | **Average** | 0.281 | **0.228** | 0.230 | 0.228 | 0.683 | 0.837 |
 
-At 65% retention, SnapKV-Select leads among prompt-construction methods (0.134 mean KL); cw128 (0.144) and cw160 (0.147) are close behind, and both beat SnapKV KV pruning (0.188). At 50%, SnapKV-Select (0.164) retains a narrow lead, with cw128 (0.170) and cw160 (0.171) nearly matching it. At 40% and 35%, SnapKV-Select continues to lead, but the margin is thin (Sel: 0.200 vs. cw128: 0.203 at 40%; Sel: 0.228 vs. cw128: 0.228 at 35% — effectively a tie at the tightest budget). SnapKV KV pruning degrades catastrophically as the budget tightens (0.188 → 0.364 → 0.581 → 0.683), while prompt-construction methods degrade gracefully (Sel: 0.134 → 0.164 → 0.200 → 0.228; cw128: 0.144 → 0.170 → 0.203 → 0.228; Naive: 0.175 → 0.217 → 0.256 → 0.281). The key cross-rate result: cw128/50% (0.170) matches Naive/65% (0.175) — nearly identical faithfulness with 15% less context. cw128/40% (0.203) beats Naive/50% (0.217), and cw128/35% (0.228) beats Naive/40% (0.256): tighter chunk compression is more faithful than looser naive truncation at every step. MultiNews at 65% remains the one exception where SnapKV KV pruning (0.407) edges out prompt-construction methods (Sel: 0.511, Naive: 0.585), consistent with §5.3.
+At 65% retention, SnapKV-Select leads among prompt-construction methods (0.134 mean KL); cw128 (0.144) and cw160 (0.147) are close behind, and both beat SnapKV KV pruning (0.188). At 50%, SnapKV-Select (0.164) retains a narrow lead, with cw128 (0.170) and cw160 (0.171) nearly matching it. At 40% and 35%, SnapKV-Select continues to lead, but the margin is thin (Sel: 0.200 vs. cw128: 0.203 at 40%; Sel: 0.228 vs. cw128: 0.228 at 35% — effectively a tie at the tightest budget). SnapKV KV pruning degrades catastrophically as the budget tightens (0.188 → 0.364 → 0.581 → 0.683), while prompt-construction methods degrade gracefully (Sel: 0.134 → 0.164 → 0.200 → 0.228; cw128: 0.144 → 0.170 → 0.203 → 0.228; Naive: 0.175 → 0.217 → 0.256 → 0.281). The key cross-rate result: cw128/50% (0.170) matches Naive/65% (0.175) — nearly identical faithfulness with 15% less context. cw128/40% (0.203) beats Naive/50% (0.217), and cw128/35% (0.228) beats Naive/40% (0.256): tighter chunk compression is more faithful than looser naive truncation at every step. MultiNews at 65% remains the one exception where SnapKV KV pruning (0.407) edges out prompt-construction methods (Sel: 0.511, Naive: 0.585), consistent with §8.2.
 
 PyramidKV shows a counterintuitive compression trajectory: mean KL is 1.394 at 65%, rises slightly to 1.451 at 50%, then drops sharply to 0.994 at 40% and 0.837 at 35%. Tighter PyramidKV compression produces *better* KL faithfulness — the opposite of every other method. This is consistent with the clamping hypothesis (§4.4): at 65% retention (compression\_ratio=0.35), PyramidKV's budget allocator clamps upward at lower layers, creating over-retention that disrupts the expected attention pattern. At 40–35% retention, the budget is unclamped and the pyramid allocation operates as intended. Even so, PyramidKV at its best (0.837 at 35%) remains 3.7× worse than the best prompt-construction method at the same budget (Sel: 0.228), confirming that the KL gap is structural rather than a configuration artifact.
 
