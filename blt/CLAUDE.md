@@ -24,27 +24,36 @@ The key architectural idea: replace per-layer Wq and Wk with a single shared M m
 - **BLT cloze fine-tune**: `run_cloze_seed42.pt`. Killed at step 7500. Catastrophic overfitting — train loss → 0 on 2,661 examples, LAMBADA benchmark acc collapsed to 0.065. Abandoned.
 - **BLT 2-M WikiText-103**: Monitored to step 20K (val_ppl=20.95, LAMBADA acc=0.106). No final checkpoint on disk.
 - **BLT 1-M OWT random-M**: DONE. 250K steps, LAMBADA acc=**0.199**, PIQA=0.568, HellaSwag=0.280. Result files: `lm_eval_owt_randm_126k.json`, `lm_eval_owt_randm_218k.json`, `lm_eval_owt_randm_250k.json`.
+- **BLT 1-M from-scratch OWT**: DONE (2026-06-02). `run_blt_scratch_seed42.pt`, 550K steps, final WikiText val_ppl=72.88, OWT held-out ppl=**31.05** (loss 3.4357 nats). Result files: `lm_eval_blt_scratch.json`.
+- **GPT-2 from-scratch OWT (baseline)**: DONE (2026-06-03). `run_gpt2_baseline_seed42.pt`, 500K steps, final WikiText val_ppl=55.99, OWT held-out ppl=**27.78** (loss 3.3243 nats). Result files: `lm_eval_baseline_scratch.json`.
 
-## Active run (2026-05-30)
-**BLT 1-M, from-scratch, OpenWebText 2M docs** — `run_blt_scratch_seed42.log`
-- Command: `conda run -n blt python train.py --seed 42 --dataset openwebtext --from-scratch --save-path run_blt_scratch_seed42.pt --log-file run_blt_scratch_seed42.log --lr 5e-5 --max-steps 550000 --warmup-steps 200`
-- Dataset: first 2M docs of Skylion007/openwebtext (~2B tokens, Chinchilla-optimal for 117M params)
-- Status: **step ~3,500 of 550,000**, loss ~6.0, val_ppl=1861 at step 3500 (very early)
-- GPU: Tesla V100-PCIE-32GB (this machine has 32GB VRAM, 64GB RAM)
-- Paired with: GPT-2 from-scratch baseline running on another machine (500K steps, same 2M docs)
-- To resume if interrupted: `--resume run_blt_scratch_seed42.pt`
+## Active run
+None. All planned runs complete. Machine migration in progress (2026-06-03).
 
 ## Benchmark results (lm-eval-harness)
 
-| Task | GPT-2 (pretrained) | BLT 1-M (WikiText) | BLT 2-M (step 20K) | BLT OWT random-M (250K) |
-|------|--------------------|--------------------|---------------------|--------------------------|
-| LAMBADA acc | 0.242 | 0.114 | 0.106 | **0.199** |
-| LAMBADA ppl | 83.0 | 1307.5 | 975.6 | 206.8 |
-| HellaSwag acc_norm | 0.291 | 0.275 | 0.271 | 0.280 |
-| PIQA acc_norm | 0.560 | 0.541 | 0.547 | 0.568 |
-| Winogrande acc | 0.502 | 0.507 | 0.499 | 0.490 |
+### From-scratch OWT runs — primary comparison
 
-Result files: `lm_eval_baseline.json`, `lm_eval_blt.json`, `lm_eval_cloze_blt.json`, `lm_eval_2m_blt.json`, `lm_eval_lambada_blt.json`, `lm_eval_owt_randm_126k.json`, `lm_eval_owt_randm_218k.json`, `lm_eval_owt_randm_250k.json`.
+| Task | BLT from-scratch OWT (550K) | GPT-2 from-scratch OWT (500K) |
+|------|-----------------------------|-------------------------------|
+| OWT held-out ppl | 31.05 | **27.78** |
+| LAMBADA acc | 0.205 | **0.225** |
+| LAMBADA ppl | 349.6 | **174.6** |
+| HellaSwag acc_norm | **0.271** | 0.268 |
+| PIQA acc_norm | 0.561 | **0.579** |
+| Winogrande acc | **0.528** | 0.505 |
+
+### Full history
+
+| Task | GPT-2 pretrained | BLT WikiText (50K) | BLT OWT random-M (250K) | BLT from-scratch OWT (550K) | GPT-2 from-scratch OWT (500K) |
+|------|------------------|--------------------|--------------------------|------------------------------|-------------------------------|
+| LAMBADA acc | **0.242** | 0.114 | 0.199 | 0.205 | 0.225 |
+| LAMBADA ppl | **83.0** | 1307.5 | 206.8 | 349.6 | 174.6 |
+| HellaSwag acc_norm | **0.291** | 0.275 | 0.280 | 0.271 | 0.268 |
+| PIQA acc_norm | 0.560 | 0.541 | 0.568 | 0.561 | **0.579** |
+| Winogrande acc | 0.502 | 0.507 | 0.490 | **0.528** | 0.505 |
+
+Result files: `lm_eval_baseline.json` (truncated/corrupt), `lm_eval_blt.json`, `lm_eval_cloze_blt.json`, `lm_eval_2m_blt.json`, `lm_eval_lambada_blt.json`, `lm_eval_owt_randm_126k.json`, `lm_eval_owt_randm_218k.json`, `lm_eval_owt_randm_250k.json`, `lm_eval_blt_scratch.json`, `lm_eval_baseline_scratch.json`.
 
 ## Python environment
 Must use the `blt` conda environment. **PyTorch downgraded to 2.3.1+cu121** (transformers 5.x requires PyTorch ≥ 2.4, but V100 GPU is CC 7.0 which is not supported by PyTorch ≥ 2.4). Transformers downgraded to 4.46.3.
@@ -78,9 +87,13 @@ OWT tokenization caches to `~/.cache/blt_owt_2m_blocks.pt` after first run — s
 - `evaluate.py` — sliding-window perplexity (WikiText-103 or LAMBADA val); compute_cloze_accuracy
 - `blt_lm_eval.py` — lm-eval-harness wrapper; supports `--num-m-groups`
 - `paper_blt.md` — draft paper covering BLT architecture, results, and related work
+- `eval_owt.py` — held-out OWT evaluation (files 21-25, sliding window); `--blt-checkpoint` or `--baseline-checkpoint`
 - `run_seed42.pt/.log` — BLT WikiText-103 (50,300 steps, val_ppl=21.50)
-- `run_blt_scratch_seed42.pt/.log` — **active run**: BLT from-scratch, OWT 2M docs, 550K steps
-- `lm_eval_owt_randm_250k.json` — final benchmark for completed OWT random-M run
+- `run_blt_scratch_seed42.pt/.log` — BLT from-scratch OWT (550K steps, val_ppl=72.88, OWT ppl=31.05)
+- `run_gpt2_baseline_seed42.pt/.log` — GPT-2 from-scratch OWT (500K steps, val_ppl=55.99, OWT ppl=27.78)
+- `lm_eval_owt_randm_250k.json` — final benchmark for OWT random-M run
+- `lm_eval_blt_scratch.json` — benchmarks for BLT from-scratch OWT run
+- `lm_eval_baseline_scratch.json` — benchmarks for GPT-2 from-scratch OWT run
 
 ## Broader project context
 This `blt` branch lives alongside `pprune/` (a KV cache pruning paper). BLT is a separate experiment exploring parameter-efficient attention alternatives.
