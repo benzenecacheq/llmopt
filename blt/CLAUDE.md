@@ -55,10 +55,50 @@ None. All planned runs complete. Machine migration in progress (2026-06-03).
 
 Result files: `lm_eval_baseline.json` (truncated/corrupt), `lm_eval_blt.json`, `lm_eval_cloze_blt.json`, `lm_eval_2m_blt.json`, `lm_eval_lambada_blt.json`, `lm_eval_owt_randm_126k.json`, `lm_eval_owt_randm_218k.json`, `lm_eval_owt_randm_250k.json`, `lm_eval_blt_scratch.json`, `lm_eval_baseline_scratch.json`.
 
+## New machine setup
+
+**Step 1 — Get the code**
+```
+git clone <repo> && cd llmopt.blt/blt
+git checkout blt
+```
+
+**Step 2 — Create the conda environment**
+```
+conda create -n blt python=3.11 -y
+conda activate blt
+pip install -r requirements.txt
+```
+`requirements.txt` pins PyTorch 2.3.1+cu121 and transformers 4.46.3. These downgrades are required for V100 (CC 7.0) GPUs — PyTorch ≥ 2.4 dropped CC 7.0 support. On a newer GPU (CC ≥ 8.0) you can use current PyTorch/transformers.
+
+**Step 3 — Transfer checkpoints** (not in git, ~1.3–1.4 GB each)
+```
+scp oldmachine:~/llmopt.blt/blt/run_blt_scratch_seed42.pt .
+scp oldmachine:~/llmopt.blt/blt/run_gpt2_baseline_seed42.pt .
+```
+
+**Step 4 — OWT dataset**
+Option A — transfer the tokenized block cache (fastest, 9 GB):
+```
+scp oldmachine:~/.cache/blt_owt_2m_blocks.pt ~/.cache/
+```
+Option B — transfer the raw parquet files (~25 GB) and let the first training run re-tokenize them (~10 min):
+```
+scp -r oldmachine:~/.cache/huggingface/hub/datasets--Skylion007--openwebtext ~/.cache/huggingface/hub/
+```
+Option C — re-download from HuggingFace (slow, requires internet access to HF):
+The dataset loads automatically on first use; set `HF_HOME` if needed.
+
+**Step 5 — Verify**
+```
+conda run -n blt python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+conda run -n blt python eval_owt.py --baseline-checkpoint run_gpt2_baseline_seed42.pt --max-tokens 50000
+```
+
 ## Python environment
 Must use the `blt` conda environment. **PyTorch downgraded to 2.3.1+cu121** (transformers 5.x requires PyTorch ≥ 2.4, but V100 GPU is CC 7.0 which is not supported by PyTorch ≥ 2.4). Transformers downgraded to 4.46.3.
 
-GPU on this machine: Tesla V100-PCIE-32GB (32GB VRAM, CC 7.0). 64GB RAM.
+Target GPU: Tesla V100-PCIE-32GB (32GB VRAM, CC 7.0). Runs were done with 64GB RAM. Any GPU with ≥ 16 GB VRAM should work; batch size 4 fits within that.
 
 ## Flags added (2026-05-28/30)
 - `train.py --random-m`: initialize M ~ N(0, 1/sqrt(D)) instead of Wq@Wk^T average
