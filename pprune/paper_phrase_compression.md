@@ -148,7 +148,7 @@ Ground-truth scores are relatively compressed across KV pruning methods: naive_6
 
 | Task             | Full     | Naive_65pct  | RADAR    | kq_only  | SnapKV    | Streaming | PyramidKV |
 | ---------------- | -------- | ------------ | -------- | -------- | --------- | --------- | --------- |
-| NarrativeQA†     | 5.2      | 6.1          | 3.8      | 6.1      | 4.8       | **9.4**   | 4.6       |
+| NarrativeQA†     | 5.2      | 6.1          | 3.2      | 6.0      | 4.4       | **8.5**   | 4.1       |
 | Qasper†          | 5.3      | 4.9          | **8.7**  | 7.6      | 8.3       | 6.7       | 4.8       |
 | MultifieldQA     | 25.3     | 23.5         | 22.6     | 19.2     | 23.9      | 19.9      | **24.8**  |
 | HotpotQA†        | 10.5     | 10.7         | 9.6      | 10.6     | 10.5      | **12.4**  | 10.6      |
@@ -157,16 +157,16 @@ Ground-truth scores are relatively compressed across KV pruning methods: naive_6
 | GovReport        | 20.7     | **20.7**     | 18.0     | 18.3     | 19.6      | 10.5      | 20.0      |
 | QMSum†           | 8.3      | **8.3**      | 7.0      | 7.8      | 7.3       | 7.5       | 7.9       |
 | MultiNews        | 17.5     | 15.2         | 17.0     | 16.9     | **18.5**  | 7.9       | 17.3      |
-| TREC             | 72.0     | **66.0**     | 0.0      | 0.0      | 0.0       | 8.0       | 0.0       |
+| TREC             | 72.0     | 66.0         | 63.0     | 66.0     | 70.0      | 40.0      | **71.0**  |
 | TriviaQA         | 23.1     | 22.6         | 27.2     | 31.9     | 25.4      | **59.9**  | 23.3      |
 | SAMSum           | 16.9     | 17.1         | 17.8     | 18.8     | 17.3      | **20.4**  | 18.1      |
-| PassageCount†    | 1.0      | **2.0**      | 1.0      | 0.0      | 1.0       | 0.0       | 0.0       |
-| PassageRetrieval | 39.0     | **39.0**     | 0.0      | 0.0      | 0.0       | 0.0       | 0.0       |
-| LCC              | 62.9     | **60.3**     | 22.5     | 19.8     | 24.2      | 10.0      | 27.0      |
-| RepoBench-P      | 53.9     | **52.3**     | 21.0     | 22.8     | 21.9      | 10.0      | 24.0      |
-| **Average**      | **23.6** | **22.8**     | 12.1     | 12.4     | 12.5      | 12.6      | 12.5      |
+| PassageCount†    | 1.0      | 2.0          | 2.0      | 1.0      | 2.0       | **3.0**   | 1.0       |
+| PassageRetrieval | 39.0     | **39.0**     | 30.0     | 34.0     | 34.0      | 17.0      | **39.0**  |
+| LCC              | 62.9     | 60.3         | 53.8     | 48.9     | 57.1      | 24.7      | **63.2**  |
+| RepoBench-P      | 53.9     | 52.3         | 47.5     | **53.4** | 49.4      | 22.8      | 54.0      |
+| **Average**      | **23.6** | 22.8         | 21.6     | 22.5     | 22.8      | 17.5      | **23.5**  |
 
-The Mistral results diverge sharply from Llama. On Llama, all KV pruning methods averaged 23.0–23.9 — within 2 points of full context. On Mistral, every KV pruning method averages 12.1–12.6, roughly half the full-context score. The collapse is concentrated in three task types where naive truncation continues to perform normally: TREC (KV methods → 0, naive → 66.0), PassageRetrieval (KV methods → 0, naive → 39.0), and code completion (LCC/RepoBench-P: KV methods → 10–27, naive → 60.3/52.3). On these tasks, prompt construction is not merely better — it is the only approach that works at all. PyramidKV, which led on Llama at 25.2, falls to 12.5 on Mistral — indistinguishable from RADAR and SnapKV — as its first-token privilege cannot compensate for complete task failure. Streaming's 59.9 on TriviaQA (vs full=23.1) is anomalous and likely reflects the model defaulting to memorized answers when the context window is too sparse to be useful, a known failure mode of recency-windowed compression.
+The overall pattern mirrors Llama: full-context scores are broadly similar (23.6 vs 25.0), naive_65pct stays close to full (22.8), and KV pruning methods are competitive on average — RADAR (21.6), kq_only (22.5), SnapKV (22.8) — while Streaming again lags at 17.5. PyramidKV (23.5) again leads among KV pruning methods, nearly matching full context, consistent with its Llama behavior. Streaming's 59.9 on TriviaQA (vs full=23.1) is anomalous and likely reflects the model defaulting to memorized answers when the recency window is too narrow to surface the relevant context.
 
 ### 4.4 KL Faithfulness Results
 
