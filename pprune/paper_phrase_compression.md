@@ -144,29 +144,29 @@ Full context is the reference and is not bolded. Bold marks the best compressed 
 
 Ground-truth scores are relatively compressed across KV pruning methods: naive_65pct (23.4), RADAR (23.9), kq_only (23.0), and SnapKV (23.8) are within 1 point of each other. Streaming (13.4) fails badly on tasks requiring distributed context. PyramidKV(65%) is the clear winner at 25.2, matching or exceeding full context on 6 tasks (MultifieldQA, TREC, PassageRetrieval, LCC, RepoBench-P, and 2WikiMQA) and topping the 16-task average above full context. This result foreshadows the central finding of §7: PyramidKV has the best ground-truth scores among all compressed methods, yet the highest KL divergence from the full model by an order of magnitude (§4.4). These two facts are not contradictory — they illustrate precisely why ground-truth accuracy is an insufficient metric for compression quality.
 
-**Mistral-7B-v0.3.** The table below shows ground-truth results for Mistral-7B-v0.3 at 65% retention. RADAR, kq_only, SnapKV, and Streaming results are pending.
+**Mistral-7B-v0.3.** Ground-truth results at 65% retention across all 16 tasks. Bold = best compressed method per row.
 
-| Task             | Full | Naive_65pct | KV pruning |
-| ---------------- | ---- | ----------- | ---------- |
-| NarrativeQA†     | 5.2  | 6.1         | **6.2**    |
-| Qasper           | 5.3  | 4.9         | **7.6**    |
-| MultifieldQA     | 25.3 | **23.5**    | 20.2       |
-| HotpotQA†        | 10.5 | 10.7        | **11.3**   |
-| 2WikiMQA         | 11.5 | 10.9        | **11.2**   |
-| MuSiQue†         | 5.1  | **5.2**     | **5.2**    |
-| GovReport        | 20.7 | **20.7**    | 18.7       |
-| QMSum            | 8.3  | **8.3**     | 7.2        |
-| MultiNews        | 17.5 | **15.2**    | 13.4       |
-| TREC             | 72.0 | 66.0        | **68.0**   |
-| TriviaQA         | 23.1 | 22.6        | **26.5**   |
-| SAMSum           | 16.9 | 17.1        | **18.1**   |
-| PassageCount†    | 1.0  | **2.0**     | **2.0**    |
-| PassageRetrieval | 39.0 | **39.0**    | 29.0       |
-| LCC              | 62.9 | **60.3**    | 56.2       |
-| RepoBench-P      | 53.9 | **52.3**    | 51.2       |
-| **Average**      | 23.6 | 22.8        | 22.0       |
+| Task             | Full     | Naive_65pct  | RADAR    | kq_only  | SnapKV    | Streaming | PyramidKV |
+| ---------------- | -------- | ------------ | -------- | -------- | --------- | --------- | --------- |
+| NarrativeQA†     | 5.2      | 6.1          | 3.8      | 6.1      | 4.8       | **9.4**   | 4.6       |
+| Qasper†          | 5.3      | 4.9          | **8.7**  | 7.6      | 8.3       | 6.7       | 4.8       |
+| MultifieldQA     | 25.3     | 23.5         | 22.6     | 19.2     | 23.9      | 19.9      | **24.8**  |
+| HotpotQA†        | 10.5     | 10.7         | 9.6      | 10.6     | 10.5      | **12.4**  | 10.6      |
+| 2WikiMQA†        | 11.5     | 10.9         | 13.1     | 12.9     | 11.6      | **14.9**  | 11.7      |
+| MuSiQue†         | 5.1      | 5.2          | 4.6      | **6.0**  | 5.4       | 3.8       | 5.1       |
+| GovReport        | 20.7     | **20.7**     | 18.0     | 18.3     | 19.6      | 10.5      | 20.0      |
+| QMSum†           | 8.3      | **8.3**      | 7.0      | 7.8      | 7.3       | 7.5       | 7.9       |
+| MultiNews        | 17.5     | 15.2         | 17.0     | 16.9     | **18.5**  | 7.9       | 17.3      |
+| TREC             | 72.0     | **66.0**     | 0.0      | 0.0      | 0.0       | 8.0       | 0.0       |
+| TriviaQA         | 23.1     | 22.6         | 27.2     | 31.9     | 25.4      | **59.9**  | 23.3      |
+| SAMSum           | 16.9     | 17.1         | 17.8     | 18.8     | 17.3      | **20.4**  | 18.1      |
+| PassageCount†    | 1.0      | **2.0**      | 1.0      | 0.0      | 1.0       | 0.0       | 0.0       |
+| PassageRetrieval | 39.0     | **39.0**     | 0.0      | 0.0      | 0.0       | 0.0       | 0.0       |
+| LCC              | 62.9     | **60.3**     | 22.5     | 19.8     | 24.2      | 10.0      | 27.0      |
+| RepoBench-P      | 53.9     | **52.3**     | 21.0     | 22.8     | 21.9      | 10.0      | 24.0      |
+| **Average**      | **23.6** | **22.8**     | 12.1     | 12.4     | 12.5      | 12.6      | 12.5      |
 
-The overall pattern mirrors Llama: full context scores are broadly similar (23.6 vs 25.0), naive_65pct stays close to full (22.8), and generic KV pruning (22.0) is competitive on average but loses more on tasks requiring distributed context (MultifieldQA, MultiNews, PassageRetrieval). The "KV pruning" column here is an undifferentiated baseline; per-method results (RADAR, SnapKV, etc.) will be added when available.
+The Mistral results diverge sharply from Llama. On Llama, all KV pruning methods averaged 23.0–23.9 — within 2 points of full context. On Mistral, every KV pruning method averages 12.1–12.6, roughly half the full-context score. The collapse is concentrated in three task types where naive truncation continues to perform normally: TREC (KV methods → 0, naive → 66.0), PassageRetrieval (KV methods → 0, naive → 39.0), and code completion (LCC/RepoBench-P: KV methods → 10–27, naive → 60.3/52.3). On these tasks, prompt construction is not merely better — it is the only approach that works at all. PyramidKV, which led on Llama at 25.2, falls to 12.5 on Mistral — indistinguishable from RADAR and SnapKV — as its first-token privilege cannot compensate for complete task failure. Streaming's 59.9 on TriviaQA (vs full=23.1) is anomalous and likely reflects the model defaulting to memorized answers when the context window is too sparse to be useful, a known failure mode of recency-windowed compression.
 
 ### 4.4 KL Faithfulness Results
 
@@ -578,7 +578,7 @@ At 35% retention, the result is starkly different. Removing the first-token priv
 
 At 50% retention, the difference is again negligible: mean delta = −0.16, with no task collapsing. At 40% retention, the same: mean delta = −0.32. Across three successive compression rates, removing the first-token privilege changes GT scores by less than 0.4 points on average. The transition between 40% and 35% is abrupt: a privilege that accounts for essentially nothing at 40% accounts for nearly all of PyramidKV's GT performance at 35%.
 
-**Synthesis.** Ground-truth evaluation cannot distinguish PyramidKV from a genuinely high-quality compression method. Its 25.2 average at 65% retention is the best result in this paper — yet at tight budgets (35% retention) the score is almost entirely explained by a single privileged token, the faithfulness gap is 3.7× worse than the best prompt-construction baseline at the same budget, and TTFT exceeds full context. None of these failures appear in the GT table. The KL metric (§3.2) detects the faithfulness gap; the timing data detects the speed gap; the `clean_first` ablation isolates the mechanism by which GT is gamed — and shows the effect is negligible at 65%/50%/40% but catastrophic at 35%. Together they illustrate why a single accuracy metric is insufficient to characterize compression quality — and why the evaluation framework proposed in this paper is necessary to distinguish methods that approximate full-context behavior from methods that produce correct answers for other reasons.
+**Synthesis.** Ground-truth evaluation cannot distinguish PyramidKV from a genuinely high-quality compression method. Its 25.2 average at 65% retention is the best result in this paper — yet at tight budgets (35% retention) the score is almost entirely explained by a single privileged token, the faithfulness gap is 3.7× worse than the best prompt-construction baseline at the same budget, and TTFT exceeds full context. None of these failures appear in the GT table. The KL metric (§3.2) detects the faithfulness gap; the timing data detects the speed gap; the `clean_first` ablation isolates the mechanism by which GT is gamed — and shows the effect is negligible at 65%/50%/40% but catastrophic at 35%. Together they illustrate why ground truth accuracy is insufficient to characterize compression quality — and why the evaluation framework proposed in this paper is necessary to distinguish methods that approximate full-context behavior from methods that produce correct answers for other reasons.
 
 ---
 
