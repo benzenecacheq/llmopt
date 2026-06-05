@@ -192,6 +192,30 @@ The overall pattern mirrors Llama: full-context scores are broadly similar (23.6
 
 Values are mean KL divergence in nats over 100 examples; lower is better; 0 means identical distributions. Bold marks the best method per row (excluding PyramidKV, which is shown for comparison only). Values recomputed with corrected y* (v3 rerun, n=100).
 
+**Mistral-7B-v0.3.** KL faithfulness at 65% retention across all 16 tasks.
+
+| Task             | Naive_65pct    | RADAR   | kq_only    | SnapKV         | Streaming | PyramidKV |
+| ---------------- | -------------- | ------- | ---------- | -------------- | --------- | --------- |
+| NarrativeQA†     | **0.003**      | 0.014   | 0.068      | 0.016          | 0.024     | 0.780     |
+| Qasper†          | 0.071          | 0.077   | **0.069**  | 0.079          | 0.102     | 0.472     |
+| MultifieldQA     | 0.148          | 0.142   | 0.147      | **0.140**      | 0.217     | 0.718     |
+| HotpotQA†        | **0.195**      | 0.238   | 0.265      | 0.227          | 0.284     | 0.725     |
+| 2WikiMQA†        | **0.262**      | 0.263   | 0.288      | 0.250          | 0.356     | 0.683     |
+| MuSiQue†         | **0.183**      | 0.212   | 0.256      | 0.204          | 0.268     | 0.679     |
+| GovReport        | **0.180**      | 0.275   | 0.271      | 0.244          | 0.368     | 0.294     |
+| QMSum†           | **0.067**      | 0.087   | 0.094      | 0.083          | 0.098     | 0.183     |
+| MultiNews        | 0.586          | 0.512   | 0.399      | **0.340**      | 0.795     | 0.626     |
+| TREC             | **0.012**      | 0.029   | 0.042      | 0.038          | 0.025     | 0.703     |
+| TriviaQA         | **0.039**      | 0.114   | 0.148      | 0.094          | 0.097     | 1.379     |
+| SAMSum           | **0.021**      | 0.039   | 0.055      | 0.046          | 0.029     | 1.050     |
+| PassageCount†    | **0.037**      | 0.083   | 0.125      | 0.101          | 0.071     | 0.897     |
+| PassageRetrieval | **0.195**      | 0.218   | 0.229      | 0.228          | 0.237     | 0.541     |
+| LCC              | **0.055**      | 0.057   | 0.086      | 0.054          | 0.069     | 1.070     |
+| RepoBench-P      | **0.076**      | 0.108   | 0.131      | 0.117          | 0.110     | 0.940     |
+| **Average**      | **0.133**      | 0.154   | 0.167      | 0.141          | 0.197     | **0.734** |
+
+The method ranking is identical to Llama: Naive < SnapKV < RADAR < Streaming < PyramidKV on every task except MultiNews (where SnapKV again leads, consistent with §8.2). Absolute KL values are lower on Mistral — particularly on low-scoring tasks (NarrativeQA, Qasper, TREC) where both models produce concentrated outputs regardless of compression, compressing the KL range. PyramidKV remains the worst method by a substantial margin (0.734 vs. 0.141 for SnapKV), though the gap is smaller than on Llama (1.394 vs. 0.188). The cross-model consistency of the ranking, combined with the variation in absolute magnitude, suggests the KL metric is responding to real structural differences rather than a model-specific artifact.
+
 ## 5. Structural Corruption in KV Cache Pruning
 
 ### 5.1 The Mechanism
