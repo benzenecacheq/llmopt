@@ -394,6 +394,8 @@ def run_one(
     device: str,
 ) -> str:
     """Run a single (example, method) and return the prediction string."""
+    if method == "full":
+        return generate_from_ids(model, tokenizer, full_ids, max_new_tokens, max_seq_full, device)
     press = _KVPRESS_METHODS.get(method)
     pcfg  = METHOD_CONFIGS.get(method)
 

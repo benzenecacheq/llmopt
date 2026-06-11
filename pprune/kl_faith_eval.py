@@ -221,6 +221,7 @@ METHOD_CONFIGS: Dict[str, Optional[PrunedLlamaConfig]] = {
     "naive_tail":   None,   # prompt truncation, pure recency tail (no head)
     "vn_decay":     PrunedLlamaConfig(score_mode="vn_decay",     **BASE_CFG),
     "pruned":       PrunedLlamaConfig(score_mode="additive", score_alpha=0.65, **BASE_CFG),
+    "full":         None,   # uncompressed full context — uses max_seq_full, no truncation
 }
 
 DEFAULT_METHODS = list(METHOD_CONFIGS)
