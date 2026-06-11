@@ -8,14 +8,19 @@ from lm_eval.api.registry import register_model
 from lm_eval.api.instance import Instance
 from transformers import GPT2Tokenizer, GPT2LMHeadModel
 
-from model import build_blt_model
+from model import build_blt_model, build_gqa_model
 
 
-def load_model(checkpoint_path, baseline=False, device='cuda', num_m_groups=1):
+def load_model(checkpoint_path, baseline=False, gqa=False, device='cuda', num_m_groups=1):
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
 
-    if baseline:
+    if gqa:
+        model = build_gqa_model().to(device)
+        ckpt = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(ckpt['model_state'])
+        print(f'Loaded GQA checkpoint: step={ckpt["step"]}, val_ppl={ckpt.get("val_ppl")}')
+    elif baseline:
         model = GPT2LMHeadModel.from_pretrained('gpt2').to(device)
         if checkpoint_path:
             ckpt = torch.load(checkpoint_path, map_location=device)
@@ -33,12 +38,14 @@ def load_model(checkpoint_path, baseline=False, device='cuda', num_m_groups=1):
 
 @register_model('blt')
 class BLTModel(LM):
-    def __init__(self, checkpoint, baseline=False, device='cuda', batch_size=8,
+    def __init__(self, checkpoint, baseline=False, gqa=False, device='cuda', batch_size=8,
                  num_m_groups=1):
         super().__init__()
         self._device = torch.device(device)
         self.model, self.tokenizer = load_model(
-            checkpoint, baseline=(baseline == 'true' or baseline is True),
+            checkpoint,
+            baseline=(baseline == 'true' or baseline is True),
+            gqa=(gqa == 'true' or gqa is True),
             device=device, num_m_groups=int(num_m_groups)
         )
         self._batch_size = int(batch_size)
@@ -165,6 +172,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint', type=str, required=True)
     parser.add_argument('--baseline', action='store_true')
+    parser.add_argument('--gqa', action='store_true')
     parser.add_argument('--num-m-groups', type=int, default=1, choices=[1, 2])
     parser.add_argument('--tasks', type=str, default='lambada_openai,hellaswag,piqa,winogrande')
     parser.add_argument('--output', type=str, default=None)
@@ -175,6 +183,7 @@ if __name__ == '__main__':
     model = BLTModel(
         checkpoint=args.checkpoint,
         baseline=args.baseline,
+        gqa=args.gqa,
         device=device,
         batch_size=args.batch_size,
         num_m_groups=args.num_m_groups,
@@ -186,7 +195,7 @@ if __name__ == '__main__':
         batch_size=args.batch_size,
     )
 
-    label = 'baseline' if args.baseline else 'blt'
+    label = 'gqa' if args.gqa else ('baseline' if args.baseline else 'blt')
     out_path = args.output or f'lm_eval_{label}.json'
 
     import json

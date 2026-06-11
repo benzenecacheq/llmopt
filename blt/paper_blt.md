@@ -269,12 +269,27 @@ shared dictionary atoms across layers, achieving 66.7% attention parameter reduc
 This is a general compression framework; BLT's sharing is more targeted and structurally
 motivated by the bilinear interpretation of attention.
 
+**Multi-head Latent Attention (MLA).**
+DeepSeek-V2 introduces MLA, which jointly compresses K and V into a low-dimensional latent
+vector via a shared down-projection, then recovers per-head K and V via up-projections at
+attention time ([arXiv 2405.04434](https://arxiv.org/abs/2405.04434)).
+This dramatically reduces KV-cache size while maintaining model quality, and has become a
+standard component of the DeepSeek model family.  The low-rank UV^T extension of BLT
+(Section 6) converges toward MLA in spirit: both compress the key and value cache via
+low-rank projections.  The critical distinction is that BLT's projections U and V are
+*globally shared across all layers*, whereas MLA's down/up-projection matrices are
+per-layer.  BLT's cross-layer sharing is the stronger inductive bias and the architectural
+claim that differentiates it from MLA.  Whether global sharing hurts, helps, or is neutral
+relative to per-layer sharing at fixed cache budget is an open empirical question.
+
 **Summary.**
 To our knowledge, the specific combination in BLT — merging Q and K into a single bilinear
 interaction matrix M that is shared across all transformer layers, while keeping V and O
 projections per-layer — has not been previously proposed.  The recent independent results
 corroborating the redundancy of separate Q and K matrices lend additional support to the
-approach.
+approach.  The low-rank UV^T variant of BLT is the natural evolution toward KV-cache
+compression and tensor-parallel scalability, and its relationship to MLA suggests a
+promising direction for larger-scale validation.
 
 ---
 
@@ -295,6 +310,51 @@ not saturated by the end of this run.  The earlier gap was a training domain eff
 encyclopedia text provides no signal for the narrative last-word prediction patterns that
 LAMBADA tests.  The shared-M architecture is not the bottleneck; data is.
 
+**Tensor parallelism compatibility.** Production-scale models distribute attention across
+multiple GPUs using tensor parallelism (TP): each GPU handles H/N heads independently,
+with a single all-reduce for the output projection.  Standard MHA and GQA shard cleanly
+by head or KV group.
+
+Full-rank M BLT is fundamentally incompatible with head-level TP.  Since M produces
+identical attention weights for all heads, it cannot be partitioned by head.  The
+alternatives — replicating M on every GPU, or sharding M and all-reducing the L×L
+attention matrix — both degrade bandwidth efficiency as N grows.  At 8-way TP on a 70B
+model, full M BLT uses 2.5× more bandwidth per GPU than standard MHA.
+
+The low-rank UV^T variant eliminates this problem.  At r=256 and D=8192, U and V together
+occupy 8.4 MB — small enough to fit in an H100's 50 MB L2 cache and trivial to reload even
+if evicted by intervening FFN weights.  Since only W_v and W_o are sharded across GPUs,
+and W_q and W_k are replaced entirely by the cached U and V, UV^T BLT maintains
+approximately 37–43% lower attention weight bandwidth than standard MHA at any level of
+tensor parallelism:
+
+```
+MHA (8-way TP, 70B):       67 MB / GPU / layer
+Full M BLT (8-way TP):    168 MB / GPU / layer   (2.5× worse than MHA)
+UV^T BLT (8-way TP, r=256): 42 MB / GPU / layer  (37% better than MHA)
+```
+
+This makes UV^T not merely a KV-cache optimization but a prerequisite for BLT to be
+viable at production scale: full M BLT is a single-GPU architecture; UV^T BLT scales
+correctly under tensor parallelism.
+
+**Memory bandwidth at inference.** Large-model decode is memory-bandwidth-bound: the
+bottleneck is streaming weights and KV cache from HBM.  BLT's weight bandwidth advantage
+over standard MHA is strict: there are no per-layer W_q or W_k matrices to load, and M
+(a single D×D matrix) is loaded once per forward pass.  For GPT-2 scale (D=768), M is
+1.2 MB and fits entirely in GPU L2 cache (V100: 6 MB; H100: 50 MB), making subsequent
+layers effectively free on the weight side.  For 7B models (D=4096), M is 33.6 MB and
+fits on H100/A100.  Standard MHA must load W_q and W_k from HBM for every layer at every
+decode step — 2 × D² × L bytes per token vs BLT's single D² load amortized across all
+L layers.
+
+BLT's KV cache is the same size as standard MHA: both store D-dimensional vectors per
+token per layer (MHA stores W_k · x_j; BLT stores raw x_j).  Neither achieves the KV
+cache compression of grouped query attention (GQA), which projects keys to a lower-
+dimensional space.  At long contexts (>32K tokens on large models), KV cache bandwidth
+dominates and BLT's weight advantage shrinks as a fraction of total bandwidth.  The
+low-rank UV^T variant described below addresses this.
+
 **KV-cache compatibility.** Standard KV caching stores K = X W_k for past tokens.  In BLT,
 the score between new token t and past token j is (x_t M) · x_j, so the cache only needs
 to store the raw hidden states x_j (as implicit keys) and x_j W_v (as values).  A single
@@ -302,3 +362,32 @@ M multiply produces the query; no key projection is required when adding new tok
 current implementation does not exploit this and recomputes full attention from scratch at
 each forward pass; an inference-optimized implementation would realize this as a genuine
 efficiency gain over standard attention.
+
+However, because x_j is full D-dimensional, BLT's key cache is the same size as standard
+MHA's key cache — it does not benefit from the KV-cache compression that grouped query
+attention (GQA) achieves by projecting keys to a lower-dimensional space.
+
+**Low-rank BLT and KV-cache compression.** A natural extension that recovers this
+compression is to factor M as a rank-r outer product:
+
+```
+M = U V^T     where U, V ∈ ℝ^{D×r}
+```
+
+The attention score then becomes:
+
+```
+score(i,j) = x_i^T (U V^T) x_j = (x_i U) · (x_j V) / √d
+```
+
+At inference, the key cache stores x_j V (r-dimensional) rather than the full x_j
+(D-dimensional), reducing KV-cache size by a factor of D/r — identical to the reduction
+achieved by GQA with D/r KV groups.  Both U and V remain globally shared across all
+layers, preserving BLT's cross-layer parameter sharing.  At r = D/16, the key cache is
+16× smaller than standard MHA while the shared weight budget drops from D² to 2Dr
+(e.g. 8M vs 67M for D=8192).
+
+This creates a direct architectural comparison: **globally shared low-rank UV^T vs
+per-layer full-rank GQA**, at the same KV-cache budget.  GQA has more expressive
+per-layer key projections; low-rank BLT has stronger cross-layer regularization.  Which
+inductive bias wins, and at what model scale, is an open empirical question.

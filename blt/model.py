@@ -101,6 +101,96 @@ class BLT2Attention(nn.Module):
         return out, None
 
 
+class GQAAttention(nn.Module):
+    """
+    2-group Grouped Query Attention baseline.
+    12 query heads, 2 KV heads (6 queries per KV head).
+    Wq/Wo: D×D per layer (full). Wk/Wv: D×(2×d_head) per layer (grouped).
+    """
+
+    def __init__(self, Wq, Wq_bias, Wk, Wk_bias, Wv, Wv_bias, Wo, Wo_bias, config):
+        super().__init__()
+        self.n_head  = config.n_head                   # 12
+        self.n_kv    = 2                                # KV groups
+        self.d_head  = config.n_embd // config.n_head  # 64
+        self.scale   = math.sqrt(self.d_head)
+        self.q_per_kv = self.n_head // self.n_kv       # 6
+
+        self.Wq      = nn.Parameter(Wq)
+        self.Wq_bias = nn.Parameter(Wq_bias)
+        self.Wk      = nn.Parameter(Wk)
+        self.Wk_bias = nn.Parameter(Wk_bias)
+        self.Wv      = nn.Parameter(Wv)
+        self.Wv_bias = nn.Parameter(Wv_bias)
+        self.Wo      = nn.Parameter(Wo)
+        self.Wo_bias = nn.Parameter(Wo_bias)
+
+    def forward(self, hidden_states, past_key_values=None, attention_mask=None,
+                encoder_hidden_states=None, encoder_attention_mask=None,
+                output_attentions=False, **kwargs):
+        B, L, D = hidden_states.shape
+
+        Q = (hidden_states @ self.Wq + self.Wq_bias
+             ).view(B, L, self.n_head, self.d_head).transpose(1, 2)   # (B, H, L, d)
+        K = (hidden_states @ self.Wk + self.Wk_bias
+             ).view(B, L, self.n_kv, self.d_head).transpose(1, 2)     # (B, 2, L, d)
+        V = (hidden_states @ self.Wv + self.Wv_bias
+             ).view(B, L, self.n_kv, self.d_head).transpose(1, 2)     # (B, 2, L, d)
+
+        # Expand KV groups to match query heads
+        K = K.repeat_interleave(self.q_per_kv, dim=1)                 # (B, H, L, d)
+        V = V.repeat_interleave(self.q_per_kv, dim=1)                 # (B, H, L, d)
+
+        scores = Q @ K.transpose(-2, -1) / self.scale                 # (B, H, L, L)
+
+        causal = torch.full((L, L), float('-inf'), device=hidden_states.device,
+                            dtype=hidden_states.dtype)
+        causal = torch.triu(causal, diagonal=1)
+        scores = scores + causal
+
+        if attention_mask is not None:
+            # attention_mask may be (B,1,1,L) or (B,1,L,L) — broadcast over heads
+            scores = scores + attention_mask
+
+        A   = F.softmax(scores, dim=-1)                                # (B, H, L, L)
+        h   = (A @ V).transpose(1, 2).contiguous().view(B, L, D)      # (B, L, D)
+        out = h @ self.Wo + self.Wo_bias
+
+        return out, None
+
+
+def build_gqa_model():
+    """
+    Build a GPT-2 model with 2-group GQA replacing every attention layer.
+    Always initializes from scratch (random weights).
+    12 query heads, 2 KV heads (6 queries per KV head).
+    """
+    model = GPT2LMHeadModel(GPT2Config())
+    cfg   = model.config
+    D     = cfg.n_embd       # 768
+    n_head = cfg.n_head      # 12
+    d_head = D // n_head     # 64
+    n_kv   = 2
+    kv_dim = n_kv * d_head   # 128
+
+    for layer in model.transformer.h:
+        attn = layer.attn
+        # Reuse GPT-2's random Wq and Wo initializations
+        Wq      = attn.c_attn.weight[:, :D].detach()
+        Wq_bias = attn.c_attn.bias[:D].detach()
+        Wo      = attn.c_proj.weight.detach()
+        Wo_bias = attn.c_proj.bias.detach()
+        # Wk and Wv are new smaller matrices
+        Wk      = torch.randn(D, kv_dim) * 0.02
+        Wk_bias = torch.zeros(kv_dim)
+        Wv      = torch.randn(D, kv_dim) * 0.02
+        Wv_bias = torch.zeros(kv_dim)
+        layer.attn = GQAAttention(Wq, Wq_bias, Wk, Wk_bias, Wv, Wv_bias,
+                                  Wo, Wo_bias, cfg)
+
+    return model
+
+
 def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False, from_scratch=False):
     """
     Build a GPT-2 model with BLT attention replacing every attention layer.
