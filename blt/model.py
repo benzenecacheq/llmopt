@@ -159,6 +159,56 @@ class GQAAttention(nn.Module):
         return out, None
 
 
+class MHAAttention(nn.Module):
+    """
+    Standard multi-head attention, matching BLT's interface (returns (out, None)).
+    Per-layer Wq, Wk, Wv, Wo — all independent. Used in the hybrid model's early layers.
+    """
+
+    def __init__(self, Wq, Wq_bias, Wk, Wk_bias, Wv, Wv_bias, Wo, Wo_bias, config):
+        super().__init__()
+        self.n_head = config.n_head
+        self.d_head = config.n_embd // config.n_head
+        self.scale  = math.sqrt(self.d_head)
+
+        self.Wq      = nn.Parameter(Wq)
+        self.Wq_bias = nn.Parameter(Wq_bias)
+        self.Wk      = nn.Parameter(Wk)
+        self.Wk_bias = nn.Parameter(Wk_bias)
+        self.Wv      = nn.Parameter(Wv)
+        self.Wv_bias = nn.Parameter(Wv_bias)
+        self.Wo      = nn.Parameter(Wo)
+        self.Wo_bias = nn.Parameter(Wo_bias)
+
+    def forward(self, hidden_states, past_key_values=None, attention_mask=None,
+                encoder_hidden_states=None, encoder_attention_mask=None,
+                output_attentions=False, **kwargs):
+        B, L, D = hidden_states.shape
+
+        Q = (hidden_states @ self.Wq + self.Wq_bias
+             ).view(B, L, self.n_head, self.d_head).transpose(1, 2)  # (B, H, L, d)
+        K = (hidden_states @ self.Wk + self.Wk_bias
+             ).view(B, L, self.n_head, self.d_head).transpose(1, 2)
+        V = (hidden_states @ self.Wv + self.Wv_bias
+             ).view(B, L, self.n_head, self.d_head).transpose(1, 2)
+
+        scores = Q @ K.transpose(-2, -1) / self.scale                # (B, H, L, L)
+
+        causal = torch.full((L, L), float('-inf'), device=hidden_states.device,
+                            dtype=hidden_states.dtype)
+        causal = torch.triu(causal, diagonal=1)
+        scores = scores + causal
+
+        if attention_mask is not None:
+            scores = scores + attention_mask
+
+        A   = F.softmax(scores, dim=-1)
+        h   = (A @ V).transpose(1, 2).contiguous().view(B, L, D)
+        out = h @ self.Wo + self.Wo_bias
+
+        return out, None
+
+
 def build_gqa_model():
     """
     Build a GPT-2 model with 2-group GQA replacing every attention layer.
@@ -188,6 +238,45 @@ def build_gqa_model():
         layer.attn = GQAAttention(Wq, Wq_bias, Wk, Wk_bias, Wv, Wv_bias,
                                   Wo, Wo_bias, cfg)
 
+    return model
+
+
+def build_hybrid_model(n_mha=6):
+    """
+    Hybrid: first n_mha layers use standard MHA, last (12 - n_mha) use BLT with one shared M.
+    Always initializes from scratch. Default n_mha=6 gives a 6/6 split.
+
+    Tests whether BLT's expressiveness cost is concentrated in early layers.
+    M only needs to multi-task across (12 - n_mha) layers instead of 12, so the
+    shared matrix has a narrower job and may converge to a more useful solution.
+    """
+    model = GPT2LMHeadModel(GPT2Config())
+    cfg   = model.config
+    D     = cfg.n_embd       # 768
+    n_head = cfg.n_head      # 12
+    d_head = D // n_head     # 64
+
+    M_init   = torch.randn(D, D) / math.sqrt(D)
+    M_shared = nn.Parameter(M_init)
+
+    for i, layer in enumerate(model.transformer.h):
+        attn     = layer.attn
+        Wq       = attn.c_attn.weight[:, :D].detach()
+        Wq_bias  = attn.c_attn.bias[:D].detach()
+        Wk       = attn.c_attn.weight[:, D:2*D].detach()
+        Wk_bias  = attn.c_attn.bias[D:2*D].detach()
+        Wv       = attn.c_attn.weight[:, 2*D:].detach()
+        Wv_bias  = attn.c_attn.bias[2*D:].detach()
+        Wo       = attn.c_proj.weight.detach()
+        Wo_bias  = attn.c_proj.bias.detach()
+
+        if i < n_mha:
+            layer.attn = MHAAttention(Wq, Wq_bias, Wk, Wk_bias,
+                                      Wv, Wv_bias, Wo, Wo_bias, cfg)
+        else:
+            layer.attn = BLTAttention(M_shared, Wv, Wv_bias, Wo, Wo_bias, cfg)
+
+    model.transformer.register_parameter('M_blt', M_shared)
     return model
 
 
