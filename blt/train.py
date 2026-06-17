@@ -145,7 +145,12 @@ def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None)
 
 
 def train(args):
-    log_path = args.log_file or f'run_seed{args.seed}.log'
+    if args.log_file:
+        log_path = args.log_file
+    elif args.save_path:
+        log_path = os.path.splitext(args.save_path)[0] + '.log'
+    else:
+        log_path = f'run_seed{args.seed}.log'
     log_f = open(log_path, 'a' if args.resume else 'w', buffering=1)
 
     def log(msg):
