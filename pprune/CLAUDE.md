@@ -56,16 +56,22 @@ from different scripts pointing to the same data_dir.
 | `lb_results_base/kl_ystar_pyramidkv_all_v2.json` | KL for pyramidkv at all rates, all 16 tasks, n=100 |
 | `lb_results_base/ystar_cache_v3.pt` | Cached y* tokens + log_p_full for all 16 tasks, n=100 |
 | `lb_results_base/gt_h10_llama_f35/` | phr128_h10 + phr160_h10 at 35%, all 16 tasks, n=100 ✓ done |
-| `lb_results_base/gt_h10_llama_f40/` | Same at 40% — in progress (run_h10_full_sweep.sh) |
+| `lb_results_base/gt_h10_llama_f40/` | Same at 40%, all 16 tasks, n=100 ✓ done |
+| `lb_results_base/gt_h10_llama_f50/` | Same at 50%, all 16 tasks, n=100 ✓ done |
+| `lb_results_base/gt_h10_llama_f65/` | Same at 65%, all 16 tasks, n=100 ✓ done |
+| `lb_results_base/gt_h10_mistral_f35/` | Mistral phr128_h10 + phr160_h10 at 35% — IN PROGRESS |
 
 ## Currently running
 
 `run_h10_full_sweep.sh` — full h10 sweep, sequential queue:
 1. Llama 35% ✓ done
-2. Llama 40% — IN PROGRESS
-3. Llama 50%
-4. Llama 65%
-5–8. Mistral 35/40/50/65%
+2. Llama 40% ✓ done
+3. Llama 50% ✓ done
+4. Llama 65% ✓ done
+5. Mistral 35% — IN PROGRESS (resumed at narrativeqa ~ex 34)
+6. Mistral 40%
+7. Mistral 50%
+8. Mistral 65%
 
 Log: `lb_results_base/h10_full_sweep.log`
 Methods per stage: `chunk_word128_t20_h10_f{35,40,50}` / `chunk_word128_t20_h10` (65%) and phr160 equivalents.
@@ -74,6 +80,7 @@ Methods per stage: `chunk_word128_t20_h10_f{35,40,50}` / `chunk_word128_t20_h10`
 
 Average delta vs no-h10 baseline: phr128 +0.4 GT pts, phr160 −0.7 GT pts.
 Key: h10 helps multi_news (+1.9 phr128) and qmsum (+1.3), hurts lcc (−2.5/−3.6) and trec (−1.0/−2.0).
+h10 helps long-form tasks (+0.96/+0.70 pts avg) and is neutral-to-negative for short-answer tasks.
 phr160 base had anomalous +10pt on passage_retrieval_en vs phr128 — diagnosed as chunk boundary
 artifact (phr128 systematically off-by-one on paragraph numbering). Not a data error.
 
@@ -81,9 +88,20 @@ artifact (phr128 systematically off-by-one on paragraph numbering). Not a data e
 
 - §6.2: SnapKV-Select diagnostic table (KL + brief F_out note). This is the ONLY place Sel appears.
 - §8: Main cross-rate tables — Sel column removed. Methods: Naive, phr160, phr128, SnapKV, Pyr.
-- §9: PyramidKV case study. Table 5 (F_out by length category) added in this branch.
+- §9: PyramidKV case study. Old Table 4 (multi-rate F_out) removed; Table 5 renumbered to Table 4
+  (3-method F_out by output-length category, Llama 65%).
+- §9.4: Rewritten — explains T0 prefill advantage (KL=0 by construction, post-hoc cache pruning
+  doesn't alter hidden states) and T1+ drift from pruned KV cache. Old "binary regime" analysis
+  (from diagnose_distribution.py with head-truncation bug) is REMOVED and was never in paper tables.
 - §9.5: Synthesis paragraph — PyramidKV fails on its own terms (slow on short, no better on long).
 - KL metric uses y* shared prefix (fixed path-dependence flaw); see `kl_faith_eval_ystar.py`.
+
+## Data validity note
+
+`diagnose_distribution.py` (untracked, NOT used for paper tables) has a head-truncation bug at line
+213: `truncation=True, max_length=N` truncates from the left instead of the tail. All paper table
+data (kl_faith_eval_ystar.py and gt_eval_compression.py) uses tail-keeping truncation and is valid.
+The old §9.4 "binary regime" analysis came from this buggy script and has been replaced.
 
 ## Timing notes (Llama-3.1-8B, V100 32GB, fp16)
 

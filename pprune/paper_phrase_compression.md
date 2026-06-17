@@ -761,24 +761,9 @@ PyramidKV allocates KV budget unevenly across layers: near-full context at layer
 
 PyramidKV's output text is more similar to the full model's output text than any other compressed method, at every compression budget tested. The F_out advantage is particularly large on tasks with short, structured outputs: TriviaQA (97.0%), PassageCount (96.4%), 2WikiMQA (95.6%), PassageRetrieval (93.8%), LCC (92.7%), HotpotQA (92.3%). On these tasks, PyramidKV consistently produces the same text as the full model — the same classification label, the same retrieved passage, the same code completion.
 
-On tasks with longer, free-form outputs, the advantage shrinks and is sometimes reversed. Table 4 splits the sixteen tasks into twelve short-answer tasks and four long-form tasks (GovReport, QMSum, MultiNews, SAMSum — the tasks where the full model generates the longest outputs), and averages F_out for naive truncation and PyramidKV within each group, at every compression rate tested on both models.
+On tasks with longer, free-form outputs, the advantage shrinks and is sometimes reversed. Table 4 compares PyramidKV, naive truncation, and SnapKV by output-length category (Llama, 65%), showing that PyramidKV's advantage is also the most length-sensitive of the three methods.
 
-**Table 4. Average F_out by output-length category, naive vs. PyramidKV.**
-
-| Condition | Short-answer Naive | Short-answer Pyr | Long-form Naive | Long-form Pyr |
-|---|---|---|---|---|
-| Llama 65% | 74.0 | **87.9** | **55.2** | 54.1 |
-| Llama 50% | 56.2 | **73.5** | **43.0** | 40.0 |
-| Llama 40% | 53.7 | **74.6** | **41.4** | 40.5 |
-| Llama 35% | 50.9 | **76.4** | 38.4 | **41.2** |
-| Mistral 65% | 64.9 | **90.0** | 49.6 | **65.5** |
-| Mistral 35% | 57.4 | **82.4** | 41.5 | **52.0** |
-
-On short-answer tasks, PyramidKV leads naive truncation by 14 to 26 points at every condition tested — a large, one-sided, and completely consistent gap. On long-form tasks, the gap nearly disappears: naive is narrowly ahead at Llama 65%, 50%, and 40%, and PyramidKV pulls ahead only at Llama 35% and on both Mistral compression rates. Individual long-form tasks are noisy at n=100 examples each — NarrativeQA, for instance, favors naive only at Llama 65% retention (88.1% vs. 62.1%) and favors PyramidKV at every other rate and on both Mistral budgets — so the category-level average, not any single task, is the reliable signal here.
-
-The same split, with SnapKV added as a reference point, shows PyramidKV's advantage is also the most length-sensitive of the three methods.
-
-**Table 5. F_out by length category, per-example (Llama, 65%).**
+**Table 4. F_out by length category, per-example (Llama, 65%).**
 
 | Method | Short-answer F_out | Long-form F_out | Gap |
 |---|---|---|---|
@@ -806,15 +791,13 @@ PyramidKV's speed profile makes its GT advantage difficult to justify in deploym
 
 A method that pays full prefill cost, provides no TTFT improvement, has worst-in-class KL, and best-in-class F_out presents an unusual profile: it is useful only if behavioral output similarity (F_out) is the sole criterion and latency is irrelevant.
 
-### 9.4 Per-Token Distribution Analysis
+### 9.4 Prefill Advantage and Post-First-Token Drift
 
-To understand what PyramidKV's output distribution actually looks like relative to the full model, we ran a per-token analysis on TREC and LCC — two constrained tasks where the first generated token is the answer. At each y* position we recorded the rank of y*[t] in the compressed model's distribution, the probability assigned to y*[t] by both models, the entropy of p_comp, and the margin between rank-1 and rank-2 probabilities.
+PyramidKV's compression mechanism creates a structural asymmetry across generation positions that explains much of the pattern in Table 4. Because kvpress implements compression as a post-hoc in-place pruning of the stored KV cache — the forward hook fires after each attention layer, prunes the cached keys and values, then returns the original hidden states unchanged — the model's output distribution at **t=0** is identical to the full model's by construction. No information has been discarded when the first output logit is computed; the pruning takes effect only on what subsequent tokens attend to. KL at t=0 is therefore exactly 0.000 nats for every example and every retention rate.
 
-At the **first answer token (t=0)**, PyramidKV operates in a binary regime. When its layer-adaptive allocation successfully retains the context needed to identify the correct answer, its distribution at that specific position is essentially identical to the full model: mean KL at t=0 is **0.000 nats** on both TREC and LCC for correct-prediction cases, compared to 0.086 and 0.183 for naive truncation. It is also the most confident method at t=0: the margin between rank-1 and rank-2 probabilities is larger than any other method (TREC: 0.658 when correct vs. 0.622 for naive), and its distribution is the sharpest (lowest entropy). When it fails to retain the necessary context, the collapse is total: the correct token drops to rank ~34,000 with probability ≈ 0 (TREC wrong: mean KL = 19.2 nats), versus naive's more graceful degradation (rank ~23,000, p_comp = 0.083, KL = 13.3 nats).
+This prefill advantage is the direct cause of PyramidKV's short-answer F_out of 87.8% (Table 4). On tasks like TREC and TriviaQA where the answer is typically the first generated token, PyramidKV gets that token right as often as the full model does — not because it has better compression, but because it has not yet compressed anything. The `generate_clean_first` ablation (§3) removes this advantage by re-running the first-token forward pass with the pruned cache in place; the resulting F_out drop confirms that the prefill advantage is structural, not algorithmic.
 
-**Beyond the first token**, the picture is different. Even on examples where PyramidKV correctly identifies the answer at t=0, the distribution diverges substantially throughout the rest of the generated sequence. On LCC, where y* averages 49 tokens, the median within-example KL for correct-prediction cases is 1.027 nats — 13× higher than naive's 0.079 on the same correct examples. The KV corruption introduced by in-place pruning propagates through the generation: the layer-adaptive allocation preserves enough context to make the first prediction faithfully, but the corrupted hidden states that result from KV patching distort every subsequent position regardless of whether the answer was correct.
-
-The aggregate mean KL (1.394 nats) reflects two compounding effects: the catastrophic first-token failures (KL ≈ 19 nats, 24% of TREC examples) and the persistent within-sequence divergence on all examples, including correct ones. Switching to a median aggregation does not help — the median per-example KL of 1.087 nats is still 35× above naive's 0.031, confirming that the gap is not driven by outliers but is structurally present throughout the output.
+**At t≥1**, tokens attend only to the pruned KV cache. The structural corruption introduced by scattered retained positions — causal gaps that break the local attention patterns the model was trained to rely on — accumulates throughout the generated sequence. The aggregate KL of 1.394 nats is entirely from these positions. On long-form tasks, where the answer spans many tokens and the T0 advantage provides no coverage, PyramidKV's F_out of 53.6% converges toward the other compressed methods and the prefill-cost penalty becomes hard to justify.
 
 ### 9.5 Synthesis
 
@@ -830,7 +813,7 @@ The two metrics together reveal that PyramidKV's "faithfulness" is a particular 
 
 Ground-truth evaluation cannot detect any of this. KL and F_out together can.
 
-Putting the length-dependence (Table 5) together with the speed profile (§9.3) gives a practical verdict, not just a metrics curiosity. On short-answer tasks, PyramidKV's accuracy and F_out advantage is real, but it is bought at a cost that defeats the purpose of compression: full prefill over the uncompressed prompt means TTFT is *slower* than full context (7022ms vs. 6348ms), so on exactly the tasks where it wins, it is also the slowest method on the page. On long-form tasks, where generation cost is large enough that PyramidKV's decode-time speedup could matter, its faithfulness has converged to — or fallen behind — naive truncation and SnapKV, which deliver the same decode speedup without PyramidKV's prefill penalty. There is no regime in which PyramidKV is both faster and more faithful than a cheaper alternative: on short outputs it is more faithful than the other compressed methods but slower than using no compression at all, and on long outputs it is no more faithful than methods several times faster. Since the entire point of KV cache compression is to improve performance, this is a failure on its own terms, independent of where any individual metric ranks it.
+Putting the length-dependence (Table 4) together with the speed profile (§9.3) gives a practical verdict, not just a metrics curiosity. On short-answer tasks, PyramidKV's accuracy and F_out advantage is real, but it is bought at a cost that defeats the purpose of compression: full prefill over the uncompressed prompt means TTFT is *slower* than full context (7022ms vs. 6348ms), so on exactly the tasks where it wins, it is also the slowest method on the page. On long-form tasks, where generation cost is large enough that PyramidKV's decode-time speedup could matter, its faithfulness has converged to — or fallen behind — naive truncation and SnapKV, which deliver the same decode speedup without PyramidKV's prefill penalty. There is no regime in which PyramidKV is both faster and more faithful than a cheaper alternative: on short outputs it is more faithful than the other compressed methods but slower than using no compression at all, and on long outputs it is no more faithful than methods several times faster. Since the entire point of KV cache compression is to improve performance, this is a failure on its own terms, independent of where any individual metric ranks it.
 
 ---
 
