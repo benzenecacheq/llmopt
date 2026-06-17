@@ -218,6 +218,12 @@ METHOD_CONFIGS: Dict[str, Optional[PrunedLlamaConfig]] = {
     "snapkv":       PrunedLlamaConfig(score_mode="snapkv",       **BASE_CFG),
     "streaming":    PrunedLlamaConfig(score_mode="streaming",    **BASE_CFG),
     "naive_65pct":  None,   # prompt truncation — no KV patching
+    # SnapKV with forced 128-token tail window — mirrors PyramidKV's window_size=128.
+    # Tests whether tail retention alone explains PyramidKV's GT advantage.
+    "snapkv_keep128": PrunedLlamaConfig(score_mode="snapkv",
+                                        budget_fraction=0.65, min_decay=0.7,
+                                        always_keep_first=16, always_keep_last=128,
+                                        q_buffer_size=128),
     "naive_tail":   None,   # prompt truncation, pure recency tail (no head)
     "vn_decay":     PrunedLlamaConfig(score_mode="vn_decay",     **BASE_CFG),
     "pruned":       PrunedLlamaConfig(score_mode="additive", score_alpha=0.65, **BASE_CFG),
@@ -376,16 +382,22 @@ def chunk_truncate(
     fraction: float = 0.65,
     chunk_size: int = 64,
     tail_frac: float = 0.0,
+    head_frac: float = 0.0,
     scoring: str = "token",
 ) -> torch.Tensor:
     """
     Prompt-construction truncation via scored chunk selection.
 
     tail_frac controls what fraction of the budget is reserved as a fixed recency
-    tail (identical to naive truncation).  The remaining budget is filled by the
-    top-scoring chunks from the rest of the document.  tail_frac=0.0 (default)
-    scores the entire document; ties broken by recency so zero-score chunks
-    default to the most recent positions, matching naive behaviour.
+    tail (identical to naive truncation).  head_frac (default 0.0) analogously
+    reserves a fixed leading span, matching naive's head_frac — this guarantees
+    the document's opening survives even when chunk scoring has no question to
+    score against (e.g. summarization tasks with no query field) and would
+    otherwise default to pure recency. The remaining budget is filled by the
+    top-scoring chunks from the rest of the document.  With head_frac=0.0,
+    tail_frac=0.0 scores the entire document; ties broken by recency so
+    zero-score chunks default to the most recent positions, matching naive
+    behaviour.
 
     scoring options:
       "token" — raw subword-token overlap (original)
@@ -395,17 +407,21 @@ def chunk_truncate(
     Selected chunks are re-inserted in original order. No KV patching.
     """
     T = input_ids.shape[1]
-    budget     = max(1, int(T * fraction))
-    tail_n     = min(T, max(0, int(budget * tail_frac)))
-    head_budget = budget - tail_n
+    budget      = max(1, int(T * fraction))
+    tail_n      = min(T, max(0, int(budget * tail_frac)))
+    head_n      = min(T - tail_n, max(0, int(budget * head_frac)))
+    head_budget = budget - tail_n - head_n
 
+    head = input_ids[:, :head_n] if head_n > 0 else input_ids[:, :0]
     tail = input_ids[:, T - tail_n :] if tail_n > 0 else input_ids[:, :0]
 
-    if head_budget == 0 or T - tail_n <= 0:
-        return tail
+    middle_start = head_n
+    middle_end   = T - tail_n
 
-    middle_end = T - tail_n
-    starts  = list(range(0, middle_end, chunk_size))
+    if head_budget <= 0 or middle_end <= middle_start:
+        return torch.cat([head, tail], dim=1)
+
+    starts  = list(range(middle_start, middle_end, chunk_size))
     chunks  = [input_ids[:, s : min(s + chunk_size, middle_end)] for s in starts]
     has_q   = question_ids is not None and question_ids.shape[1] > 0
 
@@ -432,7 +448,8 @@ def chunk_truncate(
         remaining -= take
 
     selected.sort(key=lambda x: x[0])
-    parts = [c for _, c in selected]
+    parts = [head] if head_n > 0 else []
+    parts += [c for _, c in selected]
     if tail_n > 0:
         parts.append(tail)
     return torch.cat(parts, dim=1)
@@ -498,6 +515,25 @@ for _frac in (0.50, 0.40, 0.35):
     CHUNK_CONFIGS[f"chunk_word128_t20_f{_fpct}"] = dict(chunk_size=128, scoring="word",
                                                          tail_frac=0.20, fraction=_frac)
     METHOD_CONFIGS[f"chunk_word128_t20_f{_fpct}"] = None
+
+# Head-reserving cw128/cw160 variants: mirror naive's head_frac=0.10 so query-less
+# tasks (gov_report, multi_news) don't lose the document opening to the recency tie-break.
+CHUNK_CONFIGS["chunk_word128_t20_h10"] = dict(chunk_size=128, scoring="word",
+                                               tail_frac=0.20, head_frac=0.10)
+METHOD_CONFIGS["chunk_word128_t20_h10"] = None
+CHUNK_CONFIGS["chunk_word160_t25_h10"] = dict(chunk_size=160, scoring="word",
+                                               tail_frac=0.25, head_frac=0.10)
+METHOD_CONFIGS["chunk_word160_t25_h10"] = None
+for _frac in (0.50, 0.40, 0.35):
+    _fpct = int(_frac * 100)
+    CHUNK_CONFIGS[f"chunk_word128_t20_h10_f{_fpct}"] = dict(chunk_size=128, scoring="word",
+                                                             tail_frac=0.20, head_frac=0.10,
+                                                             fraction=_frac)
+    METHOD_CONFIGS[f"chunk_word128_t20_h10_f{_fpct}"] = None
+    CHUNK_CONFIGS[f"chunk_word160_t25_h10_f{_fpct}"] = dict(chunk_size=160, scoring="word",
+                                                             tail_frac=0.25, head_frac=0.10,
+                                                             fraction=_frac)
+    METHOD_CONFIGS[f"chunk_word160_t25_h10_f{_fpct}"] = None
 
 for _sel in ("snapkv_select", "radar_select"):
     METHOD_CONFIGS[_sel] = None

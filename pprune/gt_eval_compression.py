@@ -66,7 +66,7 @@ from kl_faith_eval import (
     patch_model,
     unpatch_model,
 )
-from kl_faith_eval_ystar import make_comp_ids, _KVPRESS_METHODS
+from kl_faith_eval_ystar import make_comp_ids, _KVPRESS_METHODS, _SELECT_METHODS, CHUNK_CONFIGS
 
 
 # ---------------------------------------------------------------------------
@@ -638,7 +638,7 @@ def main():
 
         if args.methods:
             override = [m.strip() for m in args.methods.split(",")
-                        if m.strip() in METHOD_CONFIGS or m.strip() in _KVPRESS_METHODS]
+                        if m.strip() in METHOD_CONFIGS or m.strip() in _KVPRESS_METHODS or m.strip() in _SELECT_METHODS or m.strip() in CHUNK_CONFIGS]
             batches = [{"label": "65pct", "methods": override}]
         else:
             batches = RATIO_BATCHES
@@ -675,7 +675,7 @@ def main():
 
     if args.methods:
         batches = [{"label": "65pct", "methods": [m.strip() for m in args.methods.split(",")
-                    if m.strip() in METHOD_CONFIGS or m.strip() in _KVPRESS_METHODS]}]
+                    if m.strip() in METHOD_CONFIGS or m.strip() in _KVPRESS_METHODS or m.strip() in _SELECT_METHODS or m.strip() in CHUNK_CONFIGS]}]
     else:
         batches = RATIO_BATCHES
     method_order = [m for batch in batches for m in batch["methods"]]

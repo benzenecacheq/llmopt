@@ -185,6 +185,7 @@ def scored_select_ids(
     always_keep_first: int = 16,
     always_keep_last: int = 16,
     n_score_layers: Optional[int] = None,
+    pyramid_weighted: bool = False,
 ) -> Optional[torch.Tensor]:
     """
     Score tokens via a forward pass using the given score_mode, then return the
@@ -232,8 +233,26 @@ def scored_select_ids(
     if not score_capture:
         return None
 
-    # Average global_scores across layers: each entry is (T,) cpu float32
-    avg_scores = torch.stack(score_capture, dim=0).mean(dim=0)   # (T,)
+    # Aggregate per-layer scores.
+    stacked = torch.stack(score_capture, dim=0)   # (n_layers, T)
+    if pyramid_weighted:
+        # Weight layer i by PyramidKV's budget for that layer:
+        # lower layers get more weight, matching the pyramid allocation.
+        n_layers = stacked.shape[0]
+        comp_ratio = 1 - fraction
+        window_size = 128; beta = 20
+        max_cap = window_size + T * (1 - comp_ratio)
+        min_num = (max_cap - window_size) / beta
+        max_num = (max_cap - window_size) * 2 - min_num
+        max_num = min(max_num, T - window_size)
+        min_num = (max_cap - window_size) * 2 - max_num
+        steps = (max_num - min_num) / max(n_layers - 1, 1)
+        budgets = torch.tensor([max(1.0, max_num - i * steps) for i in range(n_layers)],
+                               dtype=torch.float32)
+        weights = budgets / budgets.sum()
+        avg_scores = (stacked * weights.unsqueeze(1)).sum(dim=0)
+    else:
+        avg_scores = stacked.mean(dim=0)   # (T,)
 
     # Select tokens using the same always-keep + top-k logic as _run_filter_prefill
     head_end   = min(always_keep_first, T)
@@ -261,17 +280,21 @@ def scored_select_ids(
 # Compressed prompt construction (mirrors kl_faith_eval.kl_for_example)
 # ---------------------------------------------------------------------------
 
-# Maps select method name → (score_mode, fraction, n_score_layers)
-# n_score_layers=None means use all layers.
+# Maps select method name → (score_mode, fraction, n_score_layers, pyramid_weighted)
 _SELECT_METHODS = {}
 for _name, _mode in [("snapkv_select", "snapkv"), ("radar_select", "kq_post_rope")]:
-    _SELECT_METHODS[_name] = (_mode, 0.65, None)
+    _SELECT_METHODS[_name] = (_mode, 0.65, None, False)
     for _frac in (0.50, 0.40, 0.35):
         _fpct = int(_frac * 100)
-        _SELECT_METHODS[f"{_name}_f{_fpct}"] = (_mode, _frac, None)
-    # Layer ablation: snapkv_select and radar_select at 65% with 1/4/8 scoring layers
+        _SELECT_METHODS[f"{_name}_f{_fpct}"] = (_mode, _frac, None, False)
     for _nl in (1, 4, 8):
-        _SELECT_METHODS[f"{_name}_l{_nl}"] = (_mode, 0.65, _nl)
+        _SELECT_METHODS[f"{_name}_l{_nl}"] = (_mode, 0.65, _nl, False)
+
+# pyramidkv_select: SnapKV attention scoring weighted by PyramidKV's layer budgets,
+# then reconstructed as a gapless prompt. Separates token selection from KV patching.
+_SELECT_METHODS["pyramidkv_select"] = ("snapkv", 0.65, None, True)
+for _frac in (0.50, 0.40, 0.35):
+    _SELECT_METHODS[f"pyramidkv_select_f{int(_frac*100)}"] = ("snapkv", _frac, None, True)
 
 
 # ---------------------------------------------------------------------------
@@ -323,6 +346,14 @@ if _KVPRESS_AVAILABLE:
     _KVPRESS_METHODS["pyramidkv_short"] = _PyramidKVPress(
         compression_ratio=0.35,   # keep 65% — same as pyramidkv
         window_size=128,
+        beta=20,
+    )
+    # No-window variant: identical compression but window_size=0 removes the
+    # unconditional tail-retention guarantee.  Tests whether always_keep_last
+    # drives first-token accuracy on tail-anchored tasks (TREC, LCC).
+    _KVPRESS_METHODS["pyramidkv_no_window"] = _PyramidKVPress(
+        compression_ratio=0.35,   # keep 65%
+        window_size=1,            # minimum valid; effectively removes tail retention
         beta=20,
     )
     # "clean_first" variant: same compression config, but gt_eval_compression.py
@@ -446,9 +477,10 @@ def make_comp_ids(
                  if question_text else None)
         comp_ids = chunk_truncate(full_ids, q_ids, tokenizer=tokenizer, **CHUNK_CONFIGS[method])
     elif method in _SELECT_METHODS and model is not None:
-        score_mode, frac, n_layers = _SELECT_METHODS[method]
+        score_mode, frac, n_layers, pyr_weighted = _SELECT_METHODS[method]
         ids = scored_select_ids(model, full_ids, device, score_mode=score_mode,
-                                fraction=frac, n_score_layers=n_layers)
+                                fraction=frac, n_score_layers=n_layers,
+                                pyramid_weighted=pyr_weighted)
         comp_ids = ids if ids is not None else naive_truncate(full_ids, fraction=frac, head_frac=0.10)
     elif method in _SALIENCE_METHODS and salience_table is not None:
         stat, frac, unseen_policy = _SALIENCE_METHODS[method]
@@ -973,7 +1005,8 @@ def main():
         sys.stdout = _Tee(Path(args.log))
 
     tasks   = [t.strip() for t in args.tasks.split(",")   if t.strip() in ENGLISH_TASKS]
-    methods = [m.strip() for m in args.methods.split(",") if m.strip() in METHOD_CONFIGS]
+    _all_known = set(METHOD_CONFIGS) | set(_SELECT_METHODS) | set(CHUNK_CONFIGS) | set(_KVPRESS_METHODS) | set(_SALIENCE_METHODS)
+    methods = [m.strip() for m in args.methods.split(",") if m.strip() in _all_known]
 
     if not tasks:
         print("No valid tasks."); return
