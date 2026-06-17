@@ -763,15 +763,15 @@ PyramidKV's output text is more similar to the full model's output text than any
 
 On tasks with longer, free-form outputs, the advantage shrinks and is sometimes reversed. Table 4 compares PyramidKV, naive truncation, and SnapKV by output-length category (Llama, 65%), showing that PyramidKV's advantage is also the most length-sensitive of the three methods.
 
-**Table 4. F_out by length category, per-example (Llama, 65%).**
+**Table 4. F_out by length category (Llama, 65%). Short = full-model reference output ≤ 90 words (n=1155); Long = > 90 words (n=445).**
 
 | Method | Short-answer F_out | Long-form F_out | Gap |
 |---|---|---|---|
-| PyramidKV | **87.8** | 53.6 | 34.1 |
-| Naive | 73.4 | **54.9** | 18.5 |
-| SnapKV | 56.9 | 47.7 | 9.2 |
+| PyramidKV | **88.1** | 55.5 | 32.6 |
+| Naive | 72.8 | **57.6** | 15.2 |
+| SnapKV | 56.1 | 50.2 | 6.0 |
 
-PyramidKV's short-to-long drop (34.1 points) is nearly twice naive's (18.5) and almost four times SnapKV's (9.2). SnapKV has little length-dependent advantage to lose in the first place — it is mediocre on both categories — so its flatness is not a virtue, but PyramidKV's steepness is a real liability: the headline F_out number is propped up almost entirely by short, structured outputs, and erodes fastest of all three methods as soon as the task demands sustained generation.
+PyramidKV's short-to-long drop (32.6 points) is more than twice naive's (15.2) and five times SnapKV's (6.0). SnapKV has little length-dependent advantage to lose in the first place — it is mediocre on both categories — so its flatness is not a virtue, but PyramidKV's steepness is a real liability: the headline F_out number is propped up almost entirely by short, structured outputs, and erodes fastest of all three methods as soon as the task demands sustained generation.
 
 This asymmetry has a structural explanation: PyramidKV performs a full prefill over the uncompressed prompt before pruning the KV cache in-place, so its output distribution at the first generated token is identical to the full model's by construction. On short-answer tasks where the answer is a single token or short phrase — a class label, a retrieved passage, a trivia answer — the first token IS the answer, so F_out is essentially 1.0 whenever the full model is also correct. The average F_out of 79.4% is substantially driven by these tasks dominating the 16-task mix.
 
