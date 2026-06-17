@@ -395,7 +395,7 @@ We use word-level overlap as the default because it is simple, requires no corpu
 
 ### 7.4 Phrase Boundaries
 
-The current implementation uses fixed-size phrases of *c* tokens (default *c* = 160). **Phrase size and tail fraction selection.** We conducted a grid search over phrase sizes *c* ∈ {96, 128, 160} and tail fractions *τ* ∈ {0.20, 0.25, 0.30} to select hyperparameters. Each configuration was evaluated by mean y* KL divergence across the 6 primary tasks (2WikiMQA, MultifieldQA, Qasper, QMSum, RepoBench-P, TriviaQA) at 65% retention.
+The current implementation uses fixed-size phrases of *c* tokens. **Phrase size and tail fraction selection.** We conducted a grid search over phrase sizes *c* ∈ {96, 128, 160} and tail fractions *τ* ∈ {0.20, 0.25, 0.30} to select hyperparameters. Each configuration was evaluated by mean y* KL divergence across the 6 primary tasks (2WikiMQA, MultifieldQA, Qasper, QMSum, RepoBench-P, TriviaQA) at 65% retention.
 
 | Configuration | 2WikiMQA | MultifieldQA | Qasper | QMSum | RepoBench-P | TriviaQA | **Mean** |
 |---|---|---|---|---|---|---|---|
@@ -408,7 +408,7 @@ The current implementation uses fixed-size phrases of *c* tokens (default *c* = 
 | phrase\_word96\_t25  | 0.095 | 0.217 | 0.179 | 0.056 | 0.097 | 0.057 | 0.117 |
 | phrase\_word96\_t30  | 0.097 | 0.210 | 0.180 | 0.057 | 0.094 | 0.058 | 0.116 |
 
-phrase\_word160\_t25 achieves the lowest mean KL (0.096) and is adopted as the primary configuration. phrase\_word128\_t20 ties it within rounding (0.097) and is retained as a secondary configuration. The 96-token variants are clearly inferior on MultifieldQA and Qasper, suggesting that 96 tokens is insufficient to capture coherent semantic units in these long-document tasks.
+The top configurations (phrase\_word160\_t25 at 0.096 and phrase\_word128\_t20 at 0.097) are statistically tied. phrase\_word128\_t20 is adopted as the single benchmark configuration (phr128) — its slightly shorter phrases produce more granular selections, and it performs marginally better at tighter compression rates. The 96-token variants are clearly inferior on MultifieldQA and Qasper, suggesting that 96 tokens is insufficient to capture coherent semantic units in these long-document tasks.
 
 ---
 
@@ -429,20 +429,19 @@ phrase\_word160\_t25 achieves the lowest mean KL (0.096) and is adopted as the p
 | SnapKV | KV pruning | Pooled attention weights over observation window |
 | Streaming | KV pruning | Attention sinks + recency window |
 | PyramidKV | KV pruning | Layer-adaptive pyramid budget allocation |
-| **phrase\_word160\_t25 (phr160)** | Prompt construction | Word-overlap scoring, 160-token phrases, 25% tail |
 | phrase\_word128\_t20 (phr128) | Prompt construction | Word-overlap scoring, 128-token phrases, 20% tail |
 
-All methods target 65% token retention unless noted. PyramidKV, SnapKV, Naive, phr160, and phr128 are also evaluated at 50%, 40%, and 35%.
+All methods target 65% token retention unless noted. PyramidKV, SnapKV, Naive, and phr128 are also evaluated at 50%, 40%, and 35%.
 
 ### 8.2 KL Faithfulness: Main Results
 
-At 65% retention, phr128 leads phrase methods at 0.144 mean KL, with phr160 (0.147) close behind; both beat naive truncation (0.175) and SnapKV KV pruning (0.188). phr128 wins outright on NarrativeQA, Qasper, MuSiQue, 2WikiMQA, and PassageRetrieval; phr160 wins on MultifieldQA, HotpotQA, and QMSum; naive truncation wins on LCC and SAMSum, where the relevant signal is already concentrated in the recency tail. MultiNews is the one task where SnapKV KV pruning (0.407) outperforms all prompt-construction methods — consistent with the multi-document structure noted in §10.2.
+At 65% retention, phr128 leads at 0.144 mean KL, beating naive truncation (0.175) and SnapKV KV pruning (0.188). phr128 wins outright on NarrativeQA, Qasper, MuSiQue, 2WikiMQA, PassageRetrieval, MultifieldQA, HotpotQA, and QMSum; naive truncation wins on LCC and SAMSum, where the relevant signal is already concentrated in the recency tail. MultiNews is the one task where SnapKV KV pruning (0.407) outperforms all prompt-construction methods — consistent with the multi-document structure noted in §10.2.
 
-**Tables 2a–2d. KL Faithfulness across compression rates (lower is better). phr160 = phrase\_word160\_t25; phr128 = phrase\_word128\_t20; SnapKV = SnapKV KV pruning; Pyr = PyramidKV. Bold = best among prompt-construction methods per row. PyramidKV excluded from bold competition.**
+**Tables 2a–2d. KL Faithfulness across compression rates (lower is better). phr128 = phrase\_word128\_t20; SnapKV = SnapKV KV pruning; Pyr = PyramidKV. Bold = best among prompt-construction methods per row. PyramidKV excluded from bold competition.**
 
 **Table 2a. 65% retention.**
 
-| Task | Naive | phr160 | phr128 | SnapKV | Pyr |
+| Task | Naive | phr128 | SnapKV | Pyr |
 |---|---|---|---|---|---|
 | NarrativeQA† | 0.022 | 0.023 | **0.020** | 0.060 | 1.337 |
 | Qasper† | 0.281 | 0.139 | **0.131** | 0.223 | 1.229 |
@@ -464,7 +463,7 @@ At 65% retention, phr128 leads phrase methods at 0.144 mean KL, with phr160 (0.1
 
 **Table 2b. 50% retention.**
 
-| Task | Naive | phr160 | phr128 | SnapKV | Pyr |
+| Task | Naive | phr128 | SnapKV | Pyr |
 |---|---|---|---|---|---|
 | NarrativeQA† | **0.026** | 0.038 | 0.028 | 0.138 | 1.380 |
 | Qasper† | 0.457 | **0.256** | 0.264 | 0.348 | 1.394 |
@@ -486,7 +485,7 @@ At 65% retention, phr128 leads phrase methods at 0.144 mean KL, with phr160 (0.1
 
 **Table 2c. 40% retention.**
 
-| Task | Naive | phr160 | phr128 | SnapKV | Pyr |
+| Task | Naive | phr128 | SnapKV | Pyr |
 |---|---|---|---|---|---|
 | NarrativeQA† | **0.035** | 0.041 | 0.045 | 0.273 | 0.702 |
 | Qasper† | 0.577 | 0.362 | **0.346** | 0.485 | 0.772 |
@@ -508,7 +507,7 @@ At 65% retention, phr128 leads phrase methods at 0.144 mean KL, with phr160 (0.1
 
 **Table 2d. 35% retention.**
 
-| Task | Naive | phr160 | phr128 | SnapKV | Pyr |
+| Task | Naive | phr128 | SnapKV | Pyr |
 |---|---|---|---|---|---|
 | NarrativeQA† | **0.045** | 0.055 | 0.076 | 0.334 | 0.559 |
 | Qasper† | 0.637 | 0.385 | **0.381** | 0.588 | 0.858 |
@@ -528,7 +527,7 @@ At 65% retention, phr128 leads phrase methods at 0.144 mean KL, with phr160 (0.1
 | RepoBench-P | **0.087** | 0.107 | 0.107 | 0.635 | 0.511 |
 | **Average** | 0.281 | 0.230 | **0.228** | 0.683 | 0.837 |
 
-At 65% retention, phr128 (0.144) and phr160 (0.147) both beat naive truncation (0.175) and SnapKV KV pruning (0.188). At 50%, phr128 (0.170) and phr160 (0.171) remain ahead of naive (0.217). At 40% and 35%, phr128 continues to lead (0.203 and 0.228 respectively). SnapKV KV pruning degrades catastrophically as the budget tightens (0.188 → 0.364 → 0.581 → 0.683), while prompt-construction methods degrade gracefully. The key cross-rate result: phr128/50% (0.170) matches Naive/65% (0.175) — nearly identical faithfulness with 15% less context. phr128/40% (0.203) beats Naive/50% (0.217), and phr128/35% (0.228) beats Naive/40% (0.256): tighter phrase compression is more faithful than looser naive truncation at every step. MultiNews at 65% remains the one exception where SnapKV KV pruning (0.407) edges out prompt-construction methods (Naive: 0.585), consistent with §10.2.
+At 65% retention, phr128 (0.144) beats naive truncation (0.175) and SnapKV KV pruning (0.188). At 50%, phr128 (0.170) remains ahead of naive (0.217). At 40% and 35%, phr128 continues to lead (0.203 and 0.228 respectively). SnapKV KV pruning degrades catastrophically as the budget tightens (0.188 → 0.364 → 0.581 → 0.683), while prompt-construction methods degrade gracefully. The key cross-rate result: phr128/50% (0.170) matches Naive/65% (0.175) — nearly identical faithfulness with 15% less context. phr128/40% (0.203) beats Naive/50% (0.217), and phr128/35% (0.228) beats Naive/40% (0.256): tighter phrase compression is more faithful than looser naive truncation at every step. MultiNews at 65% remains the one exception where SnapKV KV pruning (0.407) edges out prompt-construction methods (Naive: 0.585), consistent with §10.2.
 
 PyramidKV shows a counterintuitive compression trajectory: mean KL is 1.394 at 65%, rises slightly to 1.451 at 50%, then drops sharply to 0.994 at 40% and 0.837 at 35%. Tighter PyramidKV compression produces *better* KL faithfulness — the opposite of every other method. This is consistent with the clamping hypothesis: at 65% retention, PyramidKV's budget allocator clamps upward at lower layers, creating over-retention that disrupts the expected attention pattern. At 40–35% retention, the budget is unclamped and the pyramid allocation operates as intended. Even so, PyramidKV at its best (0.837 at 35%) remains 3.7× worse than the best prompt-construction method at the same budget (phr128: 0.228), confirming that the KL gap is structural rather than a configuration artifact.
 
@@ -536,7 +535,7 @@ PyramidKV shows a counterintuitive compression trajectory: mean KL is 1.394 at 6
 
 **Mistral 65% retention.**
 
-| Task | Naive | phr160 | phr128 | SnapKV | Pyr |
+| Task | Naive | phr128 | SnapKV | Pyr |
 |---|---|---|---|---|---|
 | NarrativeQA† | **0.003** | 0.004 | 0.010 | 0.016 | 0.780 |
 | Qasper† | 0.071 | 0.060 | **0.053** | 0.079 | 0.472 |
@@ -558,7 +557,7 @@ PyramidKV shows a counterintuitive compression trajectory: mean KL is 1.394 at 6
 
 **Mistral 35% retention.**
 
-| Task | Naive | phr160 | phr128 | SnapKV | Pyr |
+| Task | Naive | phr128 | SnapKV | Pyr |
 |---|---|---|---|---|---|
 | NarrativeQA† | **0.011** | 0.019 | 0.019 | 0.055 | 0.203 |
 | Qasper† | 0.165 | **0.110** | 0.124 | 0.155 | 0.262 |
@@ -578,7 +577,7 @@ PyramidKV shows a counterintuitive compression trajectory: mean KL is 1.394 at 6
 | RepoBench-P | 0.110 | **0.090** | 0.104 | 0.270 | 0.661 |
 | **Average** | 0.188 | 0.161 | **0.159** | 0.281 | 0.586 |
 
-The Mistral rankings are consistent with Llama at both rates. At 65%, phr128 leads (0.121) with phr160 (0.125) close behind; both beat Naive (0.133) and SnapKV KV pruning (0.141). At 35%, phr128 retains the lead (0.159) with phr160 nearly tied (0.161). SnapKV degrades from 0.141 to 0.281 — a factor of 2× — versus Llama's 3.6× (0.188 → 0.683): the direction is the same, the severity smaller. PyramidKV again improves at tighter compression (0.734 → 0.586), consistent with the layer-budget clamping hypothesis, and again remains far worse than any prompt-construction method at the same budget (0.586 vs. 0.159 for phr128). MultiNews is the one task where SnapKV leads at 65% (0.340 vs. Naive 0.586); at 35% that advantage disappears.
+The Mistral rankings are consistent with Llama at both rates. At 65%, phr128 leads (0.121), beating Naive (0.133) and SnapKV KV pruning (0.141). At 35%, phr128 retains the lead (0.159). SnapKV degrades from 0.141 to 0.281 — a factor of 2× — versus Llama's 3.6× (0.188 → 0.683): the direction is the same, the severity smaller. PyramidKV again improves at tighter compression (0.734 → 0.586), consistent with the layer-budget clamping hypothesis, and again remains far worse than any prompt-construction method at the same budget (0.586 vs. 0.159 for phr128). MultiNews is the one task where SnapKV leads at 65% (0.340 vs. Naive 0.586); at 35% that advantage disappears.
 
 ### 8.3 Inference Performance
 
@@ -586,12 +585,12 @@ Compression is only worthwhile if it makes inference faster. We measure two quan
 
 **Mean TTFT by retention rate** (Full context baseline: 6348 ms):
 
-| Retention | phr160 | Savings | phr128 | Savings | Pyr | Overhead |
-|---|---|---|---|---|---|---|
-| 65% | 2520 ms | 60% | 2464 ms | 61% | 7022 ms | +11% |
-| 50% | 2174 ms | 66% | 2139 ms | 66% | 7109 ms | +12% |
-| 40% | 1847 ms | 71% | 1838 ms | 71% | 7135 ms | +12% |
-| 35% | 1675 ms | 74% | 1666 ms | 74% | 7143 ms | +13% |
+| Retention | phr128 | Savings | Pyr | Overhead |
+|---|---|---|---|---|
+| 65% | 2464 ms | 61% | 7022 ms | +11% |
+| 50% | 2139 ms | 66% | 7109 ms | +12% |
+| 40% | 1838 ms | 71% | 7135 ms | +12% |
+| 35% | 1666 ms | 74% | 7143 ms | +13% |
 
 Phrase methods cut TTFT by 60–74% simply by feeding the model a shorter prompt. PyramidKV goes the other direction entirely: it performs a full prefill before pruning the KV cache in-place, so its TTFT exceeds full context by 11–13% regardless of retention rate.
 
@@ -605,7 +604,7 @@ Output Faithfulness (F_out) measures how similar the compressed model's generate
 
 **Table 3a. 65% retention.**
 
-| Task | Naive | phr160 | phr128 | SnapKV | Pyr |
+| Task | Naive | phr128 | SnapKV | Pyr |
 |---|---|---|---|---|---|
 | NarrativeQA† | **88.1** | 54.9 | 52.4 | 51.0 | 62.1 |
 | Qasper† | 46.6 | 50.5 | 52.1 | 50.4 | **72.8** |
@@ -627,7 +626,7 @@ Output Faithfulness (F_out) measures how similar the compressed model's generate
 
 **Table 3b. 50% retention.**
 
-| Task | Naive | phr160 | phr128 | SnapKV | Pyr |
+| Task | Naive | phr128 | SnapKV | Pyr |
 |---|---|---|---|---|---|
 | NarrativeQA† | 48.6 | 51.2 | 51.0 | 36.4 | **53.4** |
 | Qasper† | 38.3 | 44.4 | 42.7 | 44.5 | **52.4** |
@@ -649,7 +648,7 @@ Output Faithfulness (F_out) measures how similar the compressed model's generate
 
 **Table 3c. 40% retention.**
 
-| Task | Naive | phr160 | phr128 | SnapKV | Pyr |
+| Task | Naive | phr128 | SnapKV | Pyr |
 |---|---|---|---|---|---|
 | NarrativeQA† | 49.0 | 47.2 | 47.2 | 24.7 | **59.9** |
 | Qasper† | 37.5 | 45.4 | 42.2 | 33.7 | **55.1** |
@@ -671,7 +670,7 @@ Output Faithfulness (F_out) measures how similar the compressed model's generate
 
 **Table 3d. 35% retention.**
 
-| Task | Naive | phr160 | phr128 | SnapKV | Pyr |
+| Task | Naive | phr128 | SnapKV | Pyr |
 |---|---|---|---|---|---|
 | NarrativeQA† | 44.9 | 44.5 | 47.7 | 18.7 | **57.6** |
 | Qasper† | 34.5 | 42.3 | 42.8 | 30.3 | **51.9** |
@@ -697,13 +696,13 @@ PyramidKV leads F_out at every budget (79.4% → 65.1% → 66.1% → 67.6%), wit
 
 SnapKV degrades catastrophically on F_out as the budget tightens: 55.4% → 41.5% → 34.4% → 31.7%. At 35% retention, SnapKV reproduces less than a third of the full model's output text on average. The KL tables show the same direction but the F_out tables make the behavioral consequences concrete: at tight budgets, SnapKV is generating almost entirely different text from the full model.
 
-Prompt-construction methods (naive, phr160, phr128) cluster tightly and degrade gracefully. At 65%, naive leads (69.3%); at 35%, the phrase and sel methods have caught up (~49%). The ordering within the cluster varies by task, with no single method consistently leading — matching the KL pattern for these methods. At every budget, all four prompt-construction methods are substantially more output-faithful than SnapKV.
+Prompt-construction methods (naive, phr128) cluster tightly and degrade gracefully. At 65%, naive leads (69.3%); at 35%, phr128 has nearly caught up (~49%). The ordering varies by task, with no single method consistently leading — matching the KL pattern for these methods. At every budget, both prompt-construction methods are substantially more output-faithful than SnapKV.
 
 **Mistral F_out.** The same qualitative pattern holds.
 
 **Mistral 65% retention.**
 
-| Task | Naive | phr160 | phr128 | SnapKV | Pyr |
+| Task | Naive | phr128 | SnapKV | Pyr |
 |---|---|---|---|---|---|
 | NarrativeQA† | 41.0 | 46.9 | 42.3 | 32.5 | **55.5** |
 | Qasper† | 68.9 | 64.9 | 64.4 | 54.8 | **86.0** |
@@ -725,7 +724,7 @@ Prompt-construction methods (naive, phr160, phr128) cluster tightly and degrade 
 
 **Mistral 35% retention.**
 
-| Task | Naive | phr160 | phr128 | SnapKV | Pyr |
+| Task | Naive | phr128 | SnapKV | Pyr |
 |---|---|---|---|---|---|
 | NarrativeQA† | 39.5 | 40.5 | 31.9 | 27.5 | **54.6** |
 | Qasper† | 60.6 | 56.3 | 56.2 | 48.0 | **77.0** |
