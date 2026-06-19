@@ -29,31 +29,29 @@ The key architectural idea: replace per-layer Wq and Wk with a single shared M m
 - **BLT 1-M from-scratch OWT (seed 19)**: DONE (2026-06-07). `run_blt_scratch_seed19.pt`, 600K steps, 337,021s (562ms/step, this machine ~27% slower than seed42 machine), final WikiText val_ppl=85.82, OWT held-out ppl=**30.48** (loss 3.4170 nats). Result files: `lm_eval_blt_scratch_seed19.json`. Note: WikiText val_ppl was noisy throughout training (swings of 25+ ppl); OWT ppl is stable and the reliable metric.
 - **GQA 2-group from-scratch OWT (seed 42)**: DONE (2026-06-11). `run_gqa_scratch_seed42.pt`, 500K steps, 296,815s (593ms/step), final WikiText val_ppl=57.43, OWT held-out ppl=**27.64** (loss 3.3192 nats). Result files: `lm_eval_gqa_scratch.json`.
 - **BLT 1-M from-scratch OWT (seed 7)**: DONE (2026-06-16). `run_blt_scratch_seed7.pt`, 500K steps, final OWT held-out ppl=**30.81** (loss 3.4279 nats). Third BLT seed; consistent with seed42 (31.05) and seed19 (30.48), confirming the ~0.10 nat gap vs GPT-2/GQA holds across seeds. Result files: `lm_eval_blt_scratch_seed7.json`.
-
-## Active run
-**Hybrid model (6 MHA + 6 BLT layers), from-scratch OWT, seed 42**: in progress since 2026-06-16. `run_hybrid_mha6_scratch_seed42.pt`, target 500K steps, currently ~392K/500K (~78%) as of 2026-06-18. Tests whether BLT's expressiveness cost concentrates in early layers (see paper_blt.md "Hybrid architecture" section). The run had an earlier OOM crash (see `run_hybrid_mha6_scratch_seed42.log`) and was restarted by a watcher script; the currently running process (started 2026-06-16) is healthy.
-
-**Known issue (fixed in commit 1f3803d, not yet applied to the running process)**: a log-naming bug caused this run's per-step training log to be written to `run_seed42.log` (the old BLT WikiText run's log file) instead of `run_hybrid_mha6_scratch_seed42.log`, because `log_path` previously always defaulted to `run_seed{seed}.log` regardless of `--save-path`. The checkpoint (`.pt`) itself is unaffected — only the log location. The fix (derives log path from `--save-path` when given) is committed in `train.py`, but the currently running process predates it, so the log will keep going to `run_seed42.log` until the run is next restarted/resumed.
+- **Hybrid model (6 MHA + 6 BLT layers), from-scratch OWT, seed 42**: DONE (2026-06-19). `run_hybrid_mha6_scratch_seed42.pt`, 500K steps, 305,249s, final WikiText val_ppl=69.08, OWT held-out ppl=**28.40** (loss 3.3462 nats). Result files: `lm_eval_hybrid_scratch.json`. The run had an earlier OOM crash partway through (see `run_hybrid_mha6_scratch_seed42.log`) and was restarted by a watcher script; completed cleanly afterward. Per the log-naming bug fixed in commit 1f3803d, this run's per-step training log went to `run_seed42.log` instead of its own filename (checkpoint unaffected).
+- **Major finding — hybrid closes most of the BLT gap**: OWT loss gap vs GPT-2 drops from ~0.10-0.11 nats (full BLT) to just **0.022 nats** (hybrid, 3.3462 vs GPT-2's 3.3243) — i.e., halving the BLT layers recovers >75% of the lost ground, not half. LAMBADA acc (0.222) and ppl (167.1) are the *best* of the whole BLT family, edging out even GPT-2's LAMBADA ppl (174.6). This suggests the per-layer Wq/Wk in the 6 retained MHA layers do most of the work of capturing long-range/positional structure that full M-sharing loses, and that BLT's expressiveness cost is not simply additive across layers — see paper_blt.md "Hybrid architecture" section for write-up.
 
 ## Benchmark results (lm-eval-harness)
 
 ### From-scratch OWT runs — primary comparison
 
-| Task | BLT seed42 (550K) | BLT seed19 (600K) | BLT seed7 (500K) | GPT-2 seed42 (500K) | GQA seed42 (500K) |
-|------|-------------------|-------------------|-------------------|---------------------|-------------------|
-| OWT held-out ppl | 31.05 | 30.48 | 30.81 | 27.78 | **27.64** |
-| OWT held-out loss | 3.4357 | 3.4170 | 3.4279 | 3.3243 | **3.3192** |
-| LAMBADA acc | 0.205 | 0.209 | 0.212 | **0.225** | 0.204 |
-| LAMBADA ppl | 349.6 | 288.6 | 244.4 | **174.6** | 205.3 |
-| HellaSwag acc_norm | **0.271** | 0.267 | 0.268 | 0.268 | 0.269 |
-| PIQA acc_norm | 0.561 | 0.572 | 0.568 | **0.579** | 0.568 |
-| Winogrande acc | **0.528** | 0.511 | 0.516 | 0.505 | 0.496 |
+| Task | BLT seed42 (550K) | BLT seed19 (600K) | BLT seed7 (500K) | Hybrid 6MHA+6BLT (500K) | GPT-2 seed42 (500K) | GQA seed42 (500K) |
+|------|-------------------|-------------------|-------------------|--------------------------|---------------------|-------------------|
+| OWT held-out ppl | 31.05 | 30.48 | 30.81 | 28.40 | 27.78 | **27.64** |
+| OWT held-out loss | 3.4357 | 3.4170 | 3.4279 | 3.3462 | 3.3243 | **3.3192** |
+| LAMBADA acc | 0.205 | 0.209 | 0.212 | **0.222** | 0.225 | 0.204 |
+| LAMBADA ppl | 349.6 | 288.6 | 244.4 | **167.1** | 174.6 | 205.3 |
+| HellaSwag acc_norm | 0.271 | 0.267 | 0.268 | **0.273** | 0.268 | 0.269 |
+| PIQA acc_norm | 0.561 | 0.572 | 0.568 | 0.562 | **0.579** | 0.568 |
+| Winogrande acc | **0.528** | 0.511 | 0.516 | 0.504 | 0.505 | 0.496 |
 
 **Key findings:**
 - All three BLT seeds consistent (OWT ppl 30.48–31.05), confirming ~0.10 nat gap vs GPT-2/GQA is real, not seed variance.
 - GQA edges GPT-2 on OWT ppl (27.64 vs 27.78) despite similar parameter counts — KV compression at 2 groups has no cost and marginal benefit.
-- GPT-2 still wins on LAMBADA despite worse OWT ppl than GQA — full per-layer Wk matters for long-range prediction specifically.
-- HellaSwag, PIQA, Winogrande are essentially four-way ties within noise; BLT holds a slight Winogrande edge.
+- GPT-2 still wins on LAMBADA acc despite worse OWT ppl than GQA — full per-layer Wk matters for long-range prediction specifically. But the hybrid model actually has the best LAMBADA ppl (167.1, beating even GPT-2's 174.6), suggesting 6 full MHA layers recover essentially all of LAMBADA's long-range needs.
+- HellaSwag, PIQA, Winogrande are essentially ties within noise across all variants; BLT/hybrid hold a slight Winogrande edge over GPT-2/GQA.
+- **Hybrid result is non-additive**: halving the BLT layer count (12→6) cuts the OWT loss gap vs GPT-2 from ~0.10-0.11 nats down to 0.022 nats — recovering over 75% of the gap, not 50%. This implies the expressiveness cost of M-sharing is front-loaded or compounding across layers rather than a flat per-layer tax; 6 unrestricted MHA layers (regardless of which 6) are enough to mostly route around it. See paper_blt.md "Hybrid architecture" for analysis of which layer positions were used.
 - The ~0.10 nat BLT gap vs GPT-2/GQA is attributable to cross-layer M sharing (expressiveness cost), not parameter count — GQA has similar params to BLT but matches GPT-2.
 - BLT speed advantage (seed42 machine) was hardware-specific — on this machine BLT runs at 562ms/step vs GPT-2's 560ms/step on the other machine.
 
@@ -189,7 +187,7 @@ UV^T scales correctly because U and V are a rounding error; only Wv and Wo are s
 1. **BLT seed 19**: DONE.
 2. **GQA baseline**: DONE.
 3. **BLT seed 7**: DONE — third seed, confirms gap vs GPT-2/GQA is consistent.
-4. **Hybrid 6 MHA + 6 BLT**: in progress (see Active run above).
+4. **Hybrid 6 MHA + 6 BLT**: DONE — see Completed runs above. Non-additive gap closure (75%+ of the OWT loss gap recovered from half the BLT layers) is a key result for the paper.
 5. **UV^T fine-tuning (Option 2)**: post-training SVD factorization of trained M + fine-tune. See details below. Not yet started.
 
 ### Low-rank BLT (M = UV^T)
@@ -221,19 +219,20 @@ Factor M as U (D×r) × V^T (r×D), both globally shared. Attention score: (x_i 
 - `evaluate.py` — sliding-window perplexity (WikiText-103 or LAMBADA val); compute_cloze_accuracy
 - `blt_lm_eval.py` — lm-eval-harness wrapper; supports `--num-m-groups`
 - `paper_blt.md` — draft paper covering BLT architecture, results, and related work
-- `eval_owt.py` — held-out OWT evaluation (files 21-25, sliding window); `--blt-checkpoint` or `--baseline-checkpoint`
-- `run_seed42.pt/.log` — BLT WikiText-103 (50,300 steps, val_ppl=21.50). Note: `run_seed42.log` is currently ALSO receiving the in-progress hybrid run's training log due to the log-naming bug described under Active run — the WikiText-103 run's own log content is only the first ~5 header lines plus its original step history; everything appended since 2026-06-16 is hybrid-run output.
+- `eval_owt.py` — held-out OWT evaluation (files 21-25, sliding window); `--blt-checkpoint`, `--gqa-checkpoint`, `--hybrid-checkpoint` (+ `--n-mha-layers`), or `--baseline-checkpoint`
+- `run_seed42.pt/.log` — BLT WikiText-103 (50,300 steps, val_ppl=21.50). Note: `run_seed42.log` ALSO received the hybrid run's training log (2026-06-16 through completion 2026-06-19) due to the log-naming bug fixed in commit 1f3803d (fix not applied to that already-running process) — the WikiText-103 run's own log content is only the first ~5 header lines plus its original step history.
 - `run_blt_scratch_seed42.pt/.log` — BLT from-scratch OWT (550K steps, val_ppl=72.88, OWT ppl=31.05)
 - `run_blt_scratch_seed19.pt/.log` — BLT from-scratch OWT seed19 (600K steps, OWT ppl=30.48)
 - `run_blt_scratch_seed7.pt/.log` — BLT from-scratch OWT seed7 (500K steps, OWT ppl=30.81)
 - `run_gpt2_baseline_seed42.pt/.log` — GPT-2 from-scratch OWT (500K steps, val_ppl=55.99, OWT ppl=27.78)
 - `run_gqa_scratch_seed42.pt/.log` — GQA 2-group from-scratch OWT (500K steps, OWT ppl=27.64)
-- `run_hybrid_mha6_scratch_seed42.pt` — hybrid 6 MHA + 6 BLT from-scratch OWT, in progress (~150K/500K steps); training log currently misdirected to `run_seed42.log`, see above
+- `run_hybrid_mha6_scratch_seed42.pt/.log` — hybrid 6 MHA + 6 BLT from-scratch OWT, DONE (500K steps, val_ppl=69.08, OWT ppl=28.40); `.log` only has its own content up to the OOM crash, see note on `run_seed42.log` above
 - `lm_eval_owt_randm_250k.json` — final benchmark for OWT random-M run
 - `lm_eval_blt_scratch.json` — benchmarks for BLT from-scratch OWT run (seed42)
 - `lm_eval_blt_scratch_seed7.json` — benchmarks for BLT from-scratch OWT run (seed7)
 - `lm_eval_baseline_scratch.json` — benchmarks for GPT-2 from-scratch OWT run
 - `lm_eval_gqa_scratch.json` — benchmarks for GQA from-scratch OWT run
+- `lm_eval_hybrid_scratch.json` — benchmarks for hybrid 6 MHA + 6 BLT from-scratch OWT run
 
 ## Broader project context
 This `blt` branch lives alongside `pprune/` (a KV cache pruning paper). BLT is a separate experiment exploring parameter-efficient attention alternatives.

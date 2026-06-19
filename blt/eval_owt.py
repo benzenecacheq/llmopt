@@ -63,6 +63,10 @@ if __name__ == '__main__':
                         help='Path to GQA from-scratch checkpoint (.pt)')
     parser.add_argument('--baseline-checkpoint', type=str, default=None,
                         help='Path to GPT-2 from-scratch checkpoint (.pt)')
+    parser.add_argument('--hybrid-checkpoint', type=str, default=None,
+                        help='Path to hybrid (MHA+BLT) from-scratch checkpoint (.pt)')
+    parser.add_argument('--n-mha-layers', type=int, default=6,
+                        help='Number of MHA layers in the hybrid model (default 6)')
     parser.add_argument('--max-tokens', type=int, default=500000,
                         help='Tokens to evaluate over (default 500K)')
     parser.add_argument('--n-files', type=int, default=5,
@@ -105,6 +109,18 @@ if __name__ == '__main__':
         print(f'BLT: {args.blt_checkpoint}')
         model = build_blt_model(from_scratch=True).to(device)
         ckpt = torch.load(args.blt_checkpoint, map_location=device)
+        model.load_state_dict(ckpt['model_state'])
+        model.eval()
+        loss, ppl = sliding_window_loss(model, tokens, device)
+        print(f'  OWT {split_label} loss: {loss:.4f} nats  |  ppl: {ppl:.2f}\n')
+        del model
+        torch.cuda.empty_cache()
+
+    if args.hybrid_checkpoint:
+        from model import build_hybrid_model
+        print(f'Hybrid: {args.hybrid_checkpoint}')
+        model = build_hybrid_model(n_mha=args.n_mha_layers).to(device)
+        ckpt = torch.load(args.hybrid_checkpoint, map_location=device)
         model.load_state_dict(ckpt['model_state'])
         model.eval()
         loss, ppl = sliding_window_loss(model, tokens, device)
