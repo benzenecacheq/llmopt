@@ -11,6 +11,7 @@ import time
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 from transformers import GPT2Tokenizer
 
@@ -128,7 +129,7 @@ def cloze_collate(batch):
     return padded_ids, padded_labels
 
 
-def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None):
+def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None, ema_loss=None):
     tmp = path + '.tmp'
     torch.save({
         'step': step,
@@ -137,6 +138,7 @@ def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None)
         'optimizer_state': optimizer.state_dict(),
         'scheduler_state': scheduler.state_dict(),
         'val_ppl': val_ppl,
+        'ema_loss': ema_loss,
     }, tmp)
     # Keep previous checkpoint as .bak so a power cut during write leaves a fallback.
     if os.path.exists(path):
@@ -217,6 +219,8 @@ def train(args):
 
     start_step = 0
     last_val_ppl = None
+    vocab_size = model.config.vocab_size
+    ema_loss = torch.full((vocab_size,), math.log(vocab_size), device=device)
 
     if args.resume:
         log(f'Resuming from {args.resume} ...')
@@ -226,6 +230,8 @@ def train(args):
         scheduler.load_state_dict(ckpt['scheduler_state'])
         start_step = ckpt['step']
         last_val_ppl = ckpt.get('val_ppl')
+        if ckpt.get('ema_loss') is not None:
+            ema_loss = ckpt['ema_loss'].to(device)
         log(f'  Resumed at step {start_step}')
 
     if args.finetune:
@@ -255,8 +261,33 @@ def train(args):
                 continue
             input_ids = input_ids.to(device)
             labels = labels.to(device)
-            out = model(input_ids=input_ids, labels=labels)
-            loss = out.loss
+
+            if args.ema_loss_weighting:
+                logits = model(input_ids=input_ids).logits
+                shift_logits = logits[:, :-1, :].contiguous()
+                shift_labels = labels[:, 1:].contiguous()
+                valid = shift_labels != -100
+                flat_logits = shift_logits.view(-1, vocab_size)
+                flat_labels = shift_labels.view(-1)
+                flat_valid = valid.view(-1)
+                ids = flat_labels[flat_valid]
+                per_token_loss = F.cross_entropy(flat_logits[flat_valid], ids, reduction='none')
+
+                weight = ema_loss[ids]
+                weight = weight / weight.mean()
+                loss = (weight.detach() * per_token_loss).mean()
+
+                with torch.no_grad():
+                    sum_loss = torch.zeros(vocab_size, device=device)
+                    counts = torch.zeros(vocab_size, device=device)
+                    sum_loss.scatter_add_(0, ids, per_token_loss.detach())
+                    counts.scatter_add_(0, ids, torch.ones_like(per_token_loss))
+                    seen = counts > 0
+                    batch_mean = sum_loss[seen] / counts[seen]
+                    ema_loss[seen] = args.ema_decay * ema_loss[seen] + (1 - args.ema_decay) * batch_mean
+            else:
+                out = model(input_ids=input_ids, labels=labels)
+                loss = out.loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -291,7 +322,7 @@ def train(args):
 
             if args.save_path and step > start_step and step % args.checkpoint_every == 0:
                 save_checkpoint(args.save_path, model, optimizer, scheduler,
-                                step, args.seed, last_val_ppl)
+                                step, args.seed, last_val_ppl, ema_loss)
 
             step += 1
 
@@ -301,7 +332,7 @@ def train(args):
 
     if args.save_path:
         save_checkpoint(args.save_path, model, optimizer, scheduler,
-                        step, args.seed, final_ppl)
+                        step, args.seed, final_ppl, ema_loss)
         log(f'Saved to {args.save_path}')
 
     log_f.close()
@@ -342,5 +373,10 @@ if __name__ == '__main__':
                         choices=['wikitext103', 'lambada', 'lambada_cloze', 'pg19', 'openwebtext'])
     parser.add_argument('--from-scratch', action='store_true',
                         help='Randomly initialize all weights (no pretrained GPT-2 load)')
+    parser.add_argument('--ema-loss-weighting', action='store_true',
+                        help='Weight each token\'s loss by an EMA of its historical per-token-id loss '
+                             '(upweights persistently-hard tokens, downweights mastered ones)')
+    parser.add_argument('--ema-decay', type=float, default=0.99,
+                        help='Decay rate for the per-token-id EMA loss buffer')
     args = parser.parse_args()
     train(args)
