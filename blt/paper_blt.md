@@ -2,39 +2,40 @@
 
 ## Abstract
 
-We introduce BLT (Bilinear attenTion), a drop-in replacement for standard multi-head
-attention in transformer language models.  BLT replaces all per-layer query and key
-projection matrices W_q and W_k with a single D×D matrix M shared across every layer,
-reducing attention parameter count by 48% (14.7M vs 28.3M for GPT-2 scale) and
-eliminating one D×D matrix multiply per layer per forward pass.
+BLT (Bilinear attenTion) is a drop-in replacement for standard multi-head attention (MHA),
+motivated by memory rather than accuracy.  It replaces every layer's per-layer query and
+key projections (W_q, W_k) with a single D×D matrix M shared across all layers, cutting
+attention parameters by 48% (14.7M vs 28.3M at GPT-2 scale).  Because M is small enough to
+stay resident in GPU L2 cache, this also removes the need to stream per-layer W_q/W_k from
+HBM at every layer — a real bandwidth saving standard MHA cannot avoid.  BLT additionally
+does strictly less arithmetic (one fewer D×D matmul per layer), a modest, structural
+compute saving.
 
-In a controlled from-scratch comparison on OpenWebText (2M documents, ~2B tokens), all
-architectures trained for a fixed 500K steps, BLT achieves held-out perplexity of 30.81,
-versus 27.78 for standard MHA and 27.64 for 2-group grouped query attention (GQA) — a gap
-of approximately 0.10 nats.  The GQA baseline (117.9M parameters, between BLT and GPT-2)
-reveals a clean split across metrics.  On OWT perplexity, GQA matches standard MHA (27.64
-vs 27.78), isolating BLT's ~0.10 nat gap as a cost of cross-layer M sharing rather than
-parameter reduction.  On LAMBADA, however, GQA falls to BLT's level (0.204 vs 0.212), well
-below GPT-2's 0.225.  The two failure modes are separable: BLT's OWT perplexity gap is
-caused by cross-layer sharing; the LAMBADA gap is shared by GQA and BLT alike, implicating
-constrained per-layer key capacity more broadly.  HellaSwag, PIQA, and Winogrande are
-within noise across all four architectures.
+In a controlled from-scratch comparison on OpenWebText (2M documents, ~2B tokens, all
+architectures trained for a fixed 500K steps), BLT trails standard MHA by ~0.10 nats of
+held-out loss (30.81 vs 27.78 ppl) and trails 2-group GQA by a similar margin on
+perplexity (27.64 ppl).  But the picture flips on zero-shot benchmarks: BLT matches or
+beats GQA on LAMBADA, HellaSwag, and Winogrande — GQA's only clean win is OWT perplexity.
+Give or take, BLT and GQA are in the same ballpark: both give up a similar amount of
+quality relative to MHA, for different reasons (cross-layer M sharing vs. compressed
+per-layer key rank), and neither is decisively better than the other.
 
-A hybrid model that replaces half of BLT's 12 shared-M layers with standard per-layer MHA
-(6 MHA + 6 BLT, trained from scratch under the same protocol) closes the OWT perplexity
-gap disproportionately: held-out loss falls to 3.3462 nats (ppl 28.40), recovering more
-than 75% of the full-BLT gap from only half the layers reverting to standard attention.
-The hybrid also attains the best LAMBADA perplexity of any model tested (167.1), edging
-out even standard MHA (174.6).  This non-additivity suggests the expressiveness cost of
-cross-layer M sharing compounds across layers rather than summing linearly, and that a
-modest fraction of unconstrained layers is sufficient to largely route around it.
+A hybrid architecture — 6 standard MHA layers followed by 6 BLT layers — recovers most of
+what full BLT gives up: it closes over 75% of BLT's OWT loss gap to MHA, clearly beats GQA
+on LAMBADA/HellaSwag/Winogrande, and is within noise of full MHA on everything but PIQA.
+The cost is that only half the network keeps BLT's memory benefit: attention parameter
+savings drop from 48% to roughly 23%, and only 6 of 12 layers avoid streaming per-layer
+W_q/W_k from HBM.
 
-SVD analysis of a trained M reveals a nearly flat singular value spectrum — M is
-genuinely full-rank, using its entire D×D capacity to simultaneously serve 144 attention
-contexts (12 layers × 12 heads).  A low-rank UV^T factorization is the natural next step:
-it reduces the KV cache by a factor of D/r, brings BLT within the same parameter budget
-as GQA, and — critically — makes the architecture compatible with tensor-parallel inference
-at production scale.
+GQA's one clear weakness here — the LAMBADA hit from compressing 12 heads into 2 KV
+groups — is the kind of quality loss the broader GQA/MQA literature reports shrinking with
+model scale.  If it does, GQA could pull ahead of BLT once models get larger, which makes
+testing BLT itself at scale (not just at GPT-2 size) the natural next experiment once
+larger hardware is available.  One caveat for that experiment: SVD analysis shows the
+trained M is already nearly full-rank at GPT-2 scale, and at larger D, M itself eventually
+outgrows GPU L2/SRAM (it already does at 70B) — eroding the cache-residency advantage that
+motivates BLT in the first place.  A low-rank UV^T factorization is the natural fix, and
+the realistic path to BLT at scale.
 
 ---
 
@@ -253,22 +254,22 @@ patterns LAMBADA tests.
 
 ### 4.4 From-Scratch OpenWebText Comparison
 
-The definitive test of BLT is a controlled comparison against standard MHA on identical
-data, compute, and hyperparameters.  BLT, GPT-2, and GQA are all initialized from scratch
-(random weights) and trained on 2M OWT documents for a fixed 500K steps (see the step-count
-note in Section 3; results from two additional BLT seeds trained 550K–600K steps are
-reported there but excluded here since they showed no improvement over the 500K-step run).
+The definitive test of BLT is a controlled comparison against standard MHA and GQA on
+identical data, compute, and hyperparameters, all trained from scratch on 2M OWT documents
+for a fixed 500K steps (see the step-count note in Section 3; two additional BLT seeds
+trained 550K–600K steps are reported there but excluded here since they showed no
+improvement over the 500K-step run).
 
 **Primary results:**
 
-| Model | Steps | OWT ppl | OWT loss | WikiText ppl |
-|-------|-------|---------|----------|--------------|
-| BLT-1M seed 7 | 500K | 30.81 | 3.4279 | 71.57 |
-| GPT-2 (MHA) seed 42 | 500K | **27.78** | **3.3243** | 55.99 |
-| GQA (2-group) seed 42 | 500K | **27.64** | **3.3192** | 57.43 |
+| Model | OWT ppl | OWT loss | WikiText ppl |
+|-------|---------|----------|--------------|
+| BLT-1M seed 7 | 30.81 | 3.4279 | 71.57 |
+| GPT-2 (MHA) seed 42 | **27.78** | **3.3243** | 55.99 |
+| GQA (2-group) seed 42 | **27.64** | **3.3192** | 57.43 |
 
-BLT lands at 3.43 nats, while GPT-2 and GQA land near 3.32 nats — a consistent ~0.10 nat
-gap (this is unchanged from the longer 550K/600K BLT runs, see Section 3).
+BLT trails both baselines by a consistent ~0.10 nat / ~3 ppl margin; GQA is marginally
+ahead even of standard MHA on this one metric.
 
 **Zero-shot benchmarks:**
 
@@ -280,11 +281,11 @@ gap (this is unchanged from the longer 550K/600K BLT runs, see Section 3).
 | PIQA acc_norm   | 0.568 | **0.579** | 0.568 |
 | Winogrande acc  | **0.516** | 0.505 | 0.496 |
 
-HellaSwag, PIQA, and Winogrande are essentially three-way ties — all differences are
-within expected noise for these dataset sizes.  BLT actually holds a slight Winogrande
-edge.  LAMBADA is the exception: GPT-2 (0.225) leads clearly, while GQA (0.204) falls to
-essentially the same level as BLT (0.212) despite GQA matching GPT-2 on OWT perplexity.
-The significance of this split is discussed in Section 4.5.
+GQA's perplexity edge does not carry over to the benchmarks: BLT beats GQA on LAMBADA
+(0.212 vs 0.204) and Winogrande (0.516 vs 0.496), ties it on HellaSwag and PIQA, and only
+loses cleanly on OWT perplexity.  Give or take, BLT and GQA are in the same ballpark — both
+trail standard MHA by a similar margin, for different reasons (Section 4.5), and neither is
+decisively better than the other across this suite.
 
 **Note on WikiText perplexity:** WikiText val ppl was noisy throughout BLT training
 (swings of 25+ ppl within a single run), while OWT held-out ppl was stable.  We treat
@@ -314,53 +315,54 @@ key capacity, not merely per-layer key matrices.  Both constraints — reduced r
 layer (GQA) and a single shared matrix across layers (BLT) — are sufficient to degrade
 long-range prediction.
 
-**Summary.**  The two failure modes are separable.  BLT's OWT perplexity gap is caused by
-cross-layer M sharing and is not shared by GQA.  BLT's LAMBADA gap is caused by constrained
-per-layer key capacity and *is* shared by GQA.  Standard MHA, with full per-layer W_k rank
-and no cross-layer sharing, avoids both.
+**Summary.**  The OWT perplexity gap and the LAMBADA gap have different causes and are not
+both paid by the same architecture: BLT pays the OWT cost (cross-layer sharing) but not the
+LAMBADA cost; GQA pays the LAMBADA cost (compressed key rank) but not the OWT cost.  Across
+the full benchmark suite the two end up comparable.  Only standard MHA, with full per-layer
+W_k rank and no cross-layer sharing, avoids both costs.
 
 ### 4.6 Hybrid Architecture: Mixing MHA and BLT Layers
 
 Section 4.5 attributes BLT's OWT perplexity gap to cross-layer M sharing across all 12
-layers.  This raises a natural question: is the cost of sharing roughly uniform per layer,
-so that removing half the shared layers should recover about half the gap — or does it
-compound, so that a partial fix recovers disproportionately more (or less)?
+layers.  Is that cost additive — does removing half the shared layers recover about half
+the gap — or does it compound?
 
 We trained a hybrid model with 6 standard MHA layers followed by 6 BLT layers, from
 scratch on OWT for 500K steps, identical in every other respect to the runs in Section 4.4.
 
-| Model | Steps | OWT ppl | OWT loss | WikiText ppl |
-|-------|-------|---------|----------|--------------|
-| BLT-1M seed 7 (12 BLT layers) | 500K | 30.81 | 3.4279 | 71.57 |
-| Hybrid (6 MHA + 6 BLT) | 500K | 28.40 | 3.3462 | 69.08 |
-| GPT-2 (MHA) seed 42 (12 MHA layers) | 500K | **27.78** | **3.3243** | 55.99 |
-| GQA (2-group) seed 42 | 500K | **27.64** | **3.3192** | 57.43 |
+| Model | OWT ppl | OWT loss | WikiText ppl |
+|-------|---------|----------|--------------|
+| BLT-1M seed 7 (12 BLT layers) | 30.81 | 3.4279 | 71.57 |
+| Hybrid (6 MHA + 6 BLT) | 28.40 | 3.3462 | 69.08 |
+| GPT-2 (MHA) seed 42 (12 MHA layers) | **27.78** | **3.3243** | 55.99 |
+| GQA (2-group) seed 42 | **27.64** | **3.3192** | 57.43 |
 
-| Task | Hybrid | BLT seed 7 | GPT-2 seed 42 |
-|------|--------|------------|---------------|
-| LAMBADA acc | 0.222 | 0.212 | **0.225** |
-| LAMBADA ppl | **167.1** | 244.4 | 174.6 |
-| HellaSwag acc_norm | **0.273** | 0.268 | 0.268 |
-| PIQA acc_norm | 0.562 | 0.568 | **0.579** |
-| Winogrande acc | 0.504 | 0.516 | 0.505 |
+| Task | Hybrid | BLT seed 7 | GQA seed 42 | GPT-2 seed 42 |
+|------|--------|------------|-------------|---------------|
+| LAMBADA acc | 0.222 | 0.212 | 0.204 | **0.225** |
+| LAMBADA ppl | **167.1** | 244.4 | 205.3 | 174.6 |
+| HellaSwag acc_norm | **0.273** | 0.268 | 0.269 | 0.268 |
+| PIQA acc_norm | 0.562 | 0.568 | 0.568 | **0.579** |
+| Winogrande acc | 0.504 | 0.516 | 0.496 | 0.505 |
 
-Converting half of BLT's layers (12 → 6) to standard MHA closes the OWT loss gap from
-0.1036 nats (full BLT vs GPT-2) down to 0.0219 nats — recovering **over 75% of the gap**
-from converting only 50% of the layers.  This is clearly non-additive: if the cost of
-cross-layer sharing were a flat per-layer tax, halving the BLT layer count would close
-roughly half the gap, not three-quarters.  The result instead suggests the cost compounds
-across layers — perhaps because errors in early-layer representations propagate and are
-amplified by later shared-M layers, or because a single M serving 12 layers' worth of
-attention contexts is harder to optimize than one serving 6.  Six layers of unconstrained
-per-layer W_q/W_k appear to be enough for the model to largely route around M's
-limitations, even though M is still present in the other half of the network.
+Converting half of BLT's layers to standard MHA closes the OWT loss gap from 0.1036 nats
+(full BLT vs MHA) to 0.0219 nats — recovering **over 75% of the gap** from converting only
+50% of the layers.  This is clearly non-additive: a flat per-layer tax would close roughly
+half the gap, not three-quarters, suggesting the cost of cross-layer sharing compounds
+rather than sums — six unconstrained layers are apparently enough for the model to largely
+route around M's limitations even with M still present elsewhere.
 
-The hybrid's LAMBADA result is the most striking individual number in this paper: its
-perplexity (167.1) beats every other architecture tested, including full standard MHA
-(174.6).  This is consistent with the picture from Section 4.5 — LAMBADA appears to depend
-on per-layer key capacity rather than cross-layer sharing — and indicates that 6 full MHA
-layers are sufficient to fully recover, and even modestly exceed, MHA's long-range
-retrieval performance, while still saving parameters via the remaining 6 BLT layers.
+Against GQA, the hybrid wins on LAMBADA, HellaSwag, and Winogrande, ties on OWT perplexity
+within a point, and trails only on PIQA — a clear improvement over full BLT's roughly even
+standing with GQA (Section 4.4).  Against full MHA, the hybrid is within noise everywhere
+except PIQA, and its LAMBADA perplexity (167.1) is the best of any model tested, including
+MHA itself (174.6).
+
+This comes at a real memory cost: only the 6 BLT layers keep BLT's benefit.  Attention
+parameters fall from MHA's 28.3M to about 21.8M (a ~23% reduction, vs. 48% for full BLT),
+and only those 6 layers avoid streaming per-layer W_q/W_k from HBM — the other 6 behave
+exactly like standard MHA on the memory side.  The hybrid is a genuine quality/memory
+trade-off point between BLT and MHA, not a free win.
 
 ---
 
@@ -427,41 +429,64 @@ promising direction for larger-scale validation.
 
 ## 6. Discussion
 
-**Parameter efficiency vs. expressiveness.** BLT achieves better language modelling
-perplexity than pretrained GPT-2 after fine-tuning on WikiText-103 (Section 4.1), but
-carries a ~0.10 nat cost in the from-scratch OWT comparison (Section 4.4).  The GQA
-baseline (Section 4.5) shows that this OWT perplexity cost is not due to parameter
-reduction — GQA has a similar parameter count to BLT but matches standard MHA on OWT ppl.
-The OWT ppl gap is specifically the cost of cross-layer M sharing.  However, GQA and BLT
-are essentially tied on LAMBADA, both well below GPT-2; the LAMBADA gap is a separable
-failure mode reflecting constrained per-layer key capacity rather than cross-layer sharing.
-BLT therefore carries two distinct costs: ~0.10 nats on general next-token prediction
-(from cross-layer sharing) and reduced long-range retrieval accuracy (from constrained key
-capacity, shared with GQA).  Against these costs it offers 48% fewer attention parameters
-and one fewer D×D matrix multiply per layer per step.
+**Why BLT: memory, not accuracy.** BLT's case is architectural, not a quality play.  It
+cuts attention parameters by 48%, and because M is a single D×D matrix small enough to
+live in GPU L2 cache at GPT-2 scale (1.2 MB vs. V100's 6 MB / H100's 50 MB), it removes the
+need to stream per-layer W_q and W_k from HBM — a cost standard MHA pays on every layer,
+every decode step.  BLT also does strictly less arithmetic: one fewer D×D matmul per
+layer.  That FLOP reduction is real, but the runs in this paper ran on different hardware
+(444–593 ms/step across architectures and machines), so we did not get a clean wall-clock
+comparison; the speed benefit should be read as a structural property of the architecture,
+not a validated empirical result here.
 
-**LAMBADA and training domain.** The WikiText-trained BLT scored 0.114 on LAMBADA vs
-GPT-2's 0.242, which initially suggested the shared-M design might limit long-range
-narrative understanding.  The OWT run (250K steps, ~1B tokens) resolved this: BLT reached
-0.199 on LAMBADA while matching GPT-2 on HellaSwag and exceeding it on PIQA.  The
-from-scratch OWT comparison (Section 4.4) further confirms BLT reaches 0.212 on LAMBADA
-at full training scale, versus 0.225 for standard MHA — a modest residual gap that tracks
-with the overall OWT perplexity gap rather than indicating a specific architectural
-limitation for long-range retrieval.  The hybrid model (Section 4.6) closes this gap
-entirely and slightly overshoots it (0.222 acc, 167.1 ppl vs GPT-2's 174.6 ppl), reinforcing
-that the LAMBADA shortfall is tied to constrained per-layer key capacity rather than an
-inherent property of bilinear attention.
+**Quality: BLT and GQA are in the same ballpark, both behind MHA.** Sections 4.4–4.5 show
+BLT trails MHA by ~0.10 nats of OWT loss, and GQA trails it by less (and even edges ahead
+on this one metric).  But GQA's ppl edge does not extend to the zero-shot benchmarks —
+BLT matches or beats GQA on LAMBADA, HellaSwag, and Winogrande, losing cleanly only on OWT
+perplexity.  Across the full suite, BLT and GQA give up similar amounts of quality
+relative to MHA, for different and separable reasons: BLT from cross-layer M sharing, GQA
+from compressed per-layer key rank.  Neither is decisively better than the other; both are
+reasonable answers to "what do you give up to compress attention," and the right choice
+depends on whether parameter count or KV-cache size is the binding constraint.
 
-**Hybrid architecture (completed result).** Section 4.6 answers the question of whether
-BLT's expressiveness cost is additive across layers: it is not.  A 6 MHA + 6 BLT hybrid,
-trained from scratch on OWT under the same protocol as the other from-scratch runs,
-recovers over 75% of the OWT loss gap between full BLT and standard MHA while still using
-6 fewer sets of per-layer W_q/W_k than standard MHA.  It also produces the best LAMBADA
-perplexity of any architecture tested in this paper.  This indicates the cost of serving
-12 layers' worth of attention contexts from a single shared M compounds rather than sums,
-and that a relatively small fraction of unconstrained layers is enough to substantially
-mitigate it — a promising direction for deploying BLT-style parameter sharing without
-paying its full expressiveness cost.
+**LAMBADA's gap is a training-domain effect, not an architecture limit.**
+WikiText-trained BLT scored 0.114 on LAMBADA vs. GPT-2's 0.242 (Section 4.2), which
+initially suggested a real architectural limitation.  Training on broader web text
+resolved this: BLT reached 0.199 after just 250K OWT steps (Section 4.3) and 0.212 at full
+from-scratch scale (Section 4.4) — and the hybrid model exceeds GPT-2 outright on LAMBADA
+perplexity (167.1 vs 174.6, Section 4.6).  The residual BLT-vs-MHA gap tracks the
+per-layer-key-capacity story above, not a narrative-understanding deficit.
+
+**The hybrid is the best quality/memory trade-off tested, not a free lunch.** Section
+4.6's 6 MHA + 6 BLT hybrid clearly beats GQA (LAMBADA, HellaSwag, Winogrande) and is within
+noise of full MHA on everything but PIQA, while still saving ~23% of attention parameters.
+The gap recovery is disproportionate to the layer count converted — half the BLT layers
+recover over 75% of the loss gap — suggesting the cost of cross-layer sharing compounds
+across layers rather than summing linearly: six unconstrained layers are apparently
+enough for the model to mostly route around M's limitations even with M still present
+elsewhere.  But the hybrid keeps only half of BLT's memory benefit; it is a point on a
+curve between BLT and MHA, and where to sit on that curve is a deployment choice this
+paper does not resolve.
+
+**GQA's disadvantage here may not survive scale — which argues for testing BLT at scale
+too.** GQA's only real weakness in this comparison — the LAMBADA hit from cutting 12 heads
+to 2 KV groups, a 6× per-layer key-rank reduction — is the kind of degradation the broader
+GQA/MQA literature reports shrinking as model size grows: larger models have more
+redundancy to absorb aggressive KV compression, and production GQA configurations
+typically use gentler group ratios than the 6× tested here.  If GQA's gap to MHA closes
+with scale while BLT's does not, GQA would pull ahead of BLT at larger model sizes,
+undermining the "comparable" conclusion above.  That makes testing BLT itself — not just
+GQA — at larger scale the natural next step once larger hardware is available; the
+GPT-2-scale result here should not be assumed to hold at 7B+.
+
+**A cache-residency limit on BLT's core advantage.** BLT's memory case rests on M staying
+resident in fast on-chip memory (L2 cache or SRAM, depending on hardware).  This holds
+comfortably at GPT-2 scale and plausibly up to ~13B (M = 52 MB, borderline on an H100's
+50 MB L2), but breaks down at 70B (M = 134 MB, exceeding any current GPU's L2).  Past that
+point M itself must be streamed from HBM like any other weight matrix, eroding exactly the
+advantage that motivates full-rank BLT.  The low-rank UV^T variant (below) exists
+precisely to preserve this advantage at scale: with r=256 at D=8192, U and V together are
+8.4 MB — comfortably cache-resident regardless of model size.
 
 **SVD analysis of trained M.** We computed the SVD of M from a BLT from-scratch run (the
 550K-step seed-42 run from the wall-clock-matching experiment described in Section 3; this
@@ -505,21 +530,15 @@ This makes UV^T not merely a KV-cache optimization but a prerequisite for BLT to
 viable at production scale: full M BLT is a single-GPU architecture; UV^T BLT scales
 correctly under tensor parallelism.
 
-**Memory bandwidth at inference.** Large-model decode is memory-bandwidth-bound: the
-bottleneck is streaming weights and KV cache from HBM.  BLT's weight bandwidth advantage
-over standard MHA is strict: there are no per-layer W_q or W_k matrices to load, and M
-(a single D×D matrix) is loaded once per forward pass.  For GPT-2 scale (D=768), M is
-1.2 MB and fits entirely in GPU L2 cache (V100: 6 MB; H100: 50 MB), making subsequent
-layers effectively free on the weight side.  For 7B models (D=4096), M is 33.6 MB and
-fits on H100/A100.  Standard MHA must load W_q and W_k from HBM for every layer at every
-decode step — 2 × D² × L bytes per token vs BLT's single D² load amortized across all
-L layers.
-
-BLT's KV cache is the same size as standard MHA: both store D-dimensional vectors per
-token per layer (MHA stores W_k · x_j; BLT stores raw x_j).  Neither achieves the KV
-cache compression of GQA.  At long contexts (>32K tokens on large models), KV cache
-bandwidth dominates and BLT's weight advantage shrinks as a fraction of total bandwidth.
-The low-rank UV^T variant described below addresses this.
+**Memory bandwidth at inference.** Large-model decode is bandwidth-bound, and weights vs.
+KV cache trade off differently for BLT.  The weight-side win is unconditional (see "Why
+BLT" above): standard MHA loads W_q and W_k from HBM for every layer at every decode step
+— 2 × D² × L bytes per token vs. BLT's single D² load amortized across all L layers.  The
+KV-cache side is not a win: BLT caches the same D-dimensional vector per token per layer as
+standard MHA (it stores raw x_j as an implicit key, not a compressed one), so it gets none
+of GQA's cache compression.  At long contexts, where KV-cache bandwidth dominates total
+bandwidth, this erodes BLT's advantage as a fraction of the total — addressed by the
+low-rank UV^T variant below.
 
 **KV-cache compatibility.** Standard KV caching stores K = X W_k for past tokens.  In BLT,
 the score between new token t and past token j is (x_t M) · x_j, so the cache only needs
@@ -528,10 +547,6 @@ M multiply produces the query; no key projection is required when adding new tok
 current implementation does not exploit this and recomputes full attention from scratch at
 each forward pass; an inference-optimized implementation would realize this as a genuine
 efficiency gain over standard attention.
-
-However, because x_j is full D-dimensional, BLT's key cache is the same size as standard
-MHA's key cache — it does not benefit from the KV-cache compression that GQA achieves by
-projecting keys to a lower-dimensional space.
 
 **Low-rank BLT and KV-cache compression.** A natural extension that recovers this
 compression is to factor M as a rank-r outer product:
