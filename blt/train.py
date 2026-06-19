@@ -15,7 +15,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 from transformers import GPT2Tokenizer
 
-from model import build_blt_model
+from model import build_blt_model, build_gqa_model, build_hybrid_model
 from evaluate import compute_perplexity, compute_cloze_accuracy
 from transformers import GPT2LMHeadModel
 
@@ -147,7 +147,12 @@ def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None,
 
 
 def train(args):
-    log_path = args.log_file or f'run_seed{args.seed}.log'
+    if args.log_file:
+        log_path = args.log_file
+    elif args.save_path:
+        log_path = os.path.splitext(args.save_path)[0] + '.log'
+    else:
+        log_path = f'run_seed{args.seed}.log'
     log_f = open(log_path, 'a' if args.resume else 'w', buffering=1)
 
     def log(msg):
@@ -161,7 +166,13 @@ def train(args):
     tokenizer = GPT2TokenizerFast.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
 
-    if args.baseline:
+    if args.hybrid:
+        log(f'Building hybrid model ({args.n_mha_layers} MHA + {12 - args.n_mha_layers} BLT layers, from scratch)...')
+        model = build_hybrid_model(n_mha=args.n_mha_layers).to(device)
+    elif args.gqa:
+        log('Building GQA model (2 KV groups, 12 query heads, from scratch)...')
+        model = build_gqa_model().to(device)
+    elif args.baseline:
         if args.from_scratch:
             log('Building GPT-2 model from scratch (random init)...')
             from transformers import GPT2Config
@@ -344,6 +355,12 @@ if __name__ == '__main__':
     parser.add_argument('--resume', type=str, default=None)
     parser.add_argument('--finetune', type=str, default=None,
                         help='Load model weights only (fresh optimizer/scheduler)')
+    parser.add_argument('--hybrid', action='store_true',
+                        help='Hybrid model: first --n-mha-layers use MHA, rest use BLT (always from scratch)')
+    parser.add_argument('--n-mha-layers', type=int, default=6,
+                        help='Number of early MHA layers in hybrid model (default: 6)')
+    parser.add_argument('--gqa', action='store_true',
+                        help='Use 2-group GQA baseline (always from scratch)')
     parser.add_argument('--baseline', action='store_true',
                         help='Fine-tune vanilla GPT-2 instead of BLT')
     parser.add_argument('--num-m-groups', type=int, default=1, choices=[1, 2],

@@ -1,4 +1,4 @@
-"""Evaluate checkpoints on held-out OpenWebText (files 21-25, unseen during training)."""
+"""Evaluate checkpoints on OpenWebText (held-out files 21-25 by default, or training files 0-20)."""
 
 import argparse
 import glob
@@ -59,21 +59,46 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--blt-checkpoint', type=str, default=None,
                         help='Path to BLT from-scratch checkpoint (.pt)')
+    parser.add_argument('--gqa-checkpoint', type=str, default=None,
+                        help='Path to GQA from-scratch checkpoint (.pt)')
     parser.add_argument('--baseline-checkpoint', type=str, default=None,
                         help='Path to GPT-2 from-scratch checkpoint (.pt)')
     parser.add_argument('--max-tokens', type=int, default=500000,
                         help='Tokens to evaluate over (default 500K)')
     parser.add_argument('--n-files', type=int, default=5,
-                        help='Number of held-out OWT files to use (default 5, files 21-25)')
+                        help='Number of OWT files to use (default 5)')
+    parser.add_argument('--train-set', action='store_true',
+                        help='Evaluate on training files (0-20) instead of held-out files (21-25)')
     parser.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     args = parser.parse_args()
 
     device = torch.device(args.device)
     tokenizer = GPT2TokenizerFast.from_pretrained('gpt2')
 
-    print(f'Loading held-out OWT tokens...')
-    tokens = owt_heldout_tokens(tokenizer, n_files=args.n_files, max_tokens=args.max_tokens)
+    if args.train_set:
+        start_file = 0
+        n_files = min(args.n_files, 21)
+        split_label = 'train-set'
+    else:
+        start_file = 21
+        n_files = args.n_files
+        split_label = 'held-out'
+
+    print(f'Loading OWT tokens ({split_label}, files {start_file}-{start_file + n_files - 1})...')
+    tokens = owt_heldout_tokens(tokenizer, start_file=start_file, n_files=n_files, max_tokens=args.max_tokens)
     print(f'  {len(tokens):,} tokens\n')
+
+    if args.gqa_checkpoint:
+        from model import build_gqa_model
+        print(f'GQA: {args.gqa_checkpoint}')
+        model = build_gqa_model().to(device)
+        ckpt = torch.load(args.gqa_checkpoint, map_location=device)
+        model.load_state_dict(ckpt['model_state'])
+        model.eval()
+        loss, ppl = sliding_window_loss(model, tokens, device)
+        print(f'  OWT {split_label} loss: {loss:.4f} nats  |  ppl: {ppl:.2f}\n')
+        del model
+        torch.cuda.empty_cache()
 
     if args.blt_checkpoint:
         from model import build_blt_model
@@ -83,7 +108,7 @@ if __name__ == '__main__':
         model.load_state_dict(ckpt['model_state'])
         model.eval()
         loss, ppl = sliding_window_loss(model, tokens, device)
-        print(f'  OWT held-out loss: {loss:.4f} nats  |  ppl: {ppl:.2f}\n')
+        print(f'  OWT {split_label} loss: {loss:.4f} nats  |  ppl: {ppl:.2f}\n')
         del model
         torch.cuda.empty_cache()
 
@@ -95,5 +120,5 @@ if __name__ == '__main__':
         model.load_state_dict(ckpt['model_state'])
         model.eval()
         loss, ppl = sliding_window_loss(model, tokens, device)
-        print(f'  OWT held-out loss: {loss:.4f} nats  |  ppl: {ppl:.2f}\n')
+        print(f'  OWT {split_label} loss: {loss:.4f} nats  |  ppl: {ppl:.2f}\n')
         del model
