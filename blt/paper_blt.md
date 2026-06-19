@@ -172,7 +172,8 @@ analogous to grouped query attention (GQA).
 
 **Evaluation:** Sliding-window perplexity on WikiText-103 validation (stride=512) and on
 a held-out OWT split (files 21–25, ~50K tokens); zero-shot accuracy on LAMBADA,
-HellaSwag, PIQA, and Winogrande via lm-eval-harness.
+HellaSwag, PIQA, and Winogrande via lm-eval-harness (primary suite), plus ARC-Easy, BoolQ,
+and OpenBookQA as a supplementary noise check (Section 4.7).
 
 **Baselines:**
 - *Standard MHA (GPT-2)*: trained from scratch, 500K steps.
@@ -363,6 +364,26 @@ parameters fall from MHA's 28.3M to about 21.8M (a ~23% reduction, vs. 48% for f
 and only those 6 layers avoid streaming per-layer W_q/W_k from HBM — the other 6 behave
 exactly like standard MHA on the memory side.  The hybrid is a genuine quality/memory
 trade-off point between BLT and MHA, not a free win.
+
+### 4.7 Supplementary Zero-Shot Benchmarks
+
+As a noise check on the four-task suite used above, we ran three additional zero-shot
+tasks (ARC-Easy, BoolQ, OpenBookQA; lm-eval-harness defaults) on all four checkpoints.
+
+| Task | BLT seed 7 | Hybrid | GPT-2 seed 42 | GQA seed 42 |
+|------|------------|--------|---------------|-------------|
+| ARC-Easy acc | 0.366 | 0.368 | 0.373 | **0.381** |
+| ARC-Easy acc_norm | 0.339 | 0.344 | **0.348** | 0.345 |
+| BoolQ acc | **0.611** | 0.606 | 0.571 | 0.596 |
+| OpenBookQA acc | 0.130 | 0.122 | 0.136 | **0.138** |
+| OpenBookQA acc_norm | **0.248** | 0.234 | 0.226 | 0.236 |
+
+*These three tasks are noisier than the primary suite at this model scale (~117M-parameter
+models score only a few points above chance on ARC-Easy/OpenBookQA, and BoolQ accuracy is
+known to be sensitive to a model's yes/no answer bias).  We report them for completeness
+rather than as additional evidence either way: no architecture dominates this set — BLT
+actually posts the best BoolQ and OpenBookQA acc_norm scores — and nothing here changes the
+"same ballpark" conclusion from Sections 4.4–4.6.*
 
 ---
 
