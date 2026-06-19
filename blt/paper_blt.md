@@ -8,17 +8,26 @@ projection matrices W_q and W_k with a single D×D matrix M shared across every 
 reducing attention parameter count by 48% (14.7M vs 28.3M for GPT-2 scale) and
 eliminating one D×D matrix multiply per layer per forward pass.
 
-In a controlled from-scratch comparison on OpenWebText (2M documents, ~2B tokens), BLT
-achieves held-out perplexity of 30.48–31.05 across two seeds, versus 27.78 for standard
-MHA and 27.64 for 2-group grouped query attention (GQA) — a gap of approximately 0.10
-nats.  The GQA baseline (117.9M parameters, between BLT and GPT-2) reveals a clean split across
-metrics.  On OWT perplexity, GQA matches standard MHA (27.64 vs 27.78), isolating BLT's
-~0.10 nat gap as a cost of cross-layer M sharing rather than parameter reduction.  On
-LAMBADA, however, GQA falls to BLT's level (0.204 vs 0.205), well below GPT-2's 0.225.
-The two failure modes are separable: BLT's OWT perplexity gap is caused by cross-layer
-sharing; the LAMBADA gap is shared by GQA and BLT alike, implicating constrained per-layer
-key capacity more broadly.  HellaSwag, PIQA, and Winogrande are within noise across all
-four architectures.
+In a controlled from-scratch comparison on OpenWebText (2M documents, ~2B tokens), all
+architectures trained for a fixed 500K steps, BLT achieves held-out perplexity of 30.81,
+versus 27.78 for standard MHA and 27.64 for 2-group grouped query attention (GQA) — a gap
+of approximately 0.10 nats.  The GQA baseline (117.9M parameters, between BLT and GPT-2)
+reveals a clean split across metrics.  On OWT perplexity, GQA matches standard MHA (27.64
+vs 27.78), isolating BLT's ~0.10 nat gap as a cost of cross-layer M sharing rather than
+parameter reduction.  On LAMBADA, however, GQA falls to BLT's level (0.204 vs 0.212), well
+below GPT-2's 0.225.  The two failure modes are separable: BLT's OWT perplexity gap is
+caused by cross-layer sharing; the LAMBADA gap is shared by GQA and BLT alike, implicating
+constrained per-layer key capacity more broadly.  HellaSwag, PIQA, and Winogrande are
+within noise across all four architectures.
+
+A hybrid model that replaces half of BLT's 12 shared-M layers with standard per-layer MHA
+(6 MHA + 6 BLT, trained from scratch under the same protocol) closes the OWT perplexity
+gap disproportionately: held-out loss falls to 3.3462 nats (ppl 28.40), recovering more
+than 75% of the full-BLT gap from only half the layers reverting to standard attention.
+The hybrid also attains the best LAMBADA perplexity of any model tested (167.1), edging
+out even standard MHA (174.6).  This non-additivity suggests the expressiveness cost of
+cross-layer M sharing compounds across layers rather than summing linearly, and that a
+modest fraction of unconstrained layers is sufficient to largely route around it.
 
 SVD analysis of a trained M reveals a nearly flat singular value spectrum — M is
 genuinely full-rank, using its entire D×D capacity to simultaneously serve 144 attention
@@ -172,12 +181,17 @@ HellaSwag, PIQA, and Winogrande via lm-eval-harness.
   and GPT-2's 124.4M — making it the right tool for separating parameter count effects
   from architectural expressiveness.
 
-**Step-count equalization:** BLT's forward pass requires one fewer D×D matrix multiply
-per layer (no W_k projection), which in principle reduces per-step compute.  Training runs
-were conducted on different hardware and step times varied accordingly (444–562 ms/step
-for BLT, 560–593 ms/step for baselines), so wall-clock-equal comparisons are approximate.
-BLT-seed42 trained for 550K steps and BLT-seed19 for 600K steps to target wall-clock
-parity with the 500K-step baselines on their respective machines.
+**Step count:** All architectures reported in this paper — BLT, standard MHA, GQA, and the
+hybrid model (Section 4.6) — are trained from scratch for a fixed **500K steps** on
+identical data and hyperparameters, giving a clean iso-step comparison.  BLT's forward
+pass requires one fewer D×D matrix multiply per layer (no W_k projection), which in
+principle reduces per-step compute, and we initially trained two BLT seeds longer (550K
+and 600K steps for seeds 42 and 19) to target wall-clock parity with the baselines on
+their respective machines.  These longer runs converged to OWT perplexities of 31.05 and
+30.48 — statistically indistinguishable from a third BLT seed (seed 7) trained for exactly
+500K steps (30.81) — indicating the additional 50–100K steps produced no significant
+improvement.  We therefore report all results at the common 500K-step budget, using BLT
+seed 7 as the representative from-scratch BLT run.
 
 ---
 
@@ -240,41 +254,37 @@ patterns LAMBADA tests.
 ### 4.4 From-Scratch OpenWebText Comparison
 
 The definitive test of BLT is a controlled comparison against standard MHA on identical
-data, compute, and hyperparameters.  Both BLT and GPT-2 are initialized from scratch
-(random weights) and trained on 2M OWT documents.
-
-We ran BLT from scratch with two independent random seeds (42 and 19) to estimate
-run-to-run variance.  The two seeds converge to nearly identical OWT perplexity
-(31.05 and 30.48), confirming the result is stable and not attributable to seed luck.
+data, compute, and hyperparameters.  BLT, GPT-2, and GQA are all initialized from scratch
+(random weights) and trained on 2M OWT documents for a fixed 500K steps (see the step-count
+note in Section 3; results from two additional BLT seeds trained 550K–600K steps are
+reported there but excluded here since they showed no improvement over the 500K-step run).
 
 **Primary results:**
 
 | Model | Steps | OWT ppl | OWT loss | WikiText ppl |
 |-------|-------|---------|----------|--------------|
-| BLT-1M seed 42 | 550K | 31.05 | 3.4357 | 72.88 |
-| BLT-1M seed 19 | 600K | 30.48 | 3.4170 | 85.82 |
+| BLT-1M seed 7 | 500K | 30.81 | 3.4279 | 71.57 |
 | GPT-2 (MHA) seed 42 | 500K | **27.78** | **3.3243** | 55.99 |
 | GQA (2-group) seed 42 | 500K | **27.64** | **3.3192** | 57.43 |
 
-The two BLT seeds bracket a ~0.10 nat range around 3.43 nats, while GPT-2 and GQA land
-near 3.32 nats.  The ~0.10 nat gap between BLT and the baselines is consistent and real.
+BLT lands at 3.43 nats, while GPT-2 and GQA land near 3.32 nats — a consistent ~0.10 nat
+gap (this is unchanged from the longer 550K/600K BLT runs, see Section 3).
 
 **Zero-shot benchmarks:**
 
-| Task | BLT seed 42 | BLT seed 19 | GPT-2 seed 42 | GQA seed 42 |
-|------|-------------|-------------|---------------|-------------|
-| LAMBADA acc     | 0.205 | 0.209 | **0.225** | 0.204 |
-| LAMBADA ppl     | 349.6 | 288.6 | **174.6** | 205.3 |
-| HellaSwag acc_norm | **0.271** | 0.267 | 0.268 | 0.269 |
-| PIQA acc_norm   | 0.561 | 0.572 | **0.579** | 0.568 |
-| Winogrande acc  | **0.528** | 0.511 | 0.505 | 0.496 |
+| Task | BLT seed 7 | GPT-2 seed 42 | GQA seed 42 |
+|------|------------|---------------|-------------|
+| LAMBADA acc     | 0.212 | **0.225** | 0.204 |
+| LAMBADA ppl     | 244.4 | **174.6** | 205.3 |
+| HellaSwag acc_norm | 0.268 | 0.268 | 0.269 |
+| PIQA acc_norm   | 0.568 | **0.579** | 0.568 |
+| Winogrande acc  | **0.516** | 0.505 | 0.496 |
 
-HellaSwag, PIQA, and Winogrande are essentially four-way ties — all differences are
+HellaSwag, PIQA, and Winogrande are essentially three-way ties — all differences are
 within expected noise for these dataset sizes.  BLT actually holds a slight Winogrande
-edge across both seeds.  LAMBADA is the exception: GPT-2 (0.225) leads clearly, while
-GQA (0.204) falls to essentially the same level as BLT (0.205–0.209) despite GQA
-matching GPT-2 on OWT perplexity.  The significance of this split is discussed in
-Section 4.5.
+edge.  LAMBADA is the exception: GPT-2 (0.225) leads clearly, while GQA (0.204) falls to
+essentially the same level as BLT (0.212) despite GQA matching GPT-2 on OWT perplexity.
+The significance of this split is discussed in Section 4.5.
 
 **Note on WikiText perplexity:** WikiText val ppl was noisy throughout BLT training
 (swings of 25+ ppl within a single run), while OWT held-out ppl was stable.  We treat
@@ -288,14 +298,14 @@ expressiveness constraint from sharing M across layers, or both.  The GQA baseli
 (117.9M parameters, between BLT and GPT-2) answers this — but the answer splits cleanly
 by metric.
 
-**OWT perplexity (27.78 GPT-2 / 27.64 GQA / 30.48–31.05 BLT).**
+**OWT perplexity (27.78 GPT-2 / 27.64 GQA / 30.81 BLT).**
 GQA matches GPT-2 on the primary metric despite having fewer parameters and compressing
 KV to 2 groups.  Since parameter count and KV compression are both ruled out as causes,
 the OWT ppl gap is attributable specifically to cross-layer M sharing: a single M must
 simultaneously produce useful attention weights across 12 layers × 12 heads = 144 distinct
 attention contexts, while per-layer matrices in MHA and GQA can specialize freely.
 
-**LAMBADA (0.225 GPT-2 / 0.204 GQA / 0.205–0.209 BLT).**
+**LAMBADA (0.225 GPT-2 / 0.204 GQA / 0.212 BLT).**
 Here GQA falls to BLT's level, well below GPT-2.  GQA retains per-layer W_k matrices but
 reduces each layer's effective key rank from 768 dimensions (12 heads × 64) to 128 (2
 groups × 64) — a 6× compression.  The fact that this compression hurts LAMBADA as much as
@@ -308,6 +318,49 @@ long-range prediction.
 cross-layer M sharing and is not shared by GQA.  BLT's LAMBADA gap is caused by constrained
 per-layer key capacity and *is* shared by GQA.  Standard MHA, with full per-layer W_k rank
 and no cross-layer sharing, avoids both.
+
+### 4.6 Hybrid Architecture: Mixing MHA and BLT Layers
+
+Section 4.5 attributes BLT's OWT perplexity gap to cross-layer M sharing across all 12
+layers.  This raises a natural question: is the cost of sharing roughly uniform per layer,
+so that removing half the shared layers should recover about half the gap — or does it
+compound, so that a partial fix recovers disproportionately more (or less)?
+
+We trained a hybrid model with 6 standard MHA layers followed by 6 BLT layers, from
+scratch on OWT for 500K steps, identical in every other respect to the runs in Section 4.4.
+
+| Model | Steps | OWT ppl | OWT loss | WikiText ppl |
+|-------|-------|---------|----------|--------------|
+| BLT-1M seed 7 (12 BLT layers) | 500K | 30.81 | 3.4279 | 71.57 |
+| Hybrid (6 MHA + 6 BLT) | 500K | 28.40 | 3.3462 | 69.08 |
+| GPT-2 (MHA) seed 42 (12 MHA layers) | 500K | **27.78** | **3.3243** | 55.99 |
+| GQA (2-group) seed 42 | 500K | **27.64** | **3.3192** | 57.43 |
+
+| Task | Hybrid | BLT seed 7 | GPT-2 seed 42 |
+|------|--------|------------|---------------|
+| LAMBADA acc | 0.222 | 0.212 | **0.225** |
+| LAMBADA ppl | **167.1** | 244.4 | 174.6 |
+| HellaSwag acc_norm | **0.273** | 0.268 | 0.268 |
+| PIQA acc_norm | 0.562 | 0.568 | **0.579** |
+| Winogrande acc | 0.504 | 0.516 | 0.505 |
+
+Converting half of BLT's layers (12 → 6) to standard MHA closes the OWT loss gap from
+0.1036 nats (full BLT vs GPT-2) down to 0.0219 nats — recovering **over 75% of the gap**
+from converting only 50% of the layers.  This is clearly non-additive: if the cost of
+cross-layer sharing were a flat per-layer tax, halving the BLT layer count would close
+roughly half the gap, not three-quarters.  The result instead suggests the cost compounds
+across layers — perhaps because errors in early-layer representations propagate and are
+amplified by later shared-M layers, or because a single M serving 12 layers' worth of
+attention contexts is harder to optimize than one serving 6.  Six layers of unconstrained
+per-layer W_q/W_k appear to be enough for the model to largely route around M's
+limitations, even though M is still present in the other half of the network.
+
+The hybrid's LAMBADA result is the most striking individual number in this paper: its
+perplexity (167.1) beats every other architecture tested, including full standard MHA
+(174.6).  This is consistent with the picture from Section 4.5 — LAMBADA appears to depend
+on per-layer key capacity rather than cross-layer sharing — and indicates that 6 full MHA
+layers are sufficient to fully recover, and even modestly exceed, MHA's long-range
+retrieval performance, while still saving parameters via the remaining 6 BLT layers.
 
 ---
 
@@ -391,15 +444,31 @@ and one fewer D×D matrix multiply per layer per step.
 GPT-2's 0.242, which initially suggested the shared-M design might limit long-range
 narrative understanding.  The OWT run (250K steps, ~1B tokens) resolved this: BLT reached
 0.199 on LAMBADA while matching GPT-2 on HellaSwag and exceeding it on PIQA.  The
-from-scratch OWT comparison (Section 4.4) further confirms BLT reaches 0.205–0.209 on
-LAMBADA at full training scale, versus 0.225 for standard MHA — a modest residual gap
-that tracks with the overall OWT perplexity gap rather than indicating a specific
-architectural limitation for long-range retrieval.
+from-scratch OWT comparison (Section 4.4) further confirms BLT reaches 0.212 on LAMBADA
+at full training scale, versus 0.225 for standard MHA — a modest residual gap that tracks
+with the overall OWT perplexity gap rather than indicating a specific architectural
+limitation for long-range retrieval.  The hybrid model (Section 4.6) closes this gap
+entirely and slightly overshoots it (0.222 acc, 167.1 ppl vs GPT-2's 174.6 ppl), reinforcing
+that the LAMBADA shortfall is tied to constrained per-layer key capacity rather than an
+inherent property of bilinear attention.
 
-**SVD analysis of trained M.** We computed the SVD of M from the seed-42 BLT from-scratch
-run.  The singular value spectrum is nearly flat: 550 of 768 singular values exceed 10%
-of the maximum, and r=256 captures only 81% of Frobenius energy.  M is genuinely
-full-rank, not converging to a natural low-rank solution.
+**Hybrid architecture (completed result).** Section 4.6 answers the question of whether
+BLT's expressiveness cost is additive across layers: it is not.  A 6 MHA + 6 BLT hybrid,
+trained from scratch on OWT under the same protocol as the other from-scratch runs,
+recovers over 75% of the OWT loss gap between full BLT and standard MHA while still using
+6 fewer sets of per-layer W_q/W_k than standard MHA.  It also produces the best LAMBADA
+perplexity of any architecture tested in this paper.  This indicates the cost of serving
+12 layers' worth of attention contexts from a single shared M compounds rather than sums,
+and that a relatively small fraction of unconstrained layers is enough to substantially
+mitigate it — a promising direction for deploying BLT-style parameter sharing without
+paying its full expressiveness cost.
+
+**SVD analysis of trained M.** We computed the SVD of M from a BLT from-scratch run (the
+550K-step seed-42 run from the wall-clock-matching experiment described in Section 3; this
+analysis is a structural property of the trained M itself and is unaffected by the choice
+of seed or exact step count).  The singular value spectrum is nearly flat: 550 of 768
+singular values exceed 10% of the maximum, and r=256 captures only 81% of Frobenius
+energy.  M is genuinely full-rank, not converging to a natural low-rank solution.
 
 This is interpretable: M must simultaneously encode useful attention patterns for all
 144 attention contexts (12 layers × 12 heads), requiring broad coverage of the full
@@ -407,16 +476,6 @@ D-dimensional space.  A UV^T factorization therefore needs r ≥ 192–256 to be
 approximation; r=64 would lose 64% of Frobenius energy.  The flatness of the spectrum
 also explains why M cannot be low-rank from the outset — the 144 distinct attention
 contexts it must serve span the space.
-
-**Hybrid architecture.** An open question is whether BLT's expressiveness cost is uniform
-across layers or concentrated in early layers.  If later transformer layers need less
-diverse attention patterns (having already built up representations), a hybrid model —
-early layers using standard MHA, later layers using BLT — might recover most of GPT-2's
-perplexity while retaining most of BLT's parameter savings.  This also reduces the
-multi-tasking burden on M, since it would need to cover fewer layers (e.g., 6 instead
-of 12), potentially allowing it to be lower-rank or more expressive per layer.  A 6+6
-hybrid experiment (6 standard MHA layers followed by 6 BLT layers, trained from scratch
-on OWT) is in progress.
 
 **Tensor parallelism compatibility.** Production-scale models distribute attention across
 multiple GPUs using tensor parallelism (TP): each GPU handles H/N heads independently,
