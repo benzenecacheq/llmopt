@@ -88,12 +88,20 @@ artifact (phr128 systematically off-by-one on paragraph numbering). Not a data e
 
 - §6.2: SnapKV-Select diagnostic table (KL + brief F_out note). This is the ONLY place Sel appears.
 - §8: Main cross-rate tables — Sel column removed. Methods: Naive, phr160, phr128, SnapKV, Pyr.
-- §9: PyramidKV case study. Old Table 4 (multi-rate F_out) removed; Table 5 renumbered to Table 4
-  (3-method F_out by output-length category, Llama 65%).
-- §9.4: Rewritten — explains T0 prefill advantage (KL=0 by construction, post-hoc cache pruning
-  doesn't alter hidden states) and T1+ drift from pruned KV cache. Old "binary regime" analysis
-  (from diagnose_distribution.py with head-truncation bug) is REMOVED and was never in paper tables.
-- §9.5: Synthesis paragraph — PyramidKV fails on its own terms (slow on short, no better on long).
+- §9: PyramidKV case study, now three subsections:
+  - §9.1 What F_out Reveals — Table 4 (3-method F_out by output-length category, Llama 65%).
+  - §9.2 Inference Speed.
+  - §9.3 Synthesis — PyramidKV fails on its own terms (slow on short, no better on long).
+- §9.2 "Per-Step KL Dynamics" (old Table 5, six synthetic long-answer docs) was CUT — the synthetic
+  per-step F_out came back ~0 for every method (free generation drifts apart over 300 tokens, no
+  discriminative signal), and the KL_mean cross-method ranking on those short (~1000-tok) synthetic
+  docs contradicted the main-benchmark ranking (§8.2) at both 65% and 35% retention — likely a
+  document-length artifact interacting with PyramidKV's layer-budget clamping, plus n=6 is too small
+  to trust. The T0=0→T1-spike claim (still true, still useful) is folded into §9 intro / §9.1
+  qualitatively instead of getting its own subsection + table.
+  Scripts/data from that experiment (`perStep_kl_eval.py`, `analyze_perstep.py`,
+  `run_perstep_eval.sh`, `synthetic_prompts/`, `lb_results_base/perstep_kl_fictional*.json`) are kept
+  in-repo for reference but are NOT used by any paper table.
 - KL metric uses y* shared prefix (fixed path-dependence flaw); see `kl_faith_eval_ystar.py`.
 
 ## Data validity note
