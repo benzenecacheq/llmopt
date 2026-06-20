@@ -181,8 +181,8 @@ The definitive test of BLT is a controlled comparison against standard MHA and 2
 
 | Metric | BLT seed 7 | GPT-2 (MHA) seed 42 | GQA (2-group) seed 42 |
 |--------|------------|----------------------|------------------------|
-| OWT ppl | 30.81 | **27.78** | **27.64** |
-| OWT loss | 3.4279 | **3.3243** | **3.3192** |
+| OWT ppl | 30.81 | 27.78 | **27.64** |
+| OWT loss | 3.4279 | 3.3243 | **3.3192** |
 | WikiText ppl | 71.57 | 55.99 | 57.43 |
 
 BLT trails both baselines by a consistent ~0.10 nat / ~3 ppl margin; GQA is marginally ahead even of standard MHA on this one metric.
@@ -219,8 +219,8 @@ We trained a hybrid model with 6 standard MHA layers followed by 6 BLT layers, f
 
 | Metric | Hybrid (6 MHA + 6 BLT) | BLT seed 7 (12 BLT layers) | GQA (2-group) seed 42 | GPT-2 (MHA) seed 42 (12 MHA layers) |
 |--------|--------------------------|------------------------------|------------------------|----------------------------------------|
-| OWT ppl | 28.40 | 30.81 | **27.64** | **27.78** |
-| OWT loss | 3.3462 | 3.4279 | **3.3192** | **3.3243** |
+| OWT ppl | 28.40 | 30.81 | **27.64** | 27.78 |
+| OWT loss | 3.3462 | 3.4279 | **3.3192** | 3.3243 |
 | WikiText ppl | 69.08 | 71.57 | 57.43 | 55.99 |
 
 | Task | Hybrid | BLT seed 7 | GQA seed 42 | GPT-2 seed 42 |
