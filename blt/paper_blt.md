@@ -217,11 +217,11 @@ Section 4.4 attributes BLT's OWT perplexity gap to cross-layer M sharing across 
 
 We trained a hybrid model with 6 standard MHA layers followed by 6 BLT layers, from scratch on OWT for 500K steps, identical in every other respect to the runs in Section 4.3.
 
-| Metric | BLT seed 7 (12 BLT layers) | Hybrid (6 MHA + 6 BLT) | GPT-2 (MHA) seed 42 (12 MHA layers) | GQA (2-group) seed 42 |
-|--------|------------------------------|--------------------------|----------------------------------------|------------------------|
-| OWT ppl | 30.81 | 28.40 | **27.78** | **27.64** |
-| OWT loss | 3.4279 | 3.3462 | **3.3243** | **3.3192** |
-| WikiText ppl | 71.57 | 69.08 | 55.99 | 57.43 |
+| Metric | Hybrid (6 MHA + 6 BLT) | BLT seed 7 (12 BLT layers) | GQA (2-group) seed 42 | GPT-2 (MHA) seed 42 (12 MHA layers) |
+|--------|--------------------------|------------------------------|------------------------|----------------------------------------|
+| OWT ppl | 28.40 | 30.81 | **27.64** | **27.78** |
+| OWT loss | 3.3462 | 3.4279 | **3.3192** | **3.3243** |
+| WikiText ppl | 69.08 | 71.57 | 57.43 | 55.99 |
 
 | Task | Hybrid | BLT seed 7 | GQA seed 42 | GPT-2 seed 42 |
 |------|--------|------------|-------------|---------------|
