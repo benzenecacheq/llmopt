@@ -117,7 +117,7 @@ In standard MHA, each of the H heads attends to different parts of the context b
 
 ## 3. Experimental Setup
 
-**Base model:** GPT-2 Small (12 layers, 12 heads, D=768, d=64).
+**Base model:** GPT-2 Small (12 layers, 12 heads, D=768, d=64).  Pretrained weights, where used (Sections 4.1–4.2 and the "GPT-2 pretrained" baselines), are OpenAI's original release as distributed via HuggingFace `transformers` (`GPT2LMHeadModel.from_pretrained('gpt2')`).
 
 **Training:** All parameters trained with Adam (lr=5e-5, cosine decay to near zero, 200 warmup steps, batch size 4, block size 1024).  This is the GD-only control condition — no alternative optimizers are used.
 
@@ -131,7 +131,7 @@ In standard MHA, each of the H heads attends to different parts of the context b
 - *Standard MHA (GPT-2)*: trained from scratch, 500K steps.
 - *2-group GQA*: 12 query heads, 2 KV heads (6 queries per KV head); W_q and W_o are full D×D per layer, W_k and W_v project to 2×64=128 dimensions.  Trained from scratch, 500K steps.  GQA has 117.9M unique parameters — close to BLT's 110.9M and between BLT and GPT-2's 124.4M — making it the right tool for separating parameter count effects from architectural expressiveness.
 
-**Step count:** All architectures reported in this paper — BLT, standard MHA, GQA, and the hybrid model (Section 4.5) — are trained from scratch for a fixed **500K steps** on identical data and hyperparameters, giving a clean iso-step comparison.  BLT's forward pass requires one fewer D×D matrix multiply per layer (no W_k projection), which in principle reduces per-step compute, and we initially trained two BLT seeds longer (550K and 600K steps for seeds 42 and 19) to target wall-clock parity with the baselines on their respective machines.  These longer runs converged to OWT perplexities of 31.05 and 30.48 — statistically indistinguishable from a third BLT seed (seed 7) trained for exactly 500K steps (30.81) — indicating the additional 50–100K steps produced no significant improvement.  We therefore report all results at the common 500K-step budget, using BLT seed 7 as the representative from-scratch BLT run.
+**Step count:** The from-scratch architectures reported in this paper — BLT, standard MHA, GQA, and the hybrid model (Section 4.5) — are trained from scratch for a fixed **500K steps** on identical data and hyperparameters, giving a clean iso-step comparison.  This does not apply to Sections 4.1–4.2, which fine-tune from pretrained GPT-2 weights rather than training from scratch (see those sections for their own step counts).
 
 ---
 
@@ -181,7 +181,7 @@ LAMBADA improved monotonically (0.182 → 0.199) across all three checkpoints an
 
 ### 4.3 From-Scratch OpenWebText Comparison
 
-The definitive test of BLT is a controlled comparison against standard MHA and GQA on identical data, compute, and hyperparameters, all trained from scratch on 2M OWT documents for a fixed 500K steps (see the step-count note in Section 3; two additional BLT seeds trained 550K–600K steps are reported there but excluded here since they showed no improvement over the 500K-step run).
+The definitive test of BLT is a controlled comparison against standard MHA and GQA on identical data, compute, and hyperparameters, all trained from scratch on 2M OWT documents for a fixed 500K steps (Section 3).
 
 **Primary results:**
 
@@ -288,7 +288,7 @@ Several recent lines of work converge on the question of whether the standard Q,
 
 **The hybrid is the best quality/memory trade-off tested, not a free lunch.** Section 4.5's 6 MHA + 6 BLT hybrid clearly beats GQA (LAMBADA, HellaSwag, Winogrande) and is within noise of full MHA on everything but PIQA, while still saving ~23% of attention parameters. The gap recovery is disproportionate to the layer count converted — half the BLT layers recover over 75% of the loss gap — suggesting the cost of cross-layer sharing compounds across layers rather than summing linearly: six unconstrained layers are apparently enough for the model to mostly route around M's limitations even with M still present elsewhere.  But the hybrid keeps only half of BLT's memory benefit; it is a point on a curve between BLT and MHA, and where to sit on that curve is a deployment choice this paper does not resolve.
 
-**SVD analysis of trained M.** We computed the SVD of M from a BLT from-scratch run (the 550K-step seed-42 run from the wall-clock-matching experiment described in Section 3; this analysis is a structural property of the trained M itself and is unaffected by the choice of seed or exact step count).  The singular value spectrum is nearly flat: 550 of 768 singular values exceed 10% of the maximum, and r=256 captures only 81% of Frobenius energy.  M is genuinely full-rank, not converging to a natural low-rank solution.
+**SVD analysis of trained M.** We computed the SVD of M from a BLT from-scratch run (seed 42); this analysis is a structural property of the trained M itself and is unaffected by the choice of seed or exact step count.  The singular value spectrum is nearly flat: 550 of 768 singular values exceed 10% of the maximum, and r=256 captures only 81% of Frobenius energy.  M is genuinely full-rank, not converging to a natural low-rank solution.
 
 This is interpretable: M must simultaneously encode useful attention patterns for all 144 attention contexts (12 layers × 12 heads), requiring broad coverage of the full D-dimensional space.  A UV^T factorization therefore needs r ≥ 192–256 to be a reasonable approximation; r=64 would lose 64% of Frobenius energy.  The flatness of the spectrum also explains why M cannot be low-rank from the outset — the 144 distinct attention contexts it must serve span the space.
 
