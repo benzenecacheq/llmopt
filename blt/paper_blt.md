@@ -125,38 +125,35 @@ In standard MHA, each of the H heads attends to different parts of the context b
 - *WikiText-103*: English Wikipedia (~103M tokens).  2 epochs ≈ 50,300 steps.
 - *OpenWebText* (2M documents, ~2B tokens): Skylion007/openwebtext, first 2M documents. Chinchilla-optimal compute for a ~117M parameter model falls in this range.
 
-**Evaluation:** Sliding-window perplexity on WikiText-103 validation (stride=512) and on a held-out OWT split (files 21–25, ~50K tokens); zero-shot accuracy on LAMBADA, HellaSwag, PIQA, and Winogrande via lm-eval-harness (primary suite), plus ARC-Easy, BoolQ, and OpenBookQA as a supplementary noise check (Section 4.7).
+**Evaluation:** Sliding-window perplexity on WikiText-103 validation (stride=512) and on a held-out OWT split (files 21–25, ~50K tokens); zero-shot accuracy on LAMBADA, HellaSwag, PIQA, and Winogrande via lm-eval-harness (primary suite), plus ARC-Easy, BoolQ, and OpenBookQA as a supplementary noise check (Section 4.6).
 
 **Baselines:**
 - *Standard MHA (GPT-2)*: trained from scratch, 500K steps.
 - *2-group GQA*: 12 query heads, 2 KV heads (6 queries per KV head); W_q and W_o are full D×D per layer, W_k and W_v project to 2×64=128 dimensions.  Trained from scratch, 500K steps.  GQA has 117.9M unique parameters — close to BLT's 110.9M and between BLT and GPT-2's 124.4M — making it the right tool for separating parameter count effects from architectural expressiveness.
 
-**Step count:** All architectures reported in this paper — BLT, standard MHA, GQA, and the hybrid model (Section 4.6) — are trained from scratch for a fixed **500K steps** on identical data and hyperparameters, giving a clean iso-step comparison.  BLT's forward pass requires one fewer D×D matrix multiply per layer (no W_k projection), which in principle reduces per-step compute, and we initially trained two BLT seeds longer (550K and 600K steps for seeds 42 and 19) to target wall-clock parity with the baselines on their respective machines.  These longer runs converged to OWT perplexities of 31.05 and 30.48 — statistically indistinguishable from a third BLT seed (seed 7) trained for exactly 500K steps (30.81) — indicating the additional 50–100K steps produced no significant improvement.  We therefore report all results at the common 500K-step budget, using BLT seed 7 as the representative from-scratch BLT run.
+**Step count:** All architectures reported in this paper — BLT, standard MHA, GQA, and the hybrid model (Section 4.5) — are trained from scratch for a fixed **500K steps** on identical data and hyperparameters, giving a clean iso-step comparison.  BLT's forward pass requires one fewer D×D matrix multiply per layer (no W_k projection), which in principle reduces per-step compute, and we initially trained two BLT seeds longer (550K and 600K steps for seeds 42 and 19) to target wall-clock parity with the baselines on their respective machines.  These longer runs converged to OWT perplexities of 31.05 and 30.48 — statistically indistinguishable from a third BLT seed (seed 7) trained for exactly 500K steps (30.81) — indicating the additional 50–100K steps produced no significant improvement.  We therefore report all results at the common 500K-step budget, using BLT seed 7 as the representative from-scratch BLT run.
 
 ---
 
 ## 4. Results
 
-**A note on the fine-tuning runs (Sections 4.1–4.3).** Unlike the from-scratch comparisons in Section 4.4 onward, every run in Sections 4.1–4.3 starts from *pretrained* GPT-2 Small weights, not random initialization.  For BLT, every weight except W_q and W_k — embeddings, W_v, W_o, MLP, layer norms — is copied from pretrained GPT-2 and never reinitialized; only the new M matrix differs between the two variants tested:
+### 4.1 WikiText-103 Fine-Tuning
 
-- **Sections 4.1–4.2 ("BLT, fine-tuned"):** M is *warm-started* using the formula in Section 2.2 (the average of W_q^l W_k^{l,T} across the pretrained model's layers), then the whole model is fine-tuned end-to-end on WikiText-103 for 50,300 steps (2 epochs, Section 3).  The "GPT-2 fine-tuned" row in Section 4.1 is the identical fine-tuning recipe with no architecture change, as a control.
-- **Section 4.3 ("BLT OWT, random M"):** M is instead *randomly* initialized (N(0, 1/√D)) while every other weight still starts from the same pretrained GPT-2 checkpoint, and fine-tuning continues on OpenWebText.
+This experiment starts from *pretrained* GPT-2 Small weights, not random initialization: every weight except W_q and W_k — embeddings, W_v, W_o, MLP, layer norms — is copied from pretrained GPT-2 and never reinitialized.  M is *warm-started* using the formula in Section 2.2 (the average of W_q^l W_k^{l,T} across the pretrained model's layers), and the whole model is then fine-tuned end-to-end on WikiText-103 for 50,300 steps (2 epochs, Section 3).  The "GPT-2 fine-tuned" row below applies the identical fine-tuning recipe with no architecture change, as a control.  This tests whether *converting* a pretrained standard-attention model into BLT and fine-tuning it recovers good performance — not whether BLT can be trained from scratch, which is addressed separately starting in Section 4.3, where every weight in every architecture is randomly initialized.
 
-In both cases this is a fine-tuning experiment on top of a pretrained model — it tests whether *converting* a pretrained standard-attention model into BLT (with M either warm-started or learned from random) recovers good performance.  It does **not** test whether BLT can be trained from scratch; that question is addressed separately starting in Section 4.4, where every weight in every architecture is randomly initialized.
-
-### 4.1 WikiText-103 Perplexity
+**Perplexity:**
 
 | Model | Val PPL |
 |-------|---------|
 | GPT-2 pretrained (no fine-tune) | 26.39 |
 | GPT-2 fine-tuned (WikiText-103) | ~14.91 (stopped at step 33,930) |
-| BLT (WikiText-103, fine-tuned, warm-started M) | **21.50** |
+| BLT (fine-tuned, warm-started M) | **21.50** |
 
 BLT surpasses the pretrained GPT-2 baseline despite using up to 50% fewer attention parameters, demonstrating that the shared-M constraint is not prohibitively limiting for language modelling.
 
-### 4.2 Zero-Shot Benchmarks (WikiText-trained)
+**Zero-shot benchmarks:**
 
-| Task | GPT-2 pretrained | BLT (WikiText, fine-tuned) |
+| Task | GPT-2 pretrained | BLT (fine-tuned) |
 |------|-----------------|-------------------|
 | LAMBADA acc     | 0.242 | 0.114 |
 | LAMBADA ppl     | 83.0  | 1307.5 |
@@ -164,11 +161,11 @@ BLT surpasses the pretrained GPT-2 baseline despite using up to 50% fewer attent
 | PIQA acc_norm   | 0.560 | 0.541 |
 | Winogrande acc  | 0.502 | 0.507 |
 
-BLT (WikiText, fine-tuned) matches GPT-2 closely on HellaSwag, PIQA, and Winogrande.  The LAMBADA gap turns out to be a training domain artifact, not an architectural limitation: see Section 4.3.
+BLT (fine-tuned) matches GPT-2 closely on HellaSwag, PIQA, and Winogrande.  The LAMBADA gap turns out to be a training domain artifact, not an architectural limitation: see Section 4.2.
 
-### 4.3 OpenWebText with Random M Initialization
+### 4.2 OpenWebText with Random M Initialization
 
-Starting again from pretrained GPT-2 Small weights (see the note above Section 4.1), but this time leaving M randomly initialized (N(0, 1/√D)) instead of warm-started, we continued training on the first 1M documents of OpenWebText (~1B tokens) for 250,000 steps (~1 epoch).  This run tests two simultaneous hypotheses: (1) whether M itself can be *learned* without the warm-start — i.e. whether gradient descent alone can recover a good M while every other weight stays pretrained — and (2) whether broader web text improves LAMBADA scores by better matching the narrative distribution.
+Starting again from the same pretrained GPT-2 Small weights as Section 4.1, but this time leaving M randomly initialized (N(0, 1/√D)) instead of warm-started, we continued training on the first 1M documents of OpenWebText (~1B tokens) for 250,000 steps (~1 epoch).  As in Section 4.1, every weight besides M is copied from pretrained GPT-2 and never reinitialized — this is still a fine-tuning experiment, not a from-scratch run.  It tests two simultaneous hypotheses: (1) whether M itself can be *learned* without the warm-start — i.e. whether gradient descent alone can recover a good M while every other weight stays pretrained — and (2) whether broader web text improves LAMBADA scores by better matching the narrative distribution.
 
 Both hypotheses are confirmed.  M converges successfully from random initialization — WikiText-103 validation perplexity declined from 34,114 at step 0 (attention is essentially noise with a random M) to 48.0 at step 218,000, demonstrating that the bilinear interaction structure can be learned entirely from data without the Wq@Wk^T warm-start.
 
@@ -180,9 +177,9 @@ Both hypotheses are confirmed.  M converges successfully from random initializat
 | PIQA acc_norm   | 0.560 | 0.541 | **0.572** | 0.566 | 0.568 |
 | Winogrande acc  | 0.502 | 0.507 | 0.503 | 0.487 | 0.490 |
 
-LAMBADA improved monotonically (0.182 → 0.199) across all three checkpoints and had not saturated, approaching GPT-2's 0.242 after only ~1B tokens — roughly 1% of GPT-2's training data.  This confirms the LAMBADA gap observed in Section 4.2 was a training domain effect: encyclopedia text provides no signal for the narrative last-word prediction patterns LAMBADA tests.
+LAMBADA improved monotonically (0.182 → 0.199) across all three checkpoints and had not saturated, approaching GPT-2's 0.242 after only ~1B tokens — roughly 1% of GPT-2's training data.  This confirms the LAMBADA gap observed in Section 4.1 was a training domain effect: encyclopedia text provides no signal for the narrative last-word prediction patterns LAMBADA tests.
 
-### 4.4 From-Scratch OpenWebText Comparison
+### 4.3 From-Scratch OpenWebText Comparison
 
 The definitive test of BLT is a controlled comparison against standard MHA and GQA on identical data, compute, and hyperparameters, all trained from scratch on 2M OWT documents for a fixed 500K steps (see the step-count note in Section 3; two additional BLT seeds trained 550K–600K steps are reported there but excluded here since they showed no improvement over the 500K-step run).
 
@@ -206,11 +203,11 @@ BLT trails both baselines by a consistent ~0.10 nat / ~3 ppl margin; GQA is marg
 | PIQA acc_norm   | 0.568 | **0.579** | 0.568 |
 | Winogrande acc  | **0.516** | 0.505 | 0.496 |
 
-GQA's perplexity edge does not carry over to the benchmarks: BLT beats GQA on LAMBADA (0.212 vs 0.204) and Winogrande (0.516 vs 0.496), ties it on HellaSwag and PIQA, and only loses cleanly on OWT perplexity.  Give or take, BLT and GQA are in the same ballpark — each gives up something to standard MHA somewhere in the suite, for different reasons (Section 4.5), but neither dominates the other or trails MHA across the board.
+GQA's perplexity edge does not carry over to the benchmarks: BLT beats GQA on LAMBADA (0.212 vs 0.204) and Winogrande (0.516 vs 0.496), ties it on HellaSwag and PIQA, and only loses cleanly on OWT perplexity.  Give or take, BLT and GQA are in the same ballpark — each gives up something to standard MHA somewhere in the suite, for different reasons (Section 4.4), but neither dominates the other or trails MHA across the board.
 
 **Note on WikiText perplexity:** WikiText val ppl was noisy throughout BLT training (swings of 25+ ppl within a single run), while OWT held-out ppl was stable.  We treat OWT ppl as the reliable metric and WikiText ppl as approximate.
 
-### 4.5 Isolating the Source of BLT's Gap
+### 4.4 Isolating the Source of BLT's Gap
 
 BLT (110.9M parameters) uses fewer unique parameters than GPT-2 (124.4M).  A natural question is whether the ~0.10 nat OWT perplexity gap reflects parameter count, the expressiveness constraint from sharing M across layers, or both.  The GQA baseline (117.9M parameters, between BLT and GPT-2) answers this — but the answer splits cleanly by metric.
 
@@ -220,11 +217,11 @@ BLT (110.9M parameters) uses fewer unique parameters than GPT-2 (124.4M).  A nat
 
 **Summary.**  The OWT perplexity gap and the LAMBADA gap have different causes and are not both paid by the same architecture: BLT pays the OWT cost (cross-layer sharing) but not the LAMBADA cost; GQA pays the LAMBADA cost (compressed key rank) but not the OWT cost.  Across the full benchmark suite the two end up comparable.  Only standard MHA, with full per-layer W_k rank and no cross-layer sharing, avoids both costs.
 
-### 4.6 Hybrid Architecture: Mixing MHA and BLT Layers
+### 4.5 Hybrid Architecture: Mixing MHA and BLT Layers
 
-Section 4.5 attributes BLT's OWT perplexity gap to cross-layer M sharing across all 12 layers.  Is that cost additive — does removing half the shared layers recover about half the gap — or does it compound?
+Section 4.4 attributes BLT's OWT perplexity gap to cross-layer M sharing across all 12 layers.  Is that cost additive — does removing half the shared layers recover about half the gap — or does it compound?
 
-We trained a hybrid model with 6 standard MHA layers followed by 6 BLT layers, from scratch on OWT for 500K steps, identical in every other respect to the runs in Section 4.4.
+We trained a hybrid model with 6 standard MHA layers followed by 6 BLT layers, from scratch on OWT for 500K steps, identical in every other respect to the runs in Section 4.3.
 
 | Model | OWT ppl | OWT loss | WikiText ppl |
 |-------|---------|----------|--------------|
@@ -243,11 +240,11 @@ We trained a hybrid model with 6 standard MHA layers followed by 6 BLT layers, f
 
 Converting half of BLT's layers to standard MHA closes the OWT loss gap from 0.1036 nats (full BLT vs MHA) to 0.0219 nats — recovering **over 75% of the gap** from converting only 50% of the layers.  This is clearly non-additive: a flat per-layer tax would close roughly half the gap, not three-quarters, suggesting the cost of cross-layer sharing compounds rather than sums — six unconstrained layers are apparently enough for the model to largely route around M's limitations even with M still present elsewhere.
 
-Against GQA, the hybrid wins on LAMBADA, HellaSwag, and Winogrande, ties on OWT perplexity within a point, and trails only on PIQA — a clear improvement over full BLT's roughly even standing with GQA (Section 4.4).  Against full MHA, the hybrid is within noise everywhere except PIQA, and its LAMBADA perplexity (167.1) is the best of any model tested, including MHA itself (174.6).
+Against GQA, the hybrid wins on LAMBADA, HellaSwag, and Winogrande, ties on OWT perplexity within a point, and trails only on PIQA — a clear improvement over full BLT's roughly even standing with GQA (Section 4.3).  Against full MHA, the hybrid is within noise everywhere except PIQA, and its LAMBADA perplexity (167.1) is the best of any model tested, including MHA itself (174.6).
 
 This comes at a real memory cost: only the 6 BLT layers keep BLT's benefit.  Attention parameters fall from MHA's 28.3M to about 21.8M (a ~23% reduction, vs. 48% for full BLT), and only those 6 layers avoid streaming per-layer W_q/W_k from HBM — the other 6 behave exactly like standard MHA on the memory side.  The hybrid is a genuine quality/memory trade-off point between BLT and MHA, not a free win.
 
-### 4.7 Supplementary Zero-Shot Benchmarks
+### 4.6 Supplementary Zero-Shot Benchmarks
 
 As a noise check on the four-task suite used above, we ran three additional zero-shot tasks (ARC-Easy, BoolQ, OpenBookQA; lm-eval-harness defaults) on all four checkpoints.
 
@@ -259,7 +256,7 @@ As a noise check on the four-task suite used above, we ran three additional zero
 | OpenBookQA acc | 0.130 | 0.122 | 0.136 | **0.138** |
 | OpenBookQA acc_norm | **0.248** | 0.234 | 0.226 | 0.236 |
 
-*These three tasks are noisier than the primary suite at this model scale (~117M-parameter models score only a few points above chance on ARC-Easy/OpenBookQA, and BoolQ accuracy is known to be sensitive to a model's yes/no answer bias).  We report them for completeness rather than as additional evidence either way: no architecture dominates this set — BLT actually posts the best BoolQ and OpenBookQA acc_norm scores — and nothing here changes the "same ballpark" conclusion from Sections 4.4–4.6.*
+*These three tasks are noisier than the primary suite at this model scale (~117M-parameter models score only a few points above chance on ARC-Easy/OpenBookQA, and BoolQ accuracy is known to be sensitive to a model's yes/no answer bias).  We report them for completeness rather than as additional evidence either way: no architecture dominates this set — BLT actually posts the best BoolQ and OpenBookQA acc_norm scores — and nothing here changes the "same ballpark" conclusion from Sections 4.3–4.5.*
 
 ---
 
@@ -285,11 +282,11 @@ Several recent lines of work converge on the question of whether the standard Q,
 
 **Why BLT: memory, not accuracy.** BLT's case is architectural, not a quality play.  It cuts attention parameters by 48%, and because M is a single D×D matrix small enough to live in GPU L2 cache at GPT-2 scale (1.2 MB vs. V100's 6 MB / H100's 50 MB), it removes the need to stream per-layer W_q and W_k from HBM — a cost standard MHA pays on every layer, every decode step.  BLT also does strictly less arithmetic: one fewer D×D matmul per layer.  That FLOP reduction is real, but the runs in this paper ran on different hardware (444–593 ms/step across architectures and machines), so we did not get a clean wall-clock comparison; the speed benefit should be read as a structural property of the architecture, not a validated empirical result here.
 
-**Quality: BLT and GQA each give up something to MHA, but not the same thing, and not everywhere.** Section 4.4 shows BLT trails MHA by ~0.10 nats of OWT loss; GQA does not trail on this metric at all, edging slightly ahead instead.  The zero-shot benchmarks largely invert the picture: BLT matches or beats both GQA and MHA on HellaSwag and Winogrande, and trails only slightly on PIQA — its real benchmark weakness is LAMBADA, where GQA's per-layer key-rank compression costs it just as much ground.  Across the full suite, BLT and GQA each pay a real cost relative to MHA, concentrated in different places and for different reasons: BLT mainly on OWT perplexity (cross-layer M sharing), GQA mainly on LAMBADA (compressed per-layer key rank).  Neither is decisively better than the other, and neither uniformly trails MHA either; the right choice depends on whether parameter count or KV-cache size is the binding constraint.
+**Quality: BLT and GQA each give up something to MHA, but not the same thing, and not everywhere.** Section 4.3 shows BLT trails MHA by ~0.10 nats of OWT loss; GQA does not trail on this metric at all, edging slightly ahead instead.  The zero-shot benchmarks largely invert the picture: BLT matches or beats both GQA and MHA on HellaSwag and Winogrande, and trails only slightly on PIQA — its real benchmark weakness is LAMBADA, where GQA's per-layer key-rank compression costs it just as much ground.  Across the full suite, BLT and GQA each pay a real cost relative to MHA, concentrated in different places and for different reasons: BLT mainly on OWT perplexity (cross-layer M sharing), GQA mainly on LAMBADA (compressed per-layer key rank).  Neither is decisively better than the other, and neither uniformly trails MHA either; the right choice depends on whether parameter count or KV-cache size is the binding constraint.
 
-**LAMBADA's gap is a training-domain effect, not an architecture limit.** WikiText-trained BLT scored 0.114 on LAMBADA vs. GPT-2's 0.242 (Section 4.2), which initially suggested a real architectural limitation.  Training on broader web text resolved this: BLT reached 0.199 after just 250K OWT steps (Section 4.3) and 0.212 at full from-scratch scale (Section 4.4) — and the hybrid model exceeds GPT-2 outright on LAMBADA perplexity (167.1 vs 174.6, Section 4.6).  The residual BLT-vs-MHA gap tracks the per-layer-key-capacity story above, not a narrative-understanding deficit.
+**LAMBADA's gap is a training-domain effect, not an architecture limit.** WikiText-trained BLT scored 0.114 on LAMBADA vs. GPT-2's 0.242 (Section 4.1), which initially suggested a real architectural limitation.  Training on broader web text resolved this: BLT reached 0.199 after just 250K OWT steps (Section 4.2) and 0.212 at full from-scratch scale (Section 4.3) — and the hybrid model exceeds GPT-2 outright on LAMBADA perplexity (167.1 vs 174.6, Section 4.5).  The residual BLT-vs-MHA gap tracks the per-layer-key-capacity story above, not a narrative-understanding deficit.
 
-**The hybrid is the best quality/memory trade-off tested, not a free lunch.** Section 4.6's 6 MHA + 6 BLT hybrid clearly beats GQA (LAMBADA, HellaSwag, Winogrande) and is within noise of full MHA on everything but PIQA, while still saving ~23% of attention parameters. The gap recovery is disproportionate to the layer count converted — half the BLT layers recover over 75% of the loss gap — suggesting the cost of cross-layer sharing compounds across layers rather than summing linearly: six unconstrained layers are apparently enough for the model to mostly route around M's limitations even with M still present elsewhere.  But the hybrid keeps only half of BLT's memory benefit; it is a point on a curve between BLT and MHA, and where to sit on that curve is a deployment choice this paper does not resolve.
+**The hybrid is the best quality/memory trade-off tested, not a free lunch.** Section 4.5's 6 MHA + 6 BLT hybrid clearly beats GQA (LAMBADA, HellaSwag, Winogrande) and is within noise of full MHA on everything but PIQA, while still saving ~23% of attention parameters. The gap recovery is disproportionate to the layer count converted — half the BLT layers recover over 75% of the loss gap — suggesting the cost of cross-layer sharing compounds across layers rather than summing linearly: six unconstrained layers are apparently enough for the model to mostly route around M's limitations even with M still present elsewhere.  But the hybrid keeps only half of BLT's memory benefit; it is a point on a curve between BLT and MHA, and where to sit on that curve is a deployment choice this paper does not resolve.
 
 **SVD analysis of trained M.** We computed the SVD of M from a BLT from-scratch run (the 550K-step seed-42 run from the wall-clock-matching experiment described in Section 3; this analysis is a structural property of the trained M itself and is unaffected by the choice of seed or exact step count).  The singular value spectrum is nearly flat: 550 of 768 singular values exceed 10% of the maximum, and r=256 captures only 81% of Frobenius energy.  M is genuinely full-rank, not converging to a natural low-rank solution.
 
@@ -315,7 +312,7 @@ Scaling up also interacts with BLT's core memory argument.  BLT's case for memor
 
 BLT (a single shared M) is one extreme of a spectrum; standard MHA is the other, with a distinct M_h^l for every layer and head (N×H total, Section 1).  A natural untested direction is to sit partway between the two: split the heads into a small number of groups, each with its own shared M, partially recovering head diversity while still sharing each M across all layers.  This has not been trained to convergence in this paper and is not reported as a result; we flag it purely as a direction worth exploring.
 
-A fuller sweep — say 2, 4, and 6 shared M matrices, trained from scratch to full convergence on OWT under the same protocol as Section 4.4 — would map out the quality/parameter curve as the number of shared M matrices grows from 1 (full BLT) toward N (standard MHA).  This is the direct M-sharing analogue of GQA's KV-group count: just as GQA interpolates between MQA and MHA by varying the number of KV groups, multi-M BLT would interpolate between BLT and MHA by varying the number of shared M matrices.  Whether multi-M BLT's quality/parameter trade-off curve would dominate GQA's quality/cache-size curve, or vice versa, at a matched parameter or cache budget, is an open question this paper does not answer.
+A fuller sweep — say 2, 4, and 6 shared M matrices, trained from scratch to full convergence on OWT under the same protocol as Section 4.3 — would map out the quality/parameter curve as the number of shared M matrices grows from 1 (full BLT) toward N (standard MHA).  This is the direct M-sharing analogue of GQA's KV-group count: just as GQA interpolates between MQA and MHA by varying the number of KV groups, multi-M BLT would interpolate between BLT and MHA by varying the number of shared M matrices.  Whether multi-M BLT's quality/parameter trade-off curve would dominate GQA's quality/cache-size curve, or vice versa, at a matched parameter or cache budget, is an open question this paper does not answer.
 
 ### 7.3 Low-Rank UV^T Factorization
 
