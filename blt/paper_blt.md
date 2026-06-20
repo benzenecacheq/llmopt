@@ -175,7 +175,9 @@ LAMBADA improved monotonically (0.182 → 0.199) across all three checkpoints an
 
 ### 4.3 From-Scratch OpenWebText Comparison
 
-The definitive test of BLT is a controlled comparison against standard MHA and 2-group GQA (12 query heads, 2 KV heads; W_q and W_o full D×D per layer, W_k and W_v projecting to 2×64=128 dimensions; 117.9M unique parameters — between BLT's 110.9M and GPT-2's 124.4M, making it the right tool for separating parameter count effects from architectural expressiveness) on identical data, compute, and hyperparameters.  All three architectures are trained from scratch on 2M OWT documents for a fixed **500K steps**, giving a clean iso-step comparison.
+The definitive test of BLT is a controlled comparison against standard MHA and a 2-group GQA variant on identical data, compute, and hyperparameters.  All three architectures are trained from scratch on 2M OWT documents for a fixed **500K steps**, giving a clean iso-step comparison.
+
+We implemented the GQA baseline ourselves: 12 query heads, 2 KV heads; W_q and W_o are full D×D per layer, while W_k and W_v project to 2×64=128 dimensions.  This gives 117.9M unique parameters — between BLT's 110.9M and GPT-2's 124.4M — making it the right tool for separating parameter count effects from architectural expressiveness.
 
 **Primary results:**
 
