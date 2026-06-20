@@ -127,12 +127,6 @@ In standard MHA, each of the H heads attends to different parts of the context b
 
 **Evaluation:** Sliding-window perplexity on WikiText-103 validation (stride=512) and on a held-out OWT split (files 21–25, ~50K tokens); zero-shot accuracy on LAMBADA, HellaSwag, PIQA, and Winogrande via lm-eval-harness (primary suite), plus ARC-Easy, BoolQ, and OpenBookQA as a supplementary noise check (Section 4.6).
 
-**Baselines:**
-- *Standard MHA (GPT-2)*: trained from scratch, 500K steps.
-- *2-group GQA*: 12 query heads, 2 KV heads (6 queries per KV head); W_q and W_o are full D×D per layer, W_k and W_v project to 2×64=128 dimensions.  Trained from scratch, 500K steps.  GQA has 117.9M unique parameters — close to BLT's 110.9M and between BLT and GPT-2's 124.4M — making it the right tool for separating parameter count effects from architectural expressiveness.
-
-**Step count:** The from-scratch architectures reported in this paper — BLT, standard MHA, GQA, and the hybrid model (Section 4.5) — are trained from scratch for a fixed **500K steps** on identical data and hyperparameters, giving a clean iso-step comparison.  This does not apply to Sections 4.1–4.2, which fine-tune from pretrained GPT-2 weights rather than training from scratch (see those sections for their own step counts).
-
 ---
 
 ## 4. Results
@@ -181,7 +175,7 @@ LAMBADA improved monotonically (0.182 → 0.199) across all three checkpoints an
 
 ### 4.3 From-Scratch OpenWebText Comparison
 
-The definitive test of BLT is a controlled comparison against standard MHA and GQA on identical data, compute, and hyperparameters, all trained from scratch on 2M OWT documents for a fixed 500K steps (Section 3).
+The definitive test of BLT is a controlled comparison against standard MHA and 2-group GQA (12 query heads, 2 KV heads; W_q and W_o full D×D per layer, W_k and W_v projecting to 2×64=128 dimensions; 117.9M unique parameters — between BLT's 110.9M and GPT-2's 124.4M, making it the right tool for separating parameter count effects from architectural expressiveness) on identical data, compute, and hyperparameters.  All three architectures are trained from scratch on 2M OWT documents for a fixed **500K steps**, giving a clean iso-step comparison.
 
 **Primary results:**
 
