@@ -175,7 +175,7 @@ LAMBADA improved monotonically (0.182 → 0.199) across all three checkpoints an
 
 ### 4.3 From-Scratch OpenWebText Comparison
 
-The definitive test of BLT is a controlled comparison against standard MHA and a 2-group GQA variant on identical data, compute, and hyperparameters.  All three architectures are trained from scratch on 2M OWT documents for a fixed **500K steps**, giving a clean iso-step comparison.
+The definitive test of BLT is a controlled comparison against standard MHA and a 2-group GQA variant on identical data, compute, and hyperparameters.  All three architectures are trained from scratch on 2M OWT documents for a fixed **500K steps**, giving a clean comparison under identical conditions.
 
 We implemented the GQA baseline ourselves: 12 query heads, 2 KV heads; W_q and W_o are full D×D per layer, while W_k and W_v project to 2×64=128 dimensions.  This gives 117.9M unique parameters — between BLT's 110.9M and GPT-2's 124.4M — making it the right tool for separating parameter count effects from architectural expressiveness.
 
@@ -207,11 +207,13 @@ GQA's perplexity edge does not carry over to the benchmarks: BLT beats GQA on LA
 
 BLT (110.9M parameters) uses fewer unique parameters than GPT-2 (124.4M).  A natural question is whether the ~0.10 nat OWT perplexity gap reflects parameter count, the expressiveness constraint from sharing M across layers, or both.  The GQA baseline (117.9M parameters, between BLT and GPT-2) answers this — but the answer splits cleanly by metric.
 
-**OWT perplexity (27.78 GPT-2 / 27.64 GQA / 30.81 BLT).** GQA matches GPT-2 on the primary metric despite having fewer parameters and compressing KV to 2 groups.  Since parameter count and KV compression are both ruled out as causes, the OWT ppl gap is attributable specifically to cross-layer M sharing: a single M must simultaneously produce useful attention weights across 12 layers × 12 heads = 144 distinct attention contexts, while per-layer matrices in MHA and GQA can specialize freely.
+**OWT perplexity (27.78 GPT-2 / 27.64 GQA / 30.81 BLT).** GQA matches GPT-2 on the primary metric despite having fewer parameters and compressing KV to 2 groups.  Since parameter count and KV compression are both ruled out as causes, the OWT ppl gap appears to be attributable specifically to cross-layer M sharing: a single M must simultaneously produce useful attention weights across 12 layers × 12 heads = 144 distinct attention contexts, while per-layer matrices in MHA and GQA can specialize freely.
 
-**LAMBADA (0.225 GPT-2 / 0.204 GQA / 0.212 BLT).** Here GQA falls to BLT's level, well below GPT-2.  GQA retains per-layer W_k matrices but reduces each layer's effective key rank from 768 dimensions (12 heads × 64) to 128 (2 groups × 64) — a 6× compression.  The fact that this compression hurts LAMBADA as much as BLT's cross-layer sharing does suggests that LAMBADA specifically requires high per-layer key capacity, not merely per-layer key matrices.  Both constraints — reduced rank within a layer (GQA) and a single shared matrix across layers (BLT) — are sufficient to degrade long-range prediction.
+**LAMBADA (0.225 GPT-2 / 0.204 GQA / 0.212 BLT).** Here GQA falls below BLT's level and well below GPT-2.  GQA retains per-layer W_k matrices but reduces each layer's effective key rank from 768 dimensions (12 heads × 64) to 128 (2 groups × 64) — a 6× compression.  The fact that this compression hurts LAMBADA as much as BLT's cross-layer sharing does suggests that LAMBADA specifically requires high per-layer key capacity, not merely per-layer key matrices.  Both constraints — reduced rank within a layer (GQA) and a single shared matrix across layers (BLT) — are sufficient to degrade long-range prediction.
 
 **Summary.**  The OWT perplexity gap and the LAMBADA gap have different causes and are not both paid by the same architecture: BLT pays the OWT cost (cross-layer sharing) but not the LAMBADA cost; GQA pays the LAMBADA cost (compressed key rank) but not the OWT cost.  Across the full benchmark suite the two end up comparable.  Only standard MHA, with full per-layer W_k rank and no cross-layer sharing, avoids both costs.
+
+**A caveat on scale.** The broader GQA/MQA literature reports that GQA's kind of quality loss — degradation from compressing per-layer key rank, which is what costs it on LAMBADA here — tends to shrink as model size grows, since larger models have more redundancy to absorb aggressive KV compression.  It is plausible that BLT's OWT perplexity gap, though it has a different cause (cross-layer M sharing rather than compressed key rank), could shrink with scale in the same way; this has not been tested here.  Section 7.1 discusses what testing BLT at larger scale would involve and why the comparison in this section should not be assumed to hold at 7B+.
 
 ### 4.5 Hybrid Architecture: Mixing MHA and BLT Layers
 
