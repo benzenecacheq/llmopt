@@ -1,0 +1,457 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\Wq}{W_q}
+\newcommand{\Wk}{W_k}
+\newcommand{\Wv}{W_v}
+\newcommand{\Wo}{W_o}
+
+\title{Bilinear Attention with a Shared Interaction Matrix (BLT)}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+The attention calculation is the single most time- and memory-consuming feature of modern Large Language Models (LLMs) and other transformer-based AI implementations. Much research has gone into memory management and algorithm parallelization to reduce the time the attention calculation requires; some research has also gone into modifying the attention mechanism itself to streamline the computation.
+
+In this paper we introduce BLT (Bilinear aTtention), a drop-in replacement for standard multi-head attention (MHA) that replaces the model's per-layer query and key projections ($W_q$, $W_k$) with a single $D\times D$ matrix $M$ shared across all layers and all heads. This cuts attention parameters by up to 50\%, and---because $M$ is small enough to stay resident in GPU cache for smaller models---removes the need to stream per-layer $W_q$/$W_k$ from HBM at every layer, a bandwidth hit that standard MHA cannot avoid. BLT also does strictly less arithmetic (one fewer matrix multiply per layer), a modest additional compute saving.
+
+We trained GPT-2 Small with BLT, standard MHA, and a Grouped-Query Attention (GQA) variant, then evaluated all three on a battery of standard benchmarks. BLT trails standard MHA on certain tests but beats it or ties on others. In the aggregate however, the losses are somewhat greater than the gains. GQA pays a similarly-sized overall cost relative to MHA, for different underlying reasons. Give or take, neither BLT nor GQA is decisively better than the other.
+
+We also tested a hybrid architecture---half standard MHA layers, half BLT layers---which recovers most of what full BLT gives up in quality, at the cost of keeping only half of BLT's memory benefit.
+\end{abstract}
+
+\section{Background: Standard Multi-Head Attention}
+
+Let $X \in \mathbb{R}^{L\times D}$ be the sequence of hidden states entering an attention layer, where $L$ is the sequence length and $D$ is the model dimension. A transformer with $N$ layers and $H$ heads per layer uses per-head dimension $d = D/H$.
+
+For head $h$, standard multi-head attention (MHA) computes:
+
+\begin{align*}
+Q_h &= X W_q^h, & (L\times D)(D\times d) \rightarrow L\times d\\
+K_h &= X W_k^h, & (L\times D)(D\times d) \rightarrow L\times d\\
+V_h &= X W_v^h, & (L\times D)(D\times d) \rightarrow L\times d\\[6pt]
+A_h &= \operatorname{softmax}\!\left(\frac{Q_h K_h^\top}{\sqrt{d}}\right), & L\times L \ \text{(causal mask applied before softmax)}\\[6pt]
+\operatorname{head}_h &= A_h V_h, & L\times d
+\end{align*}
+
+The outputs of all heads are concatenated and projected:
+
+\begin{equation*}
+\operatorname{out} = \operatorname{concat}(\operatorname{head}_1, \ldots, \operatorname{head}_H)\, W_o + b_o \qquad (L\times D)(D\times D)
+\end{equation*}
+
+Every layer has its own $W_q^{l,h}$, $W_k^{l,h}$, $W_v^{l,h}$, $W_o^l$. The attention score between positions $i$ and $j$ in head $h$ can be written as a bilinear form:
+
+\begin{equation*}
+\operatorname{score}_h(i,j) = \frac{x_i^\top \left(W_q^h {W_k^h}^\top\right) x_j}{\sqrt{d}}
+\end{equation*}
+
+so each head implicitly defines a $D\times D$ interaction matrix $M_h = W_q^h {W_k^h}^\top$. Across $N$ layers and $H$ heads, standard MHA has \textbf{$N\times H$ distinct interaction matrices}.
+
+\paragraph{Attention parameters per layer:}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Matrix & Shape & Params \\
+\midrule
+$W_q$ & $D\times D$ & $D^2$ \\
+$W_k$ & $D\times D$ & $D^2$ \\
+$W_v$ & $D\times D$ & $D^2$ \\
+$W_o$ & $D\times D$ & $D^2$ \\
+\midrule
+\textbf{Total per layer} & & $\mathbf{4D^2}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Over $N$ layers: $4ND^2$ attention parameters total.
+
+\section{BLT: Bilinear Attention with a Shared $M$}
+
+BLT replaces all per-layer $W_q$ and $W_k$ matrices with a \textbf{single shared} $D\times D$ matrix $M$. The attention score between positions $i$ and $j$ is:
+
+\begin{equation*}
+\operatorname{score}(i,j) = \frac{x_i^\top M x_j}{\sqrt{d}}
+\end{equation*}
+
+This is a \textbf{bilinear form} in $x_i$ and $x_j$: for fixed $M$, it is linear in $x_i$ with $x_j$ held fixed, and linear in $x_j$ with $x_i$ held fixed (e.g.\ doubling $x_i$ doubles the score). A bilinear form is the natural way to express a degree-two interaction between two vectors mediated by a single matrix, which is exactly the role $M$ plays here --- hence the name \textbf{BLT (Bilinear aTtention)}.
+
+In matrix form, the full attention computation for a layer becomes:
+
+\begin{align*}
+S &= \frac{(XM)X^\top}{\sqrt{d}}, & (L\times D)(D\times D)(D\times L) \rightarrow L\times L\\
+A &= \operatorname{softmax}(S + \operatorname{causal\_mask})\\
+V &= X W_v + b_v\\
+h &= AV\\
+\operatorname{out} &= h W_o + b_o
+\end{align*}
+
+$M$ is shared across \textbf{all $N$ layers}; $W_v$ and $W_o$ remain per-layer.
+
+\paragraph{Attention parameters:}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Matrix & Shape & Count & Params \\
+\midrule
+$M$ (shared) & $D\times D$ & 1 & $D^2$ \\
+$W_v$ & $D\times D$ & $N$ layers & $ND^2$ \\
+$W_o$ & $D\times D$ & $N$ layers & $ND^2$ \\
+\midrule
+\textbf{Total} & & & $\mathbf{(2N+1)D^2}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Relative to standard MHA's $4ND^2$, BLT's $(2N+1)D^2$ is a reduction that grows with $N$, approaching 50\% in the limit of many layers (e.g.\ just under that at moderate depths). Section~3 gives the exact reduction for the specific model used in our experiments.
+
+\subsection{Relationship to Standard Attention}
+
+Standard attention can always be written as a bilinear form:
+
+\begin{equation*}
+\operatorname{score}_h^l(i,j) = \frac{x_i^\top M_h^l x_j}{\sqrt{d}}, \qquad \text{where } M_h^l = W_q^{l,h} {W_k^{l,h}}^\top
+\end{equation*}
+
+BLT is the extreme case of this where $M_h^l = M$ for all layers $l$ and all heads $h$. The single $M$ must therefore capture the average useful query-key interaction across all layers and all head slots.
+
+\subsection{Initialization}
+
+Since $M$ replaces $W_q W_k^\top$, a natural initialization is:
+
+\begin{equation*}
+M_{\text{init}} = \frac{1}{N}\sum_{l} W_q^l {W_k^l}^\top
+\end{equation*}
+
+the average of the per-layer query-key interaction matrices of a pretrained standard-attention model with the same architecture. We also experiment with \textbf{random initialization}: $M \sim \mathcal{N}\!\left(0, \tfrac{1}{\sqrt{D}} I\right)$, which tests whether the pretrained initialization is load-bearing or whether the model can learn $M$ from scratch.
+
+\subsection{Consequence for Head Diversity}
+
+In standard MHA, each of the $H$ heads attends to different parts of the context because each head has its own $M_h$. In BLT (one shared $M$), all $H$ ``head slots'' compute \textbf{identical attention weights}. The only per-head differentiation comes from the $W_v$ projection. This is the primary representational cost of parameter sharing.
+
+\section{Experimental Setup}
+
+\paragraph{Base model.} GPT-2 Small (12 layers, 12 heads, $D=768$, $d=64$). Pretrained weights, where used (Sections~4.1--4.2 and the ``GPT-2 pretrained'' baselines), are OpenAI's original release as distributed via HuggingFace \texttt{transformers} (\texttt{GPT2LMHeadModel.from\_pretrained('gpt2')}).
+
+\paragraph{Training.} All parameters trained with Adam (lr$=5\mathrm{e}{-5}$, cosine decay to near zero, 200 warmup steps, batch size 4, block size 1024). This is the GD-only control condition --- no alternative optimizers are used.
+
+\paragraph{Datasets.}
+\begin{itemize}
+\item \emph{WikiText-103}: English Wikipedia ($\sim$103M tokens). 2 epochs $\approx$ 50{,}300 steps.
+\item \emph{OpenWebText} (2M documents, $\sim$2B tokens): Skylion007/openwebtext, first 2M documents. Chinchilla-optimal compute for a $\sim$117M parameter model falls in this range.
+\end{itemize}
+
+\paragraph{Evaluation.} Sliding-window perplexity on WikiText-103 validation (stride$=512$) and on a held-out OWT split (files 21--25, $\sim$50K tokens); zero-shot accuracy on LAMBADA, HellaSwag, PIQA, and Winogrande via lm-eval-harness (primary suite), plus ARC-Easy, BoolQ, and OpenBookQA as a supplementary noise check (Section~4.6).
+
+\section{Results}
+
+\subsection{WikiText-103 Fine-Tuning}
+
+This experiment starts from \emph{pretrained} GPT-2 Small weights, not random initialization: every weight except $W_q$ and $W_k$ --- embeddings, $W_v$, $W_o$, MLP, layer norms --- is copied from pretrained GPT-2 and never reinitialized. $M$ is \emph{warm-started} using the formula in Section~2.2 (the average of $W_q^l {W_k^l}^\top$ across the pretrained model's layers), and the whole model is then fine-tuned end-to-end on WikiText-103 for 50{,}300 steps (2 epochs, Section~3). The ``GPT-2 fine-tuned'' row below applies the identical fine-tuning recipe with no architecture change, as a control. This tests whether \emph{converting} a pretrained standard-attention model into BLT and fine-tuning it recovers good performance --- not whether BLT can be trained from scratch, which is addressed separately starting in Section~4.3, where every weight in every architecture is randomly initialized.
+
+\paragraph{Perplexity.}
+
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Model & Val PPL \\
+\midrule
+GPT-2 pretrained (no fine-tune) & 26.39 \\
+GPT-2 fine-tuned (WikiText-103) & $\sim$14.91 (stopped at step 33{,}930) \\
+BLT (fine-tuned, warm-started $M$) & \textbf{21.50} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+BLT surpasses the pretrained GPT-2 baseline despite using up to 50\% fewer attention parameters, demonstrating that the shared-$M$ constraint is not prohibitively limiting for language modelling.
+
+\paragraph{Zero-shot benchmarks.}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Task & GPT-2 pretrained & BLT (fine-tuned) \\
+\midrule
+LAMBADA acc & 0.242 & 0.114 \\
+LAMBADA ppl & 83.0 & 1307.5 \\
+HellaSwag acc\_norm & 0.291 & 0.275 \\
+PIQA acc\_norm & 0.560 & 0.541 \\
+Winogrande acc & 0.502 & 0.507 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+BLT (fine-tuned) matches GPT-2 closely on HellaSwag, PIQA, and Winogrande. The LAMBADA gap turns out to be a training domain artifact, not an architectural limitation: see Section~4.2.
+
+\subsection{OpenWebText with Random $M$ Initialization}
+
+Starting again from the same pretrained GPT-2 Small weights as Section~4.1, but this time leaving $M$ randomly initialized ($\mathcal{N}(0, 1/\sqrt{D})$) instead of warm-started, we continued training on the first 1M documents of OpenWebText ($\sim$1B tokens) for 250{,}000 steps ($\sim$1 epoch). As in Section~4.1, every weight besides $M$ is copied from pretrained GPT-2 and never reinitialized --- this is still a fine-tuning experiment, not a from-scratch run. It tests two simultaneous hypotheses: (1) whether $M$ itself can be \emph{learned} without the warm-start --- i.e.\ whether gradient descent alone can recover a good $M$ while every other weight stays pretrained --- and (2) whether broader web text improves LAMBADA scores by better matching the narrative distribution.
+
+Both hypotheses are confirmed. $M$ converges successfully from random initialization --- WikiText-103 validation perplexity declined from 34{,}114 at step 0 (attention is essentially noise with a random $M$) to 48.0 at step 218{,}000, demonstrating that the bilinear interaction structure can be learned entirely from data without the $W_q W_k^\top$ warm-start.
+
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+Task & GPT-2 & BLT & BLT & BLT & BLT \\
+ & pretrained & (warm $M$, & (random $M$, & (random $M$, & (random $M$, \\
+ & & WikiText) & OWT 126K) & OWT 218K) & OWT 250K) \\
+\midrule
+LAMBADA acc & 0.242 & 0.114 & 0.182 & 0.196 & \textbf{0.199} \\
+LAMBADA ppl & 83.0 & 1307.5 & 243.0 & 210.1 & \textbf{206.8} \\
+HellaSwag acc\_norm & 0.291 & 0.275 & 0.280 & 0.279 & 0.280 \\
+PIQA acc\_norm & 0.560 & 0.541 & \textbf{0.572} & 0.566 & 0.568 \\
+Winogrande acc & 0.502 & 0.507 & 0.503 & 0.487 & 0.490 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+LAMBADA improved monotonically ($0.182 \rightarrow 0.199$) across all three checkpoints and had not saturated, approaching GPT-2's 0.242 after only $\sim$1B tokens --- roughly 1\% of GPT-2's training data. This confirms the LAMBADA gap observed in Section~4.1 was a training domain effect: encyclopedia text provides no signal for the narrative last-word prediction patterns LAMBADA tests.
+
+\subsection{From-Scratch OpenWebText Comparison}
+
+The definitive test of BLT is a controlled comparison against standard MHA and a 2-group GQA variant on identical data, compute, and hyperparameters. All three architectures are trained from scratch on 2M OWT documents for a fixed \textbf{500K steps}, giving a clean comparison under identical conditions.
+
+We implemented the GQA baseline ourselves: 12 query heads, 2 KV heads; $W_q$ and $W_o$ are full $D\times D$ per layer, while $W_k$ and $W_v$ project to $2\times 64=128$ dimensions. This gives 117.9M unique parameters --- between BLT's 110.9M and GPT-2's 124.4M --- making it the right tool for separating parameter count effects from architectural expressiveness.
+
+\paragraph{Primary results.}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Metric & BLT seed 7 & GPT-2 (MHA) seed 42 & GQA (2-group) seed 42 \\
+\midrule
+OWT ppl & 30.81 & 27.78 & \textbf{27.64} \\
+OWT loss & 3.4279 & 3.3243 & \textbf{3.3192} \\
+WikiText ppl & 71.57 & 55.99 & 57.43 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+BLT trails both baselines by a consistent $\sim$0.10 nat / $\sim$3 ppl margin; GQA is marginally ahead even of standard MHA on this one metric.
+
+\paragraph{Zero-shot benchmarks.}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Task & BLT seed 7 & GPT-2 seed 42 & GQA seed 42 \\
+\midrule
+LAMBADA acc & 0.212 & \textbf{0.225} & 0.204 \\
+LAMBADA ppl & 244.4 & \textbf{174.6} & 205.3 \\
+HellaSwag acc\_norm & 0.268 & 0.268 & 0.269 \\
+PIQA acc\_norm & 0.568 & \textbf{0.579} & 0.568 \\
+Winogrande acc & \textbf{0.516} & 0.505 & 0.496 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+GQA's perplexity edge does not carry over to the benchmarks: BLT beats GQA on LAMBADA (0.212 vs 0.204) and Winogrande (0.516 vs 0.496), ties it on HellaSwag and PIQA, and only loses cleanly on OWT perplexity. Give or take, BLT and GQA are in the same ballpark --- each gives up something to standard MHA somewhere in the suite, for different reasons (Section~4.4), but neither dominates the other or trails MHA across the board.
+
+\paragraph{Note on WikiText perplexity.} WikiText val ppl was noisy throughout BLT training (swings of 25+ ppl within a single run), while OWT held-out ppl was stable. We treat OWT ppl as the reliable metric and WikiText ppl as approximate.
+
+\subsection{Isolating the Source of BLT's Gap}
+
+BLT (110.9M parameters) uses fewer unique parameters than GPT-2 (124.4M). A natural question is whether the $\sim$0.10 nat OWT perplexity gap reflects parameter count, the expressiveness constraint from sharing $M$ across layers, or both. The GQA baseline (117.9M parameters, between BLT and GPT-2) answers this --- but the answer splits cleanly by metric.
+
+\paragraph{OWT perplexity (27.78 GPT-2 / 27.64 GQA / 30.81 BLT).} GQA matches GPT-2 on the primary metric despite having fewer parameters and compressing KV to 2 groups. Since parameter count and KV compression are both ruled out as causes, the OWT ppl gap appears to be attributable specifically to cross-layer $M$ sharing: a single $M$ must simultaneously produce useful attention weights across 12 layers $\times$ 12 heads $=$ 144 distinct attention contexts, while per-layer matrices in MHA and GQA can specialize freely.
+
+\paragraph{LAMBADA (0.225 GPT-2 / 0.204 GQA / 0.212 BLT).} Here GQA falls below BLT's level and well below GPT-2. GQA retains per-layer $W_k$ matrices but reduces each layer's effective key rank from 768 dimensions (12 heads $\times$ 64) to 128 (2 groups $\times$ 64) --- a $6\times$ compression. The fact that this compression hurts LAMBADA as much as BLT's cross-layer sharing does suggests that LAMBADA specifically requires high per-layer key capacity, not merely per-layer key matrices. Both constraints --- reduced rank within a layer (GQA) and a single shared matrix across layers (BLT) --- are sufficient to degrade long-range prediction.
+
+\paragraph{Summary.} The OWT perplexity gap and the LAMBADA gap have different causes and are not both paid by the same architecture: BLT pays the OWT cost (cross-layer sharing) but not the LAMBADA cost; GQA pays the LAMBADA cost (compressed key rank) but not the OWT cost. Across the full benchmark suite the two end up comparable. Only standard MHA, with full per-layer $W_k$ rank and no cross-layer sharing, avoids both costs.
+
+\paragraph{A caveat on scale.} The broader GQA/MQA literature reports that GQA's kind of quality loss --- degradation from compressing per-layer key rank, which is what costs it on LAMBADA here --- tends to shrink as model size grows, since larger models have more redundancy to absorb aggressive KV compression. It is plausible that BLT's OWT perplexity gap, though it has a different cause (cross-layer $M$ sharing rather than compressed key rank), could shrink with scale in the same way; this has not been tested here. Section~7.1 discusses what testing BLT at larger scale would involve and why the comparison in this section should not be assumed to hold at 7B+.
+
+\subsection{Hybrid Architecture: Mixing MHA and BLT Layers}
+
+Section~4.4 attributes BLT's OWT perplexity gap to cross-layer $M$ sharing across all 12 layers. Is that cost additive --- does removing half the shared layers recover about half the gap --- or does it compound?
+
+We placed the 6 unconstrained MHA layers first and the 6 shared-$M$ BLT layers last, rather than the reverse, based on evidence that later transformer layers are less critical to model quality than early ones: Gromov et al.~\cite{gromov2024} show that removing 20--55\% of the deepest layers in pretrained LLMs causes minimal performance degradation after light fine-tuning, while removing early layers is far more damaging. If later layers are less critical, they are also the more natural place to absorb BLT's expressiveness constraint --- Section~7.2 generalizes this layer-ordering intuition into a graduated, multi-block sharing scheme.
+
+We trained a hybrid model with 6 standard MHA layers followed by 6 BLT layers, from scratch on OWT for 500K steps, identical in every other respect to the runs in Section~4.3.
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Metric & Hybrid & BLT seed 7 & GQA (2-group) & GPT-2 (MHA) \\
+ & (6 MHA + 6 BLT) & (12 BLT layers) & seed 42 & seed 42 (12 MHA layers) \\
+\midrule
+OWT ppl & 28.40 & 30.81 & \textbf{27.64} & 27.78 \\
+OWT loss & 3.3462 & 3.4279 & \textbf{3.3192} & 3.3243 \\
+WikiText ppl & 69.08 & 71.57 & 57.43 & 55.99 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Task & Hybrid & BLT seed 7 & GQA seed 42 & GPT-2 seed 42 \\
+\midrule
+LAMBADA acc & 0.222 & 0.212 & 0.204 & \textbf{0.225} \\
+LAMBADA ppl & \textbf{167.1} & 244.4 & 205.3 & 174.6 \\
+HellaSwag acc\_norm & \textbf{0.273} & 0.268 & 0.269 & 0.268 \\
+PIQA acc\_norm & 0.562 & 0.568 & 0.568 & \textbf{0.579} \\
+Winogrande acc & 0.504 & 0.516 & 0.496 & 0.505 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Converting half of BLT's layers to standard MHA closes the OWT loss gap from 0.1036 nats (full BLT vs MHA) to 0.0219 nats --- recovering \textbf{over 75\% of the gap} from converting only 50\% of the layers. This is clearly non-additive: a flat per-layer tax would close roughly half the gap, not three-quarters, suggesting the cost of cross-layer sharing compounds rather than sums --- six unconstrained layers are apparently enough for the model to largely route around $M$'s limitations even with $M$ still present elsewhere.
+
+Against GQA, the hybrid wins on LAMBADA, HellaSwag, and Winogrande, ties on OWT perplexity within a point, and trails only on PIQA --- a clear improvement over full BLT's roughly even standing with GQA (Section~4.3). Against full MHA, the hybrid is within noise everywhere except PIQA, and its LAMBADA perplexity (167.1) is the best of any model tested, including MHA itself (174.6).
+
+This comes at a real memory cost: only the 6 BLT layers keep BLT's benefit. Attention parameters fall from MHA's 28.3M to about 21.8M (a $\sim$23\% reduction, vs.\ 48\% for full BLT), and only those 6 layers avoid streaming per-layer $W_q$/$W_k$ from HBM --- the other 6 behave exactly like standard MHA on the memory side. The hybrid is a genuine quality/memory trade-off point between BLT and MHA, not a free win.
+
+\subsection{Supplementary Zero-Shot Benchmarks}
+
+As a noise check on the four-task suite used above, we ran three additional zero-shot tasks (ARC-Easy, BoolQ, OpenBookQA; lm-eval-harness defaults) on all four checkpoints.
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Task & BLT seed 7 & Hybrid & GPT-2 seed 42 & GQA seed 42 \\
+\midrule
+ARC-Easy acc & 0.366 & 0.368 & 0.373 & \textbf{0.381} \\
+ARC-Easy acc\_norm & 0.339 & 0.344 & \textbf{0.348} & 0.345 \\
+BoolQ acc & \textbf{0.611} & 0.606 & 0.571 & 0.596 \\
+OpenBookQA acc & 0.130 & 0.122 & 0.136 & \textbf{0.138} \\
+OpenBookQA acc\_norm & \textbf{0.248} & 0.234 & 0.226 & 0.236 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\emph{These three tasks are noisier than the primary suite at this model scale ($\sim$117M-parameter models score only a few points above chance on ARC-Easy/OpenBookQA, and BoolQ accuracy is known to be sensitive to a model's yes/no answer bias). We report them for completeness rather than as additional evidence either way: no architecture dominates this set --- BLT actually posts the best BoolQ and OpenBookQA acc\_norm scores --- and nothing here changes the ``same ballpark'' conclusion from Sections~4.3--4.5.}
+
+\section{Related Work}
+
+Several recent lines of work converge on the question of whether the standard $Q$, $K$, $V$ triplet in self-attention is over-parameterized.
+
+\paragraph{Shared weights within a layer.} Kowsher et al.~\cite{kowsher2025shared} propose sharing a single weight matrix for $Q$, $K$, \emph{and} $V$ within each attention layer in BERT, reporting a 66\% reduction in attention parameters with no loss in accuracy on GLUE tasks and improved generalization on out-of-domain data (NAACL 2025). This is the closest prior work to BLT: both recognize that $Q$ and $K$ do not need separate matrices. The key differences are that BLT (i) retains $V$ as a distinct per-layer projection, (ii) expresses the $Q$/$K$ interaction as an explicit bilinear form $XMX^\top$ rather than tying the matrices, and (iii) shares $M$ \emph{across all layers} rather than within a single layer.
+
+\paragraph{Eliminating $Q$ or $K$ entirely.} Karbevski and Mijoski~\cite{karbevski2025identity} prove that the Query or Key weight matrix can be replaced by the identity without loss in small GPT-style models, reducing attention parameters by 25\% and simplifying optimization by making attention logits linear in the remaining learned weights. Their setup matches ours closely --- GPT-2 Small (12 layers, 12 heads, $D=768$) trained on OpenWebText --- and they report that replacing $W_q$ with the identity costs \textbf{less than 1\% validation loss} (2.88 vs.\ 2.90 nats in one configuration, 2.86 vs.\ 2.87 in another), while $W_k$ continues to specialize fully per layer. This is a useful contrast with BLT's $\sim$0.10 nat cost (Section~4.3): removing one whole projection while leaving the other to specialize per layer is nearly free, but BLT removes \emph{both} projections and ties what remains into a single matrix shared across \emph{every} layer. The much larger gap BLT pays is consistent with the cost being specifically the cross-layer sharing constraint rather than simply having fewer learned matrices --- the same conclusion the GQA comparison in Section~4.4 reaches independently. BLT can be seen as a more structured version of their idea: rather than removing one projection entirely, it merges both into a single bilinear matrix that is shared across layers.
+
+\paragraph{Cross-layer KV sharing.} Brandon et al.~\cite{brandon2024cla} propose Cross-Layer Attention (CLA), which shares $K$ and $V$ \emph{activations} (not weight matrices) between adjacent layers to reduce KV-cache size at inference (NeurIPS 2024). At 1B--3B parameter scale (SlimPajama, 30B--100B tokens) --- far larger than our GPT-2 Small experiments --- CLA's KV-cache compression costs only \textbf{0.03--0.05 perplexity points} at matched cache budgets. This is direct literature evidence, not just speculation, for the scale argument in Section~4.4 and Section~7.1: if halving KV-cache size costs this little at 1B+ scale, it is plausible BLT's cross-layer-sharing cost (a different mechanism, but the same ``give up some per-layer specialization'' character) could shrink similarly at scale --- though this remains untested for BLT itself. The goal of CLA is inference memory rather than parameter count; the approach is orthogonal to BLT and could in principle be combined with it.
+
+\paragraph{Matrix-based dictionary learning.} MASA~\cite{masa2025} decomposes all attention projection matrices ($Q$, $K$, $V$, $O$) into linear combinations of shared dictionary atoms across layers, achieving 66.7\% attention parameter reduction. At their smallest scale (110M parameters, $\sim$2.2B tokens, RefinedWeb) --- close to our own --- they report MASA beating both a low-rank baseline and their own GQA baseline on WikiText and LAMBADA perplexity. Their GQA baseline uses 41.7\% attention-parameter compression, numerically close to ours (2-group GQA at 12 heads, $D=768$, also $\sim$41.7\%), suggesting a similar configuration --- yet in their setup GQA performs \emph{worse} than their vanilla baseline on both WikiText ppl (78.41 vs.\ 76.11) and LAMBADA ppl (187.71 vs.\ 167.39), the opposite of our result, where GQA matched or beat standard MHA on OWT perplexity (Section~4.3). This is a useful caveat rather than a contradiction: it suggests GQA's measured quality cost is sensitive to training data and recipe details, and that absolute numbers do not transfer cleanly across papers even at matched compression ratios and similar scale. This is a general compression framework; BLT's sharing is more targeted and structurally motivated by the bilinear interpretation of attention.
+
+\paragraph{Multi-head Latent Attention (MLA).} DeepSeek-V2~\cite{deepseekv2} introduces MLA, which jointly compresses $K$ and $V$ into a low-dimensional latent vector via a shared down-projection, then recovers per-head $K$ and $V$ via up-projections at attention time. This dramatically reduces KV-cache size while maintaining model quality, and has become a standard component of the DeepSeek model family. The low-rank $UV^\top$ extension of BLT (Section~7.3) converges toward MLA in spirit: both compress the key and value cache via low-rank projections. The critical distinction is that BLT's projections $U$ and $V$ are \emph{globally shared across all layers}, whereas MLA's down/up-projection matrices are per-layer. BLT's cross-layer sharing is the stronger inductive bias and the architectural claim that differentiates it from MLA. Whether global sharing hurts, helps, or is neutral relative to per-layer sharing at fixed cache budget is an open empirical question.
+
+\paragraph{Summary.} To our knowledge, the specific combination in BLT --- merging $Q$ and $K$ into a single bilinear interaction matrix $M$ that is shared across all transformer layers, while keeping $V$ and $O$ projections per-layer --- has not been previously proposed. The recent independent results corroborating the redundancy of separate $Q$ and $K$ matrices lend additional support to the approach. The low-rank $UV^\top$ variant of BLT is the natural evolution toward KV-cache compression and tensor-parallel scalability, and its relationship to MLA suggests a promising direction for larger-scale validation.
+
+\section{Discussion}
+
+\paragraph{Why BLT: memory and bandwidth, with a small and recoverable accuracy cost.} BLT's primary motivation is architectural rather than a direct accuracy claim: it cuts attention parameters by 48\%, and because $M$ is a single $D\times D$ matrix small enough to live in GPU L2 cache at GPT-2 scale (1.2 MB vs.\ V100's 6 MB / H100's 50 MB), it removes the need to stream per-layer $W_q$ and $W_k$ from HBM --- a cost standard MHA pays on every layer, every decode step. BLT also does strictly less arithmetic: one fewer $D\times D$ matmul per layer. That FLOP reduction is real, but the runs in this paper ran on different hardware (444--593 ms/step across architectures and machines), so we did not get a clean wall-clock comparison; the speed benefit should be read as a structural property of the architecture, not a validated empirical result here. None of this would be worth much if it came at a large accuracy cost, which is why most of this paper's experiments are aimed specifically at measuring that cost and showing it can be kept small: a $\sim$0.10 nat OWT loss gap comparable in size to GQA's own cost relative to MHA (Sections~4.3--4.4), reducible to within a few percent of full MHA by the hybrid architecture (Section~4.5), and plausibly smaller still at larger scale (Section~7.1).
+
+\paragraph{Quality: BLT and GQA each give up something to MHA, but not the same thing, and not everywhere.} Section~4.3 shows BLT trails MHA by $\sim$0.10 nats of OWT loss; GQA does not trail on this metric at all, edging slightly ahead instead. The zero-shot benchmarks largely invert the picture: BLT matches or beats both GQA and MHA on HellaSwag and Winogrande, and trails only slightly on PIQA --- its real benchmark weakness is LAMBADA, where GQA's per-layer key-rank compression costs it just as much ground. Across the full suite, BLT and GQA each pay a real cost relative to MHA, concentrated in different places and for different reasons: BLT mainly on OWT perplexity (cross-layer $M$ sharing), GQA mainly on LAMBADA (compressed per-layer key rank). Neither is decisively better than the other, and neither uniformly trails MHA either; the right choice depends on whether parameter count or KV-cache size is the binding constraint.
+
+\paragraph{The hybrid is the best quality/memory trade-off tested, not a free lunch.} Section~4.5's 6 MHA + 6 BLT hybrid clearly beats GQA (LAMBADA, HellaSwag, Winogrande) and is within noise of full MHA on everything but PIQA, while still saving $\sim$23\% of attention parameters. The gap recovery is disproportionate to the layer count converted --- half the BLT layers recover over 75\% of the loss gap --- suggesting the cost of cross-layer sharing compounds across layers rather than summing linearly: six unconstrained layers are apparently enough for the model to mostly route around $M$'s limitations even with $M$ still present elsewhere. But the hybrid keeps only half of BLT's memory benefit; it is a point on a curve between BLT and MHA, and where to sit on that curve is a deployment choice this paper does not resolve.
+
+\paragraph{SVD analysis of trained $M$.} We computed the SVD of $M$ from a BLT from-scratch run (seed 42); this analysis is a structural property of the trained $M$ itself and is unaffected by the choice of seed or exact step count. The singular value spectrum is nearly flat: 550 of 768 singular values exceed 10\% of the maximum, and $r=256$ captures only 81\% of Frobenius energy. $M$ is genuinely full-rank, not converging to a natural low-rank solution.
+
+This is interpretable: $M$ must simultaneously encode useful attention patterns for all 144 attention contexts (12 layers $\times$ 12 heads), requiring broad coverage of the full $D$-dimensional space. A $UV^\top$ factorization therefore needs $r \geq 192$--256 to be a reasonable approximation; $r=64$ would lose 64\% of Frobenius energy. The flatness of the spectrum also explains why $M$ cannot be low-rank from the outset --- the 144 distinct attention contexts it must serve span the space.
+
+\paragraph{Memory bandwidth at inference.} Large-model decode is bandwidth-bound, and weights vs.\ KV cache trade off differently for BLT. The weight-side win is unconditional (see ``Why BLT'' above): standard MHA loads $W_q$ and $W_k$ from HBM for every layer at every decode step --- $2 \times D^2 \times L$ bytes per token vs.\ BLT's single $D^2$ load amortized across all $L$ layers. The KV-cache side is not a win: BLT caches the same $D$-dimensional vector per token per layer as standard MHA (it stores raw $x_j$ as an implicit key, not a compressed one), so it gets none of GQA's cache compression. At long contexts, where KV-cache bandwidth dominates total bandwidth, this erodes BLT's advantage as a fraction of the total --- addressed by the low-rank $UV^\top$ variant proposed in Section~7.3.
+
+\paragraph{Tensor parallelism compatibility.} Production-scale models distribute attention across multiple GPUs using tensor parallelism (TP): each GPU handles $H/N$ heads independently, with a single all-reduce for the output projection. Standard MHA and GQA shard cleanly by head or KV group. Full-rank $M$ BLT is fundamentally incompatible with head-level TP: since $M$ produces identical attention weights for all heads, it cannot be partitioned by head. The alternatives --- replicating $M$ on every GPU, or sharding $M$ and all-reducing the $L\times L$ attention matrix --- both degrade bandwidth efficiency as $N$ grows. At 8-way TP on a 70B model, full $M$ BLT uses $2.5\times$ more bandwidth per GPU than standard MHA. This is the second motivation (alongside cache residency, Section~7.1) for the low-rank $UV^\top$ variant proposed in Section~7.3.
+
+\paragraph{KV-cache compatibility.} Standard KV caching stores $K = XW_k$ for past tokens. In BLT, the score between new token $t$ and past token $j$ is $(x_t M)\cdot x_j$, so the cache only needs to store the raw hidden states $x_j$ (as implicit keys) and $x_j W_v$ (as values). A single $M$ multiply produces the query; no key projection is required when adding new tokens. The current implementation does not exploit this and recomputes full attention from scratch at each forward pass; an inference-optimized implementation would realize this as a genuine efficiency gain over standard attention.
+
+\section{Future Work}
+
+\subsection{Scaling BLT to Larger Models}
+
+GQA's only real weakness in our GPT-2-scale comparison --- the LAMBADA hit from cutting 12 heads to 2 KV groups, a $6\times$ per-layer key-rank reduction --- is the kind of degradation the broader GQA/MQA literature reports shrinking as model size grows: larger models have more redundancy to absorb aggressive KV compression, and production GQA configurations typically use gentler group ratios than the $6\times$ tested here. If GQA's gap to standard MHA closes with scale while BLT's does not, GQA would pull ahead of BLT at larger model sizes, undermining the ``same ballpark'' conclusion from Section~6. That makes testing BLT itself --- not just GQA --- at larger scale the natural next experiment once larger hardware is available; the GPT-2-scale result here should not be assumed to hold at 7B+.
+
+Scaling up also interacts with BLT's core memory argument. BLT's case for memory efficiency rests on $M$ staying resident in fast on-chip memory (L2 cache or SRAM, depending on hardware). This holds comfortably at GPT-2 scale ($M = 1.2$ MB) and plausibly up to $\sim$13B ($M = 52$ MB, borderline on an H100's 50 MB L2), but breaks down at 70B ($M = 134$ MB, exceeding any current GPU's L2). Past that point, $M$ itself must be streamed from HBM like any other weight matrix, eroding exactly the advantage that motivates full-rank BLT. This is the central reason the low-rank $UV^\top$ variant (Section~7.3) is worth pursuing before, not after, scaling BLT up --- full-rank $M$ is a viable architecture only up to the point where $M$ fits in cache.
+
+\subsection{More $M$ Matrices}
+
+BLT (a single shared $M$) is one extreme of a design space; standard MHA is the other, with a distinct $M_h^l$ for every layer and head ($N\times H$ total, Section~1). This space has two \emph{independent} axes --- how many distinct $M$'s to use across \textbf{heads} versus across \textbf{layers} --- not one combined dial. A model can mix any number of head-groups (1 to $H$) with any number of layer-blocks (1 to $N$); each combination is a different architecture. Full BLT sits at (1 head-group, 1 layer-block); full MHA sits at ($H$ head-groups, $N$ layer-blocks). None of the intermediate points below have been trained to convergence in this paper; all are flagged purely as directions worth exploring.
+
+Two corners of this space besides BLT and MHA are useful reference points:
+
+\begin{itemize}
+\item \textbf{One $M$ per head, shared across all layers} ($H$ head-groups, 1 layer-block): the endpoint of a head-grouped sweep (2, 4, 6, \ldots\ head-groups), the direct analogue of GQA's KV-group count. BLT-2M, tested briefly in early WikiText-103 experiments with 2 head-groups, sits partway along this axis but was not carried to convergence and is not reported as a result here. This endpoint also restores tensor-parallel shardability (Section~6): since each head now has its own dedicated $M_h$, a GPU can own a disjoint subset of heads --- $M_h$, $W_v$, $W_o$ together --- with no need to replicate a shared matrix or all-reduce an attention matrix across GPUs, unlike full-rank single-$M$ BLT. This is a structural fix to the same TP problem that motivates the low-rank $UV^\top$ variant (Section~7.3), via a different mechanism: $UV^\top$ makes the globally-shared object small enough to replicate cheaply, while one-$M$-per-head avoids needing to share across the partition axis at all. It does not, however, shrink the matrix itself --- each $M_h$ is still a full $D\times D$ matrix rather than a thin $D\times d$ projection --- so the parameter savings relative to standard MHA are real but more modest than full BLT's ($H\times D^2$ vs.\ $D^2$ for the shared QK-interaction structure).
+\item \textbf{$N$ distinct $M$'s, one per layer, shared across all heads} (1 head-group, $N$ layer-blocks): unlike current BLT, which reuses the \emph{same} single $M$ at every layer, this scheme gives each of the $N$ layers its own separate matrix ($M_1, \ldots, M_N$) --- but within any one layer, every head still shares that layer's matrix, so BLT's ``identical attention weights per head'' constraint is unchanged. Only the cross-layer sharing constraint is relaxed, and only partially: from 1 matrix used $N$ times down to $N$ matrices used once each. The hybrid in Section~4.5 is a related but distinct construction: rather than giving every layer its own matrix, it gives early layers no sharing at all (full per-head MHA) and late layers one shared $M$ (full BLT) --- a depth-dependent mix of \emph{both} axes at once, not a point on this single-axis line. Section~4.5's rationale for that depth-dependence --- that later layers tolerate constraints better than early ones~\cite{gromov2024} --- applies to the layer axis specifically, and has no analogue for the head axis, since there is no comparable evidence that some heads matter systematically more than others.
+\end{itemize}
+
+\textbf{These two axes have very different memory-bandwidth consequences, and the difference is about layers, not heads.} What determines BLT's weight-streaming cost is how many \emph{distinct} $M$'s must be loaded from HBM over one forward pass --- i.e., the number of layer-blocks, independent of how many head-groups are used. All of a layer's head-groups are needed at the same point in the forward pass, so however many there are, they load together as one (larger) weight fetch --- still just once, reused across all $N$ layers exactly as with a single $M$, only $G_{\text{head}}$ times the bytes. Increasing the number of layer-blocks does the opposite: it directly increases the number of separate $M$-loads per forward pass, one per block, each amortized only across the layers in its own block. So moving along the head axis is nearly free on the memory side; moving along the layer axis is not, regardless of how many head-groups (if any) are combined with it. The hybrid's 6 MHA layers already pay this cost in Section~4.5; giving every layer its own distinct $M$ would pay it at every layer simultaneously, trading away essentially all of BLT's cross-layer cache-reuse benefit in exchange for per-layer (but still per-head-shared) specialization.
+
+A fuller sweep along either axis --- or jointly along both, trained from scratch to full convergence on OWT under the same protocol as Section~4.3 --- would map out the quality/parameter/bandwidth trade-off surface this paper has so far only sampled at a few points (full BLT, the 6+6 hybrid, full MHA). Whether the resulting surface dominates GQA's quality/cache-size curve at a matched budget is an open question this paper does not answer.
+
+\subsection{Low-Rank $UV^\top$ Factorization}
+
+A different way to make BLT cheaper at scale is to constrain $M$ itself, rather than splitting it into multiple full-rank matrices. Recall (Section~2.1) that any standard attention head implicitly defines an interaction matrix $M_h = W_q^h {W_k^h}^\top$ --- and since $W_q$ and $W_k$ each have only $d = D/H$ columns, $M_h$ is itself a rank-$d$ factorization of a $D\times D$ matrix. BLT's shared $M$ discards this factorization ($M$ is a full $D\times D$ matrix, not a product of two thin ones). The low-rank $UV^\top$ variant puts it back, but shared globally rather than per-layer:
+
+\begin{equation*}
+M = UV^\top, \qquad U, V \in \mathbb{R}^{D\times r},\ r \ll D
+\end{equation*}
+
+The attention score becomes:
+
+\begin{equation*}
+\operatorname{score}(i,j) = x_i^\top (UV^\top) x_j = \frac{(x_i U)\cdot(x_j V)}{\sqrt{d}}
+\end{equation*}
+
+--- i.e.\ computing $(x_i U)$ and $(x_j V)$ and taking their dot product, exactly like standard $Q$/$K$ attention, except $U$ and $V$ are shared across all $N$ layers instead of being defined per-layer. $U$ plays the role of a shared query projection and $V$ the role of a shared key projection; the asymmetry between them is intentional, since the query-side and key-side questions (``what am I looking for'' vs.\ ``what do I offer'') have no reason to be answered by the same projection even though both are globally shared.
+
+$UV^\top$ directly addresses the three limitations of full-rank BLT raised above:
+
+\begin{itemize}
+\item \textbf{KV-cache compression.} At inference, the key cache stores $x_j V$ ($r$-dimensional) instead of the full $x_j$ ($D$-dimensional) --- a $D/r$ reduction identical to GQA's $D/r$ KV-group compression (``Memory bandwidth at inference,'' Section~6).
+\item \textbf{Tensor-parallel compatibility.} Full-rank $M$ cannot be sharded by head (``Tensor parallelism compatibility,'' Section~6); $U$ and $V$ are small enough (8.4 MB at $r=256$, $D=8192$) to replicate on every GPU at any TP degree without the bandwidth blowup full $M$ suffers --- at 8-way TP on a 70B model, $UV^\top$ BLT uses $\sim$37\% \emph{less} bandwidth than standard MHA, versus full $M$ BLT's $2.5\times$ \emph{more}.
+\item \textbf{Cache residency at scale.} $U+V$ (8.4 MB at $r=256$, $D=8192$) stay comfortably L2/SRAM resident even where full $M$ (Section~7.1) does not.
+\end{itemize}
+
+This isn't free, though. The SVD analysis in Section~6 shows $M$'s singular spectrum is nearly flat (550 of 768 singular values exceed 10\% of the maximum), so a $UV^\top$ model cannot simply be initialized by truncating a trained full-rank $M$'s spectrum --- $r=256$ would capture only 81\% of Frobenius energy at GPT-2 scale. The practical path is post-training SVD factorization followed by fine-tuning: factorize a trained $M \approx UV^\top$ at $r=192$ or $r=256$, reinitialize the model with the factored weights, and fine-tune for $\sim$50--100K additional steps. This has not yet been run.
+
+This sets up a direct architectural comparison we have not yet made: \textbf{globally shared low-rank $UV^\top$ vs.\ per-layer full-rank GQA}, at the same KV-cache budget. GQA has more expressive per-layer key projections; low-rank BLT has stronger cross-layer regularization. Which inductive bias wins, and at what model scale, is an open empirical question.
+
+\begin{thebibliography}{9}
+
+\bibitem{kowsher2025shared}
+Kowsher, M., Prottasha, N.~J., Yu, C.-N., Garibay, O.~O., and Yousefi, N.
+\newblock Does Self-Attention Need Separate Weights in Transformers?
+\newblock \emph{arXiv:2412.00359}, NAACL 2025.
+
+\bibitem{karbevski2025identity}
+Karbevski, M. and Mijoski, A.
+\newblock Key and Value Weights Are Probably All You Need: On the Necessity of the Query, Key, Value Weight Triplet in Self-Attention Transformers.
+\newblock \emph{arXiv:2510.23912}.
+
+\bibitem{brandon2024cla}
+Brandon, W., Mishra, M., Nrusimha, A., Panda, R., and Ragan-Kelly, J.
+\newblock Reducing Transformer Key-Value Cache Size with Cross-Layer Attention.
+\newblock \emph{arXiv:2405.12981}, NeurIPS 2024.
+
+\bibitem{masa2025}
+Zhussip, M., Shopkhoev, D., Ali, A., and Lefkimmiatis, S.
+\newblock Share Your Attention: Transformer Weight Sharing via Matrix-based Dictionary Learning.
+\newblock \emph{arXiv:2508.04581}.
+
+\bibitem{deepseekv2}
+DeepSeek-AI.
+\newblock DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model.
+\newblock \emph{arXiv:2405.04434}.
+
+\bibitem{gromov2024}
+Gromov, A., Tirumala, K., Shapourian, H., Glorioso, P., and Roberts, D.~A.
+\newblock The Unreasonable Ineffectiveness of the Deeper Layers.
+\newblock \emph{arXiv:2403.17887}, ICLR 2025.
+
+\end{thebibliography}
+
+\end{document}

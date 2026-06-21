@@ -4,3 +4,9 @@ __pycache__/
 *.pt.bak
 *.log
 *.out
+*.aux
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+paper_blt.pdf
