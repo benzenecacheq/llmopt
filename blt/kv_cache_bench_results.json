@@ -1,0 +1,110 @@
+[
+  {
+    "name": "GPT-2 (MHA)",
+    "batch_size": 1,
+    "prompt_len": 128,
+    "decode_len": 64,
+    "prefill_ms": 7.608586922287941,
+    "decode_ms_per_step": 7.6152907640789635,
+    "decode_tok_per_sec": 131.3147496241328
+  },
+  {
+    "name": "BLT",
+    "batch_size": 1,
+    "prompt_len": 128,
+    "decode_len": 64,
+    "prefill_ms": 5.997989792376757,
+    "decode_ms_per_step": 6.550603575306013,
+    "decode_tok_per_sec": 152.65768848686355
+  },
+  {
+    "name": "GQA",
+    "batch_size": 1,
+    "prompt_len": 128,
+    "decode_len": 64,
+    "prefill_ms": 7.818003185093403,
+    "decode_ms_per_step": 7.936498957860749,
+    "decode_tok_per_sec": 126.00014254516401
+  },
+  {
+    "name": "Hybrid (6+6)",
+    "batch_size": 1,
+    "prompt_len": 128,
+    "decode_len": 64,
+    "prefill_ms": 7.058139890432358,
+    "decode_ms_per_step": 7.5313681227271445,
+    "decode_tok_per_sec": 132.77800045151628
+  },
+  {
+    "name": "GPT-2 (MHA)",
+    "batch_size": 8,
+    "prompt_len": 128,
+    "decode_len": 64,
+    "prefill_ms": 22.69703894853592,
+    "decode_ms_per_step": 7.0338856530725025,
+    "decode_tok_per_sec": 1137.3514433669368
+  },
+  {
+    "name": "BLT",
+    "batch_size": 8,
+    "prompt_len": 128,
+    "decode_len": 64,
+    "prefill_ms": 20.333151798695326,
+    "decode_ms_per_step": 6.005258343066089,
+    "decode_tok_per_sec": 1332.1658358357088
+  },
+  {
+    "name": "GQA",
+    "batch_size": 8,
+    "prompt_len": 128,
+    "decode_len": 64,
+    "prefill_ms": 20.217563956975937,
+    "decode_ms_per_step": 7.381184441328514,
+    "decode_tok_per_sec": 1083.8368914352866
+  },
+  {
+    "name": "Hybrid (6+6)",
+    "batch_size": 8,
+    "prompt_len": 128,
+    "decode_len": 64,
+    "prefill_ms": 21.5359297581017,
+    "decode_ms_per_step": 6.426014078897424,
+    "decode_tok_per_sec": 1244.93969384092
+  },
+  {
+    "name": "GPT-2 (MHA)",
+    "batch_size": 1,
+    "prompt_len": 900,
+    "decode_len": 64,
+    "prefill_ms": 27.1688811480999,
+    "decode_ms_per_step": 7.340966702031437,
+    "decode_tok_per_sec": 136.22184115387336
+  },
+  {
+    "name": "BLT",
+    "batch_size": 1,
+    "prompt_len": 900,
+    "decode_len": 64,
+    "prefill_ms": 20.674696192145348,
+    "decode_ms_per_step": 6.387228590028826,
+    "decode_tok_per_sec": 156.56242545649786
+  },
+  {
+    "name": "GQA",
+    "batch_size": 1,
+    "prompt_len": 900,
+    "decode_len": 64,
+    "prefill_ms": 25.054062716662884,
+    "decode_ms_per_step": 7.718756110989489,
+    "decode_tok_per_sec": 129.55455330118045
+  },
+  {
+    "name": "Hybrid (6+6)",
+    "batch_size": 1,
+    "prompt_len": 900,
+    "decode_len": 64,
+    "prefill_ms": 23.97566009312868,
+    "decode_ms_per_step": 6.8838705265079625,
+    "decode_tok_per_sec": 145.26711334114503
+  }
+]
