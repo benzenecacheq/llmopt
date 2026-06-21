@@ -162,13 +162,13 @@ BLT surpasses the pretrained GPT-2 baseline despite using up to 50% fewer attent
 
 | Task | GPT-2 pretrained | BLT (fine-tuned) |
 |------|-----------------|-------------------|
-| LAMBADA acc     | 0.242 | 0.114 |
-| LAMBADA ppl     | 83.0  | 1307.5 |
-| HellaSwag acc_norm | 0.291 | 0.275 |
-| PIQA acc_norm   | 0.560 | 0.541 |
-| Winogrande acc  | 0.502 | 0.507 |
+| LAMBADA acc     | 0.275 | 0.114 |
+| LAMBADA ppl     | 59.1  | 1307.5 |
+| HellaSwag acc_norm | 0.310 | 0.275 |
+| PIQA acc_norm   | 0.623 | 0.541 |
+| Winogrande acc  | 0.504 | 0.507 |
 
-BLT (fine-tuned) matches GPT-2 closely on HellaSwag, PIQA, and Winogrande.  The LAMBADA gap turns out to be a training domain artifact, not an architectural limitation: see Section 4.2.
+BLT (fine-tuned) is close to GPT-2 on Winogrande, but trails on HellaSwag (0.275 vs 0.310) and more substantially on PIQA (0.541 vs 0.623).  The LAMBADA gap is the largest of all, but turns out to be a training domain artifact rather than an architectural limitation: see Section 4.2.
 
 ### 4.2 OpenWebText with Random M Initialization
 
@@ -178,13 +178,13 @@ Both hypotheses are confirmed.  M converges successfully from random initializat
 
 | Task | GPT-2 pretrained | BLT (warm-started M, WikiText) | BLT (random M, OWT step 126K) | BLT (random M, OWT step 218K) | BLT (random M, OWT step 250K) |
 |------|-----------------|-------------------|------------------------|------------------------|------------------------|
-| LAMBADA acc     | 0.242 | 0.114 | 0.182 | 0.196 | **0.199** |
-| LAMBADA ppl     | 83.0  | 1307.5 | 243.0 | 210.1 | **206.8** |
-| HellaSwag acc_norm | 0.291 | 0.275 | 0.280 | 0.279 | 0.280 |
-| PIQA acc_norm   | 0.560 | 0.541 | **0.572** | 0.566 | 0.568 |
-| Winogrande acc  | 0.502 | 0.507 | 0.503 | 0.487 | 0.490 |
+| LAMBADA acc     | 0.275 | 0.114 | 0.182 | 0.196 | **0.199** |
+| LAMBADA ppl     | 59.1  | 1307.5 | 243.0 | 210.1 | **206.8** |
+| HellaSwag acc_norm | 0.310 | 0.275 | 0.280 | 0.279 | 0.280 |
+| PIQA acc_norm   | 0.623 | 0.541 | **0.572** | 0.566 | 0.568 |
+| Winogrande acc  | 0.504 | 0.507 | 0.503 | 0.487 | 0.490 |
 
-LAMBADA improved monotonically (0.182 → 0.199) across all three checkpoints and had not saturated, approaching GPT-2's 0.242 after only ~1B tokens — roughly 1% of GPT-2's training data.  This confirms the LAMBADA gap observed in Section 4.1 was a training domain effect: encyclopedia text provides no signal for the narrative last-word prediction patterns LAMBADA tests.
+LAMBADA improved monotonically (0.182 → 0.199) across all three checkpoints and had not saturated, climbing toward GPT-2's 0.275 after only ~1B tokens — roughly 1% of GPT-2's training data — though a sizeable gap (0.076) remains at this checkpoint.  This is consistent with the LAMBADA gap observed in Section 4.1 being a training domain effect rather than an architectural limitation: encyclopedia text provides little signal for the narrative last-word prediction patterns LAMBADA tests, and the score keeps climbing as training shifts to web text.
 
 ### 4.3 From-Scratch OpenWebText Comparison
 
