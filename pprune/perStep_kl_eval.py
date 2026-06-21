@@ -76,6 +76,10 @@ from kl_faith_eval_ystar import (
     make_comp_ids,
     generate_ystar,
     get_comp_log_probs,
+    get_full_hidden_state,
+    get_comp_hidden_state,
+    embed_text,
+    cosine_sim,
     load_ystar_cache,
     save_ystar_cache,
     get_from_cache,
@@ -102,6 +106,16 @@ def match_per_step(ystar: torch.Tensor, log_p_comp: torch.Tensor) -> List[bool]:
     """Whether the compressed model's argmax matches y*[t] at each step t."""
     pred = log_p_comp.argmax(dim=-1)  # (n_gen,)
     return (pred == ystar).tolist()
+
+
+def nll_ref_per_step(ystar: torch.Tensor, log_p: torch.Tensor) -> List[float]:
+    """-log P(y*_t | y*_<t}) at each step, teacher-forced (no free generation).
+
+    Same regardless of whether log_p comes from the full or compressed model;
+    used for both so the two are directly comparable (excess perplexity = their ratio).
+    """
+    nll = -log_p.gather(-1, ystar.unsqueeze(-1)).squeeze(-1)  # (n_gen,)
+    return nll.tolist()
 
 
 # ---------------------------------------------------------------------------
@@ -282,6 +296,14 @@ def run_eval(
 
             n_gen = ystar.shape[0]
 
+            # Full-model reference embeddings, computed once per example:
+            #   full_hidden   — teacher-forced hidden state through [full_ids + ystar],
+            #                   for representational similarity (no free generation).
+            #   emb_full_text — neutral embedding of y* read in isolation, for
+            #                   semantic similarity against each method's free generation.
+            full_hidden   = get_full_hidden_state(model, full_ids, ystar, device, max_seq_full)
+            emb_full_text = embed_text(model, ystar, device)
+
             for method in methods:
                 ck_key = f"{task}|{method}|{idx}"
                 if _is_done(ck_key):
@@ -300,14 +322,20 @@ def run_eval(
                 log_p_comp = get_comp_log_probs(
                     model, comp_ids, ystar, pcfg, device, press=press,
                 )
+                comp_hidden = get_comp_hidden_state(
+                    model, comp_ids, ystar, pcfg, device, press=press,
+                )
+                emb_sim_tf = cosine_sim(full_hidden, comp_hidden)
 
                 if log_p_comp is not None:
-                    kl_steps    = kl_per_step(log_p_full, log_p_comp)
-                    match_steps = match_per_step(ystar, log_p_comp)
-                    mean_kl     = float(np.mean(kl_steps))
-                    match_t0    = match_steps[0] if match_steps else None
+                    kl_steps     = kl_per_step(log_p_full, log_p_comp)
+                    match_steps  = match_per_step(ystar, log_p_comp)
+                    nll_comp_ref = nll_ref_per_step(ystar, log_p_comp)
+                    nll_full_ref = nll_ref_per_step(ystar, log_p_full)
+                    mean_kl      = float(np.mean(kl_steps))
+                    match_t0     = match_steps[0] if match_steps else None
                 else:
-                    kl_steps = match_steps = None
+                    kl_steps = match_steps = nll_comp_ref = nll_full_ref = None
                     mean_kl = match_t0 = None
 
                 # F_out: free generation then word F1 against y*
@@ -316,17 +344,24 @@ def run_eval(
                 )
                 if gen_tokens is not None and len(gen_tokens) > 0:
                     fout, fout_early = compute_fout(gen_tokens, ystar, tokenizer, early_n)
+                    emb_comp_text = embed_text(model, gen_tokens, device)
+                    emb_sim_free  = cosine_sim(emb_full_text, emb_comp_text)
                 else:
                     fout = fout_early = None
+                    emb_sim_free = None
 
                 if kl_steps is not None:
                     ckpt[ck_key] = {
-                        "kl_steps":    kl_steps,
-                        "match_steps": match_steps,
-                        "n_gen":       n_gen,
-                        "fout":        fout,
-                        "fout_early":  fout_early,
-                        "early_n":     early_n,
+                        "kl_steps":     kl_steps,
+                        "match_steps":  match_steps,
+                        "nll_comp_ref": nll_comp_ref,
+                        "nll_full_ref": nll_full_ref,
+                        "n_gen":        n_gen,
+                        "fout":         fout,
+                        "fout_early":   fout_early,
+                        "early_n":      early_n,
+                        "emb_sim_tf":   emb_sim_tf,
+                        "emb_sim_free": emb_sim_free,
                     }
                 else:
                     ckpt[ck_key] = None
@@ -341,9 +376,11 @@ def run_eval(
                 f_str     = f"fout={fout:.3f}" if fout is not None else "fout=OOM"
                 fe_str    = f"fe={fout_early:.3f}" if fout_early is not None else ""
                 t0_str    = f"t0={'Y' if match_t0 else 'N'}" if match_t0 is not None else ""
+                etf_str   = f"sim_tf={emb_sim_tf:.3f}" if emb_sim_tf is not None else ""
+                esf_str   = f"sim_free={emb_sim_free:.3f}" if emb_sim_free is not None else ""
                 print(
                     f"  ex {idx+1:>4}/{n_ex}  {method:<26}"
-                    f"  n_gen={n_gen:>4}  KL={kl_str}  {f_str}  {fe_str}  {t0_str}"
+                    f"  n_gen={n_gen:>4}  KL={kl_str}  {f_str}  {fe_str}  {t0_str}  {etf_str}  {esf_str}"
                     f"  [ETA {fmt_duration(remaining)}]",
                     flush=True,
                 )

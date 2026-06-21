@@ -28,6 +28,8 @@ This effect is easy to confirm empirically. We compare two methods that retain n
 
 This finding has a straightforward implication: to faithfully compress a long context, one should not prune the KV cache. One should instead construct a shorter, self-consistent prompt. We propose *phrase-based context compression*, which does exactly this. The context is divided into contiguous phrases, each phrase is scored by lexical overlap with the query, the top-ranked phrases are concatenated with a recency tail to form the compressed prompt, and the model processes this shorter but structurally intact sequence normally.
 
+KV cache pruning and phrase-based prompt construction are not two different problems; they are two different mechanisms aimed at the same problem. The problem is reducing the cost of long-context inference while preserving the full model's behavior as closely as possible. Pruning the cache is not the goal, and neither is reconstructing the prompt — both are candidate means to that one goal, and a method should be judged on how well it achieves it, not on which mechanism it happens to use. KV pruning fixes the prompt and restricts what the model attends to within it; phrase-based construction changes the prompt and leaves attention over it unrestricted. These are simply two different implementations competing to solve the same problem under the same constraint: a fixed budget r on the resource that determines inference cost (§5.1). Holding that budget constant across both is what makes the comparison meaningful, because it asks the only question that matters for choosing between them in deployment — which implementation gets closer to full-context behavior at equal cost. That phrase-based construction happens to resemble extractive summarization or retrieval is incidental to the mechanism it uses, not evidence that it is solving a different problem; it is evaluated here by the same criterion as every KV pruning method in this paper. The fact that one mechanism preserves structural integrity and the other does not is not a confound — it is the paper's central explanatory finding (§6) for why these competing implementations perform so differently at equal budget.
+
 We make the following contributions:
 
 - **KL faithfulness metric**: We use KL divergence between the full and compressed model's next-token distributions at every generation step, averaged over a shared generation prefix, as the primary evaluation criterion.
@@ -64,7 +66,7 @@ We make the following contributions:
 
 Before introducing our faithfulness metrics, we establish what the standard evaluation paradigm reveals. We run both Llama-3.1-8B and Mistral-7B-v0.3 on LongBench v1 (16 tasks, 100 examples each) at 65% retention, comparing naive proportional truncation, SnapKV, StreamingLLM (Streaming), and PyramidKV against the full uncompressed model.
 
-**Setup.** Full details in §5.2. All methods target r = 0.65 retention. Naive truncation keeps the first 6.5% and last 58.5% of tokens as a new self-consistent prompt. SnapKV and Streaming use KV cache pruning with the full prefill. PyramidKV uses a layer-adaptive pyramid budget on top of SnapKV scoring. Ground-truth scores use the standard LongBench metrics: F1 for QA tasks, ROUGE for summarization, exact match for classification and code completion.
+**Setup.** Full details in §5.2. All methods target r = 0.65 retention. Naive truncation keeps the first 6.5% and last 58.5% of tokens as a new self-consistent prompt. SnapKV and Streaming use KV cache pruning with the full prefill. PyramidKV uses a layer-adaptive pyramid budget on top of SnapKV scoring. Ground-truth scores use the standard LongBench metrics: F1 for QA tasks, ROUGE for summarization, exact match for classification and code completion. Per-task ground-truth results across all four compression rates (65/50/40/35%), including phr128, are given in Appendix C.
 
 **Llama-3.1-8B.**
 
@@ -136,6 +138,8 @@ Ground-truth evaluation has three distinct failure modes as a compression metric
 
 These failure modes matter in practice. PyramidKV's ground-truth advantage (§3) is exactly the kind of result that is hard to interpret: it may reflect genuine preservation of task-relevant information, or it may reflect a combination of structural properties that happen to produce correct first tokens without approximating the full model's behavior. §9 shows it is the latter.
 
+This points to a more general limitation, beyond the three failure modes above. Ground truth — or any outcome metric computed on a fixed test distribution, whether benchmark accuracy or a downstream business metric — measures *that* a method produced acceptable outputs on the examples tested, not *why*. That distinction matters because it determines whether a result generalizes. An outcome metric licenses no inference about behavior on inputs outside the test distribution; it is silent on mechanism by construction. PyramidKV is the clearest illustration in this paper: by ground truth and output faithfulness it is the best method tested, but §9 shows this is substantially an artifact of how PyramidKV happens to compute its answer — a full, uncompressed prefill makes its first generated token identical to the full model's by construction, which dominates its aggregate score because the benchmark is full of short-answer tasks where the first token is the answer. A practitioner who only had the outcome metric would not know this, and would have no way to predict whether the advantage holds for a task with longer outputs, a different query distribution, or any input not resembling the test set — and indeed it mostly does not (Table 4, §9.1). KL faithfulness does not share this limitation: because it measures whether the compressed model's actual computation matches the full model's at every step, it is informative about mechanism, not just outcome, and that mechanistic information is what lets a result generalize to inputs that were never tested. This is true regardless of which downstream objective a practitioner ultimately cares about — accuracy, faithfulness, or something else entirely — because mechanism transparency is what makes any of those objectives predictable beyond the examples already measured.
+
 ### 4.2 KL Faithfulness
 
 We evaluate compression fidelity using KL divergence between the full and compressed models' next-token distributions, measured on a shared generation sequence. The uncompressed model generates a response y* = (y*₁,...,y*_L) from the full context. Both the full model and each compressed model are then teacher-forced on this shared token sequence: at step *t*, the full model conditions on [*c*, *q*, y*₁,...,y*_{t-1}] and the compressed model conditions on [*ĉ*, *q*, y*₁,...,y*_{t-1}]. The metric averages KL divergence across all generation steps:
@@ -170,7 +174,7 @@ KL faithfulness and F_out are measuring different things:
 
 These can disagree. A method could have low KL (distributions match well at each step) but low F_out (due to early divergence in sampled text). Conversely, a method could have high F_out (same final answers) but high KL (reached those answers via corrupted intermediate distributions). §9 shows that PyramidKV falls into this second category, making both metrics jointly necessary to characterize it.
 
-### 4.4 Naïve Truncation as a Baseline
+### 4.4 Naive Truncation as a Baseline
 
 A key empirical finding motivating this work is that naïve proportional truncation consistently matches or outperforms all KV cache pruning methods on KL faithfulness. The method retains 65% of the prompt tokens, split as a 10%/90% head/tail budget: the first 6.5% of tokens (literal prompt prefix) and the last 58.5% of tokens (recency tail), concatenated into a new self-consistent prompt. The middle portion is discarded. On NarrativeQA, naive truncation achieves KL 0.022 vs. 0.060 for SnapKV. This result was surprising and prompted the structural corruption investigation described in §6.
 
@@ -349,6 +353,32 @@ This penalty is not limited to sophisticated scoring methods. Even the simplest 
 
 Despite its quality advantage over stock SnapKV, SnapKV-Select is not a practical recommendation: computing SnapKV attention scores requires a full forward pass over the uncompressed prompt (~2500ms on our hardware), nearly cancelling the prefill savings from the shorter compressed prompt. This overhead motivates the question §7 addresses: can phrase-based selection — using only string matching, with no model access — approach SnapKV-Select's faithfulness at negligible cost?
 
+### 6.3 Synthetic Gap-Structure Ablation
+
+§6.2 isolates mechanism from token selection by holding the *scoring method* fixed and varying only mechanism (KV patching vs. prompt construction). That comparison still uses a content-aware scorer (SnapKV's attention weights) to choose which tokens to keep, leaving open whether the result depends on something specific to attention-based scoring. We remove scoring from the picture entirely: four position geometries are generated purely as a function of sequence length and retention fraction, with no query, no content, and no model access — pure positional patterns. At r = 0.65:
+
+- **block_end** — one contiguous retained block at the tail (1 causal gap, immediately before it)
+- **block_mid** — one contiguous retained block, centered (2 gaps, before and after)
+- **clustered4** — four evenly-spaced contiguous blocks (~5 gaps)
+- **scattered** — evenly-spaced single-token positions (~1400 gaps at this sequence length — the maximally scattered case)
+
+Each geometry selects the same set of retained positions for two presentations: **gapless** (those positions gathered into a new, shorter, contiguous prompt — no KV patching) and **gapped** (the full-length prompt processed with KV pruning that retains exactly those same original-index positions, leaving real causal gaps everywhere else). Holding the retained position set fixed within each geometry and varying only presentation isolates the cost of the gap itself, with no possible confound from selection quality — there is no selection, only geometry.
+
+**Table 5. Mean KL faithfulness by gap geometry (Llama, r = 0.65, 6 tasks, n = 20/task).**
+
+| Geometry | Gaps | Gapless | Gapped | Δ | Ratio |
+|---|---|---|---|---|---|
+| block_end | 1 | 0.177 | 2.373 | 2.196 | 13.4× |
+| block_mid | 2 | 3.127 | 4.592 | 1.465 | 1.5× |
+| clustered4 | ~5 | 2.745 | 4.088 | 1.343 | 1.5× |
+| scattered | ~1400 | 1.205 | 2.886 | 1.681 | 2.4× |
+
+The gap penalty holds in every geometry tested, with zero token-selection confound: introducing a real causal gap over an otherwise-identical retained set increases KL substantially whether there is 1 gap or roughly 1400 of them. This directly confirms that the corruption mechanism is a property of the causal gap itself, not an artifact of any particular scoring method's selection pattern — it survives even when selection is replaced by deterministic, content-blind positional rules.
+
+The geometries are not directly comparable to each other in absolute KL level: block_mid and clustered4 discard the genuine recency tail that block_end retains, so their gapless baselines are already elevated by lower content informativeness, not by gap structure. The within-geometry Δ is the clean signal; comparing across geometries should use it rather than absolute levels.
+
+That comparison surfaces a genuine nuance worth stating plainly rather than smoothing over: gap severity is not monotonic in gap count. block\_end's single gap produces a larger absolute KL increase (Δ = 2.196) than scattered's ~1400 gaps (Δ = 1.681). A single large contiguous gap concentrates damage at one severely degenerate attention neighborhood — the query immediately after the gap faces an almost-empty causal window — whereas many scattered single-token gaps each perturb a neighborhood only mildly, distributing the damage rather than concentrating it. Concentrated severe corruption at one point can outweigh diffuse mild corruption at many points; "more gaps" is not synonymous with "more total damage."
+
 ---
 
 ## 7. Phrase-Based Context Compression
@@ -364,6 +394,8 @@ This motivates the question the rest of §7 addresses: is it possible to approac
 ### 7.2 Approach
 
 Structural corruption is caused by the KV patching mechanism. The solution is simple: do not patch the KV cache. Instead, construct a new, shorter prompt from selected context spans and let the model process it normally. We call this *phrase-based compression*.
+
+The claim we make and the claim we do not make are separable. We claim prompt construction — building a structurally intact prompt rather than patching the KV cache — is the better mechanism; §6–§9 establish this independently of how spans are selected. We do not claim that lexical overlap is the best possible way to select those spans. It is the selection method we use to demonstrate the mechanism's advantage using nothing beyond string matching — no model internals, no second model, no learned scorer. A better selection method could only improve on these results; it would not change the structural argument, since that argument concerns where information loss comes from (cache patching vs. prompt rewriting), not how spans are chosen within the prompt-rewriting approach.
 
 Given prompt construction as the mechanism, the remaining design question is what unit to select. Token-level selection is impractical without model introspection: individual BPE subword tokens carry little semantic content, and simple heuristics such as token-set overlap with the query are unreliable — the same surface word tokenizes differently in isolation versus in context, and common function-word fragments match spuriously. Operating at the phrase level solves this.
 
@@ -520,6 +552,8 @@ PyramidKV maximizes every ground-truth metric in this paper: best GT score (25.1
 
 PyramidKV allocates KV budget unevenly across layers: near-full context at layer 0, decreasing linearly to roughly 600 of 4096 tokens by layer 31 at 65% retention. Because the lower layers see nearly the full context, they pass a largely uncorrupted decision-relevant signal into the residual stream; the sparse upper layers refine this signal but rarely overturn it — which is why F_out is high (the predicted token is fixed early) while KL is high (the full distribution, computed through all 32 layers, is corrupted by upper-layer gaps). A PyramidKV-Select ablation confirms the mechanism directly: keeping the same pyramid-weighted token scores but presenting them as a gapless prompt instead of patching the KV cache drops F_out from 79.4% to 56.3% — down to the level of other prompt-construction methods — showing that KV patching, not token selection, is what produces PyramidKV's F_out advantage.
 
+A natural question is whether this corruption compounds over a long response — whether KL keeps rising as generation continues. Per-step KL trajectories on real long-answer LongBench data (gov\_report, n=32, Llama 65%) show the opposite for PyramidKV: after the T0→T1 spike, KL falls sharply, from a mean of ~1.00 over the first 50 generated tokens to ~0.09 over the last 150 of a ~500-token response (30 of 32 examples show this fall). This is not the corruption healing. The trajectory is computed under teacher forcing — the model is fed the *correct* continuation at every step regardless of what it would actually have generated — so late-sequence predictions are dominated by locally easy, source-independent continuation (the next word of an already-correct sentence), which a compressed model gets right almost as often as the full model. The metric's sensitivity to the original corruption is diluted by an increasing share of steps that never depended on it, not because the corruption itself diminishes. SnapKV, Naive, and phr128 show no comparable recovery because they never had a comparable cliff to fall from — their per-layer-uniform corruption is present at low-to-moderate severity from the first step and stays roughly flat throughout. This reconciles with Table 4 rather than contradicting it: in real, free-running generation nothing keeps the model on the true continuation after an early divergence, so the damage concentrated at the first few post-cutover steps is precisely the damage that compounds in practice — which is why F_out, measured on free generation, gets *worse* with output length even as teacher-forced KL appears to recover.
+
 ### 9.1 What F_out Reveals
 
 PyramidKV's output text is more similar to the full model's output text than any other compressed method, at every compression budget tested. The F_out advantage is particularly large on tasks with short, structured outputs: TriviaQA (97.0%), PassageCount (96.4%), 2WikiMQA (95.6%), PassageRetrieval (93.8%), LCC (92.7%), HotpotQA (92.3%). On these tasks, PyramidKV consistently produces the same text as the full model — the same classification label, the same retrieved passage, the same code completion.
@@ -560,7 +594,7 @@ The two metrics together reveal that PyramidKV's "faithfulness" is a particular 
 
 Ground-truth evaluation cannot detect any of this. KL and F_out together can.
 
-Putting the length-dependence (Table 4) together with the speed profile (§9.2) gives a practical verdict, not just a metrics curiosity. On short-answer tasks, PyramidKV's accuracy and F_out advantage is real, but it is bought at a cost that defeats the purpose of compression: full prefill over the uncompressed prompt means TTFT is *slower* than full context (7022ms vs. 6348ms), so on exactly the tasks where it wins, it is also the slowest method on the page. On long-form tasks, where generation cost is large enough that PyramidKV's decode-time speedup could matter, its faithfulness has converged to — or fallen behind — naive truncation and SnapKV, which deliver the same decode speedup without PyramidKV's prefill penalty. There is no regime in which PyramidKV is both faster and more faithful than a cheaper alternative: on short outputs it is more faithful than the other compressed methods but slower than using no compression at all, and on long outputs it is no more faithful than methods several times faster. Since the entire point of KV cache compression is to improve performance, this is a failure on its own terms, independent of where any individual metric ranks it.
+Putting the length-dependence (Table 4) together with the per-step dynamics (§9.2) and speed profile (§9.3) gives a practical verdict, not just a metrics curiosity. On short-answer tasks, PyramidKV's accuracy and F_out advantage is real, but it is bought at a cost that defeats the purpose of compression: full prefill over the uncompressed prompt means TTFT is *slower* than full context (7022ms vs. 6348ms), so on exactly the tasks where it wins, it is also the slowest method on the page. On long-form tasks, where generation cost is large enough that PyramidKV's decode-time speedup could matter, its faithfulness has converged to — or fallen behind — naive truncation and SnapKV, which deliver the same decode speedup without PyramidKV's prefill penalty. There is no regime in which PyramidKV is both faster and more faithful than a cheaper alternative: on short outputs it is more faithful than the other compressed methods but slower than using no compression at all, and on long outputs it is no more faithful than methods several times faster. Since the entire point of KV cache compression is to improve performance, this is a failure on its own terms, independent of where any individual metric ranks it.
 
 ---
 
@@ -594,7 +628,7 @@ This has implications beyond the specific methods studied here. Any approach tha
 
 **Semantic phrase boundaries.** Fixed-size phrases are an approximation. Sentence and paragraph boundaries (phrase_sent) are a better approximation. Topic-coherent segmentation — identifying spans that are internally consistent and topically focused — is the ideal. Embedding-based topic segmentation methods could provide this, at the cost of an additional model pass.
 
-**Limitations.** The structural corruption analysis is empirical; a formal characterization of when and how severely it occurs across different architectures, context lengths, and pruning budgets would strengthen the theory. The phrase scoring method is lexical and will miss paraphrastic relevance (a passage relevant to "birth city" will not match a question asking "where was X born"). Semantic scoring — embedding similarity between phrase and query — is a natural upgrade but requires a separate encoder.
+**Limitations.** The structural corruption analysis is empirical; a formal characterization of when and how severely it occurs across different architectures, context lengths, and pruning budgets would strengthen the theory. The phrase scoring method is lexical and will miss paraphrastic relevance (a passage relevant to "birth city" will not match a question asking "where was X born"), and MultiNews (§10.2) shows a concrete case where it loses to attention-based scoring. We treat this as an opportunity for future work rather than a weakness of the central argument: the paper's claim is that prompt construction is the better compression mechanism, not that lexical overlap is the best way to select spans within it. Semantic scoring (embedding similarity between phrase and query), learned selectors, or task-adaptive scoring could replace lexical overlap without touching the structural argument, and may close gaps such as MultiNews — at the cost of a separate encoder or model pass that lexical overlap avoids.
 
 ---
 
@@ -931,3 +965,143 @@ Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Liang, L., Zou, J., Wang, Z., and Chen
 | LCC | 59.5 | 62.8 | 51.4 | **81.8** |
 | RepoBench-P | 62.6 | 54.2 | 48.4 | **85.9** |
 | **Average** | 53.5 | 53.9 | 46.4 | **74.8** |
+
+---
+
+## Appendix C: Ground-Truth Accuracy — Per-Task Results
+
+**Tables C1a–C1d. Ground-truth accuracy per task, Llama-3.1-8B (higher is better). Bold = highest value per row. Naive and SnapKV at 50/40/35% retention were not part of the §3 headline comparison (run at 65% only there); they are included here for completeness alongside phr128 and PyramidKV at every rate.**
+
+**Table C1a. 65% retention.**
+
+| Task | Naive | phr128 | SnapKV | Pyr |
+|---|---|---|---|---|
+| NarrativeQA† | 4.9 | 4.3 | 5.0 | **5.5** |
+| Qasper† | 10.2 | 10.3 | 11.1 | **11.8** |
+| MultifieldQA | 27.0 | 25.3 | 28.4 | **29.4** |
+| HotpotQA† | 9.6 | 9.2 | 9.6 | **10.2** |
+| 2WikiMQA† | 12.6 | 10.7 | **13.9** | 13.7 |
+| MuSiQue† | 7.0 | 6.1 | 6.0 | **7.1** |
+| GovReport | 19.8 | 19.7 | 19.9 | **20.1** |
+| QMSum† | **11.5** | 9.3 | 9.7 | 9.4 |
+| MultiNews | 16.5 | 16.4 | **18.9** | 17.9 |
+| TREC | 66.0 | 70.0 | 66.0 | **71.0** |
+| TriviaQA | 17.3 | 17.2 | **17.6** | 17.5 |
+| SAMSum | 16.5 | 16.5 | **17.5** | 16.3 |
+| PassageCount† | 1.0 | 2.0 | **3.0** | **3.0** |
+| PassageRetrieval | 37.0 | 29.0 | 37.0 | **44.0** |
+| LCC | 63.4 | 61.3 | 63.2 | **68.5** |
+| RepoBench-P | 53.9 | 50.7 | 53.4 | **56.0** |
+| **Average** | 23.4 | 22.4 | 23.7 | **25.1** |
+
+**Table C1b. 50% retention.**
+
+| Task | Naive | phr128 | SnapKV | Pyr |
+|---|---|---|---|---|
+| NarrativeQA† | 5.7 | 4.2 | **8.0** | 6.8 |
+| Qasper† | 8.6 | 9.9 | **10.5** | 9.8 |
+| MultifieldQA | 23.0 | 24.8 | 25.8 | **29.5** |
+| HotpotQA† | 8.9 | 9.2 | 8.5 | **9.6** |
+| 2WikiMQA† | 12.7 | 12.9 | 11.2 | **13.8** |
+| MuSiQue† | 5.8 | 6.7 | 5.4 | **6.8** |
+| GovReport | 19.5 | 18.5 | 18.3 | **19.5** |
+| QMSum† | 9.5 | 9.0 | 9.1 | **9.7** |
+| MultiNews | **17.5** | 15.9 | 16.0 | 15.4 |
+| TREC | 63.0 | 65.0 | 57.0 | **68.0** |
+| TriviaQA | 17.4 | 16.8 | **18.5** | 17.3 |
+| SAMSum | 17.7 | 16.8 | **18.0** | 17.6 |
+| PassageCount† | 2.0 | 2.0 | 2.0 | **3.0** |
+| PassageRetrieval | 21.0 | 27.0 | 18.0 | **43.0** |
+| LCC | 61.6 | 62.5 | 58.5 | **63.9** |
+| RepoBench-P | 51.4 | 48.7 | 45.2 | **52.8** |
+| **Average** | 21.6 | 21.9 | 20.6 | **24.2** |
+
+**Table C1c. 40% retention.**
+
+| Task | Naive | phr128 | SnapKV | Pyr |
+|---|---|---|---|---|
+| NarrativeQA† | 5.8 | 5.4 | **7.5** | 6.8 |
+| Qasper† | 7.9 | 9.4 | 7.4 | **11.3** |
+| MultifieldQA | 23.3 | 23.4 | 22.0 | **29.5** |
+| HotpotQA† | 10.6 | **10.8** | 7.2 | 9.4 |
+| 2WikiMQA† | **13.9** | 12.5 | 9.2 | 13.9 |
+| MuSiQue† | 4.7 | 6.5 | 4.1 | **6.7** |
+| GovReport | **19.9** | 19.0 | 16.9 | 19.1 |
+| QMSum† | 9.7 | **10.1** | 9.1 | 10.0 |
+| MultiNews | **16.7** | 16.1 | 11.0 | 15.9 |
+| TREC | 65.0 | 68.0 | 49.0 | **70.0** |
+| TriviaQA | 17.3 | 16.9 | 15.9 | **17.4** |
+| SAMSum | 17.2 | 16.6 | 15.6 | **18.1** |
+| PassageCount† | **3.0** | **3.0** | 0.0 | **3.0** |
+| PassageRetrieval | 12.0 | 24.0 | 8.0 | **43.0** |
+| LCC | 58.7 | 61.2 | 46.7 | **68.4** |
+| RepoBench-P | 52.2 | 49.6 | 39.1 | **54.4** |
+| **Average** | 21.1 | 22.0 | 16.8 | **24.8** |
+
+**Table C1d. 35% retention.**
+
+| Task | Naive | phr128 | SnapKV | Pyr |
+|---|---|---|---|---|
+| NarrativeQA† | **7.8** | 3.9 | 6.7 | 6.4 |
+| Qasper† | 7.7 | 9.0 | 7.2 | **10.8** |
+| MultifieldQA | 21.2 | 24.0 | 19.0 | **30.0** |
+| HotpotQA† | **11.4** | 10.0 | 6.5 | 10.0 |
+| 2WikiMQA† | 11.0 | 11.3 | 8.6 | **14.6** |
+| MuSiQue† | 4.7 | 6.1 | 5.4 | **6.5** |
+| GovReport | 18.7 | **19.1** | 16.3 | 19.0 |
+| QMSum† | 9.9 | 10.0 | 8.3 | **10.2** |
+| MultiNews | **16.7** | 15.3 | 8.7 | 15.8 |
+| TREC | 60.0 | 68.0 | 52.0 | **69.0** |
+| TriviaQA | 17.3 | 16.8 | 16.4 | **17.4** |
+| SAMSum | 17.6 | **17.8** | 12.4 | 17.3 |
+| PassageCount† | **3.0** | **3.0** | 0.0 | **3.0** |
+| PassageRetrieval | 12.0 | 19.0 | 6.0 | **44.0** |
+| LCC | 62.4 | 60.9 | 42.9 | **67.0** |
+| RepoBench-P | 50.6 | 49.2 | 39.6 | **55.1** |
+| **Average** | 20.8 | 21.5 | 16.0 | **24.8** |
+
+**Tables C2a–C2b. Ground-truth accuracy per task, Mistral-7B-v0.3 (higher is better). Bold = highest value per row.**
+
+**Table C2a. 65% retention.**
+
+| Task | Naive | phr128 | SnapKV | Pyr |
+|---|---|---|---|---|
+| NarrativeQA† | 2.7 | **5.5** | 4.4 | 4.1 |
+| Qasper† | 4.3 | 4.2 | **8.3** | 4.8 |
+| MultifieldQA | 22.1 | 22.7 | 23.9 | **24.8** |
+| HotpotQA† | **10.6** | 9.9 | 10.5 | 10.6 |
+| 2WikiMQA† | 9.8 | **12.2** | 11.6 | 11.7 |
+| MuSiQue† | 3.9 | 4.7 | **5.4** | 5.1 |
+| GovReport | 19.7 | 19.5 | 19.6 | **20.0** |
+| QMSum† | **8.4** | 8.1 | 7.3 | 7.9 |
+| MultiNews | 17.2 | 16.9 | **18.5** | 17.3 |
+| TREC | 67.0 | 67.0 | 70.0 | **71.0** |
+| TriviaQA | 24.2 | 24.5 | **25.4** | 23.3 |
+| SAMSum | 17.8 | 17.0 | 17.3 | **18.1** |
+| PassageCount† | **3.0** | **3.0** | 2.0 | 1.0 |
+| PassageRetrieval | 26.0 | 24.0 | 34.0 | **39.0** |
+| LCC | 60.2 | **66.9** | 57.1 | 63.2 |
+| RepoBench-P | **54.4** | 52.0 | 49.4 | 54.0 |
+| **Average** | 22.0 | 22.4 | 22.8 | **23.5** |
+
+**Table C2b. 35% retention.**
+
+| Task | Naive | phr128 | SnapKV | Pyr |
+|---|---|---|---|---|
+| NarrativeQA† | 3.9 | 2.9 | 2.8 | **5.1** |
+| Qasper† | 4.0 | 4.3 | **7.9** | 4.8 |
+| MultifieldQA | 18.2 | 22.0 | 17.9 | **25.1** |
+| HotpotQA† | **11.0** | 10.4 | 9.0 | 10.4 |
+| 2WikiMQA† | 11.6 | **12.2** | 11.3 | 11.2 |
+| MuSiQue† | 4.6 | 5.0 | 4.0 | **5.2** |
+| GovReport | 18.6 | 18.4 | 15.5 | **18.6** |
+| QMSum† | 7.8 | **8.2** | 6.7 | 7.8 |
+| MultiNews | **16.5** | 15.6 | 15.3 | 15.7 |
+| TREC | 60.0 | 65.0 | 60.0 | **66.0** |
+| TriviaQA | 25.3 | 22.4 | **36.1** | 23.7 |
+| SAMSum | 17.2 | 15.3 | 17.4 | **17.8** |
+| PassageCount† | **3.0** | 1.0 | 2.0 | 1.0 |
+| PassageRetrieval | 15.0 | 25.0 | 15.0 | **39.0** |
+| LCC | 57.4 | **65.4** | 52.6 | 62.3 |
+| RepoBench-P | 49.5 | 46.7 | 46.1 | **53.7** |
+| **Average** | 20.2 | 21.2 | 20.0 | **23.0** |

@@ -115,6 +115,11 @@ class PrunedLlamaConfig:
     # instead of (or in addition to) pruning.  Used by snapkv_select to extract
     # scores for input truncation without modifying the KV cache.
     score_capture: Optional[list] = None
+    # score_mode == "fixed_positions": bypass all scoring and retain exactly
+    # these original sequence positions.  Used for synthetic gap-structure
+    # ablations where the retained token *set* is held fixed by an external
+    # (content-blind) geometry generator and only the gap layout varies.
+    fixed_positions: Optional[torch.Tensor] = None
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +244,14 @@ class PrunedLlamaAttention(nn.Module):
         cfg      = self.head_filter.cfg if self.head_filter is not None else None
         if cfg is None:
             return key_states, value_states, None
+
+        # Fixed-positions: retain exactly the externally-supplied position set.
+        # No scoring at all — used to isolate gap *geometry* from token *selection*.
+        if self.pcfg.score_mode == "fixed_positions":
+            retained = self.pcfg.fixed_positions.to(key_states.device)
+            gathered_k = key_states[  :, :, retained, :]
+            gathered_v = value_states[:, :, retained, :]
+            return gathered_k, gathered_v, retained
 
         # StreamingLLM: keep first sink_size tokens + a recent window. No scoring needed.
         if self.pcfg.score_mode == "streaming":

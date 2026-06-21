@@ -669,6 +669,153 @@ def get_comp_log_probs(
     return F.log_softmax(comp_logits, dim=-1).cpu()
 
 
+@torch.inference_mode()
+def get_full_hidden_state(
+    model,
+    full_ids: torch.Tensor,
+    ystar: torch.Tensor,
+    device: str,
+    max_seq_full: int,
+) -> Optional[torch.Tensor]:
+    """Mean-pooled last-layer hidden state of the uncompressed model while
+    teacher-forced through [full_ids + ystar], at the ystar positions.
+
+    Index-aligned with get_comp_log_probs' standard path: position
+    n_prompt-1 is the state used to predict ystar[0] (context = prompt only);
+    position n_prompt+t-1 is the state after feeding ystar[t-1].
+
+    Returns (hidden_dim,) float32 on CPU, or None on OOM.
+    """
+    prompt_ids = full_ids
+    if prompt_ids.shape[1] > max_seq_full:
+        prompt_ids = prompt_ids[:, -max_seq_full:]
+    full_input = torch.cat([prompt_ids.to(device), ystar.unsqueeze(0).to(device)], dim=1)
+    n_prompt = prompt_ids.shape[1]
+    n_gen = ystar.shape[0]
+
+    try:
+        out = model(
+            input_ids=full_input,
+            attention_mask=torch.ones_like(full_input),
+            output_hidden_states=True,
+        )
+        hidden = out.hidden_states[-1][0, n_prompt - 1 : -1, :].float()  # (n_gen, dim)
+    except torch.cuda.OutOfMemoryError:
+        torch.cuda.empty_cache()
+        return None
+
+    if hidden.shape[0] != n_gen:
+        return None
+    return hidden.mean(dim=0).cpu()
+
+
+@torch.inference_mode()
+def get_comp_hidden_state(
+    model,
+    comp_ids: torch.Tensor,
+    ystar: torch.Tensor,
+    pcfg: Optional[PrunedLlamaConfig],
+    device: str,
+    press=None,
+) -> Optional[torch.Tensor]:
+    """Mean-pooled last-layer hidden state of the compressed model while
+    teacher-forced through [comp_ids + ystar], at the ystar positions.
+
+    Mirrors get_comp_log_probs exactly (same step-decode loop for press
+    methods, same single-pass slicing otherwise) so the two are index-aligned.
+
+    Returns (hidden_dim,) float32 on CPU, or None on OOM/shape mismatch.
+    """
+    n_gen = ystar.shape[0]
+
+    if press is not None:
+        comp_input = comp_ids.to(device)
+        try:
+            with press(model):
+                out = model(
+                    input_ids=comp_input,
+                    attention_mask=torch.ones_like(comp_input),
+                    use_cache=True,
+                    output_hidden_states=True,
+                )
+            kv = out.past_key_values
+            hidden_list = [out.hidden_states[-1][0, -1, :].float()]
+            del out
+
+            for t in range(n_gen - 1):
+                tok = ystar[t : t + 1].unsqueeze(0).to(device)
+                step_out = model(
+                    input_ids=tok, past_key_values=kv, use_cache=True,
+                    output_hidden_states=True,
+                )
+                hidden_list.append(step_out.hidden_states[-1][0, -1, :].float())
+                kv = step_out.past_key_values
+            del kv
+
+            if not hidden_list:
+                return None
+            hidden = torch.stack(hidden_list, dim=0)  # (n_gen, dim)
+        except torch.cuda.OutOfMemoryError:
+            torch.cuda.empty_cache()
+            return None
+
+        return hidden.mean(dim=0).cpu()
+
+    # --- Standard path: single forward pass over [comp_ids + ystar] ---
+    full_input = torch.cat([comp_ids.to(device), ystar.unsqueeze(0).to(device)], dim=1)
+    n_prompt_comp = comp_ids.shape[1]
+
+    originals = None
+    if pcfg is not None:
+        originals = patch_model(model, pcfg, device)
+
+    try:
+        out = model(
+            input_ids=full_input,
+            attention_mask=torch.ones_like(full_input),
+            output_hidden_states=True,
+        )
+        hidden = out.hidden_states[-1][0, n_prompt_comp - 1 : -1, :].float()
+    except torch.cuda.OutOfMemoryError:
+        torch.cuda.empty_cache()
+        hidden = None
+    finally:
+        if originals is not None:
+            unpatch_model(model, originals)
+
+    if hidden is None or hidden.shape[0] != n_gen:
+        return None
+
+    return hidden.mean(dim=0).cpu()
+
+
+@torch.inference_mode()
+def embed_text(model, token_ids: torch.Tensor, device: str) -> Optional[torch.Tensor]:
+    """Mean-pooled last-layer hidden state of `model` reading `token_ids` in
+    isolation (no compression, no preceding context) — used as a neutral
+    embedding of free-generated text for semantic similarity comparison.
+
+    token_ids: 1-D int64 tensor. Returns (hidden_dim,) float32 on CPU, or None.
+    """
+    if token_ids.numel() == 0:
+        return None
+    ids = token_ids.unsqueeze(0).to(device)
+    try:
+        out = model(input_ids=ids, attention_mask=torch.ones_like(ids),
+                     output_hidden_states=True)
+        hidden = out.hidden_states[-1][0].float()  # (seq_len, dim)
+    except torch.cuda.OutOfMemoryError:
+        torch.cuda.empty_cache()
+        return None
+    return hidden.mean(dim=0).cpu()
+
+
+def cosine_sim(a: Optional[torch.Tensor], b: Optional[torch.Tensor]) -> Optional[float]:
+    if a is None or b is None:
+        return None
+    return F.cosine_similarity(a.unsqueeze(0), b.unsqueeze(0)).item()
+
+
 def kl_divergence(log_p_full: torch.Tensor, log_p_comp: torch.Tensor) -> float:
     """Mean KL(P_full || P_comp) over generation steps, in nats."""
     p_full = log_p_full.exp()
