@@ -280,7 +280,8 @@ def build_hybrid_model(n_mha=6):
     return model
 
 
-def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False, from_scratch=False):
+def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False, from_scratch=False,
+                    warmstart_scale=1.0):
     """
     Build a GPT-2 model with BLT attention replacing every attention layer.
 
@@ -290,6 +291,13 @@ def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False, from_scra
     random_m: initialize M with N(0, 1/sqrt(D)) instead of Wq@Wk^T average.
     from_scratch: randomly initialize all weights (do not load pretrained GPT-2).
                   Forces random_m=True since there are no Wq/Wk to average.
+    warmstart_scale: blend factor in [0, 1] for the Wq@Wk^T-average M init.
+                  1.0 = pure average (original small-model behavior). Lower values
+                  shrink the averaged M toward zero, softening the initial
+                  perturbation — useful for models with many more layers/heads
+                  (e.g. GPT-2 XL: 48 layers x 25 heads = 1200 attention contexts
+                  vs GPT-2's 144), where the naive average is a much coarser,
+                  more disruptive approximation. No effect when random_m=True.
     """
     if num_m_groups not in (1, 2):
         raise ValueError(f'num_m_groups must be 1 or 2, got {num_m_groups}')
@@ -316,6 +324,7 @@ def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False, from_scra
                 Wk = layer.attn.c_attn.weight[:, D:2 * D].detach()
                 M_init += Wq @ Wk.T
             M_init /= cfg.n_layer
+            M_init *= warmstart_scale
 
         M_shared = nn.Parameter(M_init)
 

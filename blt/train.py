@@ -191,9 +191,10 @@ def train(args):
             log(f'Building baseline GPT-2 model (pretrained={args.pretrained})...')
             model = GPT2LMHeadModel.from_pretrained(args.pretrained).to(device)
     else:
-        log(f'Building BLT model (pretrained={args.pretrained}, num_m_groups={args.num_m_groups}, random_m={args.random_m}, from_scratch={args.from_scratch})...')
+        log(f'Building BLT model (pretrained={args.pretrained}, num_m_groups={args.num_m_groups}, random_m={args.random_m}, from_scratch={args.from_scratch}, warmstart_scale={args.warmstart_scale})...')
         model = build_blt_model(pretrained=args.pretrained, num_m_groups=args.num_m_groups,
-                                random_m=args.random_m, from_scratch=args.from_scratch).to(device)
+                                random_m=args.random_m, from_scratch=args.from_scratch,
+                                warmstart_scale=args.warmstart_scale).to(device)
 
     if args.grad_checkpointing:
         model.gradient_checkpointing_enable()
@@ -420,6 +421,10 @@ if __name__ == '__main__':
     parser.add_argument('--pretrained', type=str, default='gpt2',
                         help='HuggingFace model id to load pretrained weights from '
                              '(e.g. gpt2, gpt2-medium, gpt2-large, gpt2-xl)')
+    parser.add_argument('--warmstart-scale', type=float, default=1.0,
+                        help='Blend factor in [0,1] for the Wq@Wk^T-average M init; '
+                             'lower values soften the warm-start perturbation for models '
+                             'with many layers/heads (no effect with --random-m)')
     parser.add_argument('--fp16', action='store_true',
                         help='Mixed-precision training (autocast + GradScaler); fp32 master '
                              'weights and optimizer state are kept, only compute is fp16')
