@@ -129,7 +129,17 @@ def cloze_collate(batch):
     return padded_ids, padded_labels
 
 
+def model_is_finite(model):
+    return all(torch.isfinite(p).all() for p in model.parameters())
+
+
 def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None, ema_loss=None):
+    if not model_is_finite(model):
+        raise RuntimeError(
+            f'Refusing to save checkpoint at step {step}: model parameters contain NaN/Inf. '
+            f'Existing checkpoint at {path} (and {path}.bak) left untouched -- fix the '
+            f'instability and resume from there rather than overwriting with a corrupted state.'
+        )
     tmp = path + '.tmp'
     torch.save({
         'step': step,
@@ -299,6 +309,14 @@ def train(args):
                     out = model(input_ids=input_ids, labels=labels)
                     loss = out.loss
                 loss = loss / args.grad_accum_steps
+
+            if not torch.isfinite(loss):
+                # Forward-pass numerical blowup (e.g. fp16 overflow in activations) --
+                # GradScaler only guards the gradient path, not this. Skip the batch
+                # entirely rather than let a NaN/Inf loss reach backward() and
+                # corrupt every parameter on the next optimizer step.
+                log(f'  step {step}: non-finite loss ({loss.item()}), skipping batch')
+                continue
 
             scaler.scale(loss).backward()
             accum_loss += loss.item()
