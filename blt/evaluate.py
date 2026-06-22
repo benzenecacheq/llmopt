@@ -94,6 +94,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', choices=['baseline', 'blt', 'both'], default='both')
+    parser.add_argument('--pretrained', type=str, default='gpt2',
+                        help='HuggingFace model id for pretrained weights (e.g. gpt2-xl)')
     parser.add_argument('--max-tokens', type=int, default=None,
                         help='Limit tokens evaluated (for quick tests)')
     parser.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
@@ -104,12 +106,12 @@ if __name__ == '__main__':
 
     if args.model in ('baseline', 'both'):
         from transformers import GPT2LMHeadModel
-        baseline = GPT2LMHeadModel.from_pretrained('gpt2').to(device)
+        baseline = GPT2LMHeadModel.from_pretrained(args.pretrained).to(device)
         ppl = compute_perplexity(baseline, tokenizer, device, max_tokens=args.max_tokens)
-        print(f'Baseline GPT-2 perplexity: {ppl:.2f}')
+        print(f'Baseline GPT-2 ({args.pretrained}) perplexity: {ppl:.2f}')
         del baseline
 
     if args.model in ('blt', 'both'):
-        blt = build_blt_model('gpt2').to(device)
+        blt = build_blt_model(args.pretrained).to(device)
         ppl = compute_perplexity(blt, tokenizer, device, max_tokens=args.max_tokens)
-        print(f'BLT (zero-shot) perplexity: {ppl:.2f}')
+        print(f'BLT (zero-shot, {args.pretrained}) perplexity: {ppl:.2f}')
