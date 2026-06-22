@@ -178,12 +178,17 @@ def train(args):
             from transformers import GPT2Config
             model = GPT2LMHeadModel(GPT2Config()).to(device)
         else:
-            log('Building baseline GPT-2 model (pretrained)...')
-            model = GPT2LMHeadModel.from_pretrained('gpt2').to(device)
+            log(f'Building baseline GPT-2 model (pretrained={args.pretrained})...')
+            model = GPT2LMHeadModel.from_pretrained(args.pretrained).to(device)
     else:
-        log(f'Building BLT model (num_m_groups={args.num_m_groups}, random_m={args.random_m}, from_scratch={args.from_scratch})...')
-        model = build_blt_model(num_m_groups=args.num_m_groups, random_m=args.random_m,
-                                from_scratch=args.from_scratch).to(device)
+        log(f'Building BLT model (pretrained={args.pretrained}, num_m_groups={args.num_m_groups}, random_m={args.random_m}, from_scratch={args.from_scratch})...')
+        model = build_blt_model(pretrained=args.pretrained, num_m_groups=args.num_m_groups,
+                                random_m=args.random_m, from_scratch=args.from_scratch).to(device)
+
+    if args.grad_checkpointing:
+        model.gradient_checkpointing_enable()
+        log('  gradient checkpointing enabled')
+
     # Deduplicate shared parameters (e.g. BLT's shared M matrix) preserving
     # insertion order so optimizer state is stable across resume.
     seen_ids = set()
@@ -247,8 +252,13 @@ def train(args):
     step = start_step
     t0 = time.time()
     last_lambada_acc = None
+    micro_step = 0
+    accum_loss = 0.0
+
+    scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
 
     model.train()
+    optimizer.zero_grad()
     while step < args.max_steps:
         for batch in loader:
             if step >= args.max_steps:
@@ -257,43 +267,54 @@ def train(args):
             input_ids, labels = batch
             # Skip batches with out-of-range token IDs (rare OWT corruption)
             if input_ids.max() >= 50257 or input_ids.min() < 0:
-                step += 1
                 continue
             input_ids = input_ids.to(device)
             labels = labels.to(device)
 
-            if args.ema_loss_weighting:
-                logits = model(input_ids=input_ids).logits
-                shift_logits = logits[:, :-1, :].contiguous()
-                shift_labels = labels[:, 1:].contiguous()
-                valid = shift_labels != -100
-                flat_logits = shift_logits.view(-1, vocab_size)
-                flat_labels = shift_labels.view(-1)
-                flat_valid = valid.view(-1)
-                ids = flat_labels[flat_valid]
-                per_token_loss = F.cross_entropy(flat_logits[flat_valid], ids, reduction='none')
+            with torch.cuda.amp.autocast(enabled=args.fp16):
+                if args.ema_loss_weighting:
+                    logits = model(input_ids=input_ids).logits
+                    shift_logits = logits[:, :-1, :].contiguous()
+                    shift_labels = labels[:, 1:].contiguous()
+                    valid = shift_labels != -100
+                    flat_logits = shift_logits.view(-1, vocab_size)
+                    flat_labels = shift_labels.view(-1)
+                    flat_valid = valid.view(-1)
+                    ids = flat_labels[flat_valid]
+                    per_token_loss = F.cross_entropy(flat_logits[flat_valid], ids, reduction='none')
 
-                weight = ema_loss[ids]
-                weight = weight / weight.mean()
-                loss = (weight.detach() * per_token_loss).mean()
+                    weight = ema_loss[ids]
+                    weight = weight / weight.mean()
+                    loss = (weight.detach() * per_token_loss).mean()
 
-                with torch.no_grad():
-                    sum_loss = torch.zeros(vocab_size, device=device)
-                    counts = torch.zeros(vocab_size, device=device)
-                    sum_loss.scatter_add_(0, ids, per_token_loss.detach())
-                    counts.scatter_add_(0, ids, torch.ones_like(per_token_loss))
-                    seen = counts > 0
-                    batch_mean = sum_loss[seen] / counts[seen]
-                    ema_loss[seen] = args.ema_decay * ema_loss[seen] + (1 - args.ema_decay) * batch_mean
-            else:
-                out = model(input_ids=input_ids, labels=labels)
-                loss = out.loss
+                    with torch.no_grad():
+                        sum_loss = torch.zeros(vocab_size, device=device)
+                        counts = torch.zeros(vocab_size, device=device)
+                        sum_loss.scatter_add_(0, ids, per_token_loss.detach())
+                        counts.scatter_add_(0, ids, torch.ones_like(per_token_loss))
+                        seen = counts > 0
+                        batch_mean = sum_loss[seen] / counts[seen]
+                        ema_loss[seen] = args.ema_decay * ema_loss[seen] + (1 - args.ema_decay) * batch_mean
+                else:
+                    out = model(input_ids=input_ids, labels=labels)
+                    loss = out.loss
+                loss = loss / args.grad_accum_steps
 
-            optimizer.zero_grad()
-            loss.backward()
+            scaler.scale(loss).backward()
+            accum_loss += loss.item()
+            micro_step += 1
+            if micro_step % args.grad_accum_steps != 0:
+                continue
+
+            scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
+            optimizer.zero_grad()
             scheduler.step()
+
+            avg_loss = accum_loss
+            accum_loss = 0.0
 
             if step % args.log_every == 0:
                 elapsed = time.time() - t0
@@ -318,7 +339,7 @@ def train(args):
                     last_lambada_acc = compute_cloze_accuracy(model, tokenizer, device)
                     lambada_acc = f'{last_lambada_acc:.4f}'
                     model.train()
-                log(f'{step}\t{elapsed:.0f}s\t{lr_now:.2e}\t{loss.item():.4f}\t{val_ppl}\t{lambada_acc}')
+                log(f'{step}\t{elapsed:.0f}s\t{lr_now:.2e}\t{avg_loss:.4f}\t{val_ppl}\t{lambada_acc}')
 
             if args.save_path and step > start_step and step % args.checkpoint_every == 0:
                 save_checkpoint(args.save_path, model, optimizer, scheduler,
@@ -378,5 +399,16 @@ if __name__ == '__main__':
                              '(upweights persistently-hard tokens, downweights mastered ones)')
     parser.add_argument('--ema-decay', type=float, default=0.99,
                         help='Decay rate for the per-token-id EMA loss buffer')
+    parser.add_argument('--pretrained', type=str, default='gpt2',
+                        help='HuggingFace model id to load pretrained weights from '
+                             '(e.g. gpt2, gpt2-medium, gpt2-large, gpt2-xl)')
+    parser.add_argument('--fp16', action='store_true',
+                        help='Mixed-precision training (autocast + GradScaler); fp32 master '
+                             'weights and optimizer state are kept, only compute is fp16')
+    parser.add_argument('--grad-checkpointing', action='store_true',
+                        help='Enable gradient checkpointing to trade compute for activation memory')
+    parser.add_argument('--grad-accum-steps', type=int, default=1,
+                        help='Accumulate gradients over N micro-batches before each optimizer step '
+                             '(effective batch size = batch-size * grad-accum-steps)')
     args = parser.parse_args()
     train(args)
