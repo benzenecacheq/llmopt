@@ -255,6 +255,9 @@ def train(args):
         ckpt = torch.load(args.finetune, map_location=device)
         model.load_state_dict(ckpt['model_state'])
         log(f'  Loaded weights from step {ckpt["step"]}, val_ppl={ckpt.get("val_ppl")}')
+        if ckpt.get('ema_loss') is not None:
+            ema_loss = ckpt['ema_loss'].to(device)
+            log('  Loaded EMA per-token-loss buffer from checkpoint')
 
     if not args.resume:
         log(f'seed={args.seed} lr={args.lr} batch={args.batch_size} block={args.block_size} max_steps={args.max_steps}')
@@ -296,6 +299,7 @@ def train(args):
 
                     weight = ema_loss[ids]
                     weight = weight / weight.mean()
+                    weight = args.ema_blend * weight + (1 - args.ema_blend) * 1.0
                     loss = (weight.detach() * per_token_loss).mean()
 
                     with torch.no_grad():
@@ -418,6 +422,9 @@ if __name__ == '__main__':
                              '(upweights persistently-hard tokens, downweights mastered ones)')
     parser.add_argument('--ema-decay', type=float, default=0.99,
                         help='Decay rate for the per-token-id EMA loss buffer')
+    parser.add_argument('--ema-blend', type=float, default=1.0,
+                        help='Blend factor between EMA-weighted loss (1.0) and standard '
+                             'unweighted loss (0.0); e.g. 0.5 averages the two per-token weights')
     parser.add_argument('--pretrained', type=str, default='gpt2',
                         help='HuggingFace model id to load pretrained weights from '
                              '(e.g. gpt2, gpt2-medium, gpt2-large, gpt2-xl)')
