@@ -235,105 +235,105 @@ A key empirical finding motivating this work is that naïve proportional truncat
 
 **KL Faithfulness at 65%.** The KL results below compare all methods on Llama-3.1-8B; the Mistral results follow the same pattern at roughly half the absolute magnitude.
 
-| Task             | Naive          | SnapKV         | Streaming      | SnapKV+rot    | PyramidKV |
-| ---------------- | -------------- | -------------- | -------------- | ------------- | --------- |
-| NarrativeQA†     | 0.022          | 0.787          | 0.045          | **0.010**     | 1.338     |
-| Qasper†          | 0.281          | 0.881          | 0.237          | **0.092**     | 1.229     |
-| MultifieldQA     | 0.262          | 1.316          | 0.302          | **0.037**     | 1.535     |
-| HotpotQA†        | 0.203          | 1.935          | 0.069          | **0.006**     | 2.181     |
-| 2WikiMQA†        | 0.221          | 1.714          | 0.103          | **0.008**     | 2.422     |
-| MuSiQue†         | 0.197          | 1.747          | 0.098          | **0.007**     | 2.523     |
-| GovReport        | 0.280          | 0.532          | 0.385          | **0.128**     | 0.334     |
-| QMSum†           | 0.081          | 0.393          | 0.093          | **0.055**     | 0.438     |
-| MultiNews        | 0.585          | 1.050          | 0.643          | **0.322**     | 0.721     |
-| TREC             | 0.202          | 1.454          | 0.084          | **0.011**     | 1.526     |
-| TriviaQA         | 0.076          | 1.151          | 0.008          | **0.001**     | 1.647     |
-| SAMSum           | 0.011          | 0.791          | 0.015          | **0.004**     | 1.182     |
-| PassageCount†    | 0.059          | 1.560          | 0.002          | **0.000**     | 1.626     |
-| PassageRetrieval | 0.188          | 1.624          | 0.032          | **0.002**     | 1.416     |
-| LCC              | 0.076          | 0.881          | 0.085          | **0.007**     | 1.142     |
-| RepoBench-P      | 0.048          | 0.702          | 0.050          | **0.004**     | 1.052     |
-| **Average**      | 0.175          | 1.157          | 0.141          | **0.043**     | 1.394     |
+| Task             | Naive          | Streaming      | SnapKV         | PyramidKV |
+| ---------------- | -------------- | -------------- | -------------- | --------- |
+| NarrativeQA†     | **0.022**      | 0.045          | 0.787          | 1.338     |
+| Qasper†          | 0.281          | **0.237**      | 0.881          | 1.229     |
+| MultifieldQA     | **0.262**      | 0.302          | 1.316          | 1.535     |
+| HotpotQA†        | 0.203          | **0.069**      | 1.935          | 2.181     |
+| 2WikiMQA†        | 0.221          | **0.103**      | 1.714          | 2.422     |
+| MuSiQue†         | 0.197          | **0.098**      | 1.747          | 2.523     |
+| GovReport        | **0.280**      | 0.385          | 0.532          | 0.334     |
+| QMSum†           | **0.081**      | 0.093          | 0.393          | 0.438     |
+| MultiNews        | **0.585**      | 0.643          | 1.050          | 0.721     |
+| TREC             | 0.202          | **0.084**      | 1.454          | 1.526     |
+| TriviaQA         | 0.076          | **0.008**      | 1.151          | 1.647     |
+| SAMSum           | **0.011**      | 0.015          | 0.791          | 1.182     |
+| PassageCount†    | 0.059          | **0.002**      | 1.560          | 1.626     |
+| PassageRetrieval | 0.188          | **0.032**      | 1.624          | 1.416     |
+| LCC              | **0.076**      | 0.085          | 0.881          | 1.142     |
+| RepoBench-P      | **0.048**      | 0.050          | 0.702          | 1.052     |
+| **Average**      | 0.175          | **0.141**      | 1.157          | 1.394     |
 
-Values in nats; lower is better. Bold marks the best method per row (excluding PyramidKV, which is shown for comparison). Streaming (with key re-rotation) leads on 8 of 16 tasks; Naive leads on 8. SnapKV KV pruning is substantially worse than both. PyramidKV is worst overall (1.394 vs. 0.141 for Streaming, a 9.9× gap).
+Values in nats; lower is better. Bold marks the best among Naive and Streaming (SnapKV and PyramidKV excluded from bold competition — both are substantially worse). Streaming leads on 8 of 16 tasks and the overall average; Naive leads on 8. Both KV-pruning methods are an order of magnitude worse than either prompt-construction method.
 
 **Output Faithfulness (F_out) at 65%.** The same methods evaluated on the new metric, comparing each model's output text against the full model's output text.
 
-| Task             | Naive    | SnapKV   | Streaming | SnapKV+rot | PyramidKV |
-| ---------------- | -------- | -------- | --------- | ---------- | --------- |
-| NarrativeQA†     | **88.1** | 63.1     | 59.9      | 59.6       | 61.7      |
-| Qasper†          | 46.4     | 71.4     | 56.9      | 58.4       | **72.6**  |
-| MultifieldQA     | 57.3     | 81.0     | 63.6      | 73.9       | **86.0**  |
-| HotpotQA†        | 88.2     | **95.3** | 72.6      | 85.3       | 92.2      |
-| 2WikiMQA†        | 64.5     | **95.6** | 77.9      | 85.2       | **95.6**  |
-| MuSiQue†         | **97.1** | 92.7     | 72.3      | 86.9       | 92.3      |
-| GovReport        | **55.8** | 47.8     | 40.1      | 45.5       | 51.2      |
-| QMSum†           | **54.4** | 41.7     | 37.0      | 40.3       | 40.4      |
-| MultiNews        | 43.8     | 44.6     | 41.0      | 42.5       | **49.0**  |
-| TREC             | 75.3     | **82.6** | 74.0      | 78.2       | 81.3      |
-| TriviaQA         | 71.1     | 92.0     | 60.2      | 83.3       | **97.0**  |
-| SAMSum           | 64.9     | **78.4** | 52.6      | 67.2       | 73.4      |
-| PassageCount†    | 70.7     | 92.8     | 61.8      | 83.9       | **96.4**  |
-| PassageRetrieval | 80.1     | **94.0** | 70.0      | 82.2       | 93.8      |
-| LCC              | 62.0     | **92.8** | 73.8      | 87.7       | 91.3      |
-| RepoBench-P      | 77.3     | 90.5     | 65.6      | 77.9       | **90.6**  |
-| **Average**      | 68.6     | 78.5     | 61.2      | 71.1       | **79.1**  |
+| Task             | Naive    | Streaming | SnapKV   | PyramidKV |
+| ---------------- | -------- | --------- | -------- | --------- |
+| NarrativeQA†     | **88.1** | 59.9      | 63.1     | 61.7      |
+| Qasper†          | 46.4     | 56.9      | 71.4     | **72.6**  |
+| MultifieldQA     | 57.3     | 63.6      | 81.0     | **86.0**  |
+| HotpotQA†        | 88.2     | 72.6      | **95.3** | 92.2      |
+| 2WikiMQA†        | 64.5     | 77.9      | **95.6** | **95.6**  |
+| MuSiQue†         | **97.1** | 72.3      | 92.7     | 92.3      |
+| GovReport        | **55.8** | 40.1      | 47.8     | 51.2      |
+| QMSum†           | **54.4** | 37.0      | 41.7     | 40.4      |
+| MultiNews        | 43.8     | 41.0      | 44.6     | **49.0**  |
+| TREC             | 75.3     | 74.0      | **82.6** | 81.3      |
+| TriviaQA         | 71.1     | 60.2      | 92.0     | **97.0**  |
+| SAMSum           | 64.9     | 52.6      | **78.4** | 73.4      |
+| PassageCount†    | 70.7     | 61.8      | 92.8     | **96.4**  |
+| PassageRetrieval | 80.1     | 70.0      | **94.0** | 93.8      |
+| LCC              | 62.0     | 73.8      | **92.8** | 91.3      |
+| RepoBench-P      | 77.3     | 65.6      | 90.5     | **90.6**  |
+| **Average**      | 68.6     | 61.2      | 78.5     | **79.1**  |
 
-Values in %; higher is better. Bold marks the highest value per row. SnapKV+rot = SnapKV with key re-rotation (Pyr+rot identical; see §9).
+Values in %; higher is better. Bold marks the highest value per row.
 
-**The two metrics reverse the SnapKV and PyramidKV ranking.** On KL faithfulness, SnapKV+rot dominates (0.043 nats), with SnapKV-Press (1.157) and PyramidKV (1.394) both an order of magnitude worse. On F_out, PyramidKV (79.1%) and SnapKV-Press (78.5%) lead — effectively tied and 10+ points above naive (68.6%) — while SnapKV+rot (71.1%) sits between them and naive, and Streaming (61.2%) trails further. These reversals are not contradictory: §9 explains the mechanism that decouples F_out from KL for post-hoc eviction methods.
+**The two metrics sharply disagree on SnapKV and PyramidKV.** On KL faithfulness, Streaming (0.141) edges Naive (0.175) on average, while SnapKV-Press (1.157) and PyramidKV (1.394) are an order of magnitude worse. On F_out, PyramidKV (79.1%) and SnapKV-Press (78.5%) are the two leading methods — effectively tied and 10+ points above naive (68.6%) — while Streaming (61.2%) sits below naive. These reversals are not contradictory: §9 explains the mechanism that decouples F_out from KL for post-hoc eviction methods.
 
 The Mistral results at 65% show the same pattern.
 
 **KL Faithfulness.**
 
-| Task             | Naive          | SnapKV         | Streaming      | PyramidKV |
+| Task             | Naive          | Streaming      | SnapKV         | PyramidKV |
 | ---------------- | -------------- | -------------- | -------------- | --------- |
-| NarrativeQA†     | **0.003**      | 0.445          | 0.125          | 0.780     |
-| Qasper†          | 0.071          | 0.274          | **0.067**      | 0.472     |
-| MultifieldQA     | **0.148**      | 0.639          | 0.201          | 0.718     |
-| HotpotQA†        | **0.195**      | 0.714          | 0.198          | 0.725     |
-| 2WikiMQA†        | 0.262          | 0.710          | **0.208**      | 0.683     |
-| MuSiQue†         | 0.183          | 0.708          | **0.179**      | 0.679     |
-| GovReport        | **0.180**      | 0.578          | 0.281          | 0.294     |
-| QMSum†           | **0.067**      | 0.201          | 0.082          | 0.183     |
-| MultiNews        | **0.586**      | 1.076          | 0.678          | 0.626     |
-| TREC             | **0.012**      | 0.359          | 0.046          | 0.703     |
-| TriviaQA         | **0.039**      | 1.104          | 0.070          | 1.379     |
-| SAMSum           | **0.021**      | 1.030          | 0.040          | 1.050     |
-| PassageCount†    | **0.037**      | 1.141          | 0.069          | 0.897     |
-| PassageRetrieval | **0.195**      | 0.971          | 0.204          | 0.541     |
-| LCC              | 0.055          | 0.861          | **0.041**      | 1.070     |
-| RepoBench-P      | **0.076**      | 0.914          | 0.087          | 0.940     |
-| **Average**      | **0.133**      | 0.733          | 0.161          | 0.734     |
+| NarrativeQA†     | **0.003**      | 0.125          | 0.445          | 0.780     |
+| Qasper†          | 0.071          | **0.067**      | 0.274          | 0.472     |
+| MultifieldQA     | **0.148**      | 0.201          | 0.639          | 0.718     |
+| HotpotQA†        | **0.195**      | 0.198          | 0.714          | 0.725     |
+| 2WikiMQA†        | 0.262          | **0.208**      | 0.710          | 0.683     |
+| MuSiQue†         | 0.183          | **0.179**      | 0.708          | 0.679     |
+| GovReport        | **0.180**      | 0.281          | 0.578          | 0.294     |
+| QMSum†           | **0.067**      | 0.082          | 0.201          | 0.183     |
+| MultiNews        | **0.586**      | 0.678          | 1.076          | 0.626     |
+| TREC             | **0.012**      | 0.046          | 0.359          | 0.703     |
+| TriviaQA         | **0.039**      | 0.070          | 1.104          | 1.379     |
+| SAMSum           | **0.021**      | 0.040          | 1.030          | 1.050     |
+| PassageCount†    | **0.037**      | 0.069          | 1.141          | 0.897     |
+| PassageRetrieval | **0.195**      | 0.204          | 0.971          | 0.541     |
+| LCC              | 0.055          | **0.041**      | 0.861          | 1.070     |
+| RepoBench-P      | **0.076**      | 0.087          | 0.914          | 0.940     |
+| **Average**      | **0.133**      | 0.161          | 0.733          | 0.734     |
 
-Values in nats; lower is better. Bold marks the best method per row (excluding PyramidKV, which is shown for comparison). Naive leads on 12 of 16 tasks; Streaming leads on 4. SnapKV-Press (0.733) and PyramidKV (0.734) are similarly poor, both 5.5× worse than Naive (0.133).
+Values in nats; lower is better. Bold marks the best among Naive and Streaming. Naive leads on 12 of 16 tasks; Streaming leads on 4. SnapKV-Press (0.733) and PyramidKV (0.734) are similarly poor, both 5.5× worse than Naive (0.133).
 
 **Output Faithfulness (F_out).**
 
-| Task             | Naive    | SnapKV   | Streaming | PyramidKV |
-| ---------------- | -------- | -------- | --------- | --------- |
-| NarrativeQA†     | 40.5     | **57.4** | 38.2      | 55.4      |
-| Qasper†          | 69.0     | **87.1** | 69.4      | 86.1      |
-| MultifieldQA     | 63.9     | **90.3** | 66.8      | 89.3      |
-| HotpotQA†        | 66.9     | 94.7     | 63.9      | **94.8**  |
-| 2WikiMQA†        | 66.8     | **95.2** | 77.0      | 94.8      |
-| MuSiQue†         | 64.6     | **94.3** | 68.0      | 93.3      |
-| GovReport        | 46.7     | 62.6     | 41.8      | **64.2**  |
-| QMSum†           | 48.3     | 72.2     | 47.0      | **73.8**  |
-| MultiNews        | 45.5     | **51.7** | 35.8      | 51.6      |
-| TREC             | 85.0     | **94.5** | 82.2      | 92.6      |
-| TriviaQA         | 57.4     | 91.9     | 60.6      | **93.8**  |
-| SAMSum           | 55.1     | **72.4** | 57.2      | 69.6      |
-| PassageCount†    | 57.3     | 97.0     | 57.7      | **97.5**  |
-| PassageRetrieval | 68.8     | 97.2     | 68.5      | **97.8**  |
-| LCC              | 62.1     | 88.3     | 76.0      | **90.8**  |
-| RepoBench-P      | 62.8     | **93.0** | 66.1      | 90.1      |
-| **Average**      | 60.0     | **83.7** | 61.0      | 83.5      |
+| Task             | Naive    | Streaming | SnapKV   | PyramidKV |
+| ---------------- | -------- | --------- | -------- | --------- |
+| NarrativeQA†     | 40.5     | 38.2      | **57.4** | 55.4      |
+| Qasper†          | 69.0     | 69.4      | **87.1** | 86.1      |
+| MultifieldQA     | 63.9     | 66.8      | **90.3** | 89.3      |
+| HotpotQA†        | 66.9     | 63.9      | 94.7     | **94.8**  |
+| 2WikiMQA†        | 66.8     | 77.0      | **95.2** | 94.8      |
+| MuSiQue†         | 64.6     | 68.0      | **94.3** | 93.3      |
+| GovReport        | 46.7     | 41.8      | 62.6     | **64.2**  |
+| QMSum†           | 48.3     | 47.0      | 72.2     | **73.8**  |
+| MultiNews        | 45.5     | 35.8      | **51.7** | 51.6      |
+| TREC             | 85.0     | 82.2      | **94.5** | 92.6      |
+| TriviaQA         | 57.4     | 60.6      | 91.9     | **93.8**  |
+| SAMSum           | 55.1     | 57.2      | **72.4** | 69.6      |
+| PassageCount†    | 57.3     | 57.7      | 97.0     | **97.5**  |
+| PassageRetrieval | 68.8     | 68.5      | 97.2     | **97.8**  |
+| LCC              | 62.1     | 76.0      | 88.3     | **90.8**  |
+| RepoBench-P      | 62.8     | 66.1      | **93.0** | 90.1      |
+| **Average**      | 60.0     | 61.0      | **83.7** | 83.5      |
 
 Values in %; higher is better. Bold marks the highest value per row.
 
-The KL ranking inversion (naive best, PyramidKV worst) is consistent across both models. On Mistral, SnapKV-Press (83.7%) and PyramidKV (83.5%) are effectively tied on F_out — the same pattern as Llama — while Streaming (61.0%) trails by 22 points but sits well above naive (60.0%), confirming the same pattern holds across architectures. SnapKV+rot Mistral F_out values are pending the Mistral re-run.
+The pattern is consistent across architectures. On Mistral, SnapKV-Press (83.7%) and PyramidKV (83.5%) are effectively tied on F_out — the same reversal as Llama relative to KL — while Streaming (61.0%) and Naive (60.0%) cluster together, confirming the KV-pruning F_out advantage holds across both models.
 
 ---
 
