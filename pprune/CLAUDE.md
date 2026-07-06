@@ -4,9 +4,10 @@
 
 Research paper on KV cache compression faithfulness. Central finding: positional displacement
 (scattered retained tokens at original RoPE positions) is the dominant failure mode for SnapKV and
-PyramidKV. Key re-rotation fixes this: `snapkv_rerotated` beats phr160 on all 16 tasks in KL and
-matches or exceeds pyramidkv in F_out at the same retention rate. Paper is undergoing major
-structural overhaul to reflect these findings.
+PyramidKV. Key re-rotation fixes this: `snapkv_rerotated` dramatically improves KL (27× at 65%)
+and beats phr160 on all 16 tasks. Critically, `pyramidkv_rerotated` = `snapkv_rerotated` on every
+task at every rate — selection strategy is irrelevant once positions are corrected. Paper is
+undergoing major structural overhaul.
 
 Paper: `paper_phrase_compression.md`
 Branch: `kvpress-impl`
@@ -23,33 +24,26 @@ Data: `lb_data_raw/data/*.jsonl` (16 LongBench tasks, n=200 for gov_report/multi
 | SnapKV | `snapkv_press` / `snapkv_press_f35` etc. | kvpress SnapKVPress, post-hoc eviction |
 | SnapKV+rot | `snapkv_rerotated` / `snapkv_rerotated_f35` etc. | SnapKV + KeyRerotationPress |
 | PyramidKV | `pyramidkv` / `pyramidkv_f35` etc. | kvpress PyramidKVPress |
-| PyramidKV+rot | `pyramidkv_rerotated` / `pyramidkv_rerotated_f35` etc. | PyramidKV + KeyRerotationPress |
+| Pyr+rot | `pyramidkv_rerotated` / `pyramidkv_rerotated_f35` etc. | PyramidKV + KeyRerotationPress — identical to SnapKV+rot on all tasks/rates |
 | Streaming | `streaming_rerotated` / `streaming_rerotated_f35` etc. | kvpress KeyRerotationPress (corrected) |
 
-SnapKV-Select (`snapkv_select`) is a diagnostic tool only — used in §6.2 to isolate structural
-corruption from token selection. Does NOT appear in the main cross-rate tables.
+SnapKV-Select (`snapkv_select`) is a diagnostic tool only — §6.2 only.
 
-Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 is dropped from the
-paper entirely.**
+Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropped from paper.**
 
 ## Eval harnesses
 
 - `gt_eval_compression.py` — Ground-truth LongBench accuracy (full generation). Resumable checkpoint
   keyed by `task|idx|method`. Output dirs under `lb_results_base/gt_*/`.
-  **IMPORTANT**: Contains `generate_rerotated()` (added Jul 2026) for KeyRerotationPress methods.
-  These methods re-rotate keys to compact positions 0..M-1; without the fix, `model.generate()`
-  uses decode position IDs T+1, T+2, ... instead of M+1, M+2, ..., causing degenerate "In In In..."
-  output. KL eval (teacher-forced) is NOT affected by this bug.
-- `kl_faith_eval_ystar.py` — KL faithfulness using y* shared prefix (teacher-forced). Checkpoint
-  JSON files directly in `lb_results_base/kl_*.json`. Defines all `_KVPRESS_METHODS` including
-  `pyramidkv_rerotated` variants.
+  **IMPORTANT**: `generate_rerotated()` (added Jul 2026) handles KeyRerotationPress methods.
+  Without it, decode position IDs are T+1, T+2, ... instead of M+1, M+2, ..., causing degenerate
+  "In In In..." output. KL eval (teacher-forced) is NOT affected by this bug.
+- `kl_faith_eval_ystar.py` — KL faithfulness using y* shared prefix (teacher-forced). All
+  `_KVPRESS_METHODS` defined here including rerotated variants.
 - `kl_faith_eval.py` — Core configs (METHOD_CONFIGS, CHUNK_CONFIGS). Imported by both above.
 - `longbench_eval.py` — Scoring functions. `qa_f1_score()` used for F_out computation.
 - `queue_runner.sh` — File-based job queue. Reads `lb_results_base/queue.txt`, runs first
   non-comment line, removes it, repeats. Edit queue.txt live to reorder/add jobs.
-
-All data loading uses simple unshuffled JSONL reads — idx alignment is safe across checkpoints
-from different scripts pointing to the same data_dir.
 
 ## Key data files
 
@@ -65,67 +59,86 @@ from different scripts pointing to the same data_dir.
 | `lb_results_base/kl_ystar_pyramidkv_all_v2.json` | KL for pyramidkv at all rates, all 16 tasks, n=100 |
 | `lb_results_base/ystar_cache_v3.pt` | Cached y* tokens + log_p_full for all 16 tasks, n=100 (Llama) |
 | `lb_results_base/ystar_cache_mistral.pt` | Same for Mistral |
-| `lb_results_base/kl_mechanism_llama_f65.json` | KL: snapkv_press + streaming_rerotated, Llama 65%, all 16 tasks, n=100 ✓ |
+| `lb_results_base/kl_mechanism_llama_f65.json` | KL: snapkv_press + streaming_rerotated, Llama 65% ✓ |
 | `lb_results_base/kl_mechanism_llama_f50.json` | Same at 50% ✓ |
 | `lb_results_base/kl_mechanism_llama_f35.json` | Same at 35% ✓ |
 | `lb_results_base/kl_mechanism_mistral_f*.json` | Same for Mistral, all 3 rates ✓ |
-| `lb_results_base/gt_mechanism_llama_f65/checkpoint.json` | GT: snapkv_press (done), streaming_rerotated (re-running with fix) |
-| `lb_results_base/gt_mechanism_llama_f50/checkpoint.json` | GT: snapkv_press done, streaming_rerotated re-running |
-| `lb_results_base/gt_mechanism_llama_f35/checkpoint.json` | GT: snapkv_press done, streaming_rerotated re-running |
-| `lb_results_base/gt_mechanism_mistral_f*/checkpoint.json` | Same for Mistral (f35 snapkv_press partial, resuming) |
+| `lb_results_base/gt_mechanism_llama_f65/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
+| `lb_results_base/gt_mechanism_llama_f50/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
+| `lb_results_base/gt_mechanism_llama_f35/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
+| `lb_results_base/gt_mechanism_mistral_f65/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
+| `lb_results_base/gt_mechanism_mistral_f50/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
+| `lb_results_base/gt_mechanism_mistral_f35/checkpoint.json` | GT: snapkv_press 792/1600, streaming_rerotated 653/1600 (in progress) |
 
 ## Completed data
 
-- `lb_results_base/kl_snapkv_rerotated.json` — snapkv_rerotated KL, Llama 65%, all 16 tasks ✓
-- `lb_results_base/kl_snapkv_rerotated_f50.json` — same at 50% ✓
-- `lb_results_base/kl_snapkv_rerotated_f35.json` — same at 35% ✓
-- `lb_results_base/kl_snapkv_rerotated_f40.json` — same at 40% ✓ (f40 dropped from paper)
-- `lb_results_base/gap_structure.json` — all 4 geometries × 4 presentations (gapless/evicted/rerotated/gapped), 6 tasks, n=20 ✓
-- `lb_results_base/gt_snapkv_rerotated_f50/checkpoint.json` — GT snapkv_rerotated 50%, in progress (gov_report running)
+**KL (Llama):**
+- `kl_snapkv_rerotated.json` — 65%, all 16 tasks ✓ (mean KL=0.043)
+- `kl_snapkv_rerotated_f50.json` — 50% ✓ (mean KL=0.077)
+- `kl_snapkv_rerotated_f35.json` — 35% ✓ (mean KL=0.124)
+- `kl_snapkv_rerotated_f40.json` — 40% ✓ (f40 dropped from paper)
+- `kl_pyramidkv_rerotated.json` — 65% ✓ (identical to snapkv_rerotated)
+- `kl_pyramidkv_rerotated_f50.json` — 50% ✓ (identical)
+- `kl_pyramidkv_rerotated_f35.json` — 35% ✓ (identical)
+- `gap_structure.json` — 4 geometries × 4 presentations, 6 tasks, n=20 ✓
+
+**GT (Llama):**
+- `gt_snapkv_rerotated/` — 65%, all 16 tasks ✓ (position-ID fix applied)
+- `gt_snapkv_rerotated_f50/` — 50%, all 16 tasks ✓
+- `gt_snapkv_rerotated_f35/` — 35%, all 16 tasks ✓
+- `gt_pyramidkv_rerotated/` — 65%, all 16 tasks ✓ (= snapkv_rerotated on every task)
+- `gt_pyramidkv_rerotated_f50/` — 50%, all 16 tasks ✓ (= snapkv_rerotated_f50)
+- `gt_pyramidkv_rerotated_f35/` — 35%, all 16 tasks ✓ (= snapkv_rerotated_f35)
 
 ## Currently running
 
 **Queue runner PID 47806. Edit `lb_results_base/queue.txt` to modify.**
 
-Currently running: `run_gt_snapkv_rerotated_f50.sh` (gov_report in progress)
+Currently running: `run_gt_mechanism_sweep.sh` — Mistral f35 (snapkv_press 792/1600, streaming_rerotated 653/1600 in progress)
 
-Remaining queue:
-1. `run_kl_pyramidkv_rerotated_f35.sh` — KL pyramidkv_rerotated at 35%
-2. `run_gt_snapkv_rerotated_f35.sh` — GT snapkv_rerotated 35%, all 16 tasks
-3. `run_gt_pyramidkv_rerotated_f35.sh` — GT pyramidkv_rerotated 35%, all 16 tasks
-4. `run_gt_snapkv_rerotated.sh` — GT snapkv_rerotated 65%, all 16 tasks
-5. `run_gt_mechanism_sweep.sh` — GT streaming_rerotated at 65/50/35% (Llama + Mistral); resumes Mistral f35 snapkv_press
-6. `run_kl_pyramidkv_rerotated_f50.sh` — KL pyramidkv_rerotated at 50%
-7. `run_gt_pyramidkv_rerotated_f50.sh` — GT pyramidkv_rerotated 50%, all 16 tasks
-8. `run_kl_pyramidkv_rerotated.sh` — KL pyramidkv_rerotated at 65%
-9. `run_gt_pyramidkv_rerotated.sh` — GT pyramidkv_rerotated 65%, all 16 tasks
+Remaining queue after current job:
+1. `run_kl_snapkv_rerotated_mistral.sh` — KL snapkv_rerotated at 65/50/35% on Mistral
+2. `run_gt_snapkv_rerotated_mistral.sh` — GT snapkv_rerotated at 65/50/35% on Mistral
+
+## Key empirical results (Llama, F_out macro over 16 tasks)
+
+| Method | 65% | 50% | 35% |
+|---|---|---|---|
+| Pyr (no rot) | 79.1 | 64.2 | 66.9 |
+| SnapKV (no rot) | 78.5 | 73.2 | 66.8 |
+| SnapKV+rot = Pyr+rot | 71.1 | 67.8 | 63.0 |
+| Naive | 68.6 | 52.1 | 46.9 |
+| Streaming (corrected) | ~59† | — | — |
+| phr128 | 54.5 | 52.8 | 48.6 |
+
+†Streaming F_out recomputed after position-ID fix; f65 partial (12/16 tasks).
 
 ## Paper structure notes
 
-Paper is undergoing major overhaul. Original thesis ("use prompt construction instead of KV
-pruning") is superseded by the positional displacement finding. New framing:
-- Positional displacement (scattered tokens at original RoPE positions) is the dominant failure mode
-- Re-rotation to compact positions fixes it: snapkv_rerotated KL is 27× lower than snapkv_press
-- phr160 is the TTFT-efficient alternative (no prefill penalty), not the superior method
-- pyramidkv_rerotated is being evaluated as the potential strongest method
+Paper is undergoing major overhaul. Tables 3 & 4 updated Jul 2026 with rerotated results.
+Remaining sections need rewrite to reflect:
+- Positional displacement as central failure mode
+- SnapKV+rot as best KL method (beats even prompt-construction methods)
+- Pyr+rot = SnapKV+rot: selection strategy irrelevant once positions corrected
+- Streaming corrected F_out (~59%) invalidates §8.4 and §9.1 streaming claims
+- Mistral rerotated data pending
 
+Current section state:
 - §6.2: SnapKV-Select diagnostic (KL only). Only place Sel appears.
-- §6.3: Gap structure table — 4 geometries × gapless/evicted/rerotated presentations.
-- §8: Cross-rate tables — methods: Naive, phr160, phr128, SnapKV, SnapKV+rot, Streaming, Pyr, Pyr+rot (TBD)
-- §9: PyramidKV case study (structure TBD pending new results)
+- §6.3: Gap structure table — 4 geometries × gapless/evicted/rerotated presentations. ✓
+- §8: Tables updated. Narrative needs major revision.
+- §9: PyramidKV case study — Table 5 (short/long F_out) uses corrected streaming data when available.
 - KL metric uses y* shared prefix (fixed path-dependence flaw); see `kl_faith_eval_ystar.py`.
 
 ## Data validity note
 
-All **KL** data is valid — teacher-forced evaluation is unaffected by the position-ID bug.
+All **KL** data is valid — teacher-forced, unaffected by position-ID bug.
 
-**GT data validity**: `generate_rerotated()` fix was applied Jul 2026. Any GT checkpoint for a
-KeyRerotationPress method (snapkv_rerotated, streaming_rerotated, pyramidkv_rerotated) created
-BEFORE this fix is invalid (degenerate outputs). Affected checkpoints have been purged:
-- `gt_snapkv_rerotated/` — cleared, re-running
-- `gt_snapkv_rerotated_f35/` — cleared, re-running
-- `gt_mechanism_llama_f*/` and `gt_mechanism_mistral_f*/` — streaming_rerotated entries purged,
-  snapkv_press entries preserved; streaming_rerotated re-running via mechanism sweep
+**GT data**: `generate_rerotated()` fix applied Jul 2026. All KeyRerotationPress GT checkpoints
+created before the fix are invalid. Affected checkpoints have been purged and re-run:
+- `gt_snapkv_rerotated*/` — purged and re-run ✓
+- `gt_mechanism_*/` — streaming_rerotated entries purged, re-running via mechanism sweep
+- Old streaming F_out values in paper (14%, 12.7%, etc.) were from corrupted runs — now marked †
 
 `diagnose_distribution.py` (untracked) has a head-truncation bug — NOT used for paper tables.
 
