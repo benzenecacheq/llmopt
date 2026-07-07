@@ -82,6 +82,11 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 - `kl_pyramidkv_rerotated_f35.json` — 35% ✓ (identical)
 - `gap_structure.json` — 4 geometries × 4 presentations, 6 tasks, n=20 ✓
 
+**KL (Mistral):**
+- `kl_snapkv_rerotated_mistral.json` — 65%, all 16 tasks ✓ (mean KL=0.030)
+- `kl_snapkv_rerotated_mistral_f50.json` — 50% ✓ (mean KL=0.058)
+- `kl_snapkv_rerotated_mistral_f35.json` — 35% ✓ (mean KL=0.096)
+
 **GT (Llama):**
 - `gt_snapkv_rerotated/` — 65%, all 16 tasks ✓ (position-ID fix applied)
 - `gt_snapkv_rerotated_f50/` — 50%, all 16 tasks ✓
@@ -94,10 +99,9 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 
 **Queue runner PID 47806. Edit `lb_results_base/queue.txt` to modify.**
 
-Currently running: `run_kl_snapkv_rerotated_mistral.sh` — KL snapkv_rerotated at 65/50/35% on Mistral (f65 in progress ~4h remaining as of 2026-07-06)
+Currently running: `run_gt_snapkv_rerotated_mistral.sh` — GT snapkv_rerotated at 65/50/35% on Mistral (f65 at ~1354/1600 as of 2026-07-06, f50/f35 not started)
 
-Remaining queue after current job:
-1. `run_gt_snapkv_rerotated_mistral.sh` — GT snapkv_rerotated at 65/50/35% on Mistral
+KL runs complete. Remaining queue: GT only.
 
 Mechanism sweep complete: all GT files for gt_mechanism_mistral_f*/checkpoint.json ✓
 
