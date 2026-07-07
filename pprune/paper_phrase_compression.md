@@ -961,27 +961,27 @@ Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Liang, L., Zou, J., Wang, Z., and Chen
 | RepoBench-P      | 62.8  | 57.5   | 66.1      | **93.0** | 90.1     |
 | **Average**      | 60.0  | 59.5   | 61.0      | **83.7** | 83.5     |
 
-**Table B2b. 35% retention. Note: SnapKV column uses pre-correction pcfg values; Streaming column pending.**
+**Table B2b. 35% retention. †Streaming = corrected re-run; SnapKV = kvpress post-hoc eviction (replaces prior pcfg values).**
 
-| Task | Naive | phr128 | SnapKV | Pyr |
-|---|---|---|---|---|
-| NarrativeQA† | 39.5 | 31.9 | 27.5 | **54.6** |
-| Qasper† | 60.6 | 56.2 | 48.0 | **77.0** |
-| MultifieldQA | 56.0 | 62.6 | 47.1 | **82.3** |
-| HotpotQA† | 64.0 | 73.8 | 59.6 | **88.0** |
-| 2WikiMQA† | 65.4 | 72.8 | 64.3 | **88.5** |
-| MuSiQue† | 58.7 | 67.7 | 61.5 | **88.0** |
-| GovReport | 36.8 | 40.1 | 25.1 | **46.1** |
-| QMSum† | 39.9 | 43.9 | 41.1 | **61.5** |
-| MultiNews | **36.3** | 28.9 | 32.5 | 36.3 |
-| TREC | 78.9 | 78.2 | 68.3 | **86.8** |
-| TriviaQA | 42.9 | 42.9 | 32.5 | **80.5** |
-| SAMSum | 52.9 | 45.8 | 44.9 | **64.3** |
-| PassageCount† | 39.2 | 41.4 | 22.2 | **87.1** |
-| PassageRetrieval | 61.9 | 59.5 | 68.4 | **88.4** |
-| LCC | 59.5 | 62.8 | 51.4 | **81.8** |
-| RepoBench-P | 62.6 | 54.2 | 48.4 | **85.9** |
-| **Average** | 53.5 | 53.9 | 46.4 | **74.8** |
+| Task             | Naive | phr128 | Streaming† | SnapKV   | Pyr      |
+|------------------|-------|--------|------------|----------|----------|
+| NarrativeQA†     | 39.5  | 31.9   | 37.1       | 54.4     | **54.6** |
+| Qasper†          | 60.6  | 56.2   | 60.4       | **77.1** | 77.0     |
+| MultifieldQA     | 56.0  | 62.6   | 52.5       | 81.8     | **82.3** |
+| HotpotQA†        | 64.0  | 73.8   | 63.6       | **88.0** | **88.0** |
+| 2WikiMQA†        | 65.4  | 72.8   | 68.1       | **88.5** | **88.5** |
+| MuSiQue†         | 58.7  | 67.7   | 63.7       | 87.9     | **88.0** |
+| GovReport        | 36.8  | 40.1   | 33.6       | 45.5     | **46.1** |
+| QMSum†           | 39.9  | 43.9   | 40.1       | **61.6** | 61.5     |
+| MultiNews        | **36.3** | 28.9 | 28.6      | 35.1     | **36.3** |
+| TREC             | 78.9  | 78.2   | 73.3       | **86.8** | **86.8** |
+| TriviaQA         | 42.9  | 42.9   | 42.0       | 79.8     | **80.5** |
+| SAMSum           | 52.9  | 45.8   | 52.6       | 62.8     | **64.3** |
+| PassageCount†    | 39.2  | 41.4   | 54.6       | **87.3** | 87.1     |
+| PassageRetrieval | 61.9  | 59.5   | 66.2       | **88.4** | **88.4** |
+| LCC              | 59.5  | 62.8   | 68.4       | 77.8     | **81.8** |
+| RepoBench-P      | 62.6  | 54.2   | 57.6       | 82.0     | **85.9** |
+| **Average**      | 53.5  | 53.9   | 53.9       | 74.0     | **74.8** |
 
 ---
 

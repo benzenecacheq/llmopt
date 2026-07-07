@@ -68,7 +68,7 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 | `lb_results_base/gt_mechanism_llama_f35/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
 | `lb_results_base/gt_mechanism_mistral_f65/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
 | `lb_results_base/gt_mechanism_mistral_f50/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
-| `lb_results_base/gt_mechanism_mistral_f35/checkpoint.json` | GT: snapkv_press 792/1600, streaming_rerotated 653/1600 (in progress) |
+| `lb_results_base/gt_mechanism_mistral_f35/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
 
 ## Completed data
 
@@ -94,11 +94,12 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 
 **Queue runner PID 47806. Edit `lb_results_base/queue.txt` to modify.**
 
-Currently running: `run_gt_mechanism_sweep.sh` — Mistral f35 (snapkv_press 792/1600, streaming_rerotated 653/1600 in progress)
+Currently running: `run_kl_snapkv_rerotated_mistral.sh` — KL snapkv_rerotated at 65/50/35% on Mistral (f65 in progress ~4h remaining as of 2026-07-06)
 
 Remaining queue after current job:
-1. `run_kl_snapkv_rerotated_mistral.sh` — KL snapkv_rerotated at 65/50/35% on Mistral
-2. `run_gt_snapkv_rerotated_mistral.sh` — GT snapkv_rerotated at 65/50/35% on Mistral
+1. `run_gt_snapkv_rerotated_mistral.sh` — GT snapkv_rerotated at 65/50/35% on Mistral
+
+Mechanism sweep complete: all GT files for gt_mechanism_mistral_f*/checkpoint.json ✓
 
 ## Key empirical results (Llama, F_out macro over 16 tasks)
 
