@@ -7,6 +7,7 @@ import argparse
 import math
 import os
 import random
+import sys
 import time
 
 import numpy as np
@@ -169,7 +170,14 @@ def train(args):
         log_f.write(msg + '\n')
 
     set_seed(args.seed)
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if not torch.cuda.is_available():
+        msg = ('ERROR: no CUDA GPU detected (torch.cuda.is_available() is False). '
+               'Refusing to silently fall back to CPU -- a full training run would proceed '
+               'at ~20x slower with no warning. Fix the GPU/driver and retry.')
+        log(msg)
+        print(msg, file=sys.stderr)
+        sys.exit(1)
+    device = torch.device('cuda')
     log(f'Device: {device}  |  Seed: {args.seed}')
 
     from transformers import GPT2TokenizerFast
@@ -191,10 +199,11 @@ def train(args):
             log(f'Building baseline GPT-2 model (pretrained={args.pretrained})...')
             model = GPT2LMHeadModel.from_pretrained(args.pretrained).to(device)
     else:
-        log(f'Building BLT model (pretrained={args.pretrained}, num_m_groups={args.num_m_groups}, random_m={args.random_m}, from_scratch={args.from_scratch}, warmstart_scale={args.warmstart_scale})...')
+        log(f'Building BLT model (pretrained={args.pretrained}, num_m_groups={args.num_m_groups}, random_m={args.random_m}, from_scratch={args.from_scratch}, warmstart_scale={args.warmstart_scale}, per_layer_m={args.per_layer_m})...')
         model = build_blt_model(pretrained=args.pretrained, num_m_groups=args.num_m_groups,
                                 random_m=args.random_m, from_scratch=args.from_scratch,
-                                warmstart_scale=args.warmstart_scale).to(device)
+                                warmstart_scale=args.warmstart_scale,
+                                per_layer_m=args.per_layer_m).to(device)
 
     if args.grad_checkpointing:
         model.gradient_checkpointing_enable()
@@ -411,6 +420,10 @@ if __name__ == '__main__':
                         help='Number of shared M matrices (1=original BLT, 2=GQA-like)')
     parser.add_argument('--random-m', action='store_true',
                         help='Initialize M randomly N(0, 1/sqrt(D)) instead of from Wq@Wk^T')
+    parser.add_argument('--per-layer-m', action='store_true',
+                        help='Give each layer its own M instead of sharing one M across all '
+                             'layers (still shared across heads within a layer). '
+                             'Only valid with --num-m-groups 1.')
     parser.add_argument('--lambada-eval-every', type=int, default=2000,
                         help='Evaluate LAMBADA cloze accuracy every N steps (0 to disable)')
     parser.add_argument('--dataset', type=str, default='wikitext103',

@@ -12,7 +12,8 @@ from model import build_blt_model, build_gqa_model, build_hybrid_model
 
 
 def load_model(checkpoint_path, baseline=False, gqa=False, hybrid=False,
-               device='cuda', num_m_groups=1, n_mha_layers=6, pretrained='gpt2'):
+               device='cuda', num_m_groups=1, n_mha_layers=6, pretrained='gpt2',
+               per_layer_m=False):
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
 
@@ -33,7 +34,8 @@ def load_model(checkpoint_path, baseline=False, gqa=False, hybrid=False,
             model.load_state_dict(ckpt['model_state'])
             print(f'Loaded baseline checkpoint: step={ckpt["step"]}, val_ppl={ckpt.get("val_ppl")}')
     else:
-        model = build_blt_model(pretrained=pretrained, num_m_groups=num_m_groups).to(device)
+        model = build_blt_model(pretrained=pretrained, num_m_groups=num_m_groups,
+                                per_layer_m=per_layer_m).to(device)
         if checkpoint_path:
             ckpt = torch.load(checkpoint_path, map_location=device)
             model.load_state_dict(ckpt['model_state'])
@@ -47,7 +49,7 @@ def load_model(checkpoint_path, baseline=False, gqa=False, hybrid=False,
 class BLTModel(LM):
     def __init__(self, checkpoint, baseline=False, gqa=False, hybrid=False,
                  device='cuda', batch_size=8, num_m_groups=1, n_mha_layers=6,
-                 pretrained='gpt2'):
+                 pretrained='gpt2', per_layer_m=False):
         super().__init__()
         self._device = torch.device(device)
         self.model, self.tokenizer = load_model(
@@ -57,6 +59,7 @@ class BLTModel(LM):
             hybrid=(hybrid == 'true' or hybrid is True),
             device=device, num_m_groups=int(num_m_groups),
             n_mha_layers=int(n_mha_layers), pretrained=pretrained,
+            per_layer_m=(per_layer_m == 'true' or per_layer_m is True),
         )
         self._batch_size = int(batch_size)
         self._max_length = 1024
@@ -188,6 +191,8 @@ if __name__ == '__main__':
     parser.add_argument('--hybrid', action='store_true')
     parser.add_argument('--n-mha-layers', type=int, default=6)
     parser.add_argument('--num-m-groups', type=int, default=1, choices=[1, 2])
+    parser.add_argument('--per-layer-m', action='store_true',
+                        help='Checkpoint uses one M per layer instead of one shared M')
     parser.add_argument('--tasks', type=str, default='lambada_openai,hellaswag,piqa,winogrande')
     parser.add_argument('--output', type=str, default=None)
     parser.add_argument('--batch-size', type=int, default=8)
@@ -204,6 +209,7 @@ if __name__ == '__main__':
         num_m_groups=args.num_m_groups,
         n_mha_layers=args.n_mha_layers,
         pretrained=args.pretrained,
+        per_layer_m=args.per_layer_m,
     )
 
     results = evaluator.simple_evaluate(

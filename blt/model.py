@@ -281,7 +281,7 @@ def build_hybrid_model(n_mha=6):
 
 
 def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False, from_scratch=False,
-                    warmstart_scale=1.0):
+                    warmstart_scale=1.0, per_layer_m=False):
     """
     Build a GPT-2 model with BLT attention replacing every attention layer.
 
@@ -298,9 +298,20 @@ def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False, from_scra
                   (e.g. GPT-2 XL: 48 layers x 25 heads = 1200 attention contexts
                   vs GPT-2's 144), where the naive average is a much coarser,
                   more disruptive approximation. No effect when random_m=True.
+    per_layer_m: give each layer its own M (768x768) instead of sharing one M
+                  across all 12 layers. Still one M per layer shared across all
+                  heads within that layer. Warm-start init uses that layer's own
+                  Wq @ Wk^T directly (no cross-layer averaging needed, since each
+                  M has exactly one layer's worth of Wq/Wk to draw from). 25%
+                  fewer attention params than standard MHA (vs. ~48% for the
+                  cross-layer-shared M), and loses the "M loaded once for the
+                  whole model" bandwidth amortization since each layer's M must
+                  be fetched separately. Only supported with num_m_groups=1.
     """
     if num_m_groups not in (1, 2):
         raise ValueError(f'num_m_groups must be 1 or 2, got {num_m_groups}')
+    if per_layer_m and num_m_groups != 1:
+        raise ValueError('per_layer_m is only supported with num_m_groups=1')
 
     if from_scratch:
         model = GPT2LMHeadModel(GPT2Config())
@@ -312,7 +323,24 @@ def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False, from_scra
     n_head = cfg.n_head     # 12
     d_head = D // n_head    # 64
 
-    if num_m_groups == 1:
+    if per_layer_m:
+        for layer in model.transformer.h:
+            attn = layer.attn
+            if random_m:
+                M_init = torch.randn(D, D) / math.sqrt(D)
+            else:
+                Wq = attn.c_attn.weight[:, :D].detach()
+                Wk = attn.c_attn.weight[:, D:2 * D].detach()
+                M_init = (Wq @ Wk.T) * warmstart_scale
+            M_layer = nn.Parameter(M_init)
+
+            Wv = attn.c_attn.weight[:, 2 * D:].detach()   # (768, 768)
+            Wv_bias = attn.c_attn.bias[2 * D:].detach()   # (768,)
+            Wo = attn.c_proj.weight.detach()               # (768, 768)
+            Wo_bias = attn.c_proj.bias.detach()            # (768,)
+            layer.attn = BLTAttention(M_layer, Wv, Wv_bias, Wo, Wo_bias, cfg)
+
+    elif num_m_groups == 1:
         if random_m:
             M_init = torch.randn(D, D) / math.sqrt(D)
         else:
