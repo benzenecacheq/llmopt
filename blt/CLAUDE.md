@@ -94,7 +94,11 @@ Initially flagged this as a possible thermal-throttling confound (see below), bu
 
 **This also resolves an open methodology question**: per-step timing comparisons between BLT and GPT-2 were previously confounded by running on *different physical machines* (the existing seed42/seed7 BLT runs and seed42 GPT-2 baseline ran on a different machine than this one). Running MHA-seed7 and the new BLT-seed42 back-to-back on this same local GPU, same software stack, gives a clean apples-to-apples ms/step comparison for the paper — though the thermal throttling above means this particular run's own timing is no longer clean for that comparison either; a machine at healthy thermals would be needed for a truly apples-to-apples number.
 
-**GQA seed 7 — PAUSED (not abandoned), 2026-07-07.** The watcher script above fired as designed: once the BLT `seed42_500k` process exited, it first ran the lm-eval-harness and OWT held-out benchmarks against the finished checkpoint (results above), then launched `train.py --gqa --from-scratch --dataset openwebtext --seed 7 --max-steps 500000 --eval-every 1000 --lambada-eval-every 5000 --save-path run_gqa_scratch_seed7.pt` at 2026-07-06 ~01:28 local time (confirmed `Device: cuda`, 112,627,968 unique parameters). This gives GQA its second iso-step (500K) seed, matching BLT and MHA, which each already have two — completing the user's stated goal of at least two genuine iso-step seeds per architecture. Watcher log: `queue_gqa_seed7_watcher.log`. **Stopped by the user at step 190,160/500,000** (checkpoint `run_gqa_scratch_seed7.pt`, last saved step ~190,160, 2026-07-07 ~15:51 local time) to free the `bender` GPU for a BLT seed42 redo attempt (see below — redo was aborted and this GPU time was not needed after all). Left stopped, not resumed, per explicit instruction — resume later with `train.py --resume`.
+**GQA seed 7 — DONE (2026-07-11).** The watcher script above fired as designed: once the BLT `seed42_500k` process exited, it first ran the lm-eval-harness and OWT held-out benchmarks against the finished checkpoint (results above), then launched `train.py --gqa --from-scratch --dataset openwebtext --seed 7 --max-steps 500000 --eval-every 1000 --lambada-eval-every 5000 --save-path run_gqa_scratch_seed7.pt` at 2026-07-06 ~01:28 local time (confirmed `Device: cuda`, 112,627,968 unique parameters). Watcher log: `queue_gqa_seed7_watcher.log`. **Stopped by the user at step 190,160/500,000** (2026-07-07 ~15:51) to free `bender`'s GPU for a BLT seed42 redo attempt (redo was aborted and reverted, see above), then **resumed via `queue_gqa_resume_watcher.sh`** once the per-layer-M warm-start run finished on that same GPU (2026-07-08 ~09:54, correctly picked up at step 190,120 via `train.py --resume`). Ran to completion 2026-07-11, final val_ppl **64.49**.
+
+Benchmarked: OWT held-out loss 3.3410 nats, ppl **28.25** (`eval_owt_gqa_scratch_seed7.stdout`); lm-eval-harness in `lm_eval_gqa_scratch_seed7.json` — LAMBADA acc 0.192, LAMBADA ppl 231.9, HellaSwag acc_norm 0.271, PIQA acc_norm 0.577, Winogrande acc 0.509. Consistent with GQA seed42 (OWT ppl 27.64, LAMBADA acc 0.204, HellaSwag 0.269, PIQA 0.568, Winogrande 0.496) — no outliers on any metric. **This gives GQA its second iso-step (500K) seed, matching BLT and MHA, which each already have two — completing the user's stated goal of at least two genuine iso-step seeds per architecture.**
+
+Note: the first attempt to run both benchmarks (lm-eval-harness + OWT held-out) concurrently on the same GPU crashed the lm-eval-harness process with `RuntimeError: CUDA error: unspecified launch failure` a couple minutes in — GPU itself recovered cleanly afterward (0% util, 4MiB used, no wedge), so this looks like resource contention from running two GPU jobs at once rather than a lasting hardware fault. Re-ran lm-eval-harness alone (after letting OWT eval finish first) and it completed without issue. Worth remembering for future runs on this machine: don't launch two concurrent GPU benchmark jobs on `bender`.
 
 **BLT seed42 500K redo — ATTEMPTED AND ABORTED, 2026-07-07; original result confirmed final.** User initially believed the `seed42_500k` run above (OWT ppl 31.69, weakest of the four BLT seeds) was "somehow incorrect" and asked for a redo, so it was archived to `stale_throttled_run_20260706/` and a fresh run relaunched from step 0 with the identical command on `bender` (accepting the still-unfixed thermal throttling, since `titan`/`io` were unavailable). **Direct comparison of the redo's log against the archived run's log showed the two are bit-for-bit identical on `train_loss` at every matching step (0 through 1320)** — same seed, same code, same data order, fully deterministic, so the redo was just reproducing the exact same trajectory, not generating an independent data point. This is itself strong positive confirmation of the earlier conclusion: GPU clock throttling perturbs wall-clock speed only, not the computation. **The redo was killed and the archived files restored to their original filenames** — `run_blt_scratch_seed42_500k.pt/.log/.stdout` and `lm_eval_blt_scratch_seed42_500k.json/.stdout`, `eval_owt_blt_scratch_seed42_500k.stdout` are once again the real, final seed42_500k result (OWT ppl 31.69, LAMBADA acc 0.188, etc., as documented above). **If a genuinely independent 4th/5th BLT data point is wanted, it needs a different seed** (or some other source of variation) — rerunning seed 42 on any hardware will reproduce the same numbers.
 
@@ -131,18 +135,19 @@ Started 2026-06-22 ~11:29 local time on `io`. `--warmup-steps 2000` (10x the def
 
 ### From-scratch OWT runs — primary comparison
 
-| Task | BLT seed42 (550K) | BLT seed19 (600K) | BLT seed7 (500K) | Hybrid 6MHA+6BLT (500K) | GPT-2 seed42 (500K) | GQA seed42 (500K) |
-|------|-------------------|-------------------|-------------------|--------------------------|---------------------|-------------------|
-| OWT held-out ppl | 31.05 | 30.48 | 30.81 | 28.40 | 27.78 | **27.64** |
-| OWT held-out loss | 3.4357 | 3.4170 | 3.4279 | 3.3462 | 3.3243 | **3.3192** |
-| LAMBADA acc | 0.205 | 0.209 | 0.212 | **0.222** | 0.225 | 0.204 |
-| LAMBADA ppl | 349.6 | 288.6 | 244.4 | **167.1** | 174.6 | 205.3 |
-| HellaSwag acc_norm | 0.271 | 0.267 | 0.268 | **0.273** | 0.268 | 0.269 |
-| PIQA acc_norm | 0.561 | 0.572 | 0.568 | 0.562 | **0.579** | 0.568 |
-| Winogrande acc | **0.528** | 0.511 | 0.516 | 0.504 | 0.505 | 0.496 |
+| Task | BLT seed42 (550K) | BLT seed19 (600K) | BLT seed7 (500K) | Hybrid 6MHA+6BLT (500K) | GPT-2 seed42 (500K) | GQA seed42 (500K) | GQA seed7 (500K) |
+|------|-------------------|-------------------|-------------------|--------------------------|---------------------|-------------------|-------------------|
+| OWT held-out ppl | 31.05 | 30.48 | 30.81 | 28.40 | 27.78 | **27.64** | 28.25 |
+| OWT held-out loss | 3.4357 | 3.4170 | 3.4279 | 3.3462 | 3.3243 | **3.3192** | 3.3410 |
+| LAMBADA acc | 0.205 | 0.209 | 0.212 | **0.222** | 0.225 | 0.204 | 0.192 |
+| LAMBADA ppl | 349.6 | 288.6 | 244.4 | **167.1** | 174.6 | 205.3 | 231.9 |
+| HellaSwag acc_norm | 0.271 | 0.267 | 0.268 | **0.273** | 0.268 | 0.269 | 0.271 |
+| PIQA acc_norm | 0.561 | 0.572 | 0.568 | 0.562 | **0.579** | 0.568 | 0.577 |
+| Winogrande acc | **0.528** | 0.511 | 0.516 | 0.504 | 0.505 | 0.496 | 0.509 |
 
 **Key findings:**
 - All three BLT seeds consistent (OWT ppl 30.48–31.05), confirming ~0.10 nat gap vs GPT-2/GQA is real, not seed variance.
+- GQA's two seeds are consistent with each other (OWT ppl 27.64/28.25, LAMBADA acc 0.204/0.192, no outliers on any metric) — completes the "at least two iso-step seeds per architecture" goal for BLT, MHA, and GQA alike.
 - GQA edges GPT-2 on OWT ppl (27.64 vs 27.78) despite similar parameter counts — KV compression at 2 groups has no cost and marginal benefit.
 - GPT-2 still wins on LAMBADA acc despite worse OWT ppl than GQA — full per-layer Wk matters for long-range prediction specifically. But the hybrid model actually has the best LAMBADA ppl (167.1, beating even GPT-2's 174.6), suggesting 6 full MHA layers recover essentially all of LAMBADA's long-range needs.
 - HellaSwag, PIQA, Winogrande are essentially ties within noise across all variants; BLT/hybrid hold a slight Winogrande edge over GPT-2/GQA.
