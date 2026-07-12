@@ -46,10 +46,122 @@ from contextlib import nullcontext
 from transformers import AutoModelForCausalLM, AutoTokenizer, LogitsProcessor, LogitsProcessorList
 
 try:
+    from dataclasses import dataclass as _dataclass
     from kvpress import PyramidKVPress as _PyramidKVPress
+    from kvpress import SnapKVPress as _SnapKVPress
+    from kvpress import StreamingLLMPress as _StreamingLLMPress
+    from kvpress import KeyRerotationPress as _KeyRerotationPress
+    from kvpress.presses.scorer_press import ScorerPress as _ScorerPress
+    from kvpress.utils import get_prerope_query_states as _get_prerope_query_states
+    from transformers.models.llama.modeling_llama import rotate_half as _rotate_half
+    import torch.nn as _nn
+
+    @_dataclass
+    class RadarPreRopePress(_ScorerPress):
+        """Post-hoc KV eviction scored by pre-RoPE max-dot (position-invariant RADAR).
+
+        Scores each key position by the maximum unnormalized dot product with the
+        last `window_size` pre-RoPE queries.  Removing RoPE from both Q and K makes
+        scoring position-independent: importance reflects semantic content, not where
+        the token sits in the sequence.  Use with KeyRerotationPress for full fix.
+        """
+        compression_ratio: float = 0.0
+        window_size: int = 128
+
+        def score(self, module: _nn.Module, hidden_states: torch.Tensor,
+                  keys: torch.Tensor, values: torch.Tensor,
+                  attentions: torch.Tensor, kwargs) -> torch.Tensor:
+            bsz, num_kv_heads, k_len, head_dim = keys.shape
+            num_heads = module.config.num_attention_heads
+            groups = num_heads // num_kv_heads
+
+            # Pre-RoPE queries for last window positions only (avoids full q_proj)
+            window = min(self.window_size, hidden_states.shape[1])
+            q_win = _get_prerope_query_states(
+                module, hidden_states[:, -window:, :]).float()  # (bsz, num_heads, window, head_dim)
+
+            # Un-rotate keys to pre-RoPE: k_pre = k_post*cos - rotate_half(k_post)*sin
+            cos, sin = kwargs["position_embeddings"]
+            cos_k = cos.unsqueeze(1).float()  # (bsz, 1, k_len, head_dim)
+            sin_k = sin.unsqueeze(1).float()
+            k_pre = keys.float() * cos_k - _rotate_half(keys.float()) * sin_k
+            k_pre = k_pre.repeat_interleave(groups, dim=1)  # (bsz, num_heads, k_len, head_dim)
+
+            # Max dot product over query window → (bsz, num_heads, k_len)
+            dots = torch.matmul(q_win, k_pre.transpose(2, 3)) / math.sqrt(head_dim)
+            scores = dots.max(dim=2).values
+
+            # Per-head [0,1] normalization
+            s_min = scores.min(dim=-1, keepdim=True).values
+            s_max = scores.max(dim=-1, keepdim=True).values
+            scores = (scores - s_min) / (s_max - s_min + 1e-9)
+
+            # Always keep observation window (match SnapKV convention)
+            if window < k_len:
+                scores[..., -window:] = scores.max()
+
+            # Average over groups → (bsz, num_kv_heads, k_len)
+            return scores.view(bsz, num_kv_heads, groups, k_len).mean(dim=2).to(keys.dtype)
+
+    @_dataclass
+    class RadarPostRopePress(_ScorerPress):
+        """Post-hoc KV eviction scored by post-RoPE max-dot (position-aware RADAR).
+
+        Same as RadarPreRopePress but uses post-RoPE Q and K, so scores are
+        position-sensitive (tokens far from the query window are penalised by
+        the rotational mismatch — the same bias that drove the original RADAR
+        pre-rope design).  Useful ablation: pre vs. post when combined with
+        rerotation, which corrects positions after eviction regardless of how
+        selection was done.
+        """
+        compression_ratio: float = 0.0
+        window_size: int = 128
+
+        def score(self, module: _nn.Module, hidden_states: torch.Tensor,
+                  keys: torch.Tensor, values: torch.Tensor,
+                  attentions: torch.Tensor, kwargs) -> torch.Tensor:
+            bsz, num_kv_heads, k_len, head_dim = keys.shape
+            num_heads = module.config.num_attention_heads
+            groups = num_heads // num_kv_heads
+
+            # Post-RoPE queries for last window positions
+            window = min(self.window_size, hidden_states.shape[1])
+            q_pre = _get_prerope_query_states(
+                module, hidden_states[:, -window:, :]).float()  # (bsz, num_heads, window, head_dim)
+            cos, sin = kwargs["position_embeddings"]
+            cos_q = cos[:, -window:].unsqueeze(1).float()  # (bsz, 1, window, head_dim)
+            sin_q = sin[:, -window:].unsqueeze(1).float()
+            q_win = q_pre * cos_q + _rotate_half(q_pre) * sin_q
+
+            # Post-RoPE keys (from argument) expanded over groups
+            k_post = keys.float().repeat_interleave(groups, dim=1)  # (bsz, num_heads, k_len, head_dim)
+
+            # Max dot product over query window → (bsz, num_heads, k_len)
+            dots = torch.matmul(q_win, k_post.transpose(2, 3)) / math.sqrt(head_dim)
+            scores = dots.max(dim=2).values
+
+            # Per-head [0,1] normalization
+            s_min = scores.min(dim=-1, keepdim=True).values
+            s_max = scores.max(dim=-1, keepdim=True).values
+            scores = (scores - s_min) / (s_max - s_min + 1e-9)
+
+            # Always keep observation window (match SnapKV convention)
+            if window < k_len:
+                scores[..., -window:] = scores.max()
+
+            # Average over groups → (bsz, num_kv_heads, k_len)
+            return scores.view(bsz, num_kv_heads, groups, k_len).mean(dim=2).to(keys.dtype)
+
+    _RadarPreRopePress = RadarPreRopePress
+    _RadarPostRopePress = RadarPostRopePress
     _KVPRESS_AVAILABLE = True
 except ImportError:
     _PyramidKVPress = None
+    _SnapKVPress = None
+    _StreamingLLMPress = None
+    _KeyRerotationPress = None
+    _RadarPreRopePress = None
+    _RadarPostRopePress = None
     _KVPRESS_AVAILABLE = False
 
 from llama_pruned import (
@@ -76,6 +188,7 @@ from kl_faith_eval import (
     patch_model,
     unpatch_model,
     naive_truncate,
+    streaming_truncate,
     chunk_truncate,
     sent_truncate,
     load_ckpt,
@@ -380,6 +493,77 @@ if _KVPRESS_AVAILABLE:
         window_size=128,
         beta=20,
     )
+
+    # SnapKV via kvpress's standard post-hoc forward_hook: prunes the *stored*
+    # cache after each layer's full, unrestricted prefill attention has already
+    # run. This is the mechanism PyramidKV already uses above, and the one
+    # SnapKV is conventionally implemented and benchmarked with — distinct from
+    # this paper's own PrunedLlamaAttention path (snapkv in METHOD_CONFIGS),
+    # which retroactively restricts attention *during* prefill at every layer.
+    # Comparing snapkv_press to its pcfg counterpart isolates mechanism
+    # (prefill-cascade vs. decode-only post-hoc eviction) from method (scoring
+    # algorithm).
+    _KVPRESS_METHODS["snapkv_press"] = _SnapKVPress(compression_ratio=0.35, window_size=128)
+    _KVPRESS_METHODS["snapkv_press_f50"] = _SnapKVPress(compression_ratio=0.50, window_size=128)
+    _KVPRESS_METHODS["snapkv_press_f40"] = _SnapKVPress(compression_ratio=0.60, window_size=128)
+    _KVPRESS_METHODS["snapkv_press_f35"] = _SnapKVPress(compression_ratio=0.65, window_size=128)
+
+    # SnapKV + re-rotation (diagnostic): same attention-score token selection as
+    # snapkv_press, but remaining keys are re-rotated to compact positions after
+    # eviction (identical to streaming_rerotated's position-correction step).
+    # Isolates re-rotation effect from gap geometry: if this is close to snapkv_press,
+    # geometry drives the KL gap; if much lower, re-rotation is the dominant factor.
+    _KVPRESS_METHODS["snapkv_rerotated"] = _KeyRerotationPress(
+        press=_SnapKVPress(compression_ratio=0.35, window_size=128))
+    _KVPRESS_METHODS["snapkv_rerotated_f50"] = _KeyRerotationPress(
+        press=_SnapKVPress(compression_ratio=0.50, window_size=128))
+    _KVPRESS_METHODS["snapkv_rerotated_f40"] = _KeyRerotationPress(
+        press=_SnapKVPress(compression_ratio=0.60, window_size=128))
+    _KVPRESS_METHODS["snapkv_rerotated_f35"] = _KeyRerotationPress(
+        press=_SnapKVPress(compression_ratio=0.65, window_size=128))
+
+    # Streaming: only the KeyRerotationPress-wrapped version is used, since that
+    # is the one that matches the published StreamingLLM algorithm. Per kvpress's
+    # own StreamingLLMPress docstring, this wrapper is required "to fully match
+    # the implementation described in the paper" -- without it, retained keys
+    # keep their original absolute positions, the same positional-misalignment
+    # failure mode as this paper's custom "Streaming" baseline (§3.1/§6.1). We
+    # deliberately do not also register the unwrapped variant: running Streaming
+    # any way other than as the original authors specified would just add a
+    # third, uncited configuration to compare against.
+    _KVPRESS_METHODS["streaming_rerotated"] = _KeyRerotationPress(
+        press=_StreamingLLMPress(compression_ratio=0.35, n_sink=4))
+    _KVPRESS_METHODS["streaming_rerotated_f50"] = _KeyRerotationPress(
+        press=_StreamingLLMPress(compression_ratio=0.50, n_sink=4))
+    _KVPRESS_METHODS["streaming_rerotated_f40"] = _KeyRerotationPress(
+        press=_StreamingLLMPress(compression_ratio=0.60, n_sink=4))
+    _KVPRESS_METHODS["streaming_rerotated_f35"] = _KeyRerotationPress(
+        press=_StreamingLLMPress(compression_ratio=0.65, n_sink=4))
+
+    # PyramidKV + re-rotation: PyramidKV's layer-adaptive budgeting (attention-score
+    # selection with pyramid-shaped per-layer quotas) combined with key re-rotation
+    # to compact positions after eviction.  Tests whether pyramid's budget allocation
+    # advantage over SnapKV survives once positional displacement is corrected for both.
+    _KVPRESS_METHODS["pyramidkv_rerotated"] = _KeyRerotationPress(
+        press=_PyramidKVPress(compression_ratio=0.35, window_size=128, beta=20))
+    _KVPRESS_METHODS["pyramidkv_rerotated_f50"] = _KeyRerotationPress(
+        press=_PyramidKVPress(compression_ratio=0.50, window_size=128, beta=20))
+    _KVPRESS_METHODS["pyramidkv_rerotated_f35"] = _KeyRerotationPress(
+        press=_PyramidKVPress(compression_ratio=0.65, window_size=128, beta=20))
+
+    # RADAR pre-RoPE and post-RoPE: post-hoc eviction with max-dot scoring.
+    # Pre-RoPE (position-invariant): scores reflect semantic content similarity only.
+    # Post-RoPE (position-aware): same bias as the attention kernel, ablates the
+    # pre-RoPE choice.  Both wrapped with KeyRerotationPress for the rerotated
+    # variant; bare presses registered for the eviction-only baseline.
+    for _suffix, _cr in [("", 0.35), ("_f50", 0.50), ("_f35", 0.65)]:
+        _KVPRESS_METHODS[f"radar_pre_press{_suffix}"]      = _RadarPreRopePress(compression_ratio=_cr, window_size=128)
+        _KVPRESS_METHODS[f"radar_post_press{_suffix}"]     = _RadarPostRopePress(compression_ratio=_cr, window_size=128)
+        _KVPRESS_METHODS[f"radar_pre_rerotated{_suffix}"]  = _KeyRerotationPress(
+            press=_RadarPreRopePress(compression_ratio=_cr, window_size=128))
+        _KVPRESS_METHODS[f"radar_post_rerotated{_suffix}"] = _KeyRerotationPress(
+            press=_RadarPostRopePress(compression_ratio=_cr, window_size=128))
+
     for _cm in _KVPRESS_METHODS:
         METHOD_CONFIGS[_cm] = None
 
@@ -468,6 +652,11 @@ def make_comp_ids(
         comp_ids = naive_truncate(full_ids, fraction=frac, head_frac=0.10)
     elif method == "naive_tail":
         comp_ids = naive_truncate(full_ids, head_frac=0.0)
+    elif method == "streaming_select":
+        comp_ids = streaming_truncate(full_ids, fraction=0.65, sink=4)
+    elif method.startswith("streaming_select_f"):
+        frac = int(method.rsplit("_f", 1)[1]) / 100.0
+        comp_ids = streaming_truncate(full_ids, fraction=frac, sink=4)
     elif method == "chunk_sent":
         q_ids = (tokenizer.encode(question_text, add_special_tokens=False, return_tensors="pt")
                  if question_text else None)

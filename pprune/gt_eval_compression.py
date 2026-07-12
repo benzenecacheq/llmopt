@@ -382,6 +382,85 @@ def generate_clean_first(
                 raise
 
 
+@torch.inference_mode()
+def generate_rerotated(
+    model,
+    tokenizer,
+    full_ids: torch.Tensor,
+    max_new_tokens: int,
+    max_seq_len: int,
+    device: str,
+    press,
+) -> str:
+    """Generation for KeyRerotationPress methods.
+
+    KeyRerotationPress re-rotates retained keys to compact positions 0..M-1 after
+    eviction. If we then decode with position IDs T+1, T+2, ... (based on the
+    original sequence length), RoPE distances to the retained keys are ~T — wrong.
+    This causes degenerate output in free generation even when KL faithfulness
+    (teacher-forced) is excellent.
+
+    Fix: take T1 from the prefill logit at position T-1 (correct, full-context
+    attention), then decode T2, T3, ... using cache_position M, M+1, ... so
+    RoPE distances to retained keys are M, M-1, ..., 1 — matching what the model
+    saw during the training of a compact M-token context.
+    """
+    cap = max_seq_len - max_new_tokens
+    if full_ids.shape[1] > cap:
+        full_ids = full_ids[:, -cap:]
+    full_ids = full_ids.to(device)
+
+    for attempt in range(4):
+        try:
+            T = full_ids.shape[1]
+
+            # Full prefill with press: retained keys re-rotated to 0..M-1.
+            with press(model):
+                out = model(
+                    full_ids,
+                    attention_mask=torch.ones_like(full_ids),
+                    use_cache=True,
+                    return_dict=True,
+                )
+            compressed_kv = out.past_key_values
+            M = compressed_kv.get_seq_length()   # retained tokens after compression
+            T1 = out.logits[0, -1].argmax().reshape(1, 1)
+            kv = compressed_kv
+            del out
+            torch.cuda.empty_cache()
+
+            # Decode from compact position M onward.
+            generated_ids = [T1.item()]
+            cur_tok = T1
+            for step in range(max_new_tokens - 1):
+                cache_pos = torch.tensor([M + step], dtype=torch.long, device=device)
+                out_s = model(
+                    cur_tok,
+                    past_key_values=kv,
+                    cache_position=cache_pos,
+                    use_cache=True,
+                    return_dict=True,
+                )
+                next_tok = out_s.logits[0, -1].argmax().reshape(1, 1)
+                kv = out_s.past_key_values
+                del out_s
+                tok_id = next_tok.item()
+                generated_ids.append(tok_id)
+                cur_tok = next_tok
+                if tok_id == tokenizer.eos_token_id:
+                    break
+
+            del kv
+            torch.cuda.empty_cache()
+            return tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
+
+        except torch.cuda.OutOfMemoryError:
+            torch.cuda.empty_cache()
+            full_ids = full_ids[:, full_ids.shape[1] // 2:]
+            if attempt == 3 or full_ids.shape[1] < 64:
+                raise
+
+
 def run_one(
     model,
     tokenizer,
@@ -400,6 +479,10 @@ def run_one(
     pcfg  = METHOD_CONFIGS.get(method)
 
     if press is not None:
+        from kvpress import KeyRerotationPress as _KRP
+        if isinstance(press, _KRP):
+            return generate_rerotated(model, tokenizer, full_ids, max_new_tokens,
+                                      max_seq_full, device, press=press)
         if method.endswith("_clean_first"):
             return generate_clean_first(model, tokenizer, full_ids, max_new_tokens,
                                         max_seq_full, device, press=press)

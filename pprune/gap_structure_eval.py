@@ -14,20 +14,27 @@ position geometries are generated purely from sequence length T:
   clustered4  — four evenly-spaced contiguous blocks.    ~4 gaps
   scattered   — evenly-spaced single-token positions.    ~budget gaps (maximal)
 
-Each geometry is evaluated under two presentations on the *same* retained
+Each geometry is evaluated under three presentations on the *same* retained
 position set:
 
-  gapless — the retained positions are gathered into a new, shorter,
-            contiguous prompt with no KV patching (no causal gaps).
-  gapped  — the full-length prompt is processed with KV pruning that keeps
-            exactly the same original-index positions (real causal gaps
-            wherever a position was evicted).
+  gapless   — the retained positions are gathered into a new, shorter,
+              contiguous prompt with no KV patching (no causal gaps).
+  gapped    — the full-length prompt is processed with KV pruning that keeps
+              exactly the same original-index positions (real causal gaps
+              wherever a position was evicted); mechanism: recompute-over-gaps.
+  rerotated — post-hoc eviction: full prefill over the original prompt, then
+              the KV cache is pruned to exactly the retained positions and
+              the remaining keys are re-rotated to compact RoPE positions
+              (KeyRerotationPress). Isolates positional misalignment from
+              causal gap damage by fixing positions without touching the gap.
 
 KL faithfulness is measured teacher-forced on the shared y* sequence, same
 as kl_faith_eval_ystar.py. The (gapped - gapless) delta for each geometry,
 holding the retained token set fixed, isolates the cost of the gap itself;
 comparing that delta across geometries tests whether gap *structure*
 (count, position, scatter) modulates the severity of the corruption.
+The (gapped - rerotated) delta isolates the positional-misalignment component
+from the causal-gap component within the gapped condition.
 
 Usage:
     python gap_structure_eval.py \
@@ -52,7 +59,17 @@ os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")
 
 import numpy as np
 import torch
+from dataclasses import dataclass
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+try:
+    from kvpress import KeyRerotationPress as _KeyRerotationPress
+    from kvpress.presses.scorer_press import ScorerPress as _ScorerPress
+    _KVPRESS_AVAILABLE = True
+except ImportError:
+    _KeyRerotationPress = None
+    _ScorerPress = object   # fallback so class definition doesn't crash
+    _KVPRESS_AVAILABLE = False
 
 from llama_pruned import PrunedLlamaConfig
 from kl_faith_eval import (
@@ -80,7 +97,26 @@ from kl_faith_eval_ystar import (
 )
 
 GEOMETRIES = ("block_end", "block_mid", "clustered4", "scattered")
-PRESENTATIONS = ("gapless", "gapped")
+PRESENTATIONS = ("gapless", "gapped", "rerotated", "evicted")
+
+
+# ---------------------------------------------------------------------------
+# FixedPositionPress: ScorerPress that selects pre-specified positions.
+# Used by KeyRerotationPress to apply re-rotation to a synthetic geometry
+# without any content-based scoring. Set .positions and .compression_ratio
+# per example before calling get_comp_log_probs with press=rerot_press.
+# ---------------------------------------------------------------------------
+
+@dataclass
+class FixedPositionPress(_ScorerPress):
+    positions: Optional[torch.Tensor] = None
+
+    def score(self, module, hidden_states, keys, values, attentions, kwargs):
+        bsz, n_kv_heads, T, _ = keys.shape
+        scores = torch.zeros(bsz, n_kv_heads, T, device=keys.device, dtype=torch.float32)
+        if self.positions is not None:
+            scores[:, :, self.positions.to(keys.device)] = 1.0
+        return scores
 
 
 # ---------------------------------------------------------------------------
@@ -179,16 +215,25 @@ def run_eval(
     def _is_done(key):
         return key in ckpt and (ckpt[key] is None or "kl" in ckpt[key])
 
-    n_methods = len(geometries) * len(PRESENTATIONS)
+    # Build rerotated press once; update .positions and .compression_ratio per example.
+    fixed_press = FixedPositionPress(compression_ratio=1.0 - fraction) if _KVPRESS_AVAILABLE else None
+    rerot_press = _KeyRerotationPress(press=fixed_press) if _KVPRESS_AVAILABLE else None
+    active_presentations = list(PRESENTATIONS)
+    if "rerotated" in active_presentations and not _KVPRESS_AVAILABLE:
+        print("WARNING: kvpress not available — skipping 'rerotated' presentation")
+        active_presentations = [p for p in active_presentations if p != "rerotated"]
+
+    n_methods = len(geometries) * len(active_presentations)
     total_work = len(tasks) * max_examples * n_methods
     completed_at_start = sum(1 for k, v in ckpt.items() if _is_done(k))
     grand_done = completed_at_start
     grand_start = time.time()
 
     print(f"\n{'='*72}\nGap-structure ablation  (fraction={fraction})")
-    print(f"  Tasks      : {tasks}")
-    print(f"  Geometries : {geometries}")
-    print(f"  Total      : {total_work} entries  ({completed_at_start} already done)")
+    print(f"  Tasks         : {tasks}")
+    print(f"  Geometries    : {geometries}")
+    print(f"  Presentations : {active_presentations}")
+    print(f"  Total         : {total_work} entries  ({completed_at_start} already done)")
     print(f"{'='*72}\n")
 
     for task in tasks:
@@ -231,7 +276,7 @@ def run_eval(
             for geom in geometries:
                 positions = GEOMETRY_FNS[geom](T, fraction)
 
-                for presentation in PRESENTATIONS:
+                for presentation in active_presentations:
                     ck_key = f"{task}|{geom}_{presentation}|{idx}"
                     if _is_done(ck_key):
                         grand_done += 1
@@ -239,12 +284,32 @@ def run_eval(
 
                     if presentation == "gapless":
                         comp_ids = gapless_comp_ids(full_ids, positions)
-                        pcfg = None
-                    else:
+                        pcfg, press = None, None
+                    elif presentation == "rerotated":
+                        # Post-hoc eviction + key re-rotation: full prefill, then
+                        # prune KV cache to exactly `positions` and re-rotate keys
+                        # to compact RoPE positions. Isolates positional misalignment
+                        # from causal gap damage (no recompute-over-gaps here).
                         comp_ids = full_ids
-                        pcfg = gapped_pcfg(positions, fraction)
+                        fixed_press.positions = positions
+                        fixed_press.compression_ratio = 1.0 - len(positions) / T
+                        pcfg, press = None, rerot_press
+                    elif presentation == "evicted":
+                        # Post-hoc eviction WITHOUT re-rotation: full prefill, then
+                        # prune KV cache to exactly `positions`; retained keys stay
+                        # at their original RoPE positions. This is the actual
+                        # SnapKV-Press mechanism — same enrichment as rerotated but
+                        # with positional displacement intact.
+                        comp_ids = full_ids
+                        fixed_press.positions = positions
+                        fixed_press.compression_ratio = 1.0 - len(positions) / T
+                        pcfg, press = None, fixed_press
+                    else:  # "gapped"
+                        comp_ids = full_ids
+                        pcfg, press = gapped_pcfg(positions, fraction), None
 
-                    log_p_comp = get_comp_log_probs(model, comp_ids, ystar, pcfg, device)
+                    log_p_comp = get_comp_log_probs(model, comp_ids, ystar, pcfg, device,
+                                                    press=press)
                     if log_p_comp is not None:
                         kl = kl_divergence(log_p_full, log_p_comp)
                         ckpt[ck_key] = {"kl": kl, "n_gen": ystar.shape[0],

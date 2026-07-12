@@ -29,6 +29,17 @@ Data: `lb_data_raw/data/*.jsonl` (16 LongBench tasks, n=200 for gov_report/multi
 
 SnapKV-Select (`snapkv_select`) is a diagnostic tool only — §6.2 only.
 
+**Experimental (RADAR resurrection — not yet in paper):**
+| Name | Method string | Notes |
+|---|---|---|
+| RADAR pre-rope | `radar_pre_press` / `_f50` / `_f35` | Pre-RoPE max-dot scoring, post-hoc eviction, no rerotation |
+| RADAR post-rope | `radar_post_press` / `_f50` / `_f35` | Post-RoPE max-dot scoring, post-hoc eviction, no rerotation |
+| RADAR pre+rot | `radar_pre_rerotated` / `_f50` / `_f35` | Pre-RoPE scoring + KeyRerotationPress |
+| RADAR post+rot | `radar_post_rerotated` / `_f50` / `_f35` | Post-RoPE scoring + KeyRerotationPress |
+
+Implemented in `kl_faith_eval_ystar.py` as `RadarPreRopePress` / `RadarPostRopePress` (ScorerPress subclasses).
+KL eval pending (`run_kl_radar.sh` in queue).
+
 Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropped from paper.**
 
 ## Eval harnesses
@@ -95,13 +106,16 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 - `gt_pyramidkv_rerotated_f50/` — 50%, all 16 tasks ✓ (= snapkv_rerotated_f50)
 - `gt_pyramidkv_rerotated_f35/` — 35%, all 16 tasks ✓ (= snapkv_rerotated_f35)
 
+**GT (Mistral):**
+- `gt_snapkv_rerotated_mistral/` — 65% ✓ (1600/1600; avg F_out=78.2)
+- `gt_snapkv_rerotated_mistral_f50/` — 50% ✓ (1600/1600; avg F_out=74.3)
+- `gt_snapkv_rerotated_mistral_f35/` — 35% ✓ (1600/1600; avg F_out=70.1)
+
 ## Currently running
 
-**Queue runner PID 47806. Edit `lb_results_base/queue.txt` to modify.**
+**Queue runner stopped (all prior jobs complete). Restart with: `nohup ./queue_runner.sh &`**
 
-Currently running: `run_gt_snapkv_rerotated_mistral.sh` — GT snapkv_rerotated at 65/50/35% on Mistral (f65 at ~1354/1600 as of 2026-07-06, f50/f35 not started)
-
-KL runs complete. Remaining queue: GT only.
+Next in queue: `run_kl_radar.sh` — RADAR KL eval (pre-RoPE + post-RoPE, ±rerotation) at 65/50/35% on Llama.
 
 Mechanism sweep complete: all GT files for gt_mechanism_mistral_f*/checkpoint.json ✓
 
@@ -120,13 +134,13 @@ Mechanism sweep complete: all GT files for gt_mechanism_mistral_f*/checkpoint.js
 
 ## Paper structure notes
 
-Paper is undergoing major overhaul. Tables 3 & 4 updated Jul 2026 with rerotated results.
+Paper is undergoing major overhaul. Tables 3, 4 and Appendices A–C updated Jul 2026.
 Remaining sections need rewrite to reflect:
 - Positional displacement as central failure mode
 - SnapKV+rot as best KL method (beats even prompt-construction methods)
 - Pyr+rot = SnapKV+rot: selection strategy irrelevant once positions corrected
-- Streaming corrected F_out (~59%) invalidates §8.4 and §9.1 streaming claims
-- Mistral rerotated data pending
+- Streaming corrected F_out (Llama: 61.2/56.4/51.8% at 65/50/35%) replaces near-zero corrupted values
+- Mistral SnapKV+rot F_out now complete: 78.2% / 74.3% / 70.1% at 65/50/35%
 
 Current section state:
 - §6.2: SnapKV-Select diagnostic (KL only). Only place Sel appears.

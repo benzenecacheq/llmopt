@@ -228,6 +228,14 @@ METHOD_CONFIGS: Dict[str, Optional[PrunedLlamaConfig]] = {
     "vn_decay":     PrunedLlamaConfig(score_mode="vn_decay",     **BASE_CFG),
     "pruned":       PrunedLlamaConfig(score_mode="additive", score_alpha=0.65, **BASE_CFG),
     "full":         None,   # uncompressed full context — uses max_seq_full, no truncation
+    # Streaming-Select: same sink+recency selection as the "streaming" pcfg mode
+    # and kvpress's StreamingLLMPress, but gathered into a gapless prompt
+    # (prompt construction, no KV patching). Isolates Streaming's selection rule
+    # from its mechanism, the same role SnapKV-Select plays for SnapKV (§6.2).
+    "streaming_select":     None,
+    "streaming_select_f50": None,
+    "streaming_select_f40": None,
+    "streaming_select_f35": None,
 }
 
 DEFAULT_METHODS = list(METHOD_CONFIGS)
@@ -325,6 +333,24 @@ def naive_truncate(input_ids: torch.Tensor, fraction: float = 0.65,
     head_n = max(0, int(budget * head_frac))
     tail_n = budget - head_n
     head = input_ids[:, :head_n]
+    tail = input_ids[:, -tail_n:] if tail_n > 0 else input_ids[:, :0]
+    return torch.cat([head, tail], dim=1)
+
+
+def streaming_truncate(input_ids: torch.Tensor, fraction: float = 0.65,
+                        sink: int = 4) -> torch.Tensor:
+    """Streaming-Select: same selection rule as StreamingLLMPress/our pcfg
+    "streaming" mode (sink tokens + recency window filling the rest of the
+    budget), but gathered into a new, shorter, contiguous prompt -- no KV
+    patching, no causal gaps. Unlike naive_truncate's head_frac (a fraction
+    of the budget), sink is a fixed token count, matching the reference
+    algorithm: the recency window absorbs whatever sink doesn't use.
+    """
+    T = input_ids.shape[1]
+    budget = max(1, int(T * fraction))
+    sink_n = max(0, min(sink, budget, T))
+    tail_n = budget - sink_n
+    head = input_ids[:, :sink_n]
     tail = input_ids[:, -tail_n:] if tail_n > 0 else input_ids[:, :0]
     return torch.cat([head, tail], dim=1)
 
