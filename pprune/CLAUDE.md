@@ -1,15 +1,18 @@
-# pprune — KV Cache Compression Paper
+# pprune — KV Cache Compression Papers
 
 ## Project overview
 
-Research paper on KV cache compression faithfulness. Central finding: positional displacement
-(scattered retained tokens at original RoPE positions) is the dominant failure mode for SnapKV and
-PyramidKV. Key re-rotation fixes this: `snapkv_rerotated` dramatically improves KL (27× at 65%)
-and beats phr160 on all 16 tasks. Critically, `pyramidkv_rerotated` = `snapkv_rerotated` on every
-task at every rate — selection strategy is irrelevant once positions are corrected. Paper is
-undergoing major structural overhaul.
+Two papers split from a single codebase:
 
-Paper: `paper_phrase_compression.md`
+**`paper_kv_faithfulness.md`** — Primary paper. KV cache compression faithfulness: positional
+displacement is the dominant failure mode for SnapKV and PyramidKV. Key re-rotation (SnapKV+rot)
+fixes this: 27× KL improvement at 65%, best method overall. Pyr+rot = SnapKV+rot on all
+tasks/rates — selection strategy irrelevant once positions corrected. No phrase compression content.
+
+**`paper_phrase_compression.md`** — Base for future phrase compression paper. Contains all
+phr128/phr160 content, §7 Phrase-Based Context Compression, and the TTFT comparison. Not the
+active submission.
+
 Branch: `kvpress-impl`
 Models: `meta-llama/Llama-3.1-8B`, `mistralai/Mistral-7B-v0.3`
 Data: `lb_data_raw/data/*.jsonl` (16 LongBench tasks, n=200 for gov_report/multi_news, n=100 others)
@@ -113,9 +116,9 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 
 ## Currently running
 
-**Queue runner stopped (all prior jobs complete). Restart with: `nohup ./queue_runner.sh &`**
+**Nothing running. All KL data complete.**
 
-Next in queue: `run_kl_radar.sh` — RADAR KL eval (pre-RoPE + post-RoPE, ±rerotation) at 65/50/35% on Llama.
+RADAR GT (`run_gt_radar_post_rerotated.sh`) not queued — KL data alone sufficient to support selection irrelevance claim.
 
 Mechanism sweep complete: all GT files for gt_mechanism_mistral_f*/checkpoint.json ✓
 
@@ -132,21 +135,17 @@ Mechanism sweep complete: all GT files for gt_mechanism_mistral_f*/checkpoint.js
 
 †Streaming F_out recomputed after position-ID fix; f65 partial (12/16 tasks).
 
-## Paper structure notes
+## Paper structure notes (paper_kv_faithfulness.md)
 
-Paper is undergoing major overhaul. Tables 3, 4 and Appendices A–C updated Jul 2026.
-Remaining sections need rewrite to reflect:
-- Positional displacement as central failure mode
-- SnapKV+rot as best KL method (beats even prompt-construction methods)
-- Pyr+rot = SnapKV+rot: selection strategy irrelevant once positions corrected
-- Streaming corrected F_out (Llama: 61.2/56.4/51.8% at 65/50/35%) replaces near-zero corrupted values
-- Mistral SnapKV+rot F_out now complete: 78.2% / 74.3% / 70.1% at 65/50/35%
+Paper split complete as of Jul 2026. `paper_kv_faithfulness.md` is the active submission.
+Section numbering after split: §1–§6 unchanged, §7 Main Experiments (formerly §8),
+§8 Why Post-Hoc KV Eviction... (formerly §9), §9 Discussion, §10 Conclusion.
 
-Current section state:
 - §6.2: SnapKV-Select diagnostic (KL only). Only place Sel appears.
 - §6.3: Gap structure table — 4 geometries × gapless/evicted/rerotated presentations. ✓
-- §8: Tables updated. Narrative needs major revision.
-- §9: PyramidKV case study — Table 5 (short/long F_out) uses corrected streaming data when available.
+- §6.4: RADAR paragraph confirming selection irrelevance at all 3 rates.
+- §7: Main experiment tables (KL, TTFT, F_out). No phr128.
+- §8: PyramidKV case study — Table 5 (short/long F_out), first-token advantage explanation.
 - KL metric uses y* shared prefix (fixed path-dependence flaw); see `kl_faith_eval_ystar.py`.
 
 ## Data validity note
