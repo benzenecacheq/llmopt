@@ -188,8 +188,8 @@ def train(args):
         log(f'Building hybrid model ({args.n_mha_layers} MHA + {12 - args.n_mha_layers} BLT layers, from scratch)...')
         model = build_hybrid_model(n_mha=args.n_mha_layers).to(device)
     elif args.gqa:
-        log('Building GQA model (2 KV groups, 12 query heads, from scratch)...')
-        model = build_gqa_model().to(device)
+        log(f'Building GQA model ({args.num_kv_groups} KV groups, 12 query heads, from scratch)...')
+        model = build_gqa_model(n_kv_groups=args.num_kv_groups).to(device)
     elif args.baseline:
         if args.from_scratch:
             log('Building GPT-2 model from scratch (random init)...')
@@ -413,7 +413,9 @@ if __name__ == '__main__':
     parser.add_argument('--n-mha-layers', type=int, default=6,
                         help='Number of early MHA layers in hybrid model (default: 6)')
     parser.add_argument('--gqa', action='store_true',
-                        help='Use 2-group GQA baseline (always from scratch)')
+                        help='Use GQA baseline (always from scratch)')
+    parser.add_argument('--num-kv-groups', type=int, default=2,
+                        help='Number of KV groups for --gqa (must evenly divide n_head=12; default 2)')
     parser.add_argument('--baseline', action='store_true',
                         help='Fine-tune vanilla GPT-2 instead of BLT')
     parser.add_argument('--num-m-groups', type=int, default=1, choices=[1, 2],

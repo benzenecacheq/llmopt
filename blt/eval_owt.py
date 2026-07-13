@@ -61,6 +61,8 @@ if __name__ == '__main__':
                         help='Path to BLT from-scratch checkpoint (.pt)')
     parser.add_argument('--gqa-checkpoint', type=str, default=None,
                         help='Path to GQA from-scratch checkpoint (.pt)')
+    parser.add_argument('--num-kv-groups', type=int, default=2,
+                        help='Number of KV groups for --gqa-checkpoint (default 2)')
     parser.add_argument('--baseline-checkpoint', type=str, default=None,
                         help='Path to GPT-2 from-scratch checkpoint (.pt)')
     parser.add_argument('--hybrid-checkpoint', type=str, default=None,
@@ -95,7 +97,7 @@ if __name__ == '__main__':
     if args.gqa_checkpoint:
         from model import build_gqa_model
         print(f'GQA: {args.gqa_checkpoint}')
-        model = build_gqa_model().to(device)
+        model = build_gqa_model(n_kv_groups=args.num_kv_groups).to(device)
         ckpt = torch.load(args.gqa_checkpoint, map_location=device)
         model.load_state_dict(ckpt['model_state'])
         model.eval()

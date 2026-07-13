@@ -103,18 +103,18 @@ class BLT2Attention(nn.Module):
 
 class GQAAttention(nn.Module):
     """
-    2-group Grouped Query Attention baseline.
-    12 query heads, 2 KV heads (6 queries per KV head).
-    Wq/Wo: D×D per layer (full). Wk/Wv: D×(2×d_head) per layer (grouped).
+    Grouped Query Attention baseline.
+    12 query heads, n_kv KV heads (n_head/n_kv queries per KV head).
+    Wq/Wo: D×D per layer (full). Wk/Wv: D×(n_kv×d_head) per layer (grouped).
     """
 
-    def __init__(self, Wq, Wq_bias, Wk, Wk_bias, Wv, Wv_bias, Wo, Wo_bias, config):
+    def __init__(self, Wq, Wq_bias, Wk, Wk_bias, Wv, Wv_bias, Wo, Wo_bias, config, n_kv=2):
         super().__init__()
         self.n_head  = config.n_head                   # 12
-        self.n_kv    = 2                                # KV groups
+        self.n_kv    = n_kv                             # KV groups
         self.d_head  = config.n_embd // config.n_head  # 64
         self.scale   = math.sqrt(self.d_head)
-        self.q_per_kv = self.n_head // self.n_kv       # 6
+        self.q_per_kv = self.n_head // self.n_kv
 
         self.Wq      = nn.Parameter(Wq)
         self.Wq_bias = nn.Parameter(Wq_bias)
@@ -209,19 +209,22 @@ class MHAAttention(nn.Module):
         return out, None
 
 
-def build_gqa_model():
+def build_gqa_model(n_kv_groups=2):
     """
-    Build a GPT-2 model with 2-group GQA replacing every attention layer.
+    Build a GPT-2 model with GQA replacing every attention layer.
     Always initializes from scratch (random weights).
-    12 query heads, 2 KV heads (6 queries per KV head).
+    12 query heads, n_kv_groups KV heads (n_head/n_kv_groups queries per KV head).
+    n_kv_groups must evenly divide n_head (12): valid values are 1, 2, 3, 4, 6, 12.
     """
     model = GPT2LMHeadModel(GPT2Config())
     cfg   = model.config
     D     = cfg.n_embd       # 768
     n_head = cfg.n_head      # 12
     d_head = D // n_head     # 64
-    n_kv   = 2
-    kv_dim = n_kv * d_head   # 128
+    if n_head % n_kv_groups != 0:
+        raise ValueError(f'n_kv_groups ({n_kv_groups}) must evenly divide n_head ({n_head})')
+    n_kv   = n_kv_groups
+    kv_dim = n_kv * d_head
 
     for layer in model.transformer.h:
         attn = layer.attn
@@ -236,7 +239,7 @@ def build_gqa_model():
         Wv      = torch.randn(D, kv_dim) * 0.02
         Wv_bias = torch.zeros(kv_dim)
         layer.attn = GQAAttention(Wq, Wq_bias, Wk, Wk_bias, Wv, Wv_bias,
-                                  Wo, Wo_bias, cfg)
+                                  Wo, Wo_bias, cfg, n_kv=n_kv)
 
     return model
 
