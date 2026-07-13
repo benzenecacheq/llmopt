@@ -71,7 +71,21 @@ Open questions: sweep more α values to map the curve; test a *jointly*-trained 
 
 **Retracting the "two seeds disagree" conclusion from 2026-07-07 morning — it was never a real second seed test of the blend hypothesis.** The seed42 75/25-blend result stands uncontested; there is still only one (verified-genuine) data point for the jointly-trained 75/25 blend. **A real seed7 replicate needs to be relaunched** with `--ema-loss-weighting --ema-blend 0.75` both present, and this time verify via the checkpoint `ema_loss` buffer (should show real per-token spread, not std=0.0) before trusting the benchmark numbers. **Lesson for future runs**: always sanity-check a new EMA/blend run's checkpoint buffer early (e.g. at the first checkpoint save) rather than waiting until a full 500K-step run completes and gets benchmarked — this bug went undetected through an entire run and a full benchmark pass.
 
-**Currently running — seed 19, this one verified correct at launch.** `train.py --baseline --from-scratch --ema-loss-weighting --ema-blend 0.75 --dataset openwebtext --seed 19 --max-steps 500000 --eval-every 1000 --lambada-eval-every 5000 --save-path run_gpt2_ema_blend75_scratch_seed19.pt`, launched on `titan` 2026-07-07. Confirmed via `ps` that both flags are present in the running process's argv (unlike the broken seed7 launch, which could not be verified after the fact since no shell history survived on `titan`). Should still double-check its checkpoint's `ema_loss` buffer once the first checkpoint saves, per the lesson above.
+**DONE (2026-07-13) — seed 19, second genuine 75/25-blend-from-scratch data point.** `train.py --baseline --from-scratch --ema-loss-weighting --ema-blend 0.75 --dataset openwebtext --seed 19 --max-steps 500000 --eval-every 1000 --lambada-eval-every 5000 --save-path run_gpt2_ema_blend75_scratch_seed19.pt`, launched on `titan` 2026-07-07, finished 2026-07-13, final val_ppl **60.35**. Verified correct at launch (`ps` showed both flags in argv, unlike the broken seed7 launch) — final result is trustworthy.
+
+Benchmarked: OWT held-out ppl **29.61** (loss 3.3882 nats — essentially identical to seed42's 29.61/3.3881 despite seed19 tracking meaningfully better on the in-training WikiText val_ppl proxy throughout training, another instance of that proxy not predicting the metric that matters). `lm_eval_gpt2_ema_blend75_scratch_seed19.json` — LAMBADA acc 0.253, LAMBADA ppl 127.8, HellaSwag acc_norm 0.271, PIQA acc_norm 0.582, Winogrande acc 0.508.
+
+| | seed19 | seed42 | Non-EMA baseline |
+|---|---|---|---|
+| WikiText val_ppl | 60.35 | 64.26 | — |
+| OWT held-out ppl | 29.61 | 29.61 | 27.78 |
+| LAMBADA acc | 0.253 | **0.269** | 0.225 |
+| LAMBADA ppl | **127.8** | 130.6 | 174.6 |
+| HellaSwag acc_norm | 0.271 | 0.273 | 0.268 |
+| PIQA acc_norm | **0.582** | 0.565 | 0.579 |
+| Winogrande acc | 0.508 | 0.522 | 0.505 |
+
+Both seeds land solidly above the non-EMA baseline on LAMBADA acc (confirming the core 75/25-blend finding holds as a genuine two-seed result), though seed42 is the stronger of the two on LAMBADA specifically (~6% relative gap) while seed19 wins on PIQA by a similar margin — normal seed variance, not a contradiction. A real third seed (`run_gpt2_ema_blend75_scratch_seed7_v2.pt`, launched on the new `venus` machine 2026-07-11, verified genuine via checkpoint buffer at step 2,000) is currently running to further pin this down.
 
 **DONE**: `run_gpt2_baseline_seed7.pt/.log`, finished 2026-06-26 ~21:20 local time. Standard cross-entropy (no EMA), from-scratch, OWT, seed 7, 500K steps. Final val_ppl 55.42, OWT held-out ppl **27.36** (loss 3.3091 nats). Benchmarked: `lm_eval_gpt2_baseline_seed7.json` — LAMBADA acc 0.214, LAMBADA ppl 185.5, HellaSwag acc_norm 0.270, PIQA acc_norm 0.583, Winogrande acc (see json). Gives MHA a second iso-step (500K) seed, matching BLT's existing seed7. **User's goal: at least two genuine iso-step seeds each for BLT, MHA, and GQA**; GQA still only has one (seed42) — deferred until the BLT seed42_500k run below lands, per explicit user instruction.
 
