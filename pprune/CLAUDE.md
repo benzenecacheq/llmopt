@@ -6,8 +6,9 @@ Two papers split from a single codebase:
 
 **`paper_kv_faithfulness.md`** — Primary paper. KV cache compression faithfulness: positional
 displacement is the dominant failure mode for SnapKV and PyramidKV. Key re-rotation (SnapKV+rot)
-fixes this: 27× KL improvement at 65%, best method overall. Pyr+rot = SnapKV+rot on all
-tasks/rates — selection strategy irrelevant once positions corrected. No phrase compression content.
+fixes this: 27× KL improvement at 65%, best method overall. Pyr+rot substantially reduces KL
+but remains well above SnapKV+rot — pyramid's upper-layer budget cuts are a faithfulness cost
+re-rotation cannot address. No phrase compression content. "post-hoc" → "post-prefill" throughout.
 
 **`paper_phrase_compression.md`** — Base for future phrase compression paper. Contains all
 phr128/phr160 content, §7 Phrase-Based Context Compression, and the TTFT comparison. Not the
@@ -24,24 +25,21 @@ Data: `lb_data_raw/data/*.jsonl` (16 LongBench tasks, n=200 for gov_report/multi
 | Naive | `naive_65pct` / `naive_35pct` etc. | Prompt truncation, head_frac=0.10 |
 | phr160 | `chunk_word160_t25` | 160-tok phrases, 25% tail, word overlap scoring |
 | phr128 | `chunk_word128_t20` | 128-tok phrases, 20% tail, word overlap scoring |
-| SnapKV | `snapkv_press` / `snapkv_press_f35` etc. | kvpress SnapKVPress, post-hoc eviction |
+| SnapKV | `snapkv_press` / `snapkv_press_f35` etc. | kvpress SnapKVPress, post-prefill eviction |
 | SnapKV+rot | `snapkv_rerotated` / `snapkv_rerotated_f35` etc. | SnapKV + KeyRerotationPress |
 | PyramidKV | `pyramidkv` / `pyramidkv_f35` etc. | kvpress PyramidKVPress |
-| Pyr+rot | `pyramidkv_rerotated` / `pyramidkv_rerotated_f35` etc. | PyramidKV + KeyRerotationPress — identical to SnapKV+rot on all tasks/rates |
+| Pyr+rot | `pyramidkv_rerotated` / `pyramidkv_rerotated_f35` etc. | PyramidKV + PyramidKVRerotationPress (per-layer budget preserved) |
 | Streaming | `streaming_rerotated` / `streaming_rerotated_f35` etc. | kvpress KeyRerotationPress (corrected) |
 
 SnapKV-Select (`snapkv_select`) is a diagnostic tool only — §6.2 only.
 
-**Experimental (RADAR resurrection — not yet in paper):**
+**RADAR methods** (implemented in `kl_faith_eval_ystar.py`, dropped from paper — selection irrelevance claim removed):
 | Name | Method string | Notes |
 |---|---|---|
-| RADAR pre-rope | `radar_pre_press` / `_f50` / `_f35` | Pre-RoPE max-dot scoring, post-hoc eviction, no rerotation |
-| RADAR post-rope | `radar_post_press` / `_f50` / `_f35` | Post-RoPE max-dot scoring, post-hoc eviction, no rerotation |
+| RADAR pre-rope | `radar_pre_press` / `_f50` / `_f35` | Pre-RoPE max-dot scoring, no rerotation |
+| RADAR post-rope | `radar_post_press` / `_f50` / `_f35` | Post-RoPE max-dot scoring, no rerotation |
 | RADAR pre+rot | `radar_pre_rerotated` / `_f50` / `_f35` | Pre-RoPE scoring + KeyRerotationPress |
 | RADAR post+rot | `radar_post_rerotated` / `_f50` / `_f35` | Post-RoPE scoring + KeyRerotationPress |
-
-Implemented in `kl_faith_eval_ystar.py` as `RadarPreRopePress` / `RadarPostRopePress` (ScorerPress subclasses).
-KL eval pending (`run_kl_radar.sh` in queue).
 
 Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropped from paper.**
 
@@ -49,9 +47,12 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 
 - `gt_eval_compression.py` — Ground-truth LongBench accuracy (full generation). Resumable checkpoint
   keyed by `task|idx|method`. Output dirs under `lb_results_base/gt_*/`.
-  **IMPORTANT**: `generate_rerotated()` (added Jul 2026) handles KeyRerotationPress methods.
-  Without it, decode position IDs are T+1, T+2, ... instead of M+1, M+2, ..., causing degenerate
-  "In In In..." output. KL eval (teacher-forced) is NOT affected by this bug.
+  **IMPORTANT**: `generate_rerotated()` (added Jul 2026) handles KeyRerotationPress methods AND
+  `PyramidKVRerotationPress`. Without it, decode position IDs are T+1, T+2, ... instead of
+  M+1, M+2, ..., causing degenerate "In In In..." output. KL eval (teacher-forced) is NOT affected.
+  **NOTE**: For `PyramidKVRerotationPress`, M varies per layer (pyramid budget); `get_seq_length()`
+  returns layer-0's M (≈98% at 65%). Decode positions are exact for layer 0, progressively off
+  for upper layers. GT results for Pyr+rot carry this caveat.
 - `kl_faith_eval_ystar.py` — KL faithfulness using y* shared prefix (teacher-forced). All
   `_KVPRESS_METHODS` defined here including rerotated variants.
 - `kl_faith_eval.py` — Core configs (METHOD_CONFIGS, CHUNK_CONFIGS). Imported by both above.
@@ -91,9 +92,9 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 - `kl_snapkv_rerotated_f50.json` — 50% ✓ (mean KL=0.077)
 - `kl_snapkv_rerotated_f35.json` — 35% ✓ (mean KL=0.124)
 - `kl_snapkv_rerotated_f40.json` — 40% ✓ (f40 dropped from paper)
-- `kl_pyramidkv_rerotated.json` — 65% ✓ (identical to snapkv_rerotated)
-- `kl_pyramidkv_rerotated_f50.json` — 50% ✓ (identical)
-- `kl_pyramidkv_rerotated_f35.json` — 35% ✓ (identical)
+- `kl_pyramidkv_rerotated.json` — 65%, IN PROGRESS (corrected impl; old stale data deleted)
+- `kl_pyramidkv_rerotated_f50.json` — 50%, queued
+- `kl_pyramidkv_rerotated_f35.json` — 35%, queued
 - `gap_structure.json` — 4 geometries × 4 presentations, 6 tasks, n=20 ✓
 
 **KL (Mistral):**
@@ -105,9 +106,9 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 - `gt_snapkv_rerotated/` — 65%, all 16 tasks ✓ (position-ID fix applied)
 - `gt_snapkv_rerotated_f50/` — 50%, all 16 tasks ✓
 - `gt_snapkv_rerotated_f35/` — 35%, all 16 tasks ✓
-- `gt_pyramidkv_rerotated/` — 65%, all 16 tasks ✓ (= snapkv_rerotated on every task)
-- `gt_pyramidkv_rerotated_f50/` — 50%, all 16 tasks ✓ (= snapkv_rerotated_f50)
-- `gt_pyramidkv_rerotated_f35/` — 35%, all 16 tasks ✓ (= snapkv_rerotated_f35)
+- `gt_pyramidkv_rerotated/` — 65%, queued (corrected impl; old stale data deleted)
+- `gt_pyramidkv_rerotated_f50/` — 50%, queued
+- `gt_pyramidkv_rerotated_f35/` — 35%, queued
 
 **GT (Mistral):**
 - `gt_snapkv_rerotated_mistral/` — 65% ✓ (1600/1600; avg F_out=78.2)
@@ -116,9 +117,13 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 
 ## Currently running
 
-**Nothing running. All KL data complete.**
-
-RADAR GT (`run_gt_radar_post_rerotated.sh`) not queued — KL data alone sufficient to support selection irrelevance claim.
+KL pyramidkv_rerotated (65%) in progress via queue_runner (PID 302315). Queue order:
+1. `kl_pyramidkv_rerotated.json` — IN PROGRESS (early results: much worse than snapkv+rot)
+2. `kl_pyramidkv_rerotated_f50.json`
+3. `kl_pyramidkv_rerotated_f35.json`
+4. `gt_pyramidkv_rerotated/` (65%)
+5. `gt_pyramidkv_rerotated_f50/`
+6. `gt_pyramidkv_rerotated_f35/`
 
 Mechanism sweep complete: all GT files for gt_mechanism_mistral_f*/checkpoint.json ✓
 
@@ -128,7 +133,8 @@ Mechanism sweep complete: all GT files for gt_mechanism_mistral_f*/checkpoint.js
 |---|---|---|---|
 | Pyr (no rot) | 79.1 | 64.2 | 66.9 |
 | SnapKV (no rot) | 78.5 | 73.2 | 66.8 |
-| SnapKV+rot = Pyr+rot | 71.1 | 67.8 | 63.0 |
+| SnapKV+rot | 71.1 | 67.8 | 63.0 |
+| Pyr+rot (corrected) | pending | pending | pending |
 | Naive | 68.6 | 52.1 | 46.9 |
 | Streaming (corrected) | ~59† | — | — |
 | phr128 | 54.5 | 52.8 | 48.6 |
@@ -138,14 +144,16 @@ Mechanism sweep complete: all GT files for gt_mechanism_mistral_f*/checkpoint.js
 ## Paper structure notes (paper_kv_faithfulness.md)
 
 Paper split complete as of Jul 2026. `paper_kv_faithfulness.md` is the active submission.
-Section numbering after split: §1–§6 unchanged, §7 Main Experiments (formerly §8),
-§8 Why Post-Hoc KV Eviction... (formerly §9), §9 Discussion, §10 Conclusion.
+Section numbering: §1–§6 unchanged, §7 Main Experiments, §8 Why Post-Prefill KV Eviction...,
+§9 Discussion, §10 Conclusion. "post-hoc" replaced with "post-prefill" throughout.
 
 - §6.2: SnapKV-Select diagnostic (KL only). Only place Sel appears.
 - §6.3: Gap structure table — 4 geometries × gapless/evicted/rerotated presentations. ✓
-- §6.4: RADAR paragraph confirming selection irrelevance at all 3 rates.
-- §7: Main experiment tables (KL, TTFT, F_out). No phr128.
+- §6.4: Re-rotation result + new Pyr+rot explanation (upper-layer budget cuts). RADAR removed.
+- §7: Main experiment tables (KL, TTFT, F_out). Pyr+rot values show "—" pending rerun. No phr128.
 - §8: PyramidKV case study — Table 5 (short/long F_out), first-token advantage explanation.
+- §9: Discussion — "selection strategy irrelevance" bullet replaced with "budget allocation and
+  re-rotation interact" (pyramid upper-layer cuts + streaming block_end as dual examples).
 - KL metric uses y* shared prefix (fixed path-dependence flaw); see `kl_faith_eval_ystar.py`.
 
 ## Data validity note
@@ -157,6 +165,12 @@ created before the fix are invalid. Affected checkpoints have been purged and re
 - `gt_snapkv_rerotated*/` — purged and re-run ✓
 - `gt_mechanism_*/` — streaming_rerotated entries purged, re-running via mechanism sweep
 - Old streaming F_out values in paper (14%, 12.7%, etc.) were from corrupted runs — now marked †
+
+**PyramidKVRerotationPress fix (Jul 2026)**: `KeyRerotationPress(PyramidKVPress)` silently used
+uniform budget (bypassed `get_layer_budget()`), making it identical to SnapKV+rot. Fixed by
+`PyramidKVRerotationPress` subclass in `kl_faith_eval_ystar.py` that calls `get_layer_budget()`.
+`gt_eval_compression.py` updated to route `PyramidKVRerotationPress` through `generate_rerotated()`.
+Old `kl_pyramidkv_rerotated*.json` and `gt_pyramidkv_rerotated*/checkpoint.json` purged and re-running.
 
 `diagnose_distribution.py` (untracked) has a head-truncation bug — NOT used for paper tables.
 

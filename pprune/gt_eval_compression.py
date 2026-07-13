@@ -480,7 +480,8 @@ def run_one(
 
     if press is not None:
         from kvpress import KeyRerotationPress as _KRP
-        if isinstance(press, _KRP):
+        from kl_faith_eval_ystar import PyramidKVRerotationPress as _PKVR
+        if isinstance(press, (_KRP, _PKVR)):
             return generate_rerotated(model, tokenizer, full_ids, max_new_tokens,
                                       max_seq_full, device, press=press)
         if method.endswith("_clean_first"):

@@ -154,6 +154,40 @@ try:
 
     _RadarPreRopePress = RadarPreRopePress
     _RadarPostRopePress = RadarPostRopePress
+
+    @_dataclass
+    class PyramidKVRerotationPress(_PyramidKVPress):
+        """PyramidKV per-layer budget + key re-rotation.
+
+        KeyRerotationPress(PyramidKVPress) silently drops pyramid's layer-adaptive
+        budget because KeyRerotationPress.compress() only calls .score() and applies
+        a uniform n_kept.  This subclass preserves the pyramid budget by calling
+        get_layer_budget() and then re-rotates retained keys to compact positions.
+        """
+
+        def compress(
+            self,
+            module: _nn.Module,
+            hidden_states: torch.Tensor,
+            keys: torch.Tensor,
+            values: torch.Tensor,
+            attentions: torch.Tensor,
+            kwargs: dict,
+        ) -> tuple[torch.Tensor, torch.Tensor]:
+            if self.compression_ratio == 0:
+                return keys, values
+
+            scores = self.score(module, hidden_states, keys, values, attentions, kwargs)
+            q_len = keys.shape[2]
+            n_kept = self.get_layer_budget(module, q_len)
+            indices = scores.topk(n_kept, dim=-1).indices
+            indices = torch.sort(indices, dim=2).values
+            keys = _KeyRerotationPress.rerotate_keys(module, indices, keys)
+            indices = indices.unsqueeze(-1).expand(-1, -1, -1, module.head_dim)
+            values = values.gather(2, indices).contiguous()
+            return keys, values
+
+    _PyramidKVRerotationPress = PyramidKVRerotationPress
     _KVPRESS_AVAILABLE = True
 except ImportError:
     _PyramidKVPress = None
@@ -162,6 +196,7 @@ except ImportError:
     _KeyRerotationPress = None
     _RadarPreRopePress = None
     _RadarPostRopePress = None
+    _PyramidKVRerotationPress = None
     _KVPRESS_AVAILABLE = False
 
 from llama_pruned import (
@@ -540,16 +575,16 @@ if _KVPRESS_AVAILABLE:
     _KVPRESS_METHODS["streaming_rerotated_f35"] = _KeyRerotationPress(
         press=_StreamingLLMPress(compression_ratio=0.65, n_sink=4))
 
-    # PyramidKV + re-rotation: PyramidKV's layer-adaptive budgeting (attention-score
-    # selection with pyramid-shaped per-layer quotas) combined with key re-rotation
-    # to compact positions after eviction.  Tests whether pyramid's budget allocation
-    # advantage over SnapKV survives once positional displacement is corrected for both.
-    _KVPRESS_METHODS["pyramidkv_rerotated"] = _KeyRerotationPress(
-        press=_PyramidKVPress(compression_ratio=0.35, window_size=128, beta=20))
-    _KVPRESS_METHODS["pyramidkv_rerotated_f50"] = _KeyRerotationPress(
-        press=_PyramidKVPress(compression_ratio=0.50, window_size=128, beta=20))
-    _KVPRESS_METHODS["pyramidkv_rerotated_f35"] = _KeyRerotationPress(
-        press=_PyramidKVPress(compression_ratio=0.65, window_size=128, beta=20))
+    # PyramidKV + re-rotation: per-layer pyramid budget (not uniform) combined with
+    # key re-rotation.  Uses PyramidKVRerotationPress, which calls get_layer_budget()
+    # before re-rotating — unlike KeyRerotationPress(PyramidKVPress), which ignores
+    # the pyramid budget and silently degrades to SnapKV+rot.
+    _KVPRESS_METHODS["pyramidkv_rerotated"] = _PyramidKVRerotationPress(
+        compression_ratio=0.35, window_size=128, beta=20)
+    _KVPRESS_METHODS["pyramidkv_rerotated_f50"] = _PyramidKVRerotationPress(
+        compression_ratio=0.50, window_size=128, beta=20)
+    _KVPRESS_METHODS["pyramidkv_rerotated_f35"] = _PyramidKVRerotationPress(
+        compression_ratio=0.65, window_size=128, beta=20)
 
     # RADAR pre-RoPE and post-RoPE: post-hoc eviction with max-dot scoring.
     # Pre-RoPE (position-invariant): scores reflect semantic content similarity only.
