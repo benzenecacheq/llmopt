@@ -35,7 +35,7 @@ The key architectural idea: replace per-layer Wq and Wk with a single shared M m
 ## Active run
 
 ### Current status snapshot (2026-07-13) — read this first for hand-off
-- **`bender`** (local): GQA-3 (`--num-kv-groups 3`) from-scratch OWT, seed 42, running (`run_gqa3_scratch_seed42.pt`). See "GQA with configurable KV groups" under Architecture variants.
+- **`bender`** (local): idle as of 2026-07-15 — GQA-3 seed42 finished and was benchmarked (OWT ppl 27.46, best of the GQA family so far; see Architecture variants).
 - **`titan`**: GPT-2 baseline (standard CE, no EMA) from-scratch OWT, seed 19, running (`run_gpt2_baseline_seed19.pt`) — third baseline seed to match BLT's 42/19/7. A watcher (`queue_blt_seed19_500k_watcher.sh`, PID recorded in its own log) is waiting for this to finish, then will launch a genuine BLT from-scratch seed19-at-500K run (`run_blt_scratch_seed19_500k.pt`) — see "BLT seed19-at-500K bookkeeping" below for why this is needed.
 - **`venus`** (new machine as of 2026-07-11, see Known Machines): third genuine 75/25 EMA-blend seed replicate, seed 7, running (`run_gpt2_ema_blend75_scratch_seed7_v2.pt`) — verified genuine via checkpoint `ema_loss` buffer at step 2,000 (std 0.775, not the seed7-bug's std=0.0).
 - **Two genuinely completed 75/25-blend seeds now exist** (seed42: LAMBADA acc 0.269, seed19: 0.253 — both well above the non-EMA baseline's 0.225); seed7_v2 above is the third, in progress.
@@ -264,7 +264,17 @@ OWT tokenization caches to `~/.cache/blt_owt_2m_blocks.pt` after first run — s
 - `model.py build_blt_model(random_m=True)`: random M initialization
 - `model.py build_blt_model(from_scratch=True)`: random init for all weights, no pretrained load
 - `model.py build_blt_model(per_layer_m=True)`: one M per layer (not shared across layers, still shared across all heads within a layer). Only valid with `num_m_groups=1`. 25% fewer attention params than standard MHA (117,343,488 unique params vs. the shared-M model's 110,855,424) — vs. ~48% for the cross-layer-shared M — since each layer needs its own D×D fetch and loses the "M loaded once for the whole model, cached in L2" bandwidth amortization the shared-M design gets. Warm-start init uses each layer's own `Wq @ Wk^T` directly (no cross-layer averaging). `train.py --per-layer-m`, `blt_lm_eval.py --per-layer-m`.
-- `model.py build_gqa_model(n_kv_groups=N)` (2026-07-11): generalized from the original hardcoded 2-group `GQAAttention`. `N` must evenly divide `n_head` (12) — valid values 1, 2, 3, 4, 6, 12. `train.py --gqa --num-kv-groups N`, `blt_lm_eval.py --num-kv-groups N`, `eval_owt.py --gqa-checkpoint ... --num-kv-groups N` (default 2 everywhere, matches prior behavior). First use: 3-group GQA from-scratch OWT, seed 42, launched on `bender` 2026-07-11 (`run_gqa3_scratch_seed42.pt`) to see how KV-group count trades off against the existing 2-group result (OWT ppl 27.64/28.25 for seed42/seed7).
+- `model.py build_gqa_model(n_kv_groups=N)` (2026-07-11): generalized from the original hardcoded 2-group `GQAAttention`. `N` must evenly divide `n_head` (12) — valid values 1, 2, 3, 4, 6, 12. `train.py --gqa --num-kv-groups N`, `blt_lm_eval.py --num-kv-groups N`, `eval_owt.py --gqa-checkpoint ... --num-kv-groups N` (default 2 everywhere, matches prior behavior).
+
+**3-group GQA, seed 42 — DONE (2026-07-15).** `run_gqa3_scratch_seed42.pt`, from-scratch OWT, 500K steps, launched on `bender` 2026-07-11, final val_ppl 57.35. Benchmarked: OWT held-out ppl **27.46** (loss 3.3129) — best of the whole GQA family, edging out both 2-group seeds (27.64/28.25). `lm_eval_gqa3_scratch_seed42.json` — LAMBADA acc 0.195, LAMBADA ppl 216.4, HellaSwag acc_norm 0.271, PIQA acc_norm **0.553**, Winogrande acc 0.511. Most metrics land within normal seed-to-seed noise of the 2-group results, but PIQA is notably lower than both 2-group seeds (0.568/0.577) — a real-looking gap, though only one seed so far; a second 3-group seed would be needed to confirm it's not a fluke.
+
+| | GQA-3 seed42 | GQA-2 seed42 | GQA-2 seed7 |
+|---|---|---|---|
+| OWT held-out ppl | **27.46** | 27.64 | 28.25 |
+| LAMBADA acc | 0.195 | 0.204 | 0.192 |
+| HellaSwag acc_norm | 0.271 | 0.269 | 0.271 |
+| PIQA acc_norm | **0.553** | 0.568 | 0.577 |
+| Winogrande acc | 0.511 | 0.496 | 0.509 |
 
 ### Per-layer-M warm-start run (started 2026-07-07/08)
 Added 2026-07-07/08 after the "would one M per layer still save memory" discussion below confirmed the parameter math (25%) but clarified the bandwidth mechanism doesn't come from head-sharing (standard MHA already loads Wq/Wk once per layer regardless of head count) — it comes from *cross-layer* sharing, which a per-layer M gives up. User wanted an actual data point for this variant rather than just the theoretical analysis.
