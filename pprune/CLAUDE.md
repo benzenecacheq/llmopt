@@ -105,7 +105,7 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 - `kl_snapkv_rerotated_mistral_f35.json` — 35% ✓ (mean KL=0.096)
 - `kl_pyramidkv_rerotated_mistral.json` — 65%, all 16 tasks ✓ (mean KL=0.034; matches Llama pattern: 0.034 vs SnapKV+rot 0.030)
 - `kl_pyramidkv_rerotated_mistral_f50.json` — 50%, all 16 tasks ✓ (mean KL=0.079)
-- `kl_pyramidkv_rerotated_mistral_f35.json` — pending
+- `kl_pyramidkv_rerotated_mistral_f35.json` — 35%, all 16 tasks ✓ (mean KL=0.096; ties SnapKV+rot exactly on all 16 tasks — budget collapse confirmed on Mistral)
 
 **GT (Llama):**
 - `gt_snapkv_rerotated/` — 65%, all 16 tasks ✓ (1600/1600; position-ID fix applied)
@@ -125,9 +125,8 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 
 ## Currently running
 
-Mistral KL Pyr+rot 65% and 50% complete. Remaining order:
-1. Mistral KL Pyr+rot f35 (running as part of `run_kl_pyramidkv_rerotated_mistral.sh`)
-2. `gt_pyramidkv_rerotated_mistral/` 65/50/35% (`run_gt_pyramidkv_rerotated_mistral.sh`, in queue)
+Mistral KL Pyr+rot all rates complete. Remaining:
+1. `gt_pyramidkv_rerotated_mistral/` 65/50/35% (`run_gt_pyramidkv_rerotated_mistral.sh`, in queue)
 
 ## Key empirical results (Llama, F_out macro over 16 tasks)
 

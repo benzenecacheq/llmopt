@@ -488,9 +488,9 @@ PyramidKV shows a similar counterintuitive trajectory: mean KL is 1.394 at 65%, 
 | Retention | Naive | Streaming | SnapKV | SnapKV+rot | Pyr | Pyr+rot |
 |---|---|---|---|---|---|---|
 | 65% | 0.133 | 0.161 | 0.733 | **0.030** | 0.734 | 0.034 |
-| 35% | 0.188 | 0.244 | 0.588 | **0.096** | 0.586 | — |
+| 35% | 0.188 | 0.244 | 0.588 | **0.096** | 0.586 | **0.096** |
 
-The Mistral rankings replicate the Llama pattern. SnapKV+rot leads at both rates (0.030 at 65%, 0.096 at 35%), outperforming all other methods by the same wide margin as on Llama. Pyr+rot at 65% (0.034) tracks SnapKV+rot closely, matching the Llama finding (0.047 vs 0.043); 35% pending. Unlike Llama, Streaming (0.161) trails Naive (0.133) on Mistral at every rate — Naive leads on 12 of 16 tasks (§5.5). SnapKV and PyramidKV show the same budget-tightening improvement (SnapKV 0.733→0.588, Pyr 0.734→0.586), and both remain far behind SnapKV+rot at every rate.
+The Mistral rankings replicate the Llama pattern. SnapKV+rot leads at both rates (0.030 at 65%, 0.096 at 35%), outperforming all other methods by the same wide margin as on Llama. Pyr+rot at 65% (0.034) tracks SnapKV+rot closely, matching the Llama finding (0.047 vs 0.043). At 35%, Pyr+rot ties SnapKV+rot exactly (0.096) on all 16 tasks — the budget collapse to uniform allocation is total on Mistral as well. Unlike Llama, Streaming (0.161) trails Naive (0.133) on Mistral at every rate — Naive leads on 12 of 16 tasks (§5.5). SnapKV and PyramidKV show the same budget-tightening improvement (SnapKV 0.733→0.588, Pyr 0.734→0.586), and both remain far behind SnapKV+rot at every rate.
 
 Mistral SnapKV+rot F_out (78.2% at 65%, 70.1% at 35%) mirrors the Llama pattern: strong improvement over prompt-construction methods, below unrotated SnapKV/PyramidKV (Table 4).
 
@@ -752,25 +752,25 @@ Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Zheng, L., Cai, R., Song, Z., Tian, Y.
 
 **Table A2b. 35% retention.**
 
-| Task             | Naive  | Streaming | SnapKV | SnapKV+rot | Pyr   |
-|------------------|--------|-----------|--------|------------|-------|
-| NarrativeQA†     | **0.011** | 0.170  | 0.203  | 0.022      | 0.203 |
-| Qasper†          | 0.165  | 0.165     | 0.262  | **0.086**  | 0.262 |
-| MultifieldQA     | 0.213  | 0.286     | 0.519  | **0.077**  | 0.513 |
-| HotpotQA†        | 0.218  | 0.310     | 0.632  | **0.028**  | 0.633 |
-| 2WikiMQA†        | 0.362  | 0.365     | 0.690  | **0.051**  | 0.684 |
-| MuSiQue†         | 0.186  | 0.290     | 0.679  | **0.041**  | 0.687 |
-| GovReport        | 0.263  | 0.399     | 0.457  | **0.248**  | 0.457 |
-| QMSum†           | 0.084  | 0.114     | 0.175  | **0.058**  | 0.175 |
-| MultiNews        | 0.900  | 0.937     | 1.040  | **0.750**  | 1.039 |
-| TREC             | 0.022  | 0.070     | 0.192  | **0.017**  | 0.192 |
-| TriviaQA         | 0.062  | 0.146     | 0.725  | **0.006**  | 0.722 |
-| SAMSum           | 0.027  | 0.054     | 0.741  | **0.022**  | 0.737 |
-| PassageCount†    | 0.069  | 0.084     | 0.957  | **0.010**  | 0.930 |
-| PassageRetrieval | 0.197  | 0.272     | 0.911  | **0.037**  | 0.920 |
-| LCC              | 0.109  | 0.090     | 0.564  | **0.050**  | 0.564 |
-| RepoBench-P      | 0.110  | 0.146     | 0.654  | **0.025**  | 0.661 |
-| **Average**      | 0.188  | 0.244     | 0.588  | **0.096**  | 0.586 |
+| Task             | Naive  | Streaming | SnapKV | SnapKV+rot | Pyr   | Pyr+rot |
+|------------------|--------|-----------|--------|------------|-------|---------|
+| NarrativeQA†     | **0.011** | 0.170  | 0.203  | 0.022      | 0.203 | 0.022 |
+| Qasper†          | 0.165  | 0.165     | 0.262  | **0.086**  | 0.262 | **0.086** |
+| MultifieldQA     | 0.213  | 0.286     | 0.519  | **0.077**  | 0.513 | **0.077** |
+| HotpotQA†        | 0.218  | 0.310     | 0.632  | **0.028**  | 0.633 | **0.028** |
+| 2WikiMQA†        | 0.362  | 0.365     | 0.690  | **0.051**  | 0.684 | **0.051** |
+| MuSiQue†         | 0.186  | 0.290     | 0.679  | **0.041**  | 0.687 | **0.041** |
+| GovReport        | 0.263  | 0.399     | 0.457  | **0.248**  | 0.457 | **0.248** |
+| QMSum†           | 0.084  | 0.114     | 0.175  | **0.058**  | 0.175 | **0.058** |
+| MultiNews        | 0.900  | 0.937     | 1.040  | **0.750**  | 1.039 | **0.750** |
+| TREC             | 0.022  | 0.070     | 0.192  | **0.017**  | 0.192 | **0.017** |
+| TriviaQA         | 0.062  | 0.146     | 0.725  | **0.006**  | 0.722 | **0.006** |
+| SAMSum           | 0.027  | 0.054     | 0.741  | **0.022**  | 0.737 | **0.022** |
+| PassageCount†    | 0.069  | 0.084     | 0.957  | **0.010**  | 0.930 | **0.010** |
+| PassageRetrieval | 0.197  | 0.272     | 0.911  | **0.037**  | 0.920 | **0.037** |
+| LCC              | 0.109  | 0.090     | 0.564  | **0.050**  | 0.564 | **0.050** |
+| RepoBench-P      | 0.110  | 0.146     | 0.654  | **0.025**  | 0.661 | **0.025** |
+| **Average**      | 0.188  | 0.244     | 0.588  | **0.096**  | 0.586 | **0.096** |
 
 ---
 
