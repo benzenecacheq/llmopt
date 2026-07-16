@@ -103,8 +103,8 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 - `kl_snapkv_rerotated_mistral.json` — 65%, all 16 tasks ✓ (mean KL=0.030)
 - `kl_snapkv_rerotated_mistral_f50.json` — 50% ✓ (mean KL=0.058)
 - `kl_snapkv_rerotated_mistral_f35.json` — 35% ✓ (mean KL=0.096)
-- `kl_pyramidkv_rerotated_mistral.json` — 65%, IN PROGRESS (PID 327142, ~815/1600 done)
-- `kl_pyramidkv_rerotated_mistral_f50.json` — pending (runs after 65% completes)
+- `kl_pyramidkv_rerotated_mistral.json` — 65%, all 16 tasks ✓ (mean KL=0.034; matches Llama pattern: 0.034 vs SnapKV+rot 0.030)
+- `kl_pyramidkv_rerotated_mistral_f50.json` — 50%, all 16 tasks ✓ (mean KL=0.079)
 - `kl_pyramidkv_rerotated_mistral_f35.json` — pending
 
 **GT (Llama):**
@@ -125,8 +125,8 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 
 ## Currently running
 
-Mistral KL Pyr+rot 65% (PID 327142) — ~halfway. Remaining order:
-1. Mistral KL Pyr+rot f50 + f35 (part of `run_kl_pyramidkv_rerotated_mistral.sh`)
+Mistral KL Pyr+rot 65% and 50% complete. Remaining order:
+1. Mistral KL Pyr+rot f35 (running as part of `run_kl_pyramidkv_rerotated_mistral.sh`)
 2. `gt_pyramidkv_rerotated_mistral/` 65/50/35% (`run_gt_pyramidkv_rerotated_mistral.sh`, in queue)
 
 ## Key empirical results (Llama, F_out macro over 16 tasks)
