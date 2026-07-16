@@ -182,10 +182,48 @@ try:
             n_kept = self.get_layer_budget(module, q_len)
             indices = scores.topk(n_kept, dim=-1).indices
             indices = torch.sort(indices, dim=2).values
-            keys = _KeyRerotationPress.rerotate_keys(module, indices, keys)
+            # Right-aligned rerotation: map this layer's retained keys to
+            # [q_len-n_kept, q_len) so all layers share the same endpoint q_len.
+            # A single decode position_id = q_len is then correct for every
+            # layer simultaneously, regardless of per-layer pyramid budget.
+            keys = PyramidKVRerotationPress._rerotate_right_aligned(
+                module, indices, keys, q_len
+            )
             indices = indices.unsqueeze(-1).expand(-1, -1, -1, module.head_dim)
             values = values.gather(2, indices).contiguous()
             return keys, values
+
+        @staticmethod
+        def _rerotate_right_aligned(module, indices, keys, q_len):
+            """Rerotate retained keys to positions [q_len-n_kept, q_len).
+
+            Unlike KeyRerotationPress.rerotate_keys (targets [0, n_kept)),
+            this right-aligns all layers to the same endpoint so a single
+            decode position_id = q_len is simultaneously correct for every layer.
+            """
+            bsz, num_kvh, n_kept = indices.shape
+            device = indices.device
+            dtype = keys.dtype
+            device_type = device.type if hasattr(device, 'type') else str(device).split(':')[0]
+            if 'mps' in device_type:
+                device_type = 'cpu'
+
+            new_pos = torch.arange(q_len - n_kept, q_len, device=device, dtype=torch.float32)
+            new_pos = new_pos[None, None, :].expand(bsz, num_kvh, n_kept)
+
+            inv_freq = module.rotary_emb.inv_freq[None, None, :, None].float().to(device)
+            inv_freq = inv_freq.expand(bsz, num_kvh, -1, 1)
+            delta = (new_pos - indices.float()).unsqueeze(2)  # (bsz, num_kvh, 1, n_kept)
+
+            with torch.autocast(device_type=device_type, enabled=False):
+                freqs = (delta.float() * inv_freq.float()).transpose(2, 3)
+                emb = torch.cat([freqs, freqs], dim=-1)
+                cos = emb.cos().to(dtype=dtype).contiguous()
+                sin = emb.sin().to(dtype=dtype).contiguous()
+
+            gathered = indices.unsqueeze(-1).expand(-1, -1, -1, module.head_dim)
+            keys = keys.gather(2, gathered).contiguous()
+            return keys * cos + _rotate_half(keys) * sin
 
     _PyramidKVRerotationPress = PyramidKVRerotationPress
     _KVPRESS_AVAILABLE = True
@@ -849,9 +887,17 @@ def get_comp_log_probs(
             logits_list = [out.logits[0, -1, :].float()]
             del out
 
+            # Right-aligned Pyr+rot keys end at T-1; decode must start at T.
+            _T = comp_ids.shape[1]
+            _use_explicit_pos = isinstance(press, PyramidKVRerotationPress)
             for t in range(n_gen - 1):
                 tok = ystar[t : t + 1].unsqueeze(0).to(device)
-                step_out = model(input_ids=tok, past_key_values=kv, use_cache=True)
+                extra = {}
+                if _use_explicit_pos:
+                    extra['cache_position'] = torch.tensor(
+                        [_T + t], dtype=torch.long, device=device
+                    )
+                step_out = model(input_ids=tok, past_key_values=kv, use_cache=True, **extra)
                 logits_list.append(step_out.logits[0, -1, :].float())
                 kv = step_out.past_key_values
             del kv

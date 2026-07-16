@@ -423,7 +423,10 @@ def generate_rerotated(
                     return_dict=True,
                 )
             compressed_kv = out.past_key_values
-            M = compressed_kv.get_seq_length()   # retained tokens after compression
+            # Right-aligned PyramidKVRerotationPress keys end at T-1 for every layer;
+            # decode must start at T (not get_seq_length() which returns layer-0 count).
+            from kl_faith_eval_ystar import PyramidKVRerotationPress as _PKVR
+            M = T if isinstance(press, _PKVR) else compressed_kv.get_seq_length()
             T1 = out.logits[0, -1].argmax().reshape(1, 1)
             kv = compressed_kv
             del out

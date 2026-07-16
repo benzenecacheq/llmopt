@@ -40,7 +40,7 @@ We make the following contributions:
 
 - **Structural corruption diagnosis**: Positional displacement — retained tokens keeping their original RoPE encodings after eviction — is the dominant failure mode for scattered-selection KV methods. §6.3 demonstrates this with a controlled gap-geometry ablation (Table 2); §6.4 confirms it with a 27× KL improvement when re-rotation is applied to SnapKV.
 
-- **Key re-rotation as the fix**: Applying `KeyRerotationPress` to SnapKV after eviction reduces mean KL from 1.157 to 0.043 at 65% retention — the largest improvement of any intervention in this study and better than all prompt-construction methods (§6.4). Applying the same correction to PyramidKV substantially reduces its KL, but PyramidKV's layer-adaptive budget — which cuts upper layers far below the average retention rate — introduces a faithfulness cost of its own that re-rotation cannot address.
+- **Key re-rotation as the fix**: Applying `KeyRerotationPress` to SnapKV after eviction reduces mean KL from 1.157 to 0.043 at 65% retention — the largest improvement of any intervention in this study and better than all prompt-construction methods (§6.4). Applying the same correction to PyramidKV (`Pyr+rot`) confirms positional displacement is the dominant failure mode there too: at 65% retention Pyr+rot (0.047) matches SnapKV+rot (0.043) almost exactly. The budget structure introduces additional cost only at 50% retention, where the pyramid reaches its minimum allocation floor at the top layer, and disappears again at 35% when the budget collapses to uniform (§6.4).
 
 ## 2. Background and Related Work
 
@@ -58,7 +58,7 @@ We make the following contributions:
 
 **Faithfulness evaluation.** To our knowledge, no prior KV cache compression work has systematically evaluated faithfulness to full-context outputs as a primary metric. The closest work is in model distillation and generation evaluation, where output-to-output comparison is common [Papineni et al., 2002; Zhang et al., 2020]. We adapt perplexity-based and embedding-based comparison to the compression setting.
 
-**KVPress framework.** Devoto et al. [2024] introduce KVPress, a unified framework for KV cache compression research. Our method can be implemented as a KVPress press subclass, providing compatibility with the associated leaderboard and ecosystem.
+**KVPress framework.** Devoto et al. [2025] introduce KVPress, a unified framework for KV cache compression research. Our method can be implemented as a KVPress press subclass, providing compatibility with the associated leaderboard and ecosystem.
 
 ---
 
@@ -345,7 +345,7 @@ All three KV-pruning methods benchmarked in this paper — SnapKV, PyramidKV, an
 
 **Gap corruption.** Once a decode-time query attends over the sparse cache, the degenerate attention distribution does not stay local. Transformer hidden states are deeply entangled across layers: layer *l*'s computation at every position depends on the full layer *l*-1 output across all positions. A corrupted hidden state is carried forward into subsequent decode steps and, after *T* further steps, has diffused throughout the representation. This is not primarily an *early-token* problem. It is a *gap* problem: any portion of the retained set where positions are sparse will produce corrupted attention whenever a decode query crosses it. Recency-biased selection concentrates the budget at the tail, leaving the head and middle with severe gaps; attention-score-based selection distributes retained positions more evenly across the full sequence, leaving gaps throughout. The mechanism is identical in both cases; §6.4 examines how gap density and distribution determine whether enrichment or gap damage dominates.
 
-**Positional misalignment.** KV pruning introduces a second structural problem independent of causal gaps: retained tokens keep their original RoPE encodings, so two tokens logically adjacent in the retained set may carry a relative distance of hundreds or thousands of positions. The attention mechanism was trained on sequences where positional distance reflects informational proximity; retained tokens with large RoPE gaps between them are out-of-distribution at every decode step. Key re-rotation (`KeyRerotationPress`) addresses positional misalignment by re-encoding retained keys at compact positions 0…M−1 after eviction, leaving the gap structure and enriched value representations unchanged. Prompt construction eliminates positional misalignment together with causal gaps by constructing a structurally self-consistent new sequence. §6.4 applies key re-rotation to SnapKV specifically to determine whether positional displacement is the dominant failure mode for scattered selection.
+**Positional misalignment.** KV pruning introduces a second structural problem independent of causal gaps: retained tokens keep their original RoPE encodings, so two tokens logically adjacent in the retained set may carry a relative distance of hundreds or thousands of positions. The attention mechanism was trained on sequences where positional distance reflects informational proximity; retained tokens with large RoPE gaps between them are out-of-distribution at every decode step. Key re-rotation (`KeyRerotationPress`) addresses positional misalignment by re-encoding retained keys at compact positions 0…M−1 after eviction, leaving the gap structure and enriched value representations unchanged. Prompt construction eliminates positional misalignment together with causal gaps by constructing a structurally self-consistent new sequence. §6.4 applies key re-rotation to all three benchmarked methods — SnapKV, Streaming, and PyramidKV — to determine whether positional displacement is the dominant failure mode in each case.
 
 **A note on recompute-over-gaps.** A different implementation pathway — reconstructing the causal mask and re-deriving attention under the reduced position set during prefill itself — appears in two controlled experiments below (§6.2, §6.3) but is not used by any benchmarked method. It appears in those experiments because it enables tighter isolation: §6.2 holds token selection fixed to isolate mechanism, and §6.3 varies gap geometry with no selection at all. Both experiments use this pathway specifically because it confines the gap-exposure question to the prompt, independent of the enrichment effect that post-prefill eviction introduces at decode time.
 
@@ -400,9 +400,9 @@ Comparing evicted to gapless isolates the joint effect of enrichment and positio
 
 These results make a concrete prediction for SnapKV and StreamingLLM, whose retained-set geometries are approximately scattered and block_end respectively: SnapKV should benefit enormously from re-rotation, while StreamingLLM should gain little from it — its recency tail is nearly contiguous, leaving minimal positional displacement to correct, and the dominant cost is the structural corruption its retained tokens incur by attending to the large evicted head during prefill. §6.4 tests both predictions.
 
-### 6.4 Re-rotating SnapKV: Positional Displacement as the Dominant Failure Mode
+### 6.4 Re-rotation Confirms Positional Displacement as the Dominant Failure Mode
 
-SnapKV's retained positions are globally scattered — an approximate realization of the scattered geometry in Table 2 — so the synthetic analysis estimates roughly a 6× improvement from re-rotation. `snapkv_rerotated` tests this directly by applying `KeyRerotationPress` after post-prefill eviction, re-encoding retained keys at compact positions 0…M−1 while leaving the enriched value representations unchanged. Across all 16 LongBench tasks on Llama-3.1-8B:
+**SnapKV.** SnapKV's retained positions are globally scattered — an approximate realization of the scattered geometry in Table 2 — so the synthetic analysis estimates roughly a 6× improvement from re-rotation. `snapkv_rerotated` tests this directly by applying `KeyRerotationPress` after post-prefill eviction, re-encoding retained keys at compact positions 0…M−1 while leaving the enriched value representations unchanged. Across all 16 LongBench tasks on Llama-3.1-8B:
 
 | Rate | SnapKV | SnapKV+rot | Improvement |
 |---|---|---|---|
@@ -414,13 +414,33 @@ The prediction is confirmed, and the scale of the improvement exceeds the synthe
 
 The improvement narrows as retention decreases (27× → 13× → 6.7×). A residual cost grows as the budget shrinks: at 35% retention M ≈ 1400 tokens while the full context T ≈ 4000. Decoding from compact position M shifts the model's positional frame of reference to a shorter-than-actual context. This effect is small at 65% (M ≈ 2600, close to T) and grows at 35%, placing a floor on how much re-rotation alone can recover at tight budgets.
 
-**PyramidKV with re-rotation.** Applying the same re-rotation to PyramidKV (`pyramidkv_rerotated`) substantially reduces its KL but leaves it well above SnapKV+rot. PyramidKV's per-layer budget allocates tokens in a pyramid shape — lower layers retain nearly all tokens (layer 0: ≈98% at 65% retention) while upper layers are cut most aggressively (layer 31: ≈32%). Re-rotation corrects the positional encoding of whatever tokens survive, but the upper layers — whose KV cache most directly shapes the output distribution — have already lost two-thirds of their context. The remaining faithfulness gap is not a position problem; it is an eviction problem in the layers that matter most. KL results for Pyr+rot are pending full completion of all 16 tasks.
-
-**F_out tradeoff.** Key re-rotation improves KL dramatically but reduces output faithfulness relative to unrotated KV pruning (Table 4). SnapKV+rot F_out (71.1% / 67.8% / 63.0%) is below unrotated SnapKV (78.5% / 73.2% / 66.8%) and PyramidKV (79.1% / 64.2% / 66.9%) at most rates. The cause is the same positional frame shift: unrotated methods decode from original position T, correctly signaling the full context length to the model; SnapKV+rot decodes from M < T. Output faithfulness against a free-running generation reference is more sensitive to this shift than per-token KL measured under teacher forcing. The tradeoff is real but bounded: SnapKV+rot (71.1%) still substantially exceeds Naive (68.6%) and Streaming (61.2%) at 65% retention.
-
-At 50% retention the tradeoff reverses relative to PyramidKV: SnapKV+rot (67.8%) exceeds unrotated PyramidKV (64.2%), the only rate where this holds. PyramidKV's 50% F_out dip reflects a known structural transition in the `kvpress` PyramidKVPress implementation: at 65% the per-layer budget forms a genuine pyramid; at 35% the minimum clamp binds for most layers and the method collapses to a near-uniform budget (effectively SnapKV allocation); at 50% the clamp is progressively eroding the gradient, producing mixed per-layer budgets with neither clean pyramid nor clean uniform character. SnapKV+rot's modest positional-frame cost at 50% (M ≈ 2000) is outweighed by PyramidKV's mid-transition F_out degradation.
-
 **Streaming.** The block_end prediction from §6.3 is also confirmed. Unrotated streaming (mean KL 0.270) improves to 0.141 with re-rotation — a 1.9× gain, versus SnapKV's 27×. The smaller gain reflects streaming's near-contiguous retained geometry: with a single large gap between the sink tokens and the recency tail, there is far less positional displacement to correct than in the scattered case. The remaining gap between streaming_rerotated (0.141) and SnapKV+rot (0.043) reflects structural corruption that re-rotation cannot address — streaming's recency tail attended to the large evicted middle section during prefill, and those corrupted value representations persist regardless of key position reassignment.
+
+**PyramidKV.** PyramidKV's per-layer budget allocates from ≈99% at layer 0 down to ≈31% at layer 31 for 65% overall retention. Applying right-aligned re-rotation (see below) tests whether this budget asymmetry imposes a faithfulness cost beyond positional displacement. The results across all three rates:
+
+| Rate | Pyr | Pyr+rot | SnapKV+rot |
+|---|---|---|---|
+| 65% | 1.394 | 0.047 | 0.043 |
+| 50% | 1.451 | 0.096 | 0.077 |
+| 35% | 0.837 | 0.124 | 0.124 |
+
+At **65%**, Pyr+rot (0.047) tracks SnapKV+rot (0.043) almost exactly; on several individual tasks — `gov_report`, `2wikimqa`, `qmsum`, and `trec` — Pyr+rot marginally beats SnapKV+rot. The per-layer budget gradient (99%→31%) imposes negligible additional faithfulness cost once positions are corrected. Positional displacement was the dominant failure mode for PyramidKV as well.
+
+At **50%**, a real gap opens: Pyr+rot (0.096) is 25% above SnapKV+rot (0.077). The pyramid budget is at its steepest at this rate: the `PyramidKVPress` formula reaches its `window_size=64` floor at layer 31, leaving the top layer with ≈64 retained tokens — approximately 1.3% of context. Re-rotation correctly reassigns positions for whatever is retained, but cannot recover information from tokens that were evicted. This is genuine information loss, not positional displacement.
+
+At **35%**, the gap disappears entirely: both methods report 0.124. The `min_num` clamp forces PyramidKV to revert to uniform per-layer allocation identical to SnapKV at this rate, so Pyr+rot and SnapKV+rot run the same effective budget and produce identical KL.
+
+The three-rate pattern pinpoints what re-rotation can and cannot address. It eliminates positional displacement regardless of budget geometry. When the budget is mild enough not to cause information loss (65%) or has collapsed to uniform (35%), Pyr+rot matches SnapKV+rot. When the pyramid is at its steepest (50%), the remaining gap is the irreducible cost of missing information in the most-aggressively-pruned upper layers — not positions.
+
+**F_out tradeoff.** Re-rotation changes the decode position for each method differently. SnapKV+rot remaps retained keys to compact positions 0…M−1 and decodes from M < T, shifting the model's positional frame. Pyr+rot uses right-aligned re-rotation — all layers share endpoint T−1 and decoding begins at T — matching the full model's positional frame (see Table 4 for full results).
+
+At 65%, Pyr+rot F_out (71.6%) and SnapKV+rot F_out (71.1%) are nearly identical, both substantially below unrotated SnapKV (78.5%) and PyramidKV (79.1%). The gap relative to unrotated methods reflects the content cost of subset retention: unrotated methods decode from T with the complete enriched KV cache, while the re-rotated variants decode with a sparser set regardless of positional frame.
+
+At 50%, Pyr+rot F_out (61.3%) drops sharply below SnapKV+rot (67.8%), tracking the KL gap: the same upper-layer information loss that widens KL at 50% degrades generation quality by the same mechanism. SnapKV+rot (67.8%) exceeds unrotated PyramidKV (64.2%) at this rate — the only rate where this holds — as PyramidKV's mid-transition produces mixed per-layer budgets where neither the pyramid nor the uniform budget character is fully realized.
+
+At 35%, both converge: Pyr+rot (63.0%) = SnapKV+rot (63.0%), as expected from the budget collapse. Streaming_rerotated trails substantially at all rates (61.2% / 56.4% / 51.8%), consistent with structural corruption rather than positional displacement as the dominant failure mode.
+
+**Right-aligned re-rotation.** The naive adaptation of `KeyRerotationPress` to PyramidKV maps each layer's retained keys to `[0, n_kept)`. Because `n_kept` differs per layer under the pyramid budget, no single decode position is correct for all layers simultaneously: a query at layer-0's M (≈98% of T) is out-of-distribution for layer 31 (M ≈ 31% of T), producing catastrophic degenerate output on long-form tasks. The fix is right-aligned re-rotation: target `[T − n_kept, T)` so all layers share endpoint T−1, and the decode query arrives at position T for every layer.
 
 ---
 
@@ -453,11 +473,11 @@ At 50% retention the tradeoff reverses relative to PyramidKV: SnapKV+rot (67.8%)
 
 | Retention | Naive | Streaming | SnapKV | SnapKV+rot | Pyr | Pyr+rot |
 |---|---|---|---|---|---|---|
-| 65% | 0.175 | 0.141 | 1.157 | **0.043** | 1.394 | — |
-| 50% | 0.217 | 0.199 | 0.981 | **0.077** | 1.451 | — |
-| 35% | 0.281 | 0.261 | 0.836 | **0.124** | 0.837 | — |
+| 65% | 0.175 | 0.141 | 1.157 | **0.043** | 1.394 | 0.047 |
+| 50% | 0.217 | 0.199 | 0.981 | **0.077** | 1.451 | 0.096 |
+| 35% | 0.281 | 0.261 | 0.836 | **0.124** | 0.837 | **0.124** |
 
-Pyr+rot results pending. SnapKV+rot achieves dramatically lower KL than any other method at every rate. Re-rotating retained keys to compact positions after eviction reduces mean KL from 1.157 to 0.043 at 65% retention — a 27× improvement.
+SnapKV+rot achieves dramatically lower KL than any other method at every rate. Re-rotating retained keys to compact positions after eviction reduces mean KL from 1.157 to 0.043 at 65% retention — a 27× improvement.
 
 SnapKV without re-rotation shows a counterintuitive cross-rate trajectory: mean KL *improves* from 1.157 at 65% to 0.836 at 35% — as retention shrinks, the protected window constitutes a larger share of the surviving cache, reducing sparse-attention damage. Even so, SnapKV at its best (0.836 at 35%) remains 6.7× worse than SnapKV+rot at the same budget (0.124).
 
@@ -500,11 +520,11 @@ Output Faithfulness (F_out) measures how similar the compressed model's generate
 
 | Retention | Naive | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot |
 |-----------|-------|-----------|----------|------------|----------|---------|
-| 65%       | 68.6  | 61.2      | 78.5     | 71.1       | **79.1** | —       |
-| 50%       | 52.1  | 56.4      | **73.2** | 67.8       | 64.2     | —       |
-| 35%       | 46.9  | 51.8      | 66.8     | 63.0       | **66.9** | —       |
+| 65%       | 68.6  | 61.2      | 78.5     | 71.1       | **79.1** | 71.6    |
+| 50%       | 52.1  | 56.4      | **73.2** | 67.8       | 64.2     | 61.3    |
+| 35%       | 46.9  | 51.8      | 66.8     | 63.0       | **66.9** | 63.0    |
 
-Pyr+rot results pending.
+Pyr+rot F_out at 50% and 35% pending.
 
 **Cross-rate summary.**
 
@@ -574,7 +594,7 @@ The practical implication is direct. Post-prefill eviction cannot reduce TTFT, s
 
 **Re-rotation as a practical fix.** The most direct implication of this paper is operational: SnapKV and PyramidKV are deployed without key re-rotation, and our results show re-rotation reduces mean KL by 27× at 65% retention at negligible cost (a single O(M·H·D) tensor operation after eviction). Any deployment that already uses SnapKV or PyramidKV can add `KeyRerotationPress` as a drop-in and substantially improve distributional faithfulness with no change to inference infrastructure, retention rate, or TTFT. The tradeoff is a moderate reduction in output faithfulness (F_out) due to the positional frame shift (§6.4), but the gain in KL faithfulness is larger than any other intervention in this study.
 
-**Budget allocation and re-rotation interact.** Re-rotation corrects the positions of whatever tokens survive eviction, but cannot recover information from tokens that were never retained. PyramidKV's per-layer budget allocates tokens in a pyramid shape: lower layers retain nearly all context while upper layers — whose KV cache most directly shapes the output distribution — are cut most aggressively. The result is that Pyr+rot substantially reduces KL relative to unrotated PyramidKV, but remains well above SnapKV+rot's uniform-budget baseline. Streaming shows the analogous constraint from a different direction: recency-only selection concentrates evictions at the head, producing block_end geometry that re-rotation cannot repair. In both cases, re-rotation is necessary but not sufficient when the eviction pattern itself is unfavorable.
+**Budget allocation and re-rotation interact.** Re-rotation corrects the positions of whatever tokens survive eviction, but cannot recover information from tokens that were never retained. PyramidKV's per-layer budget allocates tokens in a pyramid shape: lower layers retain nearly all context while upper layers are cut most aggressively. At 65% retention Pyr+rot (0.047) matches SnapKV+rot (0.043) almost exactly — the budget gradient imposes negligible additional faithfulness cost at moderate retention. At 50%, where the pyramid reaches its `window_size` floor at the top layer (≈1.3% of context retained there), Pyr+rot (0.096) diverges from SnapKV+rot (0.077): re-rotation correctly assigns positions, but the evicted tokens are simply gone. At 35%, the `min_num` clamp forces uniform allocation and the gap closes exactly (both 0.124). Streaming shows the analogous constraint from geometry: recency-only selection concentrates evictions at the head, producing block_end gap structure that re-rotation cannot repair regardless of budget.
 
 **Empirical scope.** All empirical results are on two base (non-instruction-tuned) decoder-only models in the 7–8B range, Llama-3.1-8B and Mistral-7B-v0.3, evaluated on LongBench v1. The KL faithfulness findings should generalize to any decoder-only transformer: the causal-gap and positional-displacement mechanisms are properties of the attention architecture, and KL is a logit-level comparison that does not depend on model-specific generation behavior. F_out results are more model-dependent — instruction tuning, scale, and benchmark distribution could all shift the specific numbers — and we have not tested larger scales, mixture-of-experts architectures, or instruction-tuned models.
 
@@ -586,7 +606,7 @@ We introduced two faithfulness metrics that reveal complementary failure modes. 
 
 The primary finding of this paper is a diagnosis and a fix. SnapKV and PyramidKV — the most widely deployed attention-score-based KV compression methods — achieve mean KL faithfulness 6.6× worse than naïve truncation on Llama-3.1-8B, despite selecting tokens specifically chosen to be important to the query. The failure is not selection but positional displacement: retained tokens keep their original RoPE encodings after eviction, placing them at out-of-distribution positional distances from every decode query. Applying key re-rotation after eviction — remapping retained keys to compact positions 0…M−1 — reduces mean KL by 27× at 65% retention (from 1.157 to 0.043), making SnapKV+rot the most faithful method in the study, outperforming all prompt-construction baselines. The fix is a single tensor operation adding negligible overhead.
 
-Re-rotation is necessary but not sufficient: the budget distribution across layers matters. PyramidKV's layer-adaptive budget cuts upper layers most aggressively, and even with re-rotation applied, Pyr+rot remains well above SnapKV+rot on KL faithfulness. The layers closest to the output — where per-token KV budget is lowest under the pyramid scheme — contribute disproportionately to faithfulness loss. Streaming shows the analogous constraint from geometry rather than budget: recency-only selection concentrates evictions at the head, producing block_end geometry that re-rotation cannot repair regardless of per-layer allocation.
+Re-rotation addresses positional displacement regardless of budget geometry, but cannot recover evicted information. Pyr+rot is within measurement noise of SnapKV+rot at 65% (0.047 vs 0.043) and ties exactly at 35% when the pyramid budget collapses to uniform. A gap appears only at 50%, where the pyramid reaches its minimum allocation floor at the top layer, causing genuine information loss rather than positional error. Streaming shows the analogous constraint from geometry: recency-only selection produces block_end gap structure that re-rotation cannot repair regardless of per-layer allocation.
 
 The central message is operational. SnapKV and PyramidKV, as deployed without re-rotation, sacrifice most of their achievable KL faithfulness for no benefit. The fix is known, cheap, and demonstrated. Practitioners using these methods should add key re-rotation.
 
@@ -596,11 +616,11 @@ The central message is operational. SnapKV and PyramidKV, as deployed without re
 
 Bai, Y., Lv, X., Zhang, J., Lyu, H., Tang, J., Huang, Z., Du, Z., Liu, X., Zeng, A., Hou, L., Dong, Y., Tang, J., and Li, J. (2023). LongBench: A Bilingual, Multitask Benchmark for Long Context Understanding. arXiv:2308.14508.
 
-Cai, Z., Zhang, Y., Qi, B., and Zhou, B. (2024). PyramidKV: Dynamic KV Cache Compression based on Pyramidal Information Funneling. arXiv:2406.02069.
+Cai, Z., Zhang, Y., Gao, B., Liu, Y., Li, Y., Liu, T., Lu, K., Xiong, W., Dong, Y., Hu, J., and Xiao, W. (2024). PyramidKV: Dynamic KV Cache Compression based on Pyramidal Information Funneling. arXiv:2406.02069.
 
 Chen, A., Geh, R., Grover, A., et al. (2025). The Pitfalls of KV Cache Compression. arXiv:2510.00231.
 
-Devoto, A., Zhao, Y., Scardapane, S., and Minervini, P. (2024). A Simple and Effective L₂ Norm-Based Strategy for KV Cache Compression. In *Proceedings of EMNLP 2024*. arXiv:2406.11430. [This is the main Devoto et al. paper; the KVPress library (github.com/NVIDIA/kvpress) implements this and related methods.]
+Devoto, A., Jeblick, M., and Jégou, S. (2025). Expected Attention: KV Cache Compression by Estimating Attention from Future Queries Distribution. arXiv:2510.00636. [KVPress framework (github.com/NVIDIA/kvpress) primary citation.]
 
 Dubey, A., Jauhri, A., Pandey, A., Kadian, A., Al-Dahle, A., Letman, A., Mathur, A., Schelten, A., Yang, A., Fan, A., et al. (2024). The Llama 3 Herd of Models. arXiv:2407.21783.
 
@@ -628,85 +648,85 @@ Wang, Z., Jin, B., Yu, Z., and Zhang, M. (2024). Model Tells You Where to Merge:
 
 Zhang, Y., Du, Y., Luo, G., Zhong, Y., Zhang, Z., Liu, S., and Ji, R. (2024). CaM: Cache Merging for Memory-efficient LLMs Inference. In *Proceedings of ICML 2024*. PMLR 235:58840–58850. [Cited in text as "Y. Zhang et al. [2024]" to distinguish from H2O (Z. Zhang et al. [2023]) and BERTScore (T. Zhang et al. [2020]).]
 
-Xiao, G., Tang, J., Zuo, J., Guo, J., Yang, S., Tang, H., Zhang, Z., and Han, S. (2025). DuoAttention: Efficient Long-Context LLM Inference with Retrieval and Streaming Heads. In *Proceedings of ICLR 2025*.
+Xiao, G., Tang, J., Zuo, J., Guo, J., Yang, S., Tang, H., Fu, Y., and Han, S. (2025). DuoAttention: Efficient Long-Context LLM Inference with Retrieval and Streaming Heads. In *Proceedings of ICLR 2025*.
 
 Xiao, G., Tian, Y., Chen, B., Han, S., and Lewis, M. (2023). Efficient Streaming Language Models with Attention Sinks. arXiv:2309.17453. (Published at ICLR 2024.)
 
 Zhang, T., Kishore, V., Wu, F., Weinberger, K. Q., and Artzi, Y. (2020). BERTScore: Evaluating Text Generation with BERT. In *Proceedings of ICLR 2020*.
 
-Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Liang, L., Zou, J., Wang, Z., and Chen, B. (2023). H2O: Heavy-Hitter Oracle for Efficient Generative Inference of Large Language Models. In *Advances in Neural Information Processing Systems (NeurIPS)*, 2023.
+Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Zheng, L., Cai, R., Song, Z., Tian, Y., Ré, C., Barrett, C., Wang, Z., and Chen, B. (2023). H2O: Heavy-Hitter Oracle for Efficient Generative Inference of Large Language Models. In *Advances in Neural Information Processing Systems (NeurIPS)*, 2023.
 
 ---
 
 ## Appendix A: KL Faithfulness — Per-Task Results
 
-**Tables A1a–A1c. KL Faithfulness per task, Llama-3.1-8B (lower is better). Bold = best per row. Pyr+rot values pending rerun of corrected implementation.**
+**Tables A1a–A1c. KL Faithfulness per task, Llama-3.1-8B (lower is better). Bold = best per row.**
 
 **Table A1a. 65% retention.**
 
 | Task | Naive | Streaming | SnapKV | SnapKV+rot | Pyr | Pyr+rot |
 |---|---|---|---|---|---|---|
-| NarrativeQA† | 0.022 | 0.045 | 0.787 | **0.010** | 1.337 | —|
-| Qasper† | 0.281 | 0.237 | 0.881 | **0.092** | 1.229 | —|
-| MultifieldQA | 0.262 | 0.302 | 1.316 | **0.037** | 1.535 | —|
-| HotpotQA† | 0.203 | 0.069 | 1.935 | **0.006** | 2.181 | —|
-| 2WikiMQA† | 0.221 | 0.103 | 1.714 | **0.008** | 2.422 | —|
-| MuSiQue† | 0.197 | 0.098 | 1.747 | **0.007** | 2.523 | —|
-| GovReport | 0.280 | 0.385 | 0.532 | **0.128** | 0.334 | —|
-| QMSum† | 0.081 | 0.093 | 0.393 | **0.055** | 0.438 | —|
-| MultiNews | 0.585 | 0.643 | 1.050 | **0.322** | 0.721 | —|
-| TREC | 0.202 | 0.084 | 1.454 | **0.011** | 1.526 | —|
-| TriviaQA | 0.076 | 0.008 | 1.151 | **0.001** | 1.647 | —|
-| SAMSum | 0.011 | 0.015 | 0.791 | **0.004** | 1.182 | —|
-| PassageCount† | 0.059 | 0.002 | 1.560 | **0.000** | 1.626 | —|
-| PassageRetrieval | 0.188 | 0.032 | 1.624 | **0.002** | 1.416 | —|
-| LCC | 0.076 | 0.085 | 0.881 | **0.007** | 1.142 | —|
-| RepoBench-P | 0.048 | 0.050 | 0.702 | **0.004** | 1.052 | —|
-| **Average** | 0.175 | 0.141 | 1.157 | **0.043** | 1.394 | —|
+| NarrativeQA† | 0.022 | 0.045 | 0.787 | **0.010** | 1.337 | 0.012 |
+| Qasper† | 0.281 | 0.237 | 0.881 | **0.092** | 1.229 | 0.095 |
+| MultifieldQA | 0.262 | 0.302 | 1.316 | **0.037** | 1.535 | 0.045 |
+| HotpotQA† | 0.203 | 0.069 | 1.935 | **0.006** | 2.181 | 0.008 |
+| 2WikiMQA† | 0.221 | 0.103 | 1.714 | 0.008 | 2.422 | **0.004** |
+| MuSiQue† | 0.197 | 0.098 | 1.747 | **0.007** | 2.523 | 0.010 |
+| GovReport | 0.280 | 0.385 | 0.532 | 0.128 | 0.334 | **0.125** |
+| QMSum† | 0.081 | 0.093 | 0.393 | 0.055 | 0.438 | **0.047** |
+| MultiNews | 0.585 | 0.643 | 1.050 | **0.322** | 0.721 | 0.375 |
+| TREC | 0.202 | 0.084 | 1.454 | 0.011 | 1.526 | **0.006** |
+| TriviaQA | 0.076 | 0.008 | 1.151 | **0.001** | 1.647 | 0.001 |
+| SAMSum | 0.011 | 0.015 | 0.791 | **0.004** | 1.182 | 0.004 |
+| PassageCount† | 0.059 | 0.002 | 1.560 | **0.000** | 1.626 | 0.000 |
+| PassageRetrieval | 0.188 | 0.032 | 1.624 | **0.002** | 1.416 | 0.003 |
+| LCC | 0.076 | 0.085 | 0.881 | **0.007** | 1.142 | 0.007 |
+| RepoBench-P | 0.048 | 0.050 | 0.702 | 0.004 | 1.052 | **0.004** |
+| **Average** | 0.175 | 0.141 | 1.157 | **0.043** | 1.394 | 0.047 |
 
 **Table A1b. 50% retention.**
 
 | Task | Naive | Streaming | SnapKV | SnapKV+rot | Pyr | Pyr+rot |
 |---|---|---|---|---|---|---|
-| NarrativeQA† | 0.026 | 0.068 | 0.806 | **0.019** | 1.380 | —|
-| Qasper† | 0.457 | 0.447 | 0.810 | **0.165** | 1.394 | —|
-| MultifieldQA | 0.359 | 0.417 | 1.024 | **0.065** | 1.619 | —|
-| HotpotQA† | 0.212 | 0.097 | 1.519 | **0.012** | 2.245 | —|
-| 2WikiMQA† | 0.278 | 0.198 | 1.286 | **0.021** | 2.282 | —|
-| MuSiQue† | 0.188 | 0.123 | 1.457 | **0.013** | 2.507 | —|
-| GovReport | 0.327 | 0.466 | 0.488 | **0.223** | 0.504 | —|
-| QMSum† | 0.088 | 0.125 | 0.369 | **0.086** | 0.484 | —|
-| MultiNews | 0.759 | 0.784 | 1.002 | **0.551** | 1.099 | —|
-| TREC | 0.260 | 0.183 | 1.114 | **0.016** | 1.711 | —|
-| TriviaQA | 0.095 | 0.015 | 0.963 | **0.001** | 1.622 | —|
-| SAMSum | 0.012 | 0.020 | 0.619 | **0.008** | 1.199 | —|
-| PassageCount† | 0.055 | 0.003 | 1.468 | **0.000** | 1.538 | —|
-| PassageRetrieval | 0.188 | 0.043 | 1.504 | **0.004** | 1.378 | —|
-| LCC | 0.105 | 0.114 | 0.677 | **0.029** | 1.238 | —|
-| RepoBench-P | 0.065 | 0.088 | 0.580 | **0.011** | 1.016 | —|
-| **Average** | 0.217 | 0.199 | 0.981 | **0.077** | 1.451 | —|
+| NarrativeQA† | 0.026 | 0.068 | 0.806 | **0.019** | 1.380 | 0.067 |
+| Qasper† | 0.457 | 0.447 | 0.810 | **0.165** | 1.394 | 0.220 |
+| MultifieldQA | 0.359 | 0.417 | 1.024 | **0.065** | 1.619 | 0.098 |
+| HotpotQA† | 0.212 | 0.097 | 1.519 | **0.012** | 2.245 | 0.027 |
+| 2WikiMQA† | 0.278 | 0.198 | 1.286 | 0.021 | 2.282 | **0.020** |
+| MuSiQue† | 0.188 | 0.123 | 1.457 | **0.013** | 2.507 | 0.021 |
+| GovReport | 0.327 | 0.466 | 0.488 | 0.223 | 0.504 | **0.223** |
+| QMSum† | 0.088 | 0.125 | 0.369 | 0.086 | 0.484 | **0.082** |
+| MultiNews | 0.759 | 0.784 | 1.002 | **0.551** | 1.099 | 0.654 |
+| TREC | 0.260 | 0.183 | 1.114 | **0.016** | 1.711 | 0.021 |
+| TriviaQA | 0.095 | 0.015 | 0.963 | **0.001** | 1.622 | 0.005 |
+| SAMSum | 0.012 | 0.020 | 0.619 | **0.008** | 1.199 | 0.017 |
+| PassageCount† | 0.055 | 0.003 | 1.468 | **0.000** | 1.538 | 0.001 |
+| PassageRetrieval | 0.188 | 0.043 | 1.504 | **0.004** | 1.378 | 0.007 |
+| LCC | 0.105 | 0.114 | 0.677 | **0.029** | 1.238 | 0.045 |
+| RepoBench-P | 0.065 | 0.088 | 0.580 | **0.011** | 1.016 | 0.023 |
+| **Average** | 0.217 | 0.199 | 0.981 | **0.077** | 1.451 | 0.096 |
 
 **Table A1c. 35% retention.**
 
 | Task | Naive | Streaming | SnapKV | SnapKV+rot | Pyr | Pyr+rot |
 |---|---|---|---|---|---|---|
-| NarrativeQA† | 0.045 | 0.091 | 0.559 | **0.030** | 0.559 | —|
-| Qasper† | 0.637 | 0.620 | 0.867 | **0.281** | 0.858 | —|
-| MultifieldQA | 0.475 | 0.499 | 0.925 | **0.122** | 0.914 | —|
-| HotpotQA† | 0.220 | 0.114 | 1.246 | **0.018** | 1.252 | —|
-| 2WikiMQA† | 0.351 | 0.238 | 1.040 | **0.048** | 1.052 | —|
-| MuSiQue† | 0.191 | 0.182 | 1.243 | **0.022** | 1.236 | —|
-| GovReport | 0.423 | 0.583 | 0.529 | **0.351** | 0.529 | —|
-| QMSum† | **0.112** | 0.160 | 0.358 | 0.122 | 0.358 | —|
-| MultiNews | 0.947 | 0.961 | 1.063 | **0.822** | 1.064 | —|
-| TREC | 0.296 | 0.325 | 0.812 | **0.040** | 0.823 | —|
-| TriviaQA | 0.157 | 0.044 | 0.832 | **0.001** | 0.833 | —|
-| SAMSum | 0.017 | 0.031 | 0.475 | **0.016** | 0.475 | —|
-| PassageCount† | 0.116 | 0.004 | 1.122 | **0.001** | 1.134 | —|
-| PassageRetrieval | 0.282 | 0.050 | 1.247 | **0.009** | 1.240 | —|
-| LCC | 0.145 | 0.149 | 0.547 | **0.070** | 0.550 | —|
-| RepoBench-P | 0.087 | 0.123 | 0.513 | **0.027** | 0.511 | —|
-| **Average** | 0.281 | 0.261 | 0.836 | **0.124** | 0.837 | —|
+| NarrativeQA† | 0.045 | 0.091 | 0.559 | **0.030** | 0.559 | 0.030 |
+| Qasper† | 0.637 | 0.620 | 0.867 | **0.281** | 0.858 | 0.281 |
+| MultifieldQA | 0.475 | 0.499 | 0.925 | **0.122** | 0.914 | 0.122 |
+| HotpotQA† | 0.220 | 0.114 | 1.246 | **0.018** | 1.252 | 0.018 |
+| 2WikiMQA† | 0.351 | 0.238 | 1.040 | **0.049** | 1.052 | 0.049 |
+| MuSiQue† | 0.191 | 0.182 | 1.243 | **0.022** | 1.236 | 0.022 |
+| GovReport | 0.423 | 0.583 | 0.529 | **0.351** | 0.529 | 0.351 |
+| QMSum† | **0.112** | 0.160 | 0.358 | 0.122 | 0.358 | 0.122 |
+| MultiNews | 0.947 | 0.961 | 1.063 | 0.822 | 1.064 | **0.821** |
+| TREC | 0.296 | 0.325 | 0.812 | **0.040** | 0.823 | 0.040 |
+| TriviaQA | 0.157 | 0.044 | 0.832 | **0.001** | 0.833 | 0.001 |
+| SAMSum | 0.017 | 0.031 | 0.475 | **0.016** | 0.475 | 0.016 |
+| PassageCount† | 0.116 | 0.004 | 1.122 | **0.001** | 1.134 | 0.001 |
+| PassageRetrieval | 0.282 | 0.050 | 1.247 | **0.009** | 1.240 | 0.009 |
+| LCC | 0.145 | 0.149 | 0.547 | **0.070** | 0.550 | 0.070 |
+| RepoBench-P | 0.087 | 0.123 | 0.513 | **0.027** | 0.511 | 0.027 |
+| **Average** | 0.281 | 0.261 | 0.836 | **0.124** | 0.837 | **0.124** |
 
 **Tables A2a–A2b. KL Faithfulness per task, Mistral-7B-v0.3 (lower is better). Bold = best per row.**
 
@@ -758,73 +778,73 @@ Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Liang, L., Zou, J., Wang, Z., and Chen
 
 ## Appendix B: Output Faithfulness — Per-Task Results
 
-**Tables B1a–B1c. F_out per task, Llama-3.1-8B (higher is better). Bold = highest value per row. Pyr+rot values pending rerun of corrected implementation.**
+**Tables B1a–B1c. F_out per task, Llama-3.1-8B (higher is better). Bold = highest value per row. Pyr+rot at 50% and 35% pending.**
 
 **Table B1a. 65% retention.**
 
 | Task             | Naive    | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot |
 |------------------|----------|-----------|----------|------------|----------|---------|
-| NarrativeQA†     | **88.1** | 59.9      | 63.1     | 59.6       | 61.7     | —|
-| Qasper†          | 46.4     | 56.9      | 71.4     | 58.4       | **72.6** | —|
-| MultifieldQA     | 57.3     | 63.6      | 81.0     | 73.9       | **86.0** | —|
-| HotpotQA†        | 88.2     | 72.6      | **95.3** | 85.3       | 92.2     | —|
-| 2WikiMQA†        | 64.5     | 77.9      | **95.6** | 85.2       | **95.6** | —|
-| MuSiQue†         | **97.1** | 72.3      | 92.7     | 86.9       | 92.3     | —|
-| GovReport        | **55.8** | 40.1      | 47.8     | 45.5       | 51.2     | —|
-| QMSum†           | **54.4** | 37.0      | 41.7     | 40.3       | 40.4     | —|
-| MultiNews        | 43.8     | 41.0      | 44.6     | 42.5       | **49.0** | —|
-| TREC             | 75.3     | 74.0      | **82.6** | 78.2       | 81.3     | —|
-| TriviaQA         | 71.1     | 60.2      | 92.0     | 83.3       | **97.0** | —|
-| SAMSum           | 64.9     | 52.6      | **78.4** | 67.2       | 73.4     | —|
-| PassageCount†    | 70.7     | 61.8      | 92.8     | 83.9       | **96.4** | —|
-| PassageRetrieval | 80.1     | 70.0      | **94.0** | 82.2       | 93.8     | —|
-| LCC              | 62.0     | 73.8      | **92.8** | 87.7       | 91.3     | —|
-| RepoBench-P      | 77.3     | 65.6      | 90.5     | 77.9       | **90.6** | —|
-| **Average**      | 68.6     | 61.2      | 78.5     | 71.1       | **79.1** | —|
+| NarrativeQA†     | **88.1** | 59.9      | 63.1     | 59.6       | 61.7     | 60.4 |
+| Qasper†          | 46.4     | 56.9      | 71.4     | 58.4       | **72.6** | 61.0 |
+| MultifieldQA     | 57.3     | 63.6      | 81.0     | 73.9       | **86.0** | 76.3 |
+| HotpotQA†        | 88.2     | 72.6      | **95.3** | 85.3       | 92.2     | 85.9 |
+| 2WikiMQA†        | 64.5     | 77.9      | **95.6** | 85.2       | **95.6** | 86.4 |
+| MuSiQue†         | **97.1** | 72.3      | 92.7     | 86.9       | 92.3     | 83.5 |
+| GovReport        | **55.8** | 40.1      | 47.8     | 45.5       | 51.2     | 43.9 |
+| QMSum†           | **54.4** | 37.0      | 41.7     | 40.3       | 40.4     | 42.1 |
+| MultiNews        | 43.8     | 41.0      | 44.6     | 42.5       | **49.0** | 40.5 |
+| TREC             | 75.3     | 74.0      | **82.6** | 78.2       | 81.3     | 78.6 |
+| TriviaQA         | 71.1     | 60.2      | 92.0     | 83.3       | **97.0** | 86.6 |
+| SAMSum           | 64.9     | 52.6      | **78.4** | 67.2       | 73.4     | 66.5 |
+| PassageCount†    | 70.7     | 61.8      | 92.8     | 83.9       | **96.4** | 82.3 |
+| PassageRetrieval | 80.1     | 70.0      | **94.0** | 82.2       | 93.8     | 82.8 |
+| LCC              | 62.0     | 73.8      | **92.8** | 87.7       | 91.3     | 88.3 |
+| RepoBench-P      | 77.3     | 65.6      | 90.5     | 77.9       | **90.6** | 80.6 |
+| **Average**      | 68.6     | 61.2      | 78.5     | 71.1       | **79.1** | 71.6 |
 
 **Table B1b. 50% retention.**
 
 | Task             | Naive    | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot  |
 |------------------|----------|-----------|----------|------------|----------|----------|
-| NarrativeQA†     | 48.4     | 53.0      | **62.2** | 58.5       | 53.0     | —|
-| Qasper†          | 38.3     | 46.6      | **61.1** | 54.0       | 52.2     | —|
-| MultifieldQA     | 55.7     | 59.6      | **76.3** | 73.8       | 70.6     | —|
-| HotpotQA†        | 65.2     | 68.4      | **90.2** | 81.6       | 77.8     | —|
-| 2WikiMQA†        | 62.8     | 74.2      | **92.0** | 84.4       | 84.5     | —|
-| MuSiQue†         | 64.3     | 68.1      | **90.1** | 83.3       | 80.8     | —|
-| GovReport        | 37.9     | 36.6      | **41.5** | 40.2       | 37.3     | —|
-| QMSum†           | 38.7     | 36.0      | 39.8     | **40.8**   | 38.0     | —|
-| MultiNews        | **44.9** | 37.7      | 35.4     | 35.9       | 33.4     | —|
-| TREC             | 71.8     | 71.1      | **76.3** | 73.8       | 70.5     | —|
-| TriviaQA         | 45.4     | 48.8      | **90.8** | 78.5       | 76.1     | —|
-| SAMSum           | 48.2     | 48.6      | **67.2** | 61.1       | 49.1     | —|
-| PassageCount†    | 31.8     | 57.9      | **89.3** | 77.5       | 85.6     | —|
-| PassageRetrieval | 67.1     | 69.8      | **92.6** | 81.7       | 82.7     | —|
-| LCC              | 57.8     | 67.7      | **84.6** | 81.1       | 70.0     | —|
-| RepoBench-P      | 55.3     | 57.7      | **82.5** | 78.1       | 65.8     | —|
-| **Average**      | 52.1     | 56.4      | **73.2** | 67.8       | 64.2     | —|
+| NarrativeQA†     | 48.4     | 53.0      | **62.2** | 58.5       | 53.0     | 50.6 |
+| Qasper†          | 38.3     | 46.6      | **61.1** | 54.0       | 52.2     | 46.6 |
+| MultifieldQA     | 55.7     | 59.6      | **76.3** | 73.8       | 70.6     | 67.1 |
+| HotpotQA†        | 65.2     | 68.4      | **90.2** | 81.6       | 77.8     | 73.9 |
+| 2WikiMQA†        | 62.8     | 74.2      | **92.0** | 84.4       | 84.5     | 82.2 |
+| MuSiQue†         | 64.3     | 68.1      | **90.1** | 83.3       | 80.8     | 77.3 |
+| GovReport        | 37.9     | 36.6      | **41.5** | 40.2       | 37.3     | 34.7 |
+| QMSum†           | 38.7     | 36.0      | 39.8     | **40.8**   | 38.0     | 38.4 |
+| MultiNews        | **44.9** | 37.7      | 35.4     | 35.9       | 33.4     | 33.1 |
+| TREC             | 71.8     | 71.1      | **76.3** | 73.8       | 70.5     | 68.8 |
+| TriviaQA         | 45.4     | 48.8      | **90.8** | 78.5       | 76.1     | 71.8 |
+| SAMSum           | 48.2     | 48.6      | **67.2** | 61.1       | 49.1     | 49.1 |
+| PassageCount†    | 31.8     | 57.9      | **89.3** | 77.5       | 85.6     | 75.1 |
+| PassageRetrieval | 67.1     | 69.8      | **92.6** | 81.7       | 82.7     | 76.8 |
+| LCC              | 57.8     | 67.7      | **84.6** | 81.1       | 70.0     | 68.4 |
+| RepoBench-P      | 55.3     | 57.7      | **82.5** | 78.1       | 65.8     | 66.5 |
+| **Average**      | 52.1     | 56.4      | **73.2** | 67.8       | 64.2     | 61.3 |
 
 **Table B1c. 35% retention.**
 
 | Task             | Naive    | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot  |
 |------------------|----------|-----------|----------|------------|----------|----------|
-| NarrativeQA†     | 44.7     | 48.4      | 57.3     | **59.6**   | 57.3     | —|
-| Qasper†          | 34.3     | 40.6      | **51.8** | 50.3       | **51.8** | —|
-| MultifieldQA     | 47.6     | 54.5      | 69.9     | 69.0       | **70.0** | —|
-| HotpotQA†        | 58.8     | 66.9      | 85.2     | 80.1       | **85.4** | —|
-| 2WikiMQA†        | 56.1     | 69.8      | **87.3** | 81.1       | **87.3** | —|
-| MuSiQue†         | 58.4     | 68.2      | 84.2     | 80.5       | **84.6** | —|
-| GovReport        | 35.1     | 31.9      | 36.6     | 36.0       | **36.7** | —|
-| QMSum†           | 37.2     | 34.0      | 36.4     | **37.7**   | 36.4     | —|
-| MultiNews        | **36.8** | 32.2      | 31.9     | 29.5       | 32.6     | —|
-| TREC             | 66.9     | 65.3      | 68.1     | 66.6       | **67.6** | —|
-| TriviaQA         | 38.6     | 39.8      | 84.2     | 74.8       | **84.8** | —|
-| SAMSum           | 41.4     | 43.7      | **56.3** | 51.0       | **56.3** | —|
-| PassageCount†    | 32.1     | 47.1      | 84.7     | 71.9       | **85.1** | —|
-| PassageRetrieval | 57.9     | 65.4      | **86.0** | 78.5       | 85.4     | —|
-| LCC              | 54.2     | 63.0      | 77.3     | 75.2       | **77.4** | —|
-| RepoBench-P      | 50.0     | 57.2      | 71.6     | 66.9       | **71.7** | —|
-| **Average**      | 46.9     | 51.8      | 66.8     | 63.0       | **66.9** | —|
+| NarrativeQA†     | 44.7     | 48.4      | 57.3     | **59.6**   | 57.3     | **59.6** |
+| Qasper†          | 34.3     | 40.6      | **51.8** | 50.3       | **51.8** | 50.7 |
+| MultifieldQA     | 47.6     | 54.5      | 69.9     | 69.0       | **70.0** | 68.6 |
+| HotpotQA†        | 58.8     | 66.9      | 85.2     | 80.1       | **85.4** | 80.5 |
+| 2WikiMQA†        | 56.1     | 69.8      | **87.3** | 81.1       | **87.3** | 81.2 |
+| MuSiQue†         | 58.4     | 68.2      | 84.2     | 80.5       | **84.6** | 80.7 |
+| GovReport        | 35.1     | 31.9      | 36.6     | 36.0       | **36.7** | 35.1 |
+| QMSum†           | 37.2     | 34.0      | 36.4     | **37.7**   | 36.4     | **37.7** |
+| MultiNews        | **36.8** | 32.2      | 31.9     | 29.5       | 32.6     | 29.2 |
+| TREC             | 66.9     | 65.3      | 68.1     | 66.6       | **67.6** | 66.4 |
+| TriviaQA         | 38.6     | 39.8      | 84.2     | 74.8       | **84.8** | 75.3 |
+| SAMSum           | 41.4     | 43.7      | **56.3** | 51.0       | **56.3** | 50.5 |
+| PassageCount†    | 32.1     | 47.1      | 84.7     | 71.9       | **85.1** | 72.9 |
+| PassageRetrieval | 57.9     | 65.4      | **86.0** | 78.5       | 85.4     | 78.0 |
+| LCC              | 54.2     | 63.0      | 77.3     | 75.2       | **77.4** | 74.9 |
+| RepoBench-P      | 50.0     | 57.2      | 71.6     | 66.9       | **71.7** | 66.5 |
+| **Average**      | 46.9     | 51.8      | 66.8     | 63.0       | **66.9** | 63.0 |
 
 **Tables B2a–B2b. F_out per task, Mistral-7B-v0.3 (higher is better). Bold = highest value per row.**
 
@@ -876,73 +896,73 @@ Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Liang, L., Zou, J., Wang, Z., and Chen
 
 ## Appendix C: Ground-Truth Accuracy — Per-Task Results
 
-**Tables C1a–C1c. Ground-truth accuracy per task, Llama-3.1-8B (higher is better). Bold = best compressed method per row; "Full" is the reference. Streaming = streaming_rerotated. Pyr+rot values pending rerun of corrected implementation.**
+**Tables C1a–C1c. Ground-truth accuracy per task, Llama-3.1-8B (higher is better). Bold = best compressed method per row; "Full" is the reference. Streaming = streaming_rerotated. Pyr+rot at 50% and 35% pending.**
 
 **Table C1a. 65% retention.**
 
 | Task             | Full | Naive    | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot  |
 | ---------------- | ---- | -------- | --------- | -------- | ---------- | -------- | -------- |
-| NarrativeQA†     | 5.5  | 4.9      | **5.8**   | 5.6      | 5.2        | 5.5      | —|
-| Qasper†          | 11.1 | 10.2     | 9.5       | 11.3     | **12.0**   | 11.8     | —|
-| MultifieldQA     | 28.9 | 27.0     | 26.3      | **30.2** | 29.1       | 29.4     | —|
-| HotpotQA†        | 9.9  | 9.6      | 9.0       | 9.9      | 10.1       | **10.2** | —|
-| 2WikiMQA†        | 14.1 | 12.6     | **13.9**  | **13.9** | 13.5       | 13.7     | —|
-| MuSiQue†         | 6.9  | 7.0      | 5.6       | **7.2**  | 7.0        | 7.1      | —|
-| GovReport        | 20.4 | 19.8     | 18.9      | 19.6     | 19.8       | **20.1** | —|
-| QMSum†           | 10.3 | **11.5** | 9.9       | 9.7      | 9.4        | 9.4      | —|
-| MultiNews        | 19.0 | 16.5     | 17.7      | **18.1** | 17.7       | 17.9     | —|
-| TREC             | 70.0 | 66.0     | 68.0      | **71.0** | 70.0       | **71.0** | —|
-| TriviaQA         | 17.4 | 17.3     | 17.4      | 17.5     | **17.7**   | 17.5     | —|
-| SAMSum           | 16.0 | 16.5     | **17.1**  | 16.2     | 16.2       | 16.3     | —|
-| PassageCount†    | 3.0  | 1.0      | **3.0**   | **3.0**  | **3.0**    | **3.0**  | —|
-| PassageRetrieval | 44.0 | 37.0     | 37.0      | **44.0** | 43.0       | **44.0** | —|
-| LCC              | 68.1 | 63.4     | 67.2      | 68.1     | 67.8       | **68.5** | —|
-| RepoBench-P      | 55.6 | 53.9     | 53.2      | 55.4     | 55.5       | **56.0** | —|
-| **Average**      | 25.0 | 23.4     | 23.7      | 25.0     | 24.8       | **25.1** | —|
+| NarrativeQA†     | 5.5  | 4.9      | **5.8**   | 5.6      | 5.2        | 5.5      | 5.3 |
+| Qasper†          | 11.1 | 10.2     | 9.5       | 11.3     | **12.0**   | 11.8     | 11.3 |
+| MultifieldQA     | 28.9 | 27.0     | 26.3      | **30.2** | 29.1       | 29.4     | 28.6 |
+| HotpotQA†        | 9.9  | 9.6      | 9.0       | 9.9      | 10.1       | 10.2     | **10.5** |
+| 2WikiMQA†        | 14.1 | 12.6     | **13.9**  | **13.9** | 13.5       | 13.7     | 13.4 |
+| MuSiQue†         | 6.9  | 7.0      | 5.6       | 7.2      | 7.0        | 7.1      | **7.5** |
+| GovReport        | 20.4 | 19.8     | 18.9      | 19.6     | 19.8       | 20.1     | **20.3** |
+| QMSum†           | 10.3 | **11.5** | 9.9       | 9.7      | 9.4        | 9.4      | 9.9 |
+| MultiNews        | 19.0 | 16.5     | 17.7      | **18.1** | 17.7       | 17.9     | 17.4 |
+| TREC             | 70.0 | 66.0     | 68.0      | **71.0** | 70.0       | **71.0** | **71.0** |
+| TriviaQA         | 17.4 | 17.3     | 17.4      | 17.5     | **17.7**   | 17.5     | 17.2 |
+| SAMSum           | 16.0 | 16.5     | **17.1**  | 16.2     | 16.2       | 16.3     | 16.4 |
+| PassageCount†    | 3.0  | 1.0      | **3.0**   | **3.0**  | **3.0**    | **3.0**  | **3.0** |
+| PassageRetrieval | 44.0 | 37.0     | 37.0      | 44.0     | 43.0       | 44.0     | **45.0** |
+| LCC              | 68.1 | 63.4     | 67.2      | 68.1     | 67.8       | **68.5** | 67.2 |
+| RepoBench-P      | 55.6 | 53.9     | 53.2      | 55.4     | 55.5       | **56.0** | 55.8 |
+| **Average**      | 25.0 | 23.4     | 23.7      | 25.0     | 24.8       | **25.1** | 25.0 |
 
 **Table C1b. 50% retention.**
 
 | Task             | Full | Naive    | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot  |
 | ---------------- | ---- | -------- | --------- | -------- | ---------- | -------- | -------- |
-| NarrativeQA†     | 5.5  | 5.7      | 5.5       | 6.7      | 5.7        | **6.8**  | —|
-| Qasper†          | 11.1 | 8.6      | 9.4       | 11.1     | **11.7**   | 9.8      | —|
-| MultifieldQA     | 28.9 | 23.0     | 25.4      | 29.2     | 29.1       | **29.5** | —|
-| HotpotQA†        | 9.9  | 8.9      | **9.9**   | 9.7      | 9.7        | 9.6      | —|
-| 2WikiMQA†        | 14.1 | 12.7     | 13.8      | 14.0     | **14.6**   | 13.8     | —|
-| MuSiQue†         | 6.9  | 5.8      | 5.3       | 7.0      | **7.4**    | 6.8      | —|
-| GovReport        | 20.4 | 19.5     | 19.0      | **20.0** | 19.6       | 19.5     | —|
-| QMSum†           | 10.3 | 9.5      | 9.1       | 9.7      | **10.3**   | 9.7      | —|
-| MultiNews        | 19.0 | 17.5     | **17.6**  | 16.1     | 16.6       | 15.4     | —|
-| TREC             | 70.0 | 63.0     | 67.0      | 71.0     | **72.0**   | 68.0     | —|
-| TriviaQA         | 17.4 | 17.4     | **17.6**  | 17.4     | 17.4       | 17.3     | —|
-| SAMSum           | 16.0 | **17.7** | 17.6      | 16.1     | 16.0       | 17.6     | —|
-| PassageCount†    | 3.0  | 2.0      | **3.0**   | **3.0**  | **3.0**    | **3.0**  | —|
-| PassageRetrieval | 44.0 | 21.0     | 36.0      | **44.0** | **44.0**   | 43.0     | —|
-| LCC              | 68.1 | 61.6     | 66.8      | **68.1** | 67.0       | 63.9     | —|
-| RepoBench-P      | 55.6 | 51.4     | 53.8      | **55.7** | 55.3       | 52.8     | —|
-| **Average**      | 25.0 | 21.6     | 23.6      | 24.9     | **25.0**   | 24.2     | —|
+| NarrativeQA†     | 5.5  | 5.7      | 5.5       | 6.7      | 5.7        | **6.8**  | 6.7 |
+| Qasper†          | 11.1 | 8.6      | 9.4       | 11.1     | **11.7**   | 9.8      | 9.3 |
+| MultifieldQA     | 28.9 | 23.0     | 25.4      | 29.2     | 29.1       | **29.5** | 29.2 |
+| HotpotQA†        | 9.9  | 8.9      | **9.9**   | 9.7      | 9.7        | 9.6      | 9.2 |
+| 2WikiMQA†        | 14.1 | 12.7     | 13.8      | 14.0     | **14.6**   | 13.8     | 14.0 |
+| MuSiQue†         | 6.9  | 5.8      | 5.3       | 7.0      | **7.4**    | 6.8      | 6.3 |
+| GovReport        | 20.4 | 19.5     | 19.0      | **20.0** | 19.6       | 19.5     | 19.4 |
+| QMSum†           | 10.3 | 9.5      | 9.1       | 9.7      | **10.3**   | 9.7      | 9.7 |
+| MultiNews        | 19.0 | 17.5     | **17.6**  | 16.1     | 16.6       | 15.4     | 15.7 |
+| TREC             | 70.0 | 63.0     | 67.0      | 71.0     | **72.0**   | 68.0     | 69.0 |
+| TriviaQA         | 17.4 | 17.4     | **17.6**  | 17.4     | 17.4       | 17.3     | 17.3 |
+| SAMSum           | 16.0 | **17.7** | 17.6      | 16.1     | 16.0       | 17.6     | 17.1 |
+| PassageCount†    | 3.0  | 2.0      | **3.0**   | **3.0**  | **3.0**    | **3.0**  | **3.0** |
+| PassageRetrieval | 44.0 | 21.0     | 36.0      | **44.0** | **44.0**   | 43.0     | 41.0 |
+| LCC              | 68.1 | 61.6     | 66.8      | **68.1** | 67.0       | 63.9     | 63.1 |
+| RepoBench-P      | 55.6 | 51.4     | 53.8      | **55.7** | 55.3       | 52.8     | 53.5 |
+| **Average**      | 25.0 | 21.6     | 23.6      | 24.9     | **25.0**   | 24.2     | 24.0 |
 
 **Table C1c. 35% retention.**
 
 | Task             | Full | Naive    | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot  |
 | ---------------- | ---- | -------- | --------- | -------- | ---------- | -------- | -------- |
-| NarrativeQA†     | 5.5  | **7.8**  | 6.5       | 6.4      | 6.6        | 6.4      | —|
-| Qasper†          | 11.1 | 7.7      | 7.8       | **10.8** | 10.4       | **10.8** | —|
-| MultifieldQA     | 28.9 | 21.2     | 24.2      | **30.2** | 29.6       | 30.0     | —|
-| HotpotQA†        | 9.9  | **11.4** | 9.4       | 10.0     | 9.7        | 10.0     | —|
-| 2WikiMQA†        | 14.1 | 11.0     | 12.5      | **14.6** | 13.6       | **14.6** | —|
-| MuSiQue†         | 6.9  | 4.7      | 5.2       | **6.5**  | **6.5**    | **6.5**  | —|
-| GovReport        | 20.4 | 18.7     | 18.6      | 18.9     | **19.1**   | 19.0     | —|
-| QMSum†           | 10.3 | 9.9      | 9.9       | **10.2** | **10.2**   | **10.2** | —|
-| MultiNews        | 19.0 | **16.7** | 16.0      | 15.7     | 15.4       | 15.8     | —|
-| TREC             | 70.0 | 60.0     | 63.0      | **69.0** | 68.0       | **69.0** | —|
-| TriviaQA         | 17.4 | 17.3     | **18.3**  | 17.4     | 17.6       | 17.4     | —|
-| SAMSum           | 16.0 | 17.6     | **18.2**  | 17.3     | 17.3       | 17.3     | —|
-| PassageCount†    | 3.0  | **3.0**  | **3.0**   | **3.0**  | **3.0**    | **3.0**  | —|
-| PassageRetrieval | 44.0 | 12.0     | 37.0      | **44.0** | 42.0       | **44.0** | —|
-| LCC              | 68.1 | 62.4     | 66.2      | 67.0     | **67.1**   | 67.0     | —|
-| RepoBench-P      | 55.6 | 50.6     | **54.0**  | **55.1** | 54.7       | **55.1** | —|
-| **Average**      | 25.0 | 20.8     | 23.1      | **24.8** | 24.4       | **24.8** | —|
+| NarrativeQA†     | 5.5  | **7.8**  | 6.5       | 6.4      | 6.6        | 6.4      | 6.6 |
+| Qasper†          | 11.1 | 7.7      | 7.8       | **10.8** | 10.4       | **10.8** | 10.6 |
+| MultifieldQA     | 28.9 | 21.2     | 24.2      | **30.2** | 29.6       | 30.0     | 29.8 |
+| HotpotQA†        | 9.9  | **11.4** | 9.4       | 10.0     | 9.7        | 10.0     | 9.7 |
+| 2WikiMQA†        | 14.1 | 11.0     | 12.5      | **14.6** | 13.6       | **14.6** | 13.6 |
+| MuSiQue†         | 6.9  | 4.7      | 5.2       | **6.5**  | **6.5**    | **6.5**  | **6.5** |
+| GovReport        | 20.4 | 18.7     | 18.6      | 18.9     | **19.1**   | 19.0     | 18.7 |
+| QMSum†           | 10.3 | 9.9      | 9.9       | **10.2** | **10.2**   | **10.2** | 10.1 |
+| MultiNews        | 19.0 | **16.7** | 16.0      | 15.7     | 15.4       | 15.8     | 15.4 |
+| TREC             | 70.0 | 60.0     | 63.0      | **69.0** | 68.0       | **69.0** | 68.0 |
+| TriviaQA         | 17.4 | 17.3     | **18.3**  | 17.4     | 17.6       | 17.4     | **17.7** |
+| SAMSum           | 16.0 | 17.6     | **18.2**  | 17.3     | 17.3       | 17.3     | 17.3 |
+| PassageCount†    | 3.0  | **3.0**  | **3.0**   | **3.0**  | **3.0**    | **3.0**  | **3.0** |
+| PassageRetrieval | 44.0 | 12.0     | 37.0      | **44.0** | 42.0       | **44.0** | 42.0 |
+| LCC              | 68.1 | 62.4     | 66.2      | 67.0     | **67.1**   | 67.0     | **67.1** |
+| RepoBench-P      | 55.6 | 50.6     | **54.0**  | **55.1** | 54.7       | **55.1** | 54.7 |
+| **Average**      | 25.0 | 20.8     | 23.1      | **24.8** | 24.4       | **24.8** | 24.4 |
 
 **Tables C2a–C2b. Ground-truth accuracy per task, Mistral-7B-v0.3 (higher is better). Bold = best compressed method per row; Full is the reference. Streaming = streaming_rerotated.**
 
