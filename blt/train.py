@@ -185,16 +185,16 @@ def train(args):
     tokenizer.pad_token = tokenizer.eos_token
 
     if args.hybrid:
-        log(f'Building hybrid model ({args.n_mha_layers} MHA + {12 - args.n_mha_layers} BLT layers, from scratch)...')
-        model = build_hybrid_model(n_mha=args.n_mha_layers).to(device)
+        log(f'Building hybrid model ({args.n_mha_layers} MHA layers, shape={args.pretrained}, from scratch)...')
+        model = build_hybrid_model(n_mha=args.n_mha_layers, pretrained=args.pretrained).to(device)
     elif args.gqa:
-        log(f'Building GQA model ({args.num_kv_groups} KV groups, 12 query heads, from scratch)...')
-        model = build_gqa_model(n_kv_groups=args.num_kv_groups).to(device)
+        log(f'Building GQA model ({args.num_kv_groups} KV groups, shape={args.pretrained}, from scratch)...')
+        model = build_gqa_model(n_kv_groups=args.num_kv_groups, pretrained=args.pretrained).to(device)
     elif args.baseline:
         if args.from_scratch:
-            log('Building GPT-2 model from scratch (random init)...')
+            log(f'Building GPT-2 model from scratch (random init, shape={args.pretrained})...')
             from transformers import GPT2Config
-            model = GPT2LMHeadModel(GPT2Config()).to(device)
+            model = GPT2LMHeadModel(GPT2Config.from_pretrained(args.pretrained)).to(device)
         else:
             log(f'Building baseline GPT-2 model (pretrained={args.pretrained})...')
             model = GPT2LMHeadModel.from_pretrained(args.pretrained).to(device)

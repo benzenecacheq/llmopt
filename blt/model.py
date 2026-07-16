@@ -209,14 +209,16 @@ class MHAAttention(nn.Module):
         return out, None
 
 
-def build_gqa_model(n_kv_groups=2):
+def build_gqa_model(n_kv_groups=2, pretrained='gpt2'):
     """
     Build a GPT-2 model with GQA replacing every attention layer.
-    Always initializes from scratch (random weights).
-    12 query heads, n_kv_groups KV heads (n_head/n_kv_groups queries per KV head).
-    n_kv_groups must evenly divide n_head (12): valid values are 1, 2, 3, 4, 6, 12.
+    Always initializes from scratch (random weights); `pretrained` only
+    controls the architecture shape (e.g. 'gpt2-medium'), not warm-start.
+    n_head query heads, n_kv_groups KV heads (n_head/n_kv_groups queries per KV head).
+    n_kv_groups must evenly divide n_head: valid values for GPT-2 small (12 heads)
+    are 1, 2, 3, 4, 6, 12.
     """
-    model = GPT2LMHeadModel(GPT2Config())
+    model = GPT2LMHeadModel(GPT2Config.from_pretrained(pretrained))
     cfg   = model.config
     D     = cfg.n_embd       # 768
     n_head = cfg.n_head      # 12
@@ -244,16 +246,17 @@ def build_gqa_model(n_kv_groups=2):
     return model
 
 
-def build_hybrid_model(n_mha=6):
+def build_hybrid_model(n_mha=6, pretrained='gpt2'):
     """
-    Hybrid: first n_mha layers use standard MHA, last (12 - n_mha) use BLT with one shared M.
-    Always initializes from scratch. Default n_mha=6 gives a 6/6 split.
+    Hybrid: first n_mha layers use standard MHA, remaining layers use BLT with one shared M.
+    Always initializes from scratch; `pretrained` only controls the architecture shape
+    (e.g. 'gpt2-medium'), not warm-start. Default n_mha=6 gives a 6/6 split on GPT-2 small.
 
     Tests whether BLT's expressiveness cost is concentrated in early layers.
-    M only needs to multi-task across (12 - n_mha) layers instead of 12, so the
-    shared matrix has a narrower job and may converge to a more useful solution.
+    M only needs to multi-task across (n_layer - n_mha) layers instead of all of them,
+    so the shared matrix has a narrower job and may converge to a more useful solution.
     """
-    model = GPT2LMHeadModel(GPT2Config())
+    model = GPT2LMHeadModel(GPT2Config.from_pretrained(pretrained))
     cfg   = model.config
     D     = cfg.n_embd       # 768
     n_head = cfg.n_head      # 12
@@ -317,7 +320,7 @@ def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False, from_scra
         raise ValueError('per_layer_m is only supported with num_m_groups=1')
 
     if from_scratch:
-        model = GPT2LMHeadModel(GPT2Config())
+        model = GPT2LMHeadModel(GPT2Config.from_pretrained(pretrained))
         random_m = True   # no pretrained Wq/Wk to average
     else:
         model = GPT2LMHeadModel.from_pretrained(pretrained)
