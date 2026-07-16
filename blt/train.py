@@ -13,7 +13,7 @@ import time
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Sampler
 from transformers import GPT2Tokenizer
 
 from model import build_blt_model, build_gqa_model, build_hybrid_model
@@ -26,6 +26,34 @@ def set_seed(seed: int):
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+
+
+class ResumableSampler(Sampler):
+    """Deterministic shuffling that can resume mid-epoch without replaying already-consumed
+    data. Each epoch's permutation is derived from seed+epoch_index (not the shared global
+    RNG), so it is fully reproducible from (seed, cumulative samples consumed) alone --
+    unlike DataLoader(shuffle=True), whose order depends on global RNG state that isn't
+    saved in checkpoints, causing resumed runs to replay the start of the shuffle.
+
+    `start_sample` is the cumulative sample count already consumed before this sampler was
+    constructed (i.e. micro_step * batch_size from the checkpoint, or 0 for a fresh run).
+    """
+
+    def __init__(self, dataset_len, seed, start_sample=0):
+        self.dataset_len = dataset_len
+        self.seed = seed
+        self.epoch = start_sample // dataset_len
+        self.offset = start_sample % dataset_len
+
+    def __iter__(self):
+        g = torch.Generator().manual_seed(self.seed + self.epoch)
+        perm = torch.randperm(self.dataset_len, generator=g).tolist()
+        yield from perm[self.offset:]
+        self.epoch += 1
+        self.offset = 0
+
+    def __len__(self):
+        return self.dataset_len - self.offset
 
 
 class TokenDataset(Dataset):
@@ -134,7 +162,8 @@ def model_is_finite(model):
     return all(torch.isfinite(p).all() for p in model.parameters())
 
 
-def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None, ema_loss=None):
+def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None, ema_loss=None,
+                    micro_step=None):
     if not model_is_finite(model):
         raise RuntimeError(
             f'Refusing to save checkpoint at step {step}: model parameters contain NaN/Inf. '
@@ -150,6 +179,7 @@ def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None,
         'scheduler_state': scheduler.state_dict(),
         'val_ppl': val_ppl,
         'ema_loss': ema_loss,
+        'micro_step': micro_step,
     }, tmp)
     # Keep previous checkpoint as .bak so a power cut during write leaves a fallback.
     if os.path.exists(path):
@@ -220,6 +250,18 @@ def train(args):
     n_params = sum(p.numel() for p in unique_params)
     log(f'  {n_params:,} unique parameters')
 
+    # Peek at the checkpoint before building the DataLoader so a resumed run's sampler
+    # can pick up exactly where the data stream left off, instead of replaying the start
+    # of the shuffle (DataLoader(shuffle=True)'s order depends on global RNG state, which
+    # isn't part of the checkpoint).
+    resume_ckpt = None
+    resume_micro_step = 0
+    if args.resume:
+        resume_ckpt = torch.load(args.resume, map_location=device)
+        resume_micro_step = resume_ckpt.get('micro_step')
+        if resume_micro_step is None:
+            resume_micro_step = resume_ckpt['step'] * args.grad_accum_steps
+
     if args.dataset == 'lambada_cloze':
         dataset = ClozeDataset(tokenizer, max_length=args.block_size)
         log(f'  {len(dataset):,} passages for cloze training (lambada_cloze)')
@@ -229,7 +271,9 @@ def train(args):
     else:
         dataset = TokenDataset(tokenizer, block_size=args.block_size, dataset=args.dataset)
         log(f'  {len(dataset):,} blocks of {args.block_size} tokens ({args.dataset})')
-        loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True,
+        sampler = ResumableSampler(len(dataset), args.seed,
+                                   start_sample=resume_micro_step * args.batch_size)
+        loader = DataLoader(dataset, batch_size=args.batch_size, sampler=sampler,
                             pin_memory=(device.type == 'cuda'), num_workers=2)
 
     optimizer = torch.optim.Adam(unique_params, lr=args.lr)
@@ -249,7 +293,7 @@ def train(args):
 
     if args.resume:
         log(f'Resuming from {args.resume} ...')
-        ckpt = torch.load(args.resume, map_location=device)
+        ckpt = resume_ckpt
         model.load_state_dict(ckpt['model_state'])
         optimizer.load_state_dict(ckpt['optimizer_state'])
         scheduler.load_state_dict(ckpt['scheduler_state'])
@@ -275,7 +319,7 @@ def train(args):
     step = start_step
     t0 = time.time()
     last_lambada_acc = None
-    micro_step = 0
+    micro_step = resume_micro_step
     accum_loss = 0.0
 
     scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
@@ -375,7 +419,8 @@ def train(args):
 
             if args.save_path and step > start_step and step % args.checkpoint_every == 0:
                 save_checkpoint(args.save_path, model, optimizer, scheduler,
-                                step, args.seed, last_val_ppl, ema_loss)
+                                step, args.seed, last_val_ppl, ema_loss,
+                                micro_step=micro_step)
 
             step += 1
 
@@ -385,7 +430,8 @@ def train(args):
 
     if args.save_path:
         save_checkpoint(args.save_path, model, optimizer, scheduler,
-                        step, args.seed, final_ppl, ema_loss)
+                        step, args.seed, final_ppl, ema_loss,
+                        micro_step=micro_step)
         log(f'Saved to {args.save_path}')
 
     log_f.close()
