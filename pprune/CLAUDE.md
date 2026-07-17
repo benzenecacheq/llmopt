@@ -163,7 +163,14 @@ All **KL** data is valid — teacher-forced, unaffected by position-ID bug.
 **GT data**: `generate_rerotated()` fix applied Jul 2026. All KeyRerotationPress GT checkpoints
 created before the fix are invalid. Affected checkpoints have been purged and re-run:
 - `gt_snapkv_rerotated*/` — purged and re-run ✓
-- `gt_mechanism_*/` — streaming_rerotated entries purged, re-running via mechanism sweep
+- `gt_mechanism_*/` — streaming_rerotated entries purged and re-run ✓
+
+**§4 paper GT tables fixed (Jul 2026)**: The §4 Streaming columns for both Llama and Mistral were
+populated from pre-fix data (near-zeros on QA tasks; Llama avg=18.5, Mistral avg=17.8). Updated
+to valid re-run values from `gt_mechanism_*/` checkpoints (Llama=23.7, Mistral=22.9). Bolding
+corrected: Streaming now leads on NarrativeQA (both models), TriviaQA/SAMSum (Mistral),
+SAMSum/2WikiMQA (Llama). The "nearly zeroing out fact-retrieval" claim in §4 narrative was
+removed — it was based on corrupted output.
 
 **PyramidKVRerotationPress fix (Jul 2026)**: `KeyRerotationPress(PyramidKVPress)` silently used
 uniform budget (bypassed `get_layer_budget()`), making it identical to SnapKV+rot. Fixed by

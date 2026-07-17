@@ -99,23 +99,23 @@ Before introducing our faithfulness metrics, we establish what the standard eval
 
 | Task             | Full | Naive    | SnapKV    | Streaming | PyramidKV |
 | ---------------- | ---- | -------- | --------- | --------- | --------- |
-| NarrativeQA†     | 5.5  | 4.9      | **5.6**   | 0.1       | 5.5       |
-| Qasper†          | 11.1 | 10.2     | 11.3      | 0.2       | **11.8**  |
-| MultifieldQA     | 28.9 | 27.0     | **30.2**  | 1.5       | 29.4      |
-| HotpotQA†        | 9.9  | 9.6      | 9.9       | 0.5       | **10.2**  |
-| 2WikiMQA†        | 14.1 | 12.6     | **13.9**  | 0.5       | 13.7      |
-| MuSiQue†         | 6.9  | 7.0      | **7.2**   | 0.5       | 7.1       |
+| NarrativeQA†     | 5.5  | 4.9      | 5.6       | **5.8**   | 5.5       |
+| Qasper†          | 11.1 | 10.2     | 11.3      | 9.5       | **11.8**  |
+| MultifieldQA     | 28.9 | 27.0     | **30.2**  | 26.3      | 29.4      |
+| HotpotQA†        | 9.9  | 9.6      | 9.9       | 9.0       | **10.2**  |
+| 2WikiMQA†        | 14.1 | 12.6     | **13.9**  | **13.9**  | 13.7      |
+| MuSiQue†         | 6.9  | 7.0      | **7.2**   | 5.6       | 7.1       |
 | GovReport        | 20.4 | 19.8     | 19.6      | 18.9      | **20.1**  |
 | QMSum†           | 10.3 | **11.5** | 9.7       | 9.9       | 9.4       |
 | MultiNews        | 19.0 | 16.5     | **18.1**  | 17.7      | 17.9      |
 | TREC             | 70.0 | 66.0     | **71.0**  | 68.0      | **71.0**  |
-| TriviaQA         | 17.4 | 17.3     | **17.5**  | 0.3       | **17.5**  |
-| SAMSum           | 16.0 | **16.5** | 16.2      | 17.1      | 16.3      |
+| TriviaQA         | 17.4 | 17.3     | **17.5**  | 17.4      | **17.5**  |
+| SAMSum           | 16.0 | 16.5     | 16.2      | **17.1**  | 16.3      |
 | PassageCount†    | 3.0  | 1.0      | **3.0**   | **3.0**   | **3.0**   |
 | PassageRetrieval | 44.0 | 37.0     | **44.0**  | 37.0      | **44.0**  |
 | LCC              | 68.1 | 63.4     | 68.1      | 67.2      | **68.5**  |
 | RepoBench-P      | 55.6 | 53.9     | 55.4      | 53.2      | **56.0**  |
-| **Average**      | 25.0 | 23.4     | 25.0      | 18.5      | **25.1**  |
+| **Average**      | 25.0 | 23.4     | 25.0      | 23.7      | **25.1**  |
 
 Full context is the reference and is not bolded. Bold marks the best compressed method per task. Tasks marked † have full-context scores below 15; results on these tasks are noisier.
 
@@ -123,25 +123,25 @@ Full context is the reference and is not bolded. Bold marks the best compressed 
 
 | Task             | Full | Naive    | SnapKV    | Streaming | PyramidKV |
 | ---------------- | ---- | -------- | --------- | --------- | --------- |
-| NarrativeQA†     | 5.1  | 2.7      | **5.1**   | 0.8       | 4.1       |
-| Qasper†          | 5.3  | 4.3      | **5.1**   | 0.1       | 4.8       |
-| MultifieldQA     | 25.3 | 22.1     | **24.9**  | 1.2       | 24.8      |
-| HotpotQA†        | 10.5 | 10.6     | **10.7**  | 0.3       | 10.6      |
-| 2WikiMQA†        | 11.5 | 9.8      | **11.7**  | 0.8       | **11.7**  |
-| MuSiQue†         | 5.1  | 3.9      | **5.1**   | 0.4       | **5.1**   |
+| NarrativeQA†     | 5.1  | 2.7      | 5.1       | **5.4**   | 4.1       |
+| Qasper†          | 5.3  | 4.3      | **5.1**   | 5.0       | 4.8       |
+| MultifieldQA     | 25.3 | 22.1     | **24.9**  | 23.2      | 24.8      |
+| HotpotQA†        | 10.5 | 10.6     | **10.7**  | 9.8       | 10.6      |
+| 2WikiMQA†        | 11.5 | 9.8      | **11.7**  | 11.3      | **11.7**  |
+| MuSiQue†         | 5.1  | 3.9      | **5.1**   | 4.4       | **5.1**   |
 | GovReport        | 20.0 | 19.7     | 19.8      | 19.4      | **20.0**  |
 | QMSum†           | 8.0  | **8.4**  | 7.9       | 8.3       | 7.9       |
 | MultiNews        | 18.1 | 17.2     | 17.2      | 17.1      | **17.3**  |
 | TREC             | 72.0 | 67.0     | 70.0      | 70.0      | **71.0**  |
-| TriviaQA         | 23.1 | **24.2** | 23.4      | 0.7       | 23.3      |
+| TriviaQA         | 23.1 | 24.2     | 23.4      | **26.5**  | 23.3      |
 | SAMSum           | 16.9 | 17.8     | 17.9      | **18.3**  | 18.1      |
 | PassageCount†    | 1.0  | **3.0**  | 1.0       | 1.0       | 1.0       |
 | PassageRetrieval | 39.0 | 26.0     | **39.0**  | 30.0      | **39.0**  |
 | LCC              | 62.9 | 60.2     | **63.2**  | 62.1      | **63.2**  |
 | RepoBench-P      | 53.9 | **54.4** | 54.1      | 54.1      | 54.0      |
-| **Average**      | 23.6 | 22.0     | **23.5**  | 17.8      | **23.5**  |
+| **Average**      | 23.6 | 22.0     | **23.5**  | 22.9      | **23.5**  |
 
-The overall pattern is the same across both architectures: ground-truth scores are compressed across methods. On both Llama and Mistral, SnapKV ties PyramidKV (Llama: 25.0 vs 25.1; Mistral: 23.5 vs 23.5), both exceeding naive. Streaming (18.5 Llama, 17.8 Mistral) sits below SnapKV and PyramidKV but substantially above naive truncation on average, though with a highly uneven task profile: recency bias helps summarization, classification, and code tasks (which rely on the recent document tail) while nearly zeroing out fact-retrieval tasks (NarrativeQA, Qasper, HotpotQA, TriviaQA). PyramidKV leads or ties all compressed methods on both models.
+The overall pattern is the same across both architectures: ground-truth scores are compressed across methods. On both Llama and Mistral, SnapKV ties PyramidKV (Llama: 25.0 vs 25.1; Mistral: 23.5 vs 23.5), both exceeding naive. Streaming (23.7 Llama, 22.9 Mistral) exceeds naive on both models and is competitive across most tasks, but trails SnapKV and PyramidKV in average. PyramidKV leads or ties all compressed methods on both models.
 
 Taken at face value, PyramidKV is the clear winner. But §5 argues these scores measure the wrong thing — and §8 shows that PyramidKV's ground-truth advantage conceals a faithfulness cost an order of magnitude larger than any other method's.
 
@@ -537,11 +537,11 @@ Streaming achieves 61.2% / 56.4% / 51.8% (65/50/35%), consistently above Naive b
 
 | Retention | Naive | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot |
 |-----------|-------|-----------|----------|------------|----------|---------|
-| 65%       | 61.1  | 61.0      | 83.7     | 78.2       | **83.9** | 77.0    |
+| 65%       | 60.0  | 61.0      | **83.7** | 78.2       | 83.5     | 77.0    |
 | 50%       | 56.9  | 57.4      | **79.0** | 74.3       | 68.8     | 66.5    |
 | 35%       | 53.5  | 53.9      | 74.0     | 70.1       | **74.8** | 70.0    |
 
-Mistral shows the same qualitative pattern as Llama. PyramidKV leads F_out at 65% and 35% (83.9%, 74.8%); SnapKV leads at 50% (79.0%), consistent with PyramidKV's budget collapse to uniform allocation at tight compression. Pyr+rot (77.0%, 66.5%, 70.0%) closely tracks SnapKV+rot (78.2%, 74.3%, 70.1%) at 65% and 35%, but falls behind at 50% — the same upper-layer information loss as on Llama. SnapKV+rot is below unrotated SnapKV/Pyr but above Naive and Streaming at all rates.
+Mistral shows a similar pattern to Llama. SnapKV leads at 65% (83.7%) and 50% (79.0%); PyramidKV leads at 35% (74.8%), consistent with PyramidKV's budget collapse to uniform allocation at tight compression. Pyr+rot (77.0%, 66.5%, 70.0%) closely tracks SnapKV+rot (78.2%, 74.3%, 70.1%) at 65% and 35%, but falls behind at 50% — the same upper-layer information loss as on Llama. SnapKV+rot is below unrotated SnapKV/Pyr but above Naive and Streaming at all rates.
 
 **What F_out and KL together reveal.** SnapKV and PyramidKV lead F_out while scoring worst on KL — the first-token-advantage mechanism explains this divergence (§8). SnapKV+rot breaks the pattern: it has the best KL of any method (Table 3) *and* F_out substantially above Naive and Streaming, at the cost of some F_out relative to plain SnapKV/Pyr, which retain the full-prefill first-token advantage that re-rotation sacrifices by decoding from compact position M rather than original position T.
 
