@@ -72,21 +72,53 @@ class TokenDataset(Dataset):
             texts = [t for t in ds['text'] if t.strip()]
             # pg19 books are 4M+ chars each; tokenize one at a time to avoid OOM
             chunk_size = 1
-        elif dataset == 'openwebtext':
-            cache_path = os.path.expanduser('~/.cache/blt_owt_2m_blocks.pt')
+        elif dataset in ('openwebtext', 'openwebtext_large'):
+            # openwebtext: original 21-file / ~2M-doc setup, used by every prior run in this
+            #   project -- cache path, file selection, and loading strategy unchanged for
+            #   reproducibility (~2.2M docs comfortably fits in memory as a plain Python list).
+            # openwebtext_large: files 0-20 + 26-79 (75 files, ~7.9B tokens, single-epoch
+            #   coverage for the 1.5M-step GPT-2 medium runs), explicitly skipping files
+            #   21-25 since those are the held-out set eval_owt.py has always used -- keeping
+            #   that range untouched means held-out numbers stay comparable across every run,
+            #   small and medium alike. At ~7.5M docs, materializing the whole corpus as a
+            #   Python list of strings (as the small path does) OOM-killed the process with no
+            #   traceback -- loaded and tokenized in chunks directly from the Arrow dataset
+            #   instead, so peak memory stays bounded to one chunk of raw text at a time.
+            large = (dataset == 'openwebtext_large')
+            cache_path = os.path.expanduser(
+                '~/.cache/blt_owt_75files_blocks.pt' if large else '~/.cache/blt_owt_2m_blocks.pt')
             if os.path.exists(cache_path):
                 self.blocks = torch.load(cache_path)
                 return
-            # Load first 21 parquet files directly from local cache (~2.1M docs).
             # Bulk Arrow load is far faster than streaming row-by-row.
             import glob
             parquet_dir = os.path.expanduser(
                 '~/.cache/huggingface/hub/datasets--Skylion007--openwebtext/'
                 'snapshots/b4325f019c648b1641a1784748667e8b74e5e064/plain_text/')
-            files = sorted(glob.glob(parquet_dir + 'train-*.parquet'))[:21]
-            ds = load_dataset('parquet', data_files={'train': files}, split='train')
-            texts = [t for t in ds['text'] if t.strip()][:2000000]
-            del ds
+            all_files = sorted(glob.glob(parquet_dir + 'train-*.parquet'))
+            if large:
+                files = all_files[0:21] + all_files[26:80]
+                ds = load_dataset('parquet', data_files={'train': files}, split='train')
+                all_ids = []
+                for i in range(0, len(ds), chunk_size):
+                    batch_texts = [t for t in ds[i:i + chunk_size]['text'] if t.strip()]
+                    if not batch_texts:
+                        continue
+                    encs = tokenizer._tokenizer.encode_batch(batch_texts)
+                    all_ids.append(torch.tensor([t for enc in encs for t in enc.ids],
+                                                dtype=torch.long))
+                del ds
+                tokens = torch.cat(all_ids)
+                del all_ids
+                n_blocks = len(tokens) // block_size
+                self.blocks = tokens[:n_blocks * block_size].view(n_blocks, block_size).clone()
+                torch.save(self.blocks, cache_path)
+                return
+            else:
+                files = all_files[:21]
+                ds = load_dataset('parquet', data_files={'train': files}, split='train')
+                texts = [t for t in ds['text'] if t.strip()][:2000000]
+                del ds
         else:
             ds = load_dataset('Salesforce/wikitext', 'wikitext-103-raw-v1', split='train')
             texts = [t for t in ds['text'] if t.strip()]
@@ -475,7 +507,8 @@ if __name__ == '__main__':
     parser.add_argument('--lambada-eval-every', type=int, default=2000,
                         help='Evaluate LAMBADA cloze accuracy every N steps (0 to disable)')
     parser.add_argument('--dataset', type=str, default='wikitext103',
-                        choices=['wikitext103', 'lambada', 'lambada_cloze', 'pg19', 'openwebtext'])
+                        choices=['wikitext103', 'lambada', 'lambada_cloze', 'pg19', 'openwebtext',
+                                'openwebtext_large'])
     parser.add_argument('--from-scratch', action='store_true',
                         help='Randomly initialize all weights (no pretrained GPT-2 load)')
     parser.add_argument('--ema-loss-weighting', action='store_true',
