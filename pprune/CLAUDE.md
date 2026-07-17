@@ -116,17 +116,16 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 - `gt_pyramidkv_rerotated_f35/` — 35%, all 16 tasks ✓ (1600/1600; F_out avg=63.0%)
 
 **GT (Mistral):**
-- `gt_snapkv_rerotated_mistral/` — 65% ✓ (1600/1600; avg F_out=78.2)
-- `gt_snapkv_rerotated_mistral_f50/` — 50% ✓ (1600/1600; avg F_out=74.3)
-- `gt_snapkv_rerotated_mistral_f35/` — 35% ✓ (1600/1600; avg F_out=70.1)
-- `gt_pyramidkv_rerotated_mistral/` — pending (queued)
-- `gt_pyramidkv_rerotated_mistral_f50/` — pending
-- `gt_pyramidkv_rerotated_mistral_f35/` — pending
+- `gt_snapkv_rerotated_mistral/` — 65% ✓ (1600/1600; avg F_out=78.2, avg GT=22.8)
+- `gt_snapkv_rerotated_mistral_f50/` — 50% ✓ (1600/1600; avg F_out=74.3, avg GT=22.7)
+- `gt_snapkv_rerotated_mistral_f35/` — 35% ✓ (1600/1600; avg F_out=70.1, avg GT=22.3)
+- `gt_pyramidkv_rerotated_mistral/` — 65% ✓ (1600/1600; avg F_out=77.0, avg GT=22.9)
+- `gt_pyramidkv_rerotated_mistral_f50/` — 50% ✓ (1600/1600; avg F_out=66.5, avg GT=22.1)
+- `gt_pyramidkv_rerotated_mistral_f35/` — 35% ✓ (1600/1600; avg F_out=70.0, avg GT=22.3)
 
 ## Currently running
 
-Mistral KL Pyr+rot all rates complete. Remaining:
-1. `gt_pyramidkv_rerotated_mistral/` 65/50/35% (`run_gt_pyramidkv_rerotated_mistral.sh`, in queue)
+KL Mistral 50% missing (naive_50pct, pyramidkv_f50) queued in `run_kl_mistral_f50_missing.sh`. When complete, update KL Table 3 Mistral with 50% row.
 
 ## Key empirical results (Llama, F_out macro over 16 tasks)
 
@@ -152,7 +151,7 @@ Section numbering: §1–§6 unchanged, §7 Main Experiments, §8 Why Post-Prefi
   PyramidKV three-rate story (65%: Pyr+rot≈SnapKV+rot; 50%: gap from window_size floor;
   35%: tied from budget collapse). F_out tradeoff covers all methods. Right-aligned re-rotation
   implementation note. §6.5 removed — merged into §6.4.
-- §7: Main experiment tables (KL, TTFT, F_out). All Llama Pyr+rot values filled. No phr128.
+- §7: Main experiment tables (KL, TTFT, F_out). All Llama and Mistral Pyr+rot values filled. Mistral KL 50% row pending (queued). No phr128.
 - §8: PyramidKV case study — Table 5 (short/long F_out), first-token advantage explanation.
 - §9: Discussion — "budget allocation and re-rotation interact" paragraph reflects three-rate story.
 - KL metric uses y* shared prefix (fixed path-dependence flaw); see `kl_faith_eval_ystar.py`.

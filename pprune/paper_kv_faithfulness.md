@@ -492,7 +492,7 @@ PyramidKV shows a similar counterintuitive trajectory: mean KL is 1.394 at 65%, 
 
 The Mistral rankings replicate the Llama pattern. SnapKV+rot leads at both rates (0.030 at 65%, 0.096 at 35%), outperforming all other methods by the same wide margin as on Llama. Pyr+rot at 65% (0.034) tracks SnapKV+rot closely, matching the Llama finding (0.047 vs 0.043). At 35%, Pyr+rot ties SnapKV+rot exactly (0.096) on all 16 tasks — the budget collapse to uniform allocation is total on Mistral as well. Unlike Llama, Streaming (0.161) trails Naive (0.133) on Mistral at every rate — Naive leads on 12 of 16 tasks (§5.5). SnapKV and PyramidKV show the same budget-tightening improvement (SnapKV 0.733→0.588, Pyr 0.734→0.586), and both remain far behind SnapKV+rot at every rate.
 
-Mistral SnapKV+rot F_out (78.2% at 65%, 70.1% at 35%) mirrors the Llama pattern: strong improvement over prompt-construction methods, below unrotated SnapKV/PyramidKV (Table 4).
+Mistral SnapKV+rot F_out (78.2%/74.3%/70.1% at 65/50/35%) mirrors the Llama pattern: strong improvement over prompt-construction methods, below unrotated SnapKV/PyramidKV. Pyr+rot (77.0%/66.5%/70.0%) tracks SnapKV+rot closely at 65% and 35%, and diverges at 50% by the same mechanism as Llama (Table 4).
 
 ### 7.3 Inference Performance
 
@@ -532,14 +532,15 @@ SnapKV+rot (71.1%, 67.8%, 63.0%) falls below the post-prefill eviction leaders b
 
 Streaming achieves 61.2% / 56.4% / 51.8% (65/50/35%), consistently above Naive but well below the post-prefill eviction leaders.
 
-**Mistral-7B-v0.3** (65% and 35% retention).
+**Mistral-7B-v0.3.**
 
-| Retention | Naive | Streaming | SnapKV | SnapKV+rot | Pyr |
-|---|---|---|---|---|---|
-| 65% | 61.1 | 61.0 | 83.7 | 78.2 | **83.9** |
-| 35% | 53.5 | 53.9 | 74.0 | 70.1 | **74.8** |
+| Retention | Naive | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot |
+|-----------|-------|-----------|----------|------------|----------|---------|
+| 65%       | 61.1  | 61.0      | 83.7     | 78.2       | **83.9** | 77.0    |
+| 50%       | 56.9  | 57.4      | **79.0** | 74.3       | 68.8     | 66.5    |
+| 35%       | 53.5  | 53.9      | 74.0     | 70.1       | **74.8** | 70.0    |
 
-Mistral shows the same qualitative pattern as Llama. PyramidKV leads F_out at both rates (83.9%, 74.8%); SnapKV is close (83.7%, 74.0%); SnapKV+rot (78.2%, 70.1%) is below unrotated SnapKV/Pyr but above Naive and Streaming, mirroring the Llama finding that rerotation improves KL at the cost of some F_out.
+Mistral shows the same qualitative pattern as Llama. PyramidKV leads F_out at 65% and 35% (83.9%, 74.8%); SnapKV leads at 50% (79.0%), consistent with PyramidKV's budget collapse to uniform allocation at tight compression. Pyr+rot (77.0%, 66.5%, 70.0%) closely tracks SnapKV+rot (78.2%, 74.3%, 70.1%) at 65% and 35%, but falls behind at 50% — the same upper-layer information loss as on Llama. SnapKV+rot is below unrotated SnapKV/Pyr but above Naive and Streaming at all rates.
 
 **What F_out and KL together reveal.** SnapKV and PyramidKV lead F_out while scoring worst on KL — the first-token-advantage mechanism explains this divergence (§8). SnapKV+rot breaks the pattern: it has the best KL of any method (Table 3) *and* F_out substantially above Naive and Streaming, at the cost of some F_out relative to plain SnapKV/Pyr, which retain the full-prefill first-token advantage that re-rotation sacrifices by decoding from compact position M rather than original position T.
 
@@ -844,57 +845,79 @@ Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Zheng, L., Cai, R., Song, Z., Tian, Y.
 | RepoBench-P      | 50.0     | 57.2      | 71.6     | 66.9       | **71.7** | 66.5 |
 | **Average**      | 46.9     | 51.8      | 66.8     | 63.0       | **66.9** | 63.0 |
 
-**Tables B2a–B2b. F_out per task, Mistral-7B-v0.3 (higher is better). Bold = highest value per row.**
+**Tables B2a–B2c. F_out per task, Mistral-7B-v0.3 (higher is better). Bold = highest value per row.**
 
 **Table B2a. 65% retention.**
 
-| Task             | Naive | Streaming | SnapKV   | SnapKV+rot | Pyr      |
-|------------------|-------|-----------|----------|------------|----------|
-| NarrativeQA†     | 40.5  | 38.2      | **57.4** | 53.1       | 55.4     |
-| Qasper†          | 69.0  | 69.4      | **87.1** | 79.6       | 86.1     |
-| MultifieldQA     | 63.9  | 66.8      | **90.3** | 84.3       | 89.3     |
-| HotpotQA†        | 66.9  | 63.9      | 94.7     | 88.5       | **94.8** |
-| 2WikiMQA†        | 66.8  | 77.0      | **95.2** | 89.0       | 94.8     |
-| MuSiQue†         | 64.6  | 68.0      | **94.3** | 90.2       | 93.3     |
-| GovReport        | 46.7  | 41.8      | 62.6     | 58.6       | **64.2** |
-| QMSum†           | 48.3  | 47.0      | 72.2     | 68.4       | **73.8** |
-| MultiNews        | 45.5  | 35.8      | **51.7** | 48.7       | 51.6     |
-| TREC             | 85.0  | 82.2      | **94.5** | 91.8       | 92.6     |
-| TriviaQA         | 57.4  | 60.6      | 91.9     | 84.0       | **93.8** |
-| SAMSum           | 55.1  | 57.2      | **72.4** | 69.8       | 69.6     |
-| PassageCount†    | 57.3  | 57.7      | 97.0     | 90.8       | **97.5** |
-| PassageRetrieval | 68.8  | 68.5      | 97.2     | 85.5       | **97.8** |
-| LCC              | 62.1  | 76.0      | 88.3     | 86.1       | **90.8** |
-| RepoBench-P      | 62.8  | 66.1      | **93.0** | 83.1       | 90.1     |
-| **Average**      | 60.0  | 61.0      | **83.7** | 78.2       | 83.5     |
+| Task             | Naive | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot |
+|------------------|-------|-----------|----------|------------|----------|---------|
+| NarrativeQA†     | 40.5  | 38.2      | **57.4** | 53.1       | 55.4     | 55.7 |
+| Qasper†          | 69.0  | 69.4      | **87.1** | 79.6       | 86.1     | 80.6 |
+| MultifieldQA     | 63.9  | 66.8      | **90.3** | 84.3       | 89.3     | 81.8 |
+| HotpotQA†        | 66.9  | 63.9      | 94.7     | 88.5       | **94.8** | 87.1 |
+| 2WikiMQA†        | 66.8  | 77.0      | **95.2** | 89.0       | 94.8     | 88.3 |
+| MuSiQue†         | 64.6  | 68.0      | **94.3** | 90.2       | 93.3     | 82.2 |
+| GovReport        | 46.7  | 41.8      | 62.6     | 58.6       | **64.2** | 58.1 |
+| QMSum†           | 48.3  | 47.0      | 72.2     | 68.4       | **73.8** | 66.2 |
+| MultiNews        | 45.5  | 35.8      | **51.7** | 48.7       | 51.6     | 46.2 |
+| TREC             | 85.0  | 82.2      | **94.5** | 91.8       | 92.6     | 90.7 |
+| TriviaQA         | 57.4  | 60.6      | 91.9     | 84.0       | **93.8** | 88.5 |
+| SAMSum           | 55.1  | 57.2      | **72.4** | 69.8       | 69.6     | 67.9 |
+| PassageCount†    | 57.3  | 57.7      | 97.0     | 90.8       | **97.5** | 84.7 |
+| PassageRetrieval | 68.8  | 68.5      | 97.2     | 85.5       | **97.8** | 83.8 |
+| LCC              | 62.1  | 76.0      | 88.3     | 86.1       | **90.8** | 87.2 |
+| RepoBench-P      | 62.8  | 66.1      | **93.0** | 83.1       | 90.1     | 82.2 |
+| **Average**      | 60.0  | 61.0      | **83.7** | 78.2       | 83.5     | 77.0 |
 
 **Table B2b. 35% retention.**
 
-| Task             | Naive    | Streaming | SnapKV   | SnapKV+rot | Pyr      |
-|------------------|----------|-----------|----------|------------|----------|
-| NarrativeQA†     | 39.5     | 37.1      | 54.4     | 53.8       | **54.6** |
-| Qasper†          | 60.6     | 60.4      | **77.1** | 73.5       | 77.0     |
-| MultifieldQA     | 56.0     | 52.5      | 81.8     | 78.9       | **82.3** |
-| HotpotQA†        | 64.0     | 63.6      | **88.0** | 81.3       | **88.0** |
-| 2WikiMQA†        | 65.4     | 68.1      | **88.5** | 83.7       | **88.5** |
-| MuSiQue†         | 58.7     | 63.7      | 87.9     | 80.9       | **88.0** |
-| GovReport        | 36.8     | 33.6      | 45.5     | 44.4       | **46.1** |
-| QMSum†           | 39.9     | 40.1      | **61.6** | 59.6       | 61.5     |
-| MultiNews        | **36.3** | 28.6      | 35.1     | 32.7       | **36.3** |
-| TREC             | 78.9     | 73.3      | 86.8     | **87.0**   | 86.8     |
-| TriviaQA         | 42.9     | 42.0      | 79.8     | 76.8       | **80.5** |
-| SAMSum           | 52.9     | 52.6      | 62.8     | 59.3       | **64.3** |
-| PassageCount†    | 39.2     | 54.6      | **87.3** | 79.3       | 87.1     |
-| PassageRetrieval | 61.9     | 66.2      | **88.4** | 78.3       | **88.4** |
-| LCC              | 59.5     | 68.4      | 77.8     | 74.9       | **81.8** |
-| RepoBench-P      | 62.6     | 57.6      | 82.0     | 77.6       | **85.9** |
-| **Average**      | 53.5     | 53.9      | 74.0     | 70.1       | **74.8** |
+| Task             | Naive    | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot |
+|------------------|----------|-----------|----------|------------|----------|---------|
+| NarrativeQA†     | 39.5     | 37.1      | 54.4     | 53.8       | **54.6** | 53.7 |
+| Qasper†          | 60.6     | 60.4      | **77.1** | 73.5       | 77.0     | 73.3 |
+| MultifieldQA     | 56.0     | 52.5      | 81.8     | 78.9       | **82.3** | 79.6 |
+| HotpotQA†        | 64.0     | 63.6      | **88.0** | 81.3       | **88.0** | 81.8 |
+| 2WikiMQA†        | 65.4     | 68.1      | **88.5** | 83.7       | **88.5** | 83.6 |
+| MuSiQue†         | 58.7     | 63.7      | 87.9     | 80.9       | **88.0** | 81.0 |
+| GovReport        | 36.8     | 33.6      | 45.5     | 44.4       | **46.1** | 44.5 |
+| QMSum†           | 39.9     | 40.1      | **61.6** | 59.6       | 61.5     | 58.9 |
+| MultiNews        | **36.3** | 28.6      | 35.1     | 32.7       | **36.3** | 32.2 |
+| TREC             | 78.9     | 73.3      | 86.8     | **87.0**   | 86.8     | 86.9 |
+| TriviaQA         | 42.9     | 42.0      | 79.8     | 76.8       | **80.5** | 77.0 |
+| SAMSum           | 52.9     | 52.6      | 62.8     | 59.3       | **64.3** | 59.3 |
+| PassageCount†    | 39.2     | 54.6      | **87.3** | 79.3       | 87.1     | 79.2 |
+| PassageRetrieval | 61.9     | 66.2      | **88.4** | 78.3       | **88.4** | 77.3 |
+| LCC              | 59.5     | 68.4      | 77.8     | 74.9       | **81.8** | 74.8 |
+| RepoBench-P      | 62.6     | 57.6      | 82.0     | 77.6       | **85.9** | 77.6 |
+| **Average**      | 53.5     | 53.9      | 74.0     | 70.1       | **74.8** | 70.0 |
+
+**Table B2c. 50% retention.**
+
+| Task             | Naive    | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot |
+|------------------|----------|-----------|----------|------------|----------|---------|
+| NarrativeQA†     | 38.9     | 36.5      | **56.6** | 53.3       | 47.5     | 49.3 |
+| Qasper†          | 61.4     | 64.0      | **81.1** | 77.5       | 71.4     | 70.4 |
+| MultifieldQA     | 57.4     | 62.9      | **87.1** | 81.0       | 77.8     | 73.2 |
+| HotpotQA†        | 68.1     | 61.9      | **90.9** | 82.2       | 83.6     | 79.3 |
+| 2WikiMQA†        | 64.2     | 71.3      | **93.7** | 85.9       | 77.0     | 78.4 |
+| MuSiQue†         | 66.3     | 66.2      | **91.6** | 84.8       | 78.6     | 76.0 |
+| GovReport        | 41.1     | 38.6      | **53.8** | 50.8       | 46.5     | 43.8 |
+| QMSum†           | 45.3     | 42.2      | **65.2** | 63.9       | 58.5     | 58.8 |
+| MultiNews        | 40.6     | 33.8      | **41.2** | 38.2       | 35.2     | 32.6 |
+| TREC             | 82.7     | 78.2      | **91.1** | 89.6       | 80.8     | 81.5 |
+| TriviaQA         | 53.0     | 49.3      | **86.8** | 81.1       | 74.1     | 67.4 |
+| SAMSum           | 52.6     | 56.3      | 66.3     | **66.4**   | 51.0     | 50.8 |
+| PassageCount†    | 49.3     | 55.2      | **90.7** | 87.7       | 90.0     | 82.1 |
+| PassageRetrieval | 69.0     | 67.2      | **94.9** | 79.6       | 83.4     | 76.3 |
+| LCC              | 57.0     | 74.0      | **85.6** | 83.2       | 74.2     | 74.3 |
+| RepoBench-P      | 62.9     | 60.3      | **88.0** | 83.1       | 70.6     | 70.6 |
+| **Average**      | 56.9     | 57.4      | **79.0** | 74.3       | 68.8     | 66.5 |
 
 ---
 
 ## Appendix C: Ground-Truth Accuracy — Per-Task Results
 
-**Tables C1a–C1c. Ground-truth accuracy per task, Llama-3.1-8B (higher is better). Bold = best compressed method per row; "Full" is the reference. Streaming = streaming_rerotated. Pyr+rot at 50% and 35% pending.**
+**Tables C1a–C1c. Ground-truth accuracy per task, Llama-3.1-8B (higher is better). Bold = best compressed method per row; "Full" is the reference. Streaming = streaming_rerotated.**
 
 **Table C1a. 65% retention.**
 
@@ -962,51 +985,73 @@ Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Zheng, L., Cai, R., Song, Z., Tian, Y.
 | RepoBench-P      | 55.6 | 50.6     | **54.0**  | **55.1** | 54.7       | **55.1** | 54.7 |
 | **Average**      | 25.0 | 20.8     | 23.1      | **24.8** | 24.4       | **24.8** | 24.4 |
 
-**Tables C2a–C2b. Ground-truth accuracy per task, Mistral-7B-v0.3 (higher is better). Bold = best compressed method per row; Full is the reference. Streaming = streaming_rerotated.**
+**Tables C2a–C2c. Ground-truth accuracy per task, Mistral-7B-v0.3 (higher is better). Bold = best compressed method per row; Full is the reference. Streaming = streaming_rerotated.**
 
 **Table C2a. 65% retention.**
 
-| Task             | Full | Naive    | Streaming | SnapKV   | Pyr      |
-| ---------------- | ---- | -------- | --------- | -------- | -------- |
-| NarrativeQA†     | 5.1  | 2.7      | **5.4**   | 5.1      | 4.1      |
-| Qasper†          | 5.3  | 4.3      | 5.0       | **5.1**  | 4.8      |
-| MultifieldQA     | 25.3 | 22.1     | 23.2      | **24.9** | 24.8     |
-| HotpotQA†        | 10.5 | 10.6     | 9.8       | **10.7** | 10.6     |
-| 2WikiMQA†        | 11.5 | 9.8      | 11.3      | **11.7** | **11.7** |
-| MuSiQue†         | 5.1  | 3.9      | 4.4       | **5.1**  | **5.1**  |
-| GovReport        | 20.0 | 19.7     | 19.4      | 19.8     | **20.0** |
-| QMSum†           | 8.0  | **8.4**  | 8.3       | 7.9      | 7.9      |
-| MultiNews        | 18.1 | 17.2     | 17.1      | 17.2     | **17.3** |
-| TREC             | 72.0 | 67.0     | 70.0      | 70.0     | **71.0** |
-| TriviaQA         | 23.1 | 24.2     | **26.5**  | 23.4     | 23.3     |
-| SAMSum           | 16.9 | 17.8     | **18.3**  | 17.9     | 18.1     |
-| PassageCount†    | 1.0  | **3.0**  | 1.0       | 1.0      | 1.0      |
-| PassageRetrieval | 39.0 | 26.0     | 30.0      | **39.0** | **39.0** |
-| LCC              | 62.9 | 60.2     | 62.1      | **63.2** | **63.2** |
-| RepoBench-P      | 53.9 | **54.4** | 54.1      | 54.1     | 54.0     |
-| **Average**      | 23.6 | 22.0     | **22.9**  | **23.5** | **23.5** |
+| Task             | Full | Naive    | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot  |
+| ---------------- | ---- | -------- | --------- | -------- | ---------- | -------- | -------- |
+| NarrativeQA†     | 5.1  | 2.7      | 5.4       | 5.1      | **5.7**    | 4.1      | **5.7**  |
+| Qasper†          | 5.3  | 4.3      | 5.0       | 5.1      | **5.2**    | 4.8      | 5.1      |
+| MultifieldQA     | 25.3 | 22.1     | 23.2      | 24.9     | 24.9       | 24.8     | **25.8** |
+| HotpotQA†        | 10.5 | 10.6     | 9.8       | 10.7     | **10.9**   | 10.6     | **10.9** |
+| 2WikiMQA†        | 11.5 | 9.8      | 11.3      | **11.7** | 11.4       | **11.7** | 11.5     |
+| MuSiQue†         | 5.1  | 3.9      | 4.4       | **5.1**  | 4.7        | **5.1**  | 4.6      |
+| GovReport        | 20.0 | 19.7     | 19.4      | 19.8     | 19.7       | **20.0** | 19.8     |
+| QMSum†           | 8.0  | **8.4**  | 8.3       | 7.9      | 7.9        | 7.9      | 8.1      |
+| MultiNews        | 18.1 | 17.2     | 17.1      | 17.2     | 17.1       | **17.3** | **17.3** |
+| TREC             | 72.0 | 67.0     | 70.0      | 70.0     | 70.0       | **71.0** | 70.0     |
+| TriviaQA         | 23.1 | 24.2     | **26.5**  | 23.4     | 23.8       | 23.3     | 23.2     |
+| SAMSum           | 16.9 | 17.8     | **18.3**  | 17.9     | 17.7       | 18.1     | 17.7     |
+| PassageCount†    | 1.0  | **3.0**  | 1.0       | 1.0      | 1.0        | 1.0      | 1.0      |
+| PassageRetrieval | 39.0 | 26.0     | 30.0      | **39.0** | 29.0       | **39.0** | 29.0     |
+| LCC              | 62.9 | 60.2     | 62.1      | **63.2** | 62.8       | **63.2** | 63.1     |
+| RepoBench-P      | 53.9 | **54.4** | 54.1      | 54.1     | 53.5       | 54.0     | 53.3     |
+| **Average**      | 23.6 | 22.0     | 22.9      | **23.5** | 22.8       | **23.5** | 22.9     |
 
 **Table C2b. 35% retention.**
 
-| Task             | Full | Naive    | Streaming | SnapKV   | Pyr      |
-| ---------------- | ---- | -------- | --------- | -------- | -------- |
-| NarrativeQA†     | 5.1  | 3.9      | 4.7       | **5.1**  | **5.1**  |
-| Qasper†          | 5.3  | 4.0      | 4.2       | **4.9**  | 4.8      |
-| MultifieldQA     | 25.3 | 18.2     | 18.6      | **25.1** | **25.1** |
-| HotpotQA†        | 10.5 | 11.0     | **11.3**  | 10.4     | 10.4     |
-| 2WikiMQA†        | 11.5 | 11.6     | **12.4**  | 11.2     | 11.2     |
-| MuSiQue†         | 5.1  | 4.6      | 3.5       | **5.2**  | **5.2**  |
-| GovReport        | 20.0 | **18.6** | 18.0      | **18.6** | **18.6** |
-| QMSum†           | 8.0  | 7.8      | **8.2**   | 7.8      | 7.8      |
-| MultiNews        | 18.1 | **16.5** | 15.2      | 15.7     | 15.7     |
-| TREC             | 72.0 | 60.0     | 61.0      | **66.0** | **66.0** |
-| TriviaQA         | 23.1 | 25.3     | **26.9**  | 23.7     | 23.7     |
-| SAMSum           | 16.9 | 17.2     | **18.3**  | 17.8     | 17.8     |
-| PassageCount†    | 1.0  | **3.0**  | 1.0       | 1.0      | 1.0      |
-| PassageRetrieval | 39.0 | 15.0     | 22.0      | **39.0** | **39.0** |
-| LCC              | 62.9 | 57.4     | **62.6**  | 62.3     | 62.3     |
-| RepoBench-P      | 53.9 | 49.5     | 52.1      | **53.7** | **53.7** |
-| **Average**      | 23.6 | 20.2     | 21.2      | **23.0** | **23.0** |
+| Task             | Full | Naive    | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot  |
+| ---------------- | ---- | -------- | --------- | -------- | ---------- | -------- | -------- |
+| NarrativeQA†     | 5.1  | 3.9      | 4.7       | **5.1**  | **5.1**    | **5.1**  | **5.1**  |
+| Qasper†          | 5.3  | 4.0      | 4.2       | **4.9**  | 4.8        | 4.8      | 4.6      |
+| MultifieldQA     | 25.3 | 18.2     | 18.6      | **25.1** | 24.9       | **25.1** | **25.1** |
+| HotpotQA†        | 10.5 | 11.0     | **11.3**  | 10.4     | 10.9       | 10.4     | 10.9     |
+| 2WikiMQA†        | 11.5 | 11.6     | **12.4**  | 11.2     | 11.7       | 11.2     | 11.7     |
+| MuSiQue†         | 5.1  | 4.6      | 3.5       | **5.2**  | 4.6        | **5.2**  | 4.6      |
+| GovReport        | 20.0 | 18.6     | 18.0      | 18.6     | **19.0**   | 18.6     | 18.9     |
+| QMSum†           | 8.0  | 7.8      | **8.2**   | 7.8      | 7.8        | 7.8      | 7.8      |
+| MultiNews        | 18.1 | **16.5** | 15.2      | 15.7     | 15.6       | 15.7     | 15.6     |
+| TREC             | 72.0 | 60.0     | 61.0      | **66.0** | **66.0**   | **66.0** | **66.0** |
+| TriviaQA         | 23.1 | 25.3     | **26.9**  | 23.7     | 24.6       | 23.7     | 24.6     |
+| SAMSum           | 16.9 | 17.2     | **18.3**  | 17.8     | 17.9       | 17.8     | 17.9     |
+| PassageCount†    | 1.0  | **3.0**  | 1.0       | 1.0      | 1.0        | 1.0      | 1.0      |
+| PassageRetrieval | 39.0 | 15.0     | 22.0      | **39.0** | 27.0       | **39.0** | 27.0     |
+| LCC              | 62.9 | 57.4     | **62.6**  | 62.3     | 61.3       | 62.3     | 61.7     |
+| RepoBench-P      | 53.9 | 49.5     | 52.1      | 53.7     | **54.1**   | 53.7     | **54.1** |
+| **Average**      | 23.6 | 20.2     | 21.2      | **23.0** | 22.3       | **23.0** | 22.3     |
+
+**Table C2c. 50% retention.**
+
+| Task             | Full | Naive    | Streaming | SnapKV   | SnapKV+rot | Pyr      | Pyr+rot  |
+| ---------------- | ---- | -------- | --------- | -------- | ---------- | -------- | -------- |
+| NarrativeQA†     | 5.1  | 4.7      | 4.5       | 5.1      | **5.2**    | 5.0      | 5.0      |
+| Qasper†          | 5.3  | 4.5      | 4.5       | 4.7      | **4.8**    | 4.4      | 4.3      |
+| MultifieldQA     | 25.3 | 18.0     | 23.5      | 25.0     | 25.3       | 25.6     | **25.7** |
+| HotpotQA†        | 10.5 | 10.3     | **10.9**  | 10.5     | 10.7       | 10.7     | **10.9** |
+| 2WikiMQA†        | 11.5 | 9.5      | 11.3      | 11.4     | 11.6       | **11.8** | **11.8** |
+| MuSiQue†         | 5.1  | 4.7      | 3.9       | **5.3**  | 4.6        | 5.1      | 4.5      |
+| GovReport        | 20.0 | 19.1     | 18.4      | **19.5** | **19.5**   | 18.4     | 18.6     |
+| QMSum†           | 8.0  | 8.0      | **8.1**   | 7.6      | 7.8        | 7.5      | 7.6      |
+| MultiNews        | 18.1 | **16.7** | 16.6      | 16.4     | 16.6       | 15.6     | 15.7     |
+| TREC             | 72.0 | 62.0     | 65.0      | **70.0** | 68.0       | 67.0     | 66.0     |
+| TriviaQA         | 23.1 | 26.1     | **26.6**  | 23.9     | 23.9       | 23.8     | 24.0     |
+| SAMSum           | 16.9 | 17.3     | 17.7      | 17.1     | 17.8       | 19.1     | **19.2** |
+| PassageCount†    | 1.0  | **3.0**  | 1.0       | 1.0      | 1.0        | 1.0      | 1.0      |
+| PassageRetrieval | 39.0 | 23.0     | 26.0      | **39.0** | 29.0       | 38.0     | 25.0     |
+| LCC              | 62.9 | 58.9     | 62.9      | 62.9     | **63.1**   | 60.1     | 60.7     |
+| RepoBench-P      | 53.9 | 52.2     | 52.9      | **54.1** | **54.1**   | 53.8     | 53.5     |
+| **Average**      | 23.6 | 21.1     | 22.1      | **23.3** | 22.7       | 22.9     | 22.1     |
 
 ---
 
