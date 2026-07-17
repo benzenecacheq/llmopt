@@ -483,14 +483,15 @@ SnapKV without re-rotation shows a counterintuitive cross-rate trajectory: mean 
 
 PyramidKV shows a similar counterintuitive trajectory: mean KL is 1.394 at 65%, rises to 1.451 at 50%, then drops to 0.837 at 35%. We traced this to the layer-budget formula itself (`kvpress`'s `PyramidKVPress`): the per-layer budget is `max_num - layer_idx * steps`, clamped to [`window_size`, sequence length]. At 65% and 50% the clamp binds and produces a genuine pyramid; at 35%, `min_num` falls below `window_size` for nearly every sequence length in our range, tripping the fallback clause and returning a *uniform* per-layer budget — PyramidKV ceasing to be a pyramid and reverting to plain SnapKV-style allocation. PyramidKV at its best (0.837 at 35%) is 6.7× worse than SnapKV+rot at the same budget (0.124).
 
-**Mistral-7B-v0.3** (65% and 35% retention).
+**Mistral-7B-v0.3.**
 
-| Retention | Naive | Streaming | SnapKV | SnapKV+rot | Pyr | Pyr+rot |
-|---|---|---|---|---|---|---|
-| 65% | 0.133 | 0.161 | 0.733 | **0.030** | 0.734 | 0.034 |
-| 35% | 0.188 | 0.244 | 0.588 | **0.096** | 0.586 | **0.096** |
+| Retention | Naive | Streaming | SnapKV | SnapKV+rot | Pyr   | Pyr+rot |
+|-----------|-------|-----------|--------|------------|-------|---------|
+| 65%       | 0.133 | 0.161     | 0.733  | **0.030**  | 0.734 | 0.034   |
+| 50%       | 0.158 | 0.201     | 0.619  | **0.058**  | 0.796 | 0.079   |
+| 35%       | 0.188 | 0.244     | 0.588  | **0.096**  | 0.586 | **0.096** |
 
-The Mistral rankings replicate the Llama pattern. SnapKV+rot leads at both rates (0.030 at 65%, 0.096 at 35%), outperforming all other methods by the same wide margin as on Llama. Pyr+rot at 65% (0.034) tracks SnapKV+rot closely, matching the Llama finding (0.047 vs 0.043). At 35%, Pyr+rot ties SnapKV+rot exactly (0.096) on all 16 tasks — the budget collapse to uniform allocation is total on Mistral as well. Unlike Llama, Streaming (0.161) trails Naive (0.133) on Mistral at every rate — Naive leads on 12 of 16 tasks (§5.5). SnapKV and PyramidKV show the same budget-tightening improvement (SnapKV 0.733→0.588, Pyr 0.734→0.586), and both remain far behind SnapKV+rot at every rate.
+The Mistral rankings replicate the Llama pattern. SnapKV+rot leads at all three rates (0.030/0.058/0.096 at 65/50/35%), outperforming all other methods by the same wide margin as on Llama. Pyr+rot at 65% (0.034) tracks SnapKV+rot closely, matching the Llama finding (0.047 vs 0.043). At 50%, Pyr+rot (0.079) diverges from SnapKV+rot (0.058) — the same upper-layer information loss from the `window_size` floor as on Llama. At 35%, Pyr+rot ties SnapKV+rot exactly (0.096) on all 16 tasks — the budget collapse to uniform allocation is total on Mistral as well. Unlike Llama, Streaming (0.161/0.201/0.244) trails Naive (0.133/0.158/0.188) on Mistral at every rate — Naive leads on 12 of 16 tasks at 65% (§5.5). SnapKV and PyramidKV show the same budget-tightening improvement (SnapKV 0.733→0.619→0.588, Pyr 0.734→0.796→0.586), with PyramidKV rising at 50% before collapsing at 35% — identical to Llama's cross-rate trajectory.
 
 Mistral SnapKV+rot F_out (78.2%/74.3%/70.1% at 65/50/35%) mirrors the Llama pattern: strong improvement over prompt-construction methods, below unrotated SnapKV/PyramidKV. Pyr+rot (77.0%/66.5%/70.0%) tracks SnapKV+rot closely at 65% and 35%, and diverges at 50% by the same mechanism as Llama (Table 4).
 
@@ -727,7 +728,7 @@ Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Zheng, L., Cai, R., Song, Z., Tian, Y.
 | RepoBench-P | 0.087 | 0.123 | 0.513 | **0.027** | 0.511 | 0.027 |
 | **Average** | 0.281 | 0.261 | 0.836 | **0.124** | 0.837 | **0.124** |
 
-**Tables A2a–A2b. KL Faithfulness per task, Mistral-7B-v0.3 (lower is better). Bold = best per row.**
+**Tables A2a–A2c. KL Faithfulness per task, Mistral-7B-v0.3 (lower is better). Bold = best per row.**
 
 **Table A2a. 65% retention.**
 
@@ -751,7 +752,29 @@ Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Zheng, L., Cai, R., Song, Z., Tian, Y.
 | RepoBench-P      | 0.076  | 0.087     | 0.914  | **0.004**  | 0.940 | **0.004** |
 | **Average**      | 0.133  | 0.161     | 0.733  | **0.030**  | 0.734 | 0.034 |
 
-**Table A2b. 35% retention.**
+**Table A2b. 50% retention.**
+
+| Task             | Naive  | Streaming | SnapKV | SnapKV+rot | Pyr   | Pyr+rot |
+|------------------|--------|-----------|--------|------------|-------|---------|
+| NarrativeQA†     | **0.003** | 0.149  | 0.349  | 0.014      | 0.782 | 0.017 |
+| Qasper†          | 0.130  | 0.129     | 0.248  | **0.047**  | 0.506 | 0.072 |
+| MultifieldQA     | 0.181  | 0.239     | 0.526  | **0.040**  | 0.789 | 0.058 |
+| HotpotQA†        | 0.206  | 0.262     | 0.678  | **0.016**  | 0.722 | 0.041 |
+| 2WikiMQA†        | 0.314  | 0.296     | 0.657  | **0.022**  | 0.739 | 0.059 |
+| MuSiQue†         | 0.186  | 0.242     | 0.690  | **0.018**  | 0.711 | 0.048 |
+| GovReport        | 0.217  | 0.335     | 0.486  | **0.151**  | 0.455 | 0.185 |
+| QMSum†           | 0.071  | 0.100     | 0.196  | **0.039**  | 0.210 | 0.042 |
+| MultiNews        | 0.747  | 0.805     | 0.995  | **0.497**  | 0.982 | 0.584 |
+| TREC             | 0.017  | 0.054     | 0.193  | **0.007**  | 0.676 | 0.016 |
+| TriviaQA         | 0.044  | 0.094     | 0.768  | **0.003**  | 1.376 | 0.012 |
+| SAMSum           | 0.023  | 0.045     | 0.814  | **0.012**  | 1.102 | 0.019 |
+| PassageCount†    | 0.040  | 0.076     | 1.107  | **0.005**  | 0.908 | **0.005** |
+| PassageRetrieval | 0.195  | 0.225     | 0.871  | **0.019**  | 0.654 | 0.044 |
+| LCC              | 0.070  | 0.053     | 0.652  | **0.020**  | 1.151 | 0.038 |
+| RepoBench-P      | 0.088  | 0.115     | 0.678  | **0.011**  | 0.979 | 0.026 |
+| **Average**      | 0.158  | 0.201     | 0.619  | **0.058**  | 0.796 | 0.079 |
+
+**Table A2c. 35% retention.**
 
 | Task             | Naive  | Streaming | SnapKV | SnapKV+rot | Pyr   | Pyr+rot |
 |------------------|--------|-----------|--------|------------|-------|---------|
