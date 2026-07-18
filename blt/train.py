@@ -97,21 +97,47 @@ class TokenDataset(Dataset):
                 'snapshots/b4325f019c648b1641a1784748667e8b74e5e064/plain_text/')
             all_files = sorted(glob.glob(parquet_dir + 'train-*.parquet'))
             if large:
+                # At ~7.9B tokens, accumulating a growing Python list of chunk tensors and
+                # then torch.cat()-ing it briefly holds BOTH the full pre-concat list AND
+                # the new concatenated tensor at once (~63GB each at int64, ~126GB combined)
+                # -- this OOM-killed the process with no traceback on a 94GB machine, and
+                # would be even tighter on a 62GB one. Two-pass fix: pass 1 tokenizes each
+                # chunk just to measure its length and discards the ids immediately (peak
+                # memory O(chunk_size), not O(corpus_size)); pass 2 pre-allocates ONE int32
+                # tensor sized to the known total and fills it in place chunk by chunk, so
+                # there is never more than one full-corpus-sized allocation plus one small
+                # transient chunk in memory at once. Costs re-tokenizing once more (CPU-bound,
+                # not the resource under pressure) in exchange for a much safer memory profile.
                 files = all_files[0:21] + all_files[26:80]
                 ds = load_dataset('parquet', data_files={'train': files}, split='train')
-                all_ids = []
-                for i in range(0, len(ds), chunk_size):
-                    batch_texts = [t for t in ds[i:i + chunk_size]['text'] if t.strip()]
-                    if not batch_texts:
-                        continue
+
+                def chunk_ranges():
+                    for i in range(0, len(ds), chunk_size):
+                        batch_texts = [t for t in ds[i:i + chunk_size]['text'] if t.strip()]
+                        if not batch_texts:
+                            continue
+                        yield batch_texts
+
+                total = 0
+                for batch_texts in chunk_ranges():
                     encs = tokenizer._tokenizer.encode_batch(batch_texts)
-                    all_ids.append(torch.tensor([t for enc in encs for t in enc.ids],
-                                                dtype=torch.long))
+                    total += sum(len(enc.ids) for enc in encs)
+
+                tokens = torch.empty(total, dtype=torch.int32)
+                pos = 0
+                for batch_texts in chunk_ranges():
+                    encs = tokenizer._tokenizer.encode_batch(batch_texts)
+                    ids = torch.tensor([t for enc in encs for t in enc.ids], dtype=torch.int32)
+                    tokens[pos:pos + len(ids)] = ids
+                    pos += len(ids)
                 del ds
-                tokens = torch.cat(all_ids)
-                del all_ids
+
+                # No .clone() here (unlike the shared path below): `tokens` was allocated
+                # fresh just for this dataset, not sliced from some larger shared object, so
+                # holding onto its storage via a view costs at most block_size-1 wasted
+                # elements -- cloning would momentarily double memory again for no benefit.
                 n_blocks = len(tokens) // block_size
-                self.blocks = tokens[:n_blocks * block_size].view(n_blocks, block_size).clone()
+                self.blocks = tokens[:n_blocks * block_size].view(n_blocks, block_size)
                 torch.save(self.blocks, cache_path)
                 return
             else:
@@ -142,7 +168,7 @@ class TokenDataset(Dataset):
         return len(self.blocks)
 
     def __getitem__(self, idx):
-        x = self.blocks[idx]
+        x = self.blocks[idx].long()
         return x, x
 
 
