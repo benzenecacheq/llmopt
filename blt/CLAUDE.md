@@ -143,7 +143,20 @@ Benchmarked: OWT held-out ppl **29.61** (loss 3.3882 nats — essentially identi
 | PIQA acc_norm | **0.582** | 0.565 | 0.579 |
 | Winogrande acc | 0.508 | 0.522 | 0.505 |
 
-Both seeds land solidly above the non-EMA baseline on LAMBADA acc (confirming the core 75/25-blend finding holds as a genuine two-seed result), though seed42 is the stronger of the two on LAMBADA specifically (~6% relative gap) while seed19 wins on PIQA by a similar margin — normal seed variance, not a contradiction. A real third seed (`run_gpt2_ema_blend75_scratch_seed7_v2.pt`, launched on the new `venus` machine 2026-07-11, verified genuine via checkpoint buffer at step 2,000) is currently running to further pin this down.
+Both seeds land solidly above the non-EMA baseline on LAMBADA acc (confirming the core 75/25-blend finding holds as a genuine two-seed result), though seed42 is the stronger of the two on LAMBADA specifically (~6% relative gap) while seed19 wins on PIQA by a similar margin — normal seed variance, not a contradiction.
+
+**Third genuine seed — DONE (2026-07-18).** `run_gpt2_ema_blend75_scratch_seed7_v2.pt` (`venus`, launched 2026-07-11, verified genuine at step 2,000 via checkpoint buffer), finished at step 500,000, final val_ppl 57.38. Benchmarked (`lm_eval_gpt2_ema_blend75_scratch_seed7_v2.json`; OWT eval run on `io` since `venus` never received the raw OWT parquet files `eval_owt.py` needs — only the pre-tokenized training cache — so the 1.49GB checkpoint was relayed there instead of transferring several GB of parquet data): OWT held-out ppl **29.42** (loss 3.3818), LAMBADA acc 0.257, LAMBADA ppl 131.3, HellaSwag acc_norm 0.266, PIQA acc_norm 0.574, Winogrande acc 0.520.
+
+| | seed7_v2 | seed42 | seed19 | Non-EMA baseline |
+|---|---|---|---|---|
+| OWT held-out ppl | 29.42 | 29.61 | 29.61 | 27.78 |
+| LAMBADA acc | 0.257 | **0.269** | 0.253 | 0.225 |
+| LAMBADA ppl | 131.3 | 130.6 | **127.8** | 174.6 |
+| HellaSwag acc_norm | 0.266 | 0.273 | 0.271 | 0.268 |
+| PIQA acc_norm | 0.574 | 0.565 | **0.582** | 0.579 |
+| Winogrande acc | 0.520 | **0.522** | 0.508 | 0.505 |
+
+**All three seeds land solidly above the non-EMA baseline's LAMBADA acc (0.225)** — 0.269, 0.253, 0.257, averaging ~0.260 — a genuine three-seed confirmation of the jointly-trained 75/25-blend finding. OWT ppl is tight and consistent across all three (29.42–29.61). This is now a solid basis for the paper claim, not a single uncontested data point.
 
 **DONE**: `run_gpt2_baseline_seed7.pt/.log`, finished 2026-06-26 ~21:20 local time. Standard cross-entropy (no EMA), from-scratch, OWT, seed 7, 500K steps. Final val_ppl 55.42, OWT held-out ppl **27.36** (loss 3.3091 nats). Benchmarked: `lm_eval_gpt2_baseline_seed7.json` — LAMBADA acc 0.214, LAMBADA ppl 185.5, HellaSwag acc_norm 0.270, PIQA acc_norm 0.583, Winogrande acc (see json). Gives MHA a second iso-step (500K) seed, matching BLT's existing seed7. **User's goal: at least two genuine iso-step seeds each for BLT, MHA, and GQA**; GQA still only has one (seed42) — deferred until the BLT seed42_500k run below lands, per explicit user instruction.
 
