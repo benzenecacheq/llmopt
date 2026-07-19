@@ -61,12 +61,18 @@ if __name__ == '__main__':
                         help='Path to BLT from-scratch checkpoint (.pt)')
     parser.add_argument('--gqa-checkpoint', type=str, default=None,
                         help='Path to GQA from-scratch checkpoint (.pt)')
+    parser.add_argument('--gqa-groups', type=int, default=2,
+                        help='Number of KV groups for GQA checkpoint (default: 2)')
     parser.add_argument('--baseline-checkpoint', type=str, default=None,
                         help='Path to GPT-2 from-scratch checkpoint (.pt)')
     parser.add_argument('--hybrid-checkpoint', type=str, default=None,
                         help='Path to hybrid (MHA+BLT) from-scratch checkpoint (.pt)')
     parser.add_argument('--n-mha-layers', type=int, default=6,
                         help='Number of MHA layers in the hybrid model (default 6)')
+    parser.add_argument('--blt-layers-per-m', type=int, default=0,
+                        help='Strided layer-M grouping for BLT checkpoint (0=disabled)')
+    parser.add_argument('--blt-num-m-groups', type=int, default=1,
+                        help='Number of head-based M groups for BLT checkpoint (default: 1)')
     parser.add_argument('--max-tokens', type=int, default=500000,
                         help='Tokens to evaluate over (default 500K)')
     parser.add_argument('--n-files', type=int, default=5,
@@ -95,7 +101,7 @@ if __name__ == '__main__':
     if args.gqa_checkpoint:
         from model import build_gqa_model
         print(f'GQA: {args.gqa_checkpoint}')
-        model = build_gqa_model().to(device)
+        model = build_gqa_model(n_kv=args.gqa_groups).to(device)
         ckpt = torch.load(args.gqa_checkpoint, map_location=device)
         model.load_state_dict(ckpt['model_state'])
         model.eval()
@@ -107,7 +113,9 @@ if __name__ == '__main__':
     if args.blt_checkpoint:
         from model import build_blt_model
         print(f'BLT: {args.blt_checkpoint}')
-        model = build_blt_model(from_scratch=True).to(device)
+        model = build_blt_model(from_scratch=True,
+                                layers_per_m=args.blt_layers_per_m,
+                                num_m_groups=args.blt_num_m_groups).to(device)
         ckpt = torch.load(args.blt_checkpoint, map_location=device)
         model.load_state_dict(ckpt['model_state'])
         model.eval()

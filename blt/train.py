@@ -180,8 +180,9 @@ def train(args):
         log(f'Building hybrid model ({args.n_mha_layers} MHA + {12 - args.n_mha_layers} BLT layers, from scratch)...')
         model = build_hybrid_model(n_mha=args.n_mha_layers).to(device)
     elif args.gqa:
-        log('Building GQA model (2 KV groups, 12 query heads, from scratch)...')
-        model = build_gqa_model().to(device)
+        pretrained_name = args.pretrained if args.pretrained else None
+        log(f'Building GQA model ({args.gqa_groups} KV groups, pretrained={pretrained_name})...')
+        model = build_gqa_model(n_kv=args.gqa_groups, pretrained=pretrained_name).to(device)
     elif args.baseline:
         if args.from_scratch:
             log('Building GPT-2 model from scratch (random init)...')
@@ -191,8 +192,9 @@ def train(args):
             log(f'Building baseline GPT-2 model (pretrained={args.pretrained})...')
             model = GPT2LMHeadModel.from_pretrained(args.pretrained).to(device)
     else:
-        log(f'Building BLT model (pretrained={args.pretrained}, num_m_groups={args.num_m_groups}, random_m={args.random_m}, from_scratch={args.from_scratch}, warmstart_scale={args.warmstart_scale})...')
+        log(f'Building BLT model (pretrained={args.pretrained}, num_m_groups={args.num_m_groups}, layers_per_m={args.layers_per_m}, random_m={args.random_m}, from_scratch={args.from_scratch}, warmstart_scale={args.warmstart_scale})...')
         model = build_blt_model(pretrained=args.pretrained, num_m_groups=args.num_m_groups,
+                                layers_per_m=args.layers_per_m,
                                 random_m=args.random_m, from_scratch=args.from_scratch,
                                 warmstart_scale=args.warmstart_scale).to(device)
 
@@ -400,11 +402,18 @@ if __name__ == '__main__':
     parser.add_argument('--n-mha-layers', type=int, default=6,
                         help='Number of early MHA layers in hybrid model (default: 6)')
     parser.add_argument('--gqa', action='store_true',
-                        help='Use 2-group GQA baseline (always from scratch)')
+                        help='Use GQA baseline (from scratch or pretrained warm-start)')
+    parser.add_argument('--gqa-groups', type=int, default=2,
+                        help='Number of KV groups for GQA (default: 2)')
     parser.add_argument('--baseline', action='store_true',
                         help='Fine-tune vanilla GPT-2 instead of BLT')
-    parser.add_argument('--num-m-groups', type=int, default=1, choices=[1, 2],
-                        help='Number of shared M matrices (1=original BLT, 2=GQA-like)')
+    parser.add_argument('--num-m-groups', type=int, default=1,
+                        help='Number of shared M matrices (1=original BLT, N=N-group head split)')
+    parser.add_argument('--layers-per-m', type=int, default=0,
+                        help='Strided layer-M grouping: each M covers N non-adjacent layers. '
+                             'n_layers//N M matrices total; layer i uses M[i %% (n_layers//N)]. '
+                             'N=4: G=3 for GPT-2 small, G=12 for XL. 0=disabled. '
+                             'Mutually exclusive with --num-m-groups > 1.')
     parser.add_argument('--random-m', action='store_true',
                         help='Initialize M randomly N(0, 1/sqrt(D)) instead of from Wq@Wk^T')
     parser.add_argument('--lambada-eval-every', type=int, default=2000,

@@ -49,56 +49,46 @@ class BLTAttention(nn.Module):
         return out, None   # (attn_output, past_key_values)
 
 
-class BLT2Attention(nn.Module):
+class BLTMultiMAttention(nn.Module):
     """
-    Two-group bilinear attention: 2 shared M matrices, each governing half the
-    value capacity (384-dim per group).  Analogous to GQA grouping.
-
-    Group 1 (heads 0-5): X @ M1 @ X^T, values projected by Wv1 (D→D/2)
-    Group 2 (heads 6-11): X @ M2 @ X^T, values projected by Wv2 (D→D/2)
-    Outputs concatenated (D) then projected through Wo.
+    N-group bilinear attention: N shared M matrices (D×D), each governing H/N heads'
+    value capacity. Group g: X @ M_g @ X^T applied to Wv_g (D→D/N). Outputs
+    concatenated (D) then projected through Wo. N=2 recovers the original 2-group BLT.
     """
 
-    def __init__(self, M1: nn.Parameter, M2: nn.Parameter,
-                 Wv1, Wv1_bias, Wv2, Wv2_bias, Wo, Wo_bias, config):
+    def __init__(self, M_list, Wv_list, Wv_bias_list, Wo, Wo_bias, config):
         super().__init__()
-        self.M1 = M1
-        self.M2 = M2
         self.scale = math.sqrt(config.n_embd // config.n_head)
-        self.Wv1 = nn.Parameter(Wv1)
-        self.Wv1_bias = nn.Parameter(Wv1_bias)
-        self.Wv2 = nn.Parameter(Wv2)
-        self.Wv2_bias = nn.Parameter(Wv2_bias)
+        self._n_groups = len(M_list)
+        for i, (M, Wv, Wv_bias) in enumerate(zip(M_list, Wv_list, Wv_bias_list)):
+            setattr(self, f'M_{i}', M)                        # shared param reference
+            setattr(self, f'Wv_{i}', nn.Parameter(Wv))
+            setattr(self, f'Wv_bias_{i}', nn.Parameter(Wv_bias))
         self.Wo = nn.Parameter(Wo)
         self.Wo_bias = nn.Parameter(Wo_bias)
-
-    def _group_attn(self, hidden_states, M, Wv, Wv_bias, causal, attention_mask):
-        scores = (hidden_states @ M) @ hidden_states.transpose(-2, -1) / self.scale
-        scores = scores + causal
-        if attention_mask is not None:
-            scores = scores + attention_mask.squeeze(1)
-        A = F.softmax(scores, dim=-1)
-        V = hidden_states @ Wv + Wv_bias
-        return A @ V
 
     def forward(self, hidden_states, past_key_values=None, attention_mask=None,
                 encoder_hidden_states=None, encoder_attention_mask=None,
                 output_attentions=False, **kwargs):
         B, L, D = hidden_states.shape
-
         causal = torch.full((L, L), float('-inf'), device=hidden_states.device,
                             dtype=hidden_states.dtype)
         causal = torch.triu(causal, diagonal=1)
 
-        h1 = self._group_attn(hidden_states, self.M1, self.Wv1, self.Wv1_bias,
-                               causal, attention_mask)
-        h2 = self._group_attn(hidden_states, self.M2, self.Wv2, self.Wv2_bias,
-                               causal, attention_mask)
+        outputs = []
+        for i in range(self._n_groups):
+            M       = getattr(self, f'M_{i}')
+            Wv      = getattr(self, f'Wv_{i}')
+            Wv_bias = getattr(self, f'Wv_bias_{i}')
+            scores = (hidden_states @ M) @ hidden_states.transpose(-2, -1) / self.scale
+            scores = scores + causal
+            if attention_mask is not None:
+                scores = scores + attention_mask.squeeze(1)
+            A = F.softmax(scores, dim=-1)
+            outputs.append(A @ (hidden_states @ Wv + Wv_bias))
 
-        h = torch.cat([h1, h2], dim=-1)
-        out = h @ self.Wo + self.Wo_bias
-
-        return out, None
+        h = torch.cat(outputs, dim=-1)
+        return h @ self.Wo + self.Wo_bias, None
 
 
 class GQAAttention(nn.Module):
@@ -108,13 +98,13 @@ class GQAAttention(nn.Module):
     Wq/Wo: D×D per layer (full). Wk/Wv: D×(2×d_head) per layer (grouped).
     """
 
-    def __init__(self, Wq, Wq_bias, Wk, Wk_bias, Wv, Wv_bias, Wo, Wo_bias, config):
+    def __init__(self, Wq, Wq_bias, Wk, Wk_bias, Wv, Wv_bias, Wo, Wo_bias, config, n_kv=2):
         super().__init__()
-        self.n_head  = config.n_head                   # 12
-        self.n_kv    = 2                                # KV groups
-        self.d_head  = config.n_embd // config.n_head  # 64
-        self.scale   = math.sqrt(self.d_head)
-        self.q_per_kv = self.n_head // self.n_kv       # 6
+        self.n_head   = config.n_head
+        self.n_kv     = n_kv
+        self.d_head   = config.n_embd // config.n_head  # 64
+        self.scale    = math.sqrt(self.d_head)
+        self.q_per_kv = self.n_head // self.n_kv
 
         self.Wq      = nn.Parameter(Wq)
         self.Wq_bias = nn.Parameter(Wq_bias)
@@ -209,34 +199,45 @@ class MHAAttention(nn.Module):
         return out, None
 
 
-def build_gqa_model():
+def build_gqa_model(n_kv=2, pretrained=None):
     """
-    Build a GPT-2 model with 2-group GQA replacing every attention layer.
-    Always initializes from scratch (random weights).
-    12 query heads, 2 KV heads (6 queries per KV head).
+    Build a GPT-2 model with n_kv-group GQA replacing every attention layer.
+    n_kv: number of KV heads (must divide n_head=12). Default 2.
+    pretrained: HuggingFace model ID for warm-start. Wq/Wo kept from pretrained;
+                Wk/Wv initialized by averaging pretrained heads within each KV group.
+                If None, Wk/Wv are random and Wq/Wo reuse GPT-2's random init.
     """
-    model = GPT2LMHeadModel(GPT2Config())
-    cfg   = model.config
-    D     = cfg.n_embd       # 768
-    n_head = cfg.n_head      # 12
-    d_head = D // n_head     # 64
-    n_kv   = 2
-    kv_dim = n_kv * d_head   # 128
+    if pretrained:
+        model = GPT2LMHeadModel.from_pretrained(pretrained)
+    else:
+        model = GPT2LMHeadModel(GPT2Config())
+    cfg    = model.config
+    D      = cfg.n_embd
+    n_head = cfg.n_head
+    d_head = D // n_head
+    kv_dim = n_kv * d_head
+    q_per_kv = n_head // n_kv
 
     for layer in model.transformer.h:
-        attn = layer.attn
-        # Reuse GPT-2's random Wq and Wo initializations
+        attn    = layer.attn
         Wq      = attn.c_attn.weight[:, :D].detach()
         Wq_bias = attn.c_attn.bias[:D].detach()
         Wo      = attn.c_proj.weight.detach()
         Wo_bias = attn.c_proj.bias.detach()
-        # Wk and Wv are new smaller matrices
-        Wk      = torch.randn(D, kv_dim) * 0.02
-        Wk_bias = torch.zeros(kv_dim)
-        Wv      = torch.randn(D, kv_dim) * 0.02
-        Wv_bias = torch.zeros(kv_dim)
+        if pretrained:
+            Wk_full = attn.c_attn.weight[:, D:2*D].detach().view(D, n_head, d_head)
+            Wv_full = attn.c_attn.weight[:, 2*D:].detach().view(D, n_head, d_head)
+            Wk = Wk_full.view(D, n_kv, q_per_kv, d_head).mean(dim=2).reshape(D, kv_dim)
+            Wv = Wv_full.view(D, n_kv, q_per_kv, d_head).mean(dim=2).reshape(D, kv_dim)
+            Wk_bias = torch.zeros(kv_dim)
+            Wv_bias = torch.zeros(kv_dim)
+        else:
+            Wk      = torch.randn(D, kv_dim) * 0.02
+            Wk_bias = torch.zeros(kv_dim)
+            Wv      = torch.randn(D, kv_dim) * 0.02
+            Wv_bias = torch.zeros(kv_dim)
         layer.attn = GQAAttention(Wq, Wq_bias, Wk, Wk_bias, Wv, Wv_bias,
-                                  Wo, Wo_bias, cfg)
+                                  Wo, Wo_bias, cfg, n_kv=n_kv)
 
     return model
 
@@ -280,13 +281,20 @@ def build_hybrid_model(n_mha=6):
     return model
 
 
-def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False, from_scratch=False,
-                    warmstart_scale=1.0):
+def build_blt_model(pretrained='gpt2', num_m_groups=1, layers_per_m=0,
+                    random_m=False, from_scratch=False, warmstart_scale=1.0):
     """
     Build a GPT-2 model with BLT attention replacing every attention layer.
 
-    num_m_groups=1: one M (768x768) shared across all 12 layers (original BLT).
-    num_m_groups=2: two M matrices, each governing half the value capacity.
+    num_m_groups=1: one M (768x768) shared across all layers (original BLT).
+    num_m_groups=2: two M matrices, each governing half the value capacity (head-based).
+
+    layers_per_m=N (N>0): strided layer grouping with n_layers//N M matrices,
+      each covering N non-adjacent layers. Layer i uses M_params[i % G] where
+      G = n_layers // N. Analogous to GQA's heads-per-kv-group.
+      N=4 → G=3 for GPT-2 small (12 layers): M_0→{0,3,6,9}, M_1→{1,4,7,10},
+      M_2→{2,5,8,11}. N=4 → G=12 for GPT-2 XL (48 layers).
+      Mutually exclusive with num_m_groups>1.
 
     random_m: initialize M with N(0, 1/sqrt(D)) instead of Wq@Wk^T average.
     from_scratch: randomly initialize all weights (do not load pretrained GPT-2).
@@ -299,8 +307,12 @@ def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False, from_scra
                   vs GPT-2's 144), where the naive average is a much coarser,
                   more disruptive approximation. No effect when random_m=True.
     """
-    if num_m_groups not in (1, 2):
-        raise ValueError(f'num_m_groups must be 1 or 2, got {num_m_groups}')
+    if num_m_groups < 1:
+        raise ValueError(f'num_m_groups must be >= 1, got {num_m_groups}')
+    if layers_per_m < 0:
+        raise ValueError(f'layers_per_m must be >= 0, got {layers_per_m}')
+    if num_m_groups > 1 and layers_per_m > 0:
+        raise ValueError('num_m_groups and layers_per_m cannot both be active')
 
     if from_scratch:
         model = GPT2LMHeadModel(GPT2Config())
@@ -312,7 +324,39 @@ def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False, from_scra
     n_head = cfg.n_head     # 12
     d_head = D // n_head    # 64
 
-    if num_m_groups == 1:
+    if layers_per_m > 0:
+        G = cfg.n_layer // layers_per_m
+        if cfg.n_layer % layers_per_m != 0:
+            raise ValueError(f'layers_per_m={layers_per_m} does not evenly divide n_layer={cfg.n_layer}')
+
+        if random_m:
+            M_inits = [torch.randn(D, D) / math.sqrt(D) for _ in range(G)]
+        else:
+            M_inits = [torch.zeros(D, D) for _ in range(G)]
+            counts = [0] * G
+            for i, layer in enumerate(model.transformer.h):
+                k = i % G
+                Wq = layer.attn.c_attn.weight[:, :D].detach()
+                Wk = layer.attn.c_attn.weight[:, D:2 * D].detach()
+                M_inits[k] += Wq @ Wk.T
+                counts[k] += 1
+            for k in range(G):
+                M_inits[k] = (M_inits[k] / counts[k]) * warmstart_scale
+
+        M_params = [nn.Parameter(M_init) for M_init in M_inits]
+
+        for i, layer in enumerate(model.transformer.h):
+            attn = layer.attn
+            Wv      = attn.c_attn.weight[:, 2 * D:].detach()
+            Wv_bias = attn.c_attn.bias[2 * D:].detach()
+            Wo      = attn.c_proj.weight.detach()
+            Wo_bias = attn.c_proj.bias.detach()
+            layer.attn = BLTAttention(M_params[i % G], Wv, Wv_bias, Wo, Wo_bias, cfg)
+
+        for k, M in enumerate(M_params):
+            model.transformer.register_parameter(f'M_layer_{k}', M)
+
+    elif num_m_groups == 1:
         if random_m:
             M_init = torch.randn(D, D) / math.sqrt(D)
         else:
@@ -338,44 +382,41 @@ def build_blt_model(pretrained='gpt2', num_m_groups=1, random_m=False, from_scra
 
         model.transformer.register_parameter('M_blt', M_shared)
 
-    else:  # num_m_groups == 2
-        # Each group covers half the heads; d_group = 6 * 64 = 384.
-        # M_g initialized from Wq_g @ Wk_g^T averaged over all layers.
-        n_g = n_head // 2        # 6
-        d_g = n_g * d_head       # 384
+    else:  # num_m_groups > 1
+        G = num_m_groups
+        if cfg.n_head % G != 0:
+            raise ValueError(f'num_m_groups={G} must divide n_head={cfg.n_head}')
+        n_g = n_head // G
+        d_g = n_g * d_head
 
         if random_m:
-            M1_init = torch.randn(D, D) / math.sqrt(D)
-            M2_init = torch.randn(D, D) / math.sqrt(D)
+            M_inits = [torch.randn(D, D) / math.sqrt(D) for _ in range(G)]
         else:
-            M1_init = torch.zeros(D, D)
-            M2_init = torch.zeros(D, D)
+            M_inits = [torch.zeros(D, D) for _ in range(G)]
             for layer in model.transformer.h:
-                Wq = layer.attn.c_attn.weight[:, :D].detach()      # (768, 768)
-                Wk = layer.attn.c_attn.weight[:, D:2 * D].detach() # (768, 768)
-                M1_init += Wq[:, :d_g] @ Wk[:, :d_g].T   # (768,384)@(384,768)
-                M2_init += Wq[:, d_g:] @ Wk[:, d_g:].T
-            M1_init /= cfg.n_layer
-            M2_init /= cfg.n_layer
+                Wq = layer.attn.c_attn.weight[:, :D].detach()
+                Wk = layer.attn.c_attn.weight[:, D:2 * D].detach()
+                for g in range(G):
+                    M_inits[g] += Wq[:, g * d_g:(g + 1) * d_g] @ Wk[:, g * d_g:(g + 1) * d_g].T
+            for g in range(G):
+                M_inits[g] /= cfg.n_layer
+                M_inits[g] *= warmstart_scale
 
-        M1 = nn.Parameter(M1_init)
-        M2 = nn.Parameter(M2_init)
+        M_params = [nn.Parameter(M_init) for M_init in M_inits]
 
         for layer in model.transformer.h:
             attn = layer.attn
-            Wv = attn.c_attn.weight[:, 2 * D:].detach()  # (768, 768)
-            Wv_bias = attn.c_attn.bias[2 * D:].detach()  # (768,)
-            Wo = attn.c_proj.weight.detach()              # (768, 768)
-            Wo_bias = attn.c_proj.bias.detach()           # (768,)
-            Wv1 = Wv[:, :d_g]           # (768, 384)
-            Wv1_bias = Wv_bias[:d_g]    # (384,)
-            Wv2 = Wv[:, d_g:]           # (768, 384)
-            Wv2_bias = Wv_bias[d_g:]    # (384,)
-            layer.attn = BLT2Attention(M1, M2, Wv1, Wv1_bias, Wv2, Wv2_bias,
-                                       Wo, Wo_bias, cfg)
+            Wv      = attn.c_attn.weight[:, 2 * D:].detach()
+            Wv_bias = attn.c_attn.bias[2 * D:].detach()
+            Wo      = attn.c_proj.weight.detach()
+            Wo_bias = attn.c_proj.bias.detach()
+            Wv_groups      = [Wv[:, g * d_g:(g + 1) * d_g] for g in range(G)]
+            Wv_bias_groups = [Wv_bias[g * d_g:(g + 1) * d_g] for g in range(G)]
+            layer.attn = BLTMultiMAttention(M_params, Wv_groups, Wv_bias_groups,
+                                            Wo, Wo_bias, cfg)
 
-        model.transformer.register_parameter('M_blt_1', M1)
-        model.transformer.register_parameter('M_blt_2', M2)
+        for g, M in enumerate(M_params):
+            model.transformer.register_parameter(f'M_blt_{g}', M)
 
     return model
 

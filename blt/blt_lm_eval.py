@@ -12,7 +12,8 @@ from model import build_blt_model, build_gqa_model, build_hybrid_model
 
 
 def load_model(checkpoint_path, baseline=False, gqa=False, hybrid=False,
-               device='cuda', num_m_groups=1, n_mha_layers=6, pretrained='gpt2'):
+               device='cuda', num_m_groups=1, layers_per_m=0, n_mha_layers=6, pretrained='gpt2',
+               gqa_groups=2):
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
 
@@ -22,7 +23,7 @@ def load_model(checkpoint_path, baseline=False, gqa=False, hybrid=False,
         model.load_state_dict(ckpt['model_state'])
         print(f'Loaded hybrid checkpoint: step={ckpt["step"]}, val_ppl={ckpt.get("val_ppl")}')
     elif gqa:
-        model = build_gqa_model().to(device)
+        model = build_gqa_model(n_kv=gqa_groups).to(device)
         ckpt = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(ckpt['model_state'])
         print(f'Loaded GQA checkpoint: step={ckpt["step"]}, val_ppl={ckpt.get("val_ppl")}')
@@ -33,7 +34,8 @@ def load_model(checkpoint_path, baseline=False, gqa=False, hybrid=False,
             model.load_state_dict(ckpt['model_state'])
             print(f'Loaded baseline checkpoint: step={ckpt["step"]}, val_ppl={ckpt.get("val_ppl")}')
     else:
-        model = build_blt_model(pretrained=pretrained, num_m_groups=num_m_groups).to(device)
+        model = build_blt_model(pretrained=pretrained, num_m_groups=num_m_groups,
+                                layers_per_m=layers_per_m).to(device)
         if checkpoint_path:
             ckpt = torch.load(checkpoint_path, map_location=device)
             model.load_state_dict(ckpt['model_state'])
@@ -46,8 +48,8 @@ def load_model(checkpoint_path, baseline=False, gqa=False, hybrid=False,
 @register_model('blt')
 class BLTModel(LM):
     def __init__(self, checkpoint, baseline=False, gqa=False, hybrid=False,
-                 device='cuda', batch_size=8, num_m_groups=1, n_mha_layers=6,
-                 pretrained='gpt2'):
+                 device='cuda', batch_size=8, num_m_groups=1, layers_per_m=0,
+                 n_mha_layers=6, pretrained='gpt2', gqa_groups=2):
         super().__init__()
         self._device = torch.device(device)
         self.model, self.tokenizer = load_model(
@@ -56,7 +58,9 @@ class BLTModel(LM):
             gqa=(gqa == 'true' or gqa is True),
             hybrid=(hybrid == 'true' or hybrid is True),
             device=device, num_m_groups=int(num_m_groups),
+            layers_per_m=int(layers_per_m),
             n_mha_layers=int(n_mha_layers), pretrained=pretrained,
+            gqa_groups=int(gqa_groups),
         )
         self._batch_size = int(batch_size)
         self._max_length = 1024
@@ -187,7 +191,10 @@ if __name__ == '__main__':
     parser.add_argument('--gqa', action='store_true')
     parser.add_argument('--hybrid', action='store_true')
     parser.add_argument('--n-mha-layers', type=int, default=6)
-    parser.add_argument('--num-m-groups', type=int, default=1, choices=[1, 2])
+    parser.add_argument('--num-m-groups', type=int, default=1)
+    parser.add_argument('--gqa-groups', type=int, default=2)
+    parser.add_argument('--layers-per-m', type=int, default=0,
+                        help='Strided layer-M grouping: layers per M group (0=disabled)')
     parser.add_argument('--tasks', type=str, default='lambada_openai,hellaswag,piqa,winogrande')
     parser.add_argument('--output', type=str, default=None)
     parser.add_argument('--batch-size', type=int, default=8)
@@ -202,8 +209,10 @@ if __name__ == '__main__':
         device=device,
         batch_size=args.batch_size,
         num_m_groups=args.num_m_groups,
+        layers_per_m=args.layers_per_m,
         n_mha_layers=args.n_mha_layers,
         pretrained=args.pretrained,
+        gqa_groups=args.gqa_groups,
     )
 
     results = evaluator.simple_evaluate(
