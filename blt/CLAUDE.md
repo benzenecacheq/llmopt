@@ -51,7 +51,17 @@ User made changes on another machine in parallel with the medium/EMA work below:
 
 ### Current status snapshot (2026-07-16) — read this first for hand-off
 - **`bender`** (local): GPT-2 **medium** (355M, 24 layers/16 heads/1024 dim) baseline from-scratch OWT, seed 42, running — `run_gpt2_medium_baseline_seed42.pt`, target **1.5M steps**, now on `--dataset openwebtext_large` (single-epoch 75-file corpus, no repetition) after two rounds of OOM debugging in the dataset loader (see "GPT-2 medium" below for the full story — model-size code changes, batch-size fix, thermal-throttling analysis, the resume data-replay bug, the corpus-repetition fix, and the two OOM bugs in `openwebtext_large`'s loader). Confirmed healthy past step 100 as of 2026-07-17 evening.
-- **`titan`**: GPT-2 baseline (standard CE, no EMA) from-scratch OWT, seed 19, running (`run_gpt2_baseline_seed19.pt`) — third baseline seed to match BLT's 42/19/7. A watcher (`queue_blt_seed19_500k_watcher.sh`, PID recorded in its own log) is waiting for this to finish, then will launch a genuine BLT from-scratch seed19-at-500K run (`run_blt_scratch_seed19_500k.pt`) — see "BLT seed19-at-500K bookkeeping" below for why this is needed.
+- **`titan`**: GPT-2 baseline seed19 **DONE** (2026-07-19), final val_ppl 56.72 — third baseline seed to match BLT's 42/19/7. Its watcher fired as designed and launched the queued BLT seed19-at-500K run (`run_blt_scratch_seed19_500k.pt`), now in progress — **user is timing this run and asked that nothing else run on titan while it's in progress**, so the seed19 baseline checkpoint was copied off (to `io`, since `bender`'s GPU was too tight — only ~2.5GB free alongside the live medium job) and benchmarked there instead. Results: OWT held-out ppl **28.24** (loss 3.3409), LAMBADA acc 0.208, HellaSwag acc_norm 0.266, PIQA acc_norm 0.572, Winogrande acc 0.520 (`lm_eval_gpt2_baseline_seed19.json`) — GPT-2 baseline now has a genuine third seed (42/19/7), matching BLT.
+
+| | seed19 | seed42 | seed7 |
+|---|---|---|---|
+| OWT held-out ppl | 28.24 | 27.78 | 27.36 |
+| LAMBADA acc | 0.208 | 0.225 | 0.214 |
+| HellaSwag acc_norm | 0.266 | 0.268 | 0.270 |
+| PIQA acc_norm | 0.572 | 0.579 | 0.583 |
+| Winogrande acc | 0.520 | 0.505 | 0.519 |
+
+All three land in a fairly tight, consistent band — seed19 is the weakest on OWT ppl/LAMBADA acc but not dramatically, Winogrande favors it. Normal seed variance, no outlier.
 - **`venus`** (new machine as of 2026-07-11, see Known Machines): third genuine 75/25 EMA-blend seed replicate, seed 7, running (`run_gpt2_ema_blend75_scratch_seed7_v2.pt`) — verified genuine via checkpoint `ema_loss` buffer at step 2,000 (std 0.775, not the seed7-bug's std=0.0).
 - **Two genuinely completed 75/25-blend seeds now exist** (seed42: LAMBADA acc 0.269, seed19: 0.253 — both well above the non-EMA baseline's 0.225); seed7_v2 above is the third, in progress.
 - **`io`**: GPT-2 **medium** with EMA 75/25-blend (`run_gpt2_medium_ema_blend75_seed42.pt`), seed 42, 1.5M-step target, running — the EMA counterpart to `bender`'s non-EMA baseline. Fresh clone at `/home/benzene/llmopt_medium_ema/blt` (not the older, in-flux checkouts). Verified genuine via checkpoint `ema_loss` buffer at step 1,000. See "GPT-2 medium" below for the io-specific cache-build saga (its own tokenization attempt ballooned to 77GB+ VSZ despite the fix that worked cleanly on bender — worked around by copying bender's already-built cache instead of debugging further).
