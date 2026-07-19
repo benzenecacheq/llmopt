@@ -23,7 +23,7 @@ import time
 import torch
 import torch.nn.functional as F
 
-from model import (BLTAttention, BLT2Attention, GQAAttention, MHAAttention,
+from model import (BLTAttention, GQAAttention, MHAAttention,
                     build_blt_model, build_gqa_model, build_hybrid_model)
 from transformers import GPT2LMHeadModel, GPT2Config
 
@@ -292,7 +292,7 @@ if __name__ == '__main__':
     models['BLT'] = load_checkpoint(
         build_blt_model(from_scratch=True), 'run_blt_scratch_seed7.pt', device).to(device)
     models['GQA'] = load_checkpoint(
-        build_gqa_model(), 'run_gqa_scratch_seed42.pt', device).to(device)
+        build_gqa_model(from_scratch=True), 'run_gqa_scratch_seed42.pt', device).to(device)
     models['Hybrid (6+6)'] = load_checkpoint(
         build_hybrid_model(n_mha=6), 'run_hybrid_mha6_scratch_seed42.pt', device).to(device)
 

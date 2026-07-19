@@ -199,18 +199,22 @@ class MHAAttention(nn.Module):
         return out, None
 
 
-def build_gqa_model(n_kv=2, pretrained=None):
+def build_gqa_model(n_kv=2, pretrained='gpt2', from_scratch=False):
     """
     Build a GPT-2 model with n_kv-group GQA replacing every attention layer.
     n_kv: number of KV heads (must divide n_head). Default 2.
-    pretrained: HuggingFace model ID. If provided, Wq/Wo kept from pretrained weights;
-                Wk/Wv initialized by averaging pretrained heads within each KV group.
-                If None, builds from random weights using GPT2Config() defaults.
+    pretrained: HuggingFace model ID controlling architecture shape (e.g. 'gpt2-medium').
+                Always used for shape, independent of from_scratch -- mirrors
+                build_blt_model/build_hybrid_model's convention.
+    from_scratch: if True, all weights (including Wq/Wo) are randomly initialized using
+                  pretrained's shape only -- no real weights loaded. If False (default),
+                  Wq/Wo are kept from pretrained weights and Wk/Wv are initialized by
+                  averaging pretrained heads within each KV group (genuine warm-start).
     """
-    if pretrained:
-        model = GPT2LMHeadModel.from_pretrained(pretrained)
+    if from_scratch:
+        model = GPT2LMHeadModel(GPT2Config.from_pretrained(pretrained))
     else:
-        model = GPT2LMHeadModel(GPT2Config())
+        model = GPT2LMHeadModel.from_pretrained(pretrained)
     cfg      = model.config
     D        = cfg.n_embd
     n_head   = cfg.n_head
@@ -226,17 +230,17 @@ def build_gqa_model(n_kv=2, pretrained=None):
         Wq_bias = attn.c_attn.bias[:D].detach()
         Wo      = attn.c_proj.weight.detach()
         Wo_bias = attn.c_proj.bias.detach()
-        if pretrained:
+        if from_scratch:
+            Wk      = torch.randn(D, kv_dim) * 0.02
+            Wk_bias = torch.zeros(kv_dim)
+            Wv      = torch.randn(D, kv_dim) * 0.02
+            Wv_bias = torch.zeros(kv_dim)
+        else:
             Wk_full = attn.c_attn.weight[:, D:2*D].detach().view(D, n_head, d_head)
             Wv_full = attn.c_attn.weight[:, 2*D:].detach().view(D, n_head, d_head)
             Wk = Wk_full.view(D, n_kv, q_per_kv, d_head).mean(dim=2).reshape(D, kv_dim)
             Wv = Wv_full.view(D, n_kv, q_per_kv, d_head).mean(dim=2).reshape(D, kv_dim)
             Wk_bias = torch.zeros(kv_dim)
-            Wv_bias = torch.zeros(kv_dim)
-        else:
-            Wk      = torch.randn(D, kv_dim) * 0.02
-            Wk_bias = torch.zeros(kv_dim)
-            Wv      = torch.randn(D, kv_dim) * 0.02
             Wv_bias = torch.zeros(kv_dim)
         layer.attn = GQAAttention(Wq, Wq_bias, Wk, Wk_bias, Wv, Wv_bias,
                                   Wo, Wo_bias, cfg, n_kv=n_kv)

@@ -23,7 +23,7 @@ def load_model(checkpoint_path, baseline=False, gqa=False, hybrid=False,
         model.load_state_dict(ckpt['model_state'])
         print(f'Loaded hybrid checkpoint: step={ckpt["step"]}, val_ppl={ckpt.get("val_ppl")}')
     elif gqa:
-        model = build_gqa_model(n_kv=gqa_groups).to(device)
+        model = build_gqa_model(n_kv=gqa_groups, from_scratch=True).to(device)
         ckpt = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(ckpt['model_state'])
         print(f'Loaded GQA checkpoint: step={ckpt["step"]}, val_ppl={ckpt.get("val_ppl")}')

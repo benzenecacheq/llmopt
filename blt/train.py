@@ -276,9 +276,9 @@ def train(args):
         log(f'Building hybrid model ({args.n_mha_layers} MHA layers, shape={args.pretrained}, from scratch)...')
         model = build_hybrid_model(n_mha=args.n_mha_layers, pretrained=args.pretrained).to(device)
     elif args.gqa:
-        pretrained_name = args.pretrained if args.pretrained else None
-        log(f'Building GQA model ({args.gqa_groups} KV groups, pretrained={pretrained_name})...')
-        model = build_gqa_model(n_kv=args.gqa_groups, pretrained=pretrained_name).to(device)
+        log(f'Building GQA model ({args.gqa_groups} KV groups, pretrained={args.pretrained}, from_scratch={args.from_scratch})...')
+        model = build_gqa_model(n_kv=args.gqa_groups, pretrained=args.pretrained,
+                                from_scratch=args.from_scratch).to(device)
     elif args.baseline:
         if args.from_scratch:
             log(f'Building GPT-2 model from scratch (random init, shape={args.pretrained})...')

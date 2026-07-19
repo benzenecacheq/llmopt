@@ -101,7 +101,7 @@ if __name__ == '__main__':
     if args.gqa_checkpoint:
         from model import build_gqa_model
         print(f'GQA: {args.gqa_checkpoint}')
-        model = build_gqa_model(n_kv=args.gqa_groups).to(device)
+        model = build_gqa_model(n_kv=args.gqa_groups, from_scratch=True).to(device)
         ckpt = torch.load(args.gqa_checkpoint, map_location=device)
         model.load_state_dict(ckpt['model_state'])
         model.eval()
