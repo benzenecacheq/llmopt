@@ -495,17 +495,17 @@ Mistral SnapKV+rot F_out (78.2%/74.3%/70.1% at 65/50/35%) mirrors the Llama patt
 
 ### 7.3 Inference Performance
 
-Compression is only worthwhile if it makes inference faster. We measure two quantities: **time to first token (TTFT)**, the wall-clock time from receiving a prompt to producing the first output token (dominated by the prefill pass), and **time per output token (TPT)**, the mean decode step time (dominated by KV cache memory bandwidth). All measurements are on a single V100 32GB GPU using Llama-3.1-8B fp16. PyramidKV: n=100/task (500 total); SnapKV and Streaming: n=20/task (100 total). All timing runs use the same five tasks: 2WikiMQA, MultifieldQA, Qasper, RepoBench-P, and TriviaQA.
+Compression is only worthwhile if it makes inference faster. We measure two quantities: **time to first token (TTFT)**, the wall-clock time from receiving a prompt to producing the first output token (dominated by the prefill pass), and **time per output token (TPT)**, the mean decode step time (dominated by KV cache memory bandwidth). All measurements are on a single V100 32GB GPU using Llama-3.1-8B fp16. Naive and PyramidKV: n=100/task (500 total); SnapKV and Streaming: n=20/task (100 total). All timing runs use the same five tasks: 2WikiMQA, MultifieldQA, Qasper, RepoBench-P, and TriviaQA. Naive TTFT is taken from the phr128 timing run, which processes the same compressed-length prompt with negligible selection overhead (~3ms, excluded).
 
 **Mean TTFT by retention rate** (Full context baseline: 6348 ms):
 
-| Retention | SnapKV        | Streaming     | Pyr           |
-|-----------|---------------|---------------|---------------|
-| 65%       | 6621 ms (+4%) | 6796 ms (+7%) | 7022 ms (+11%) |
-| 50%       | 6872 ms (+8%) | 6750 ms (+6%) | 7109 ms (+12%) |
-| 35%       | 6834 ms (+8%) | 6861 ms (+8%) | 7143 ms (+13%) |
+| Retention | Naive          | SnapKV        | Streaming     | Pyr            |
+|-----------|----------------|---------------|---------------|----------------|
+| 65%       | 2464 ms (−61%) | 6621 ms (+4%) | 6796 ms (+7%) | 7022 ms (+11%) |
+| 50%       | 2139 ms (−66%) | 6872 ms (+8%) | 6750 ms (+6%) | 7109 ms (+12%) |
+| 35%       | 1666 ms (−74%) | 6834 ms (+8%) | 6861 ms (+8%) | 7143 ms (+13%) |
 
-All post-prefill eviction methods incur overhead above the full-context baseline: performing a full prefill over the uncompressed prompt before pruning, each is consistently slower than the uncompressed model at every retention rate. PyramidKV's layer-wise budget computation adds 11–13% overhead. SnapKV and Streaming-rerotated use simpler post-prefill eviction steps and add less overhead (+4–8%), but both are consistently above full-context TTFT. No KV-pruning method using post-prefill eviction can provide prefill savings: the full prompt must be processed regardless. SnapKV+rot inherits the same timing profile as unrotated SnapKV: key re-rotation is a single O(M·H·D) tensor operation applied once to the M retained keys after eviction, adding negligible overhead (<10ms) that does not affect the TTFT or TPT figures above.
+Naive cuts TTFT by 61–74% by simply feeding the model a shorter prompt. All post-prefill eviction methods incur overhead above the full-context baseline: performing a full prefill over the uncompressed prompt before pruning, each is consistently slower than the uncompressed model at every retention rate. PyramidKV's layer-wise budget computation adds 11–13% overhead. SnapKV and Streaming-rerotated use simpler post-prefill eviction steps and add less overhead (+4–8%), but both are consistently above full-context TTFT. No KV-pruning method using post-prefill eviction can provide prefill savings: the full prompt must be processed regardless. SnapKV+rot inherits the same timing profile as unrotated SnapKV: key re-rotation is a single O(M·H·D) tensor operation applied once to the M retained keys after eviction, adding negligible overhead (<10ms) that does not affect the TTFT or TPT figures above. The original online StreamingLLM design — which maintains a bounded cache continuously rather than performing a full prefill — would achieve TTFT closer to Naive than to the post-prefill methods shown here, since prefill attention cost scales with the bounded window size rather than the full context length.
 
 **Decode speed (TPT)** improves for all compressed methods because fewer retained tokens means a smaller KV cache to scan at each decode step. At 65% retention, mean TPT drops from 67.5 ms/tok (full) to ~54 ms/tok (~20% faster) for all methods including PyramidKV, snapkv_press, and streaming_rerotated; at 35% retention, all compressed methods reach ~44–48 ms/tok (~29–35% faster).
 
