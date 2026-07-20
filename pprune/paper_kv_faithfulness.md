@@ -32,13 +32,13 @@ The fix is direct: remap the retained keys from their original scattered positio
 
 We make the following contributions:
 
-- **KL faithfulness metric (F_KL)**: KL divergence between the full and compressed model's next-token distributions at every generation step, averaged over a shared generation prefix (§5.2). This is the primary metric throughout the paper — it measures whether the compressed model's computation matches the full model's at every step, not just whether the final output is correct.
+- **KL faithfulness metric (F_KL)**: KL divergence between the full and compressed model's next-token distributions at every generation step, averaged over a shared generation prefix. Measures whether the compressed model's computation matches the full model's at every step, not just whether the final output is correct (§5.2).
 
-- **Output faithfulness metric (F_out)**: Word-level F1 between the full model's generated output and the compressed model's generated output, with no external ground-truth reference (§5.3). F_out reveals the behavioral inversion in §8: SnapKV and PyramidKV achieve the highest F_out of any method while scoring worst on F_KL — a divergence that F_KL correctly diagnoses as structural corruption, not faithfulness.
+- **Output faithfulness metric (F_out)**: Word-level F1 between the full model's generated output and the compressed model's generated output, with no external ground-truth reference. Reveals a behavioral inversion: methods that score best on ground-truth benchmarks score worst on KL faithfulness (§5.3, §8).
 
-- **Structural corruption diagnosis**: Positional displacement — retained tokens keeping their original RoPE encodings after eviction — is the dominant failure mode for scattered-selection KV methods. §6.3 demonstrates this with a controlled gap-geometry ablation (Table 2); §6.4 confirms it with a 27× KL improvement when re-rotation is applied to SnapKV.
+- **Structural corruption diagnosis**: Positional displacement — retained tokens keeping their original RoPE encodings after eviction — is the dominant failure mode for scattered-selection KV methods, demonstrated via a controlled gap-geometry experiment and a same-selection comparison (§6.2–§6.3).
 
-- **Key re-rotation as the fix**: Applying `KeyRerotationPress` to SnapKV after eviction reduces mean KL from 1.157 to 0.043 at 65% retention — the largest improvement of any intervention in this study and better than all prompt-construction methods (§6.4). Applying the same correction to PyramidKV (`Pyr+rot`) confirms positional displacement is the dominant failure mode there too: at 65% retention Pyr+rot (0.047) matches SnapKV+rot (0.043) almost exactly. The budget structure introduces additional cost only at 50% retention, where the pyramid reaches its minimum allocation floor at the top layer, and disappears again at 35% when the budget collapses to uniform (§6.4).
+- **Key re-rotation as the fix**: Remapping retained keys to compact positions after eviction dramatically improves faithfulness, making SnapKV+rot the most faithful method overall and confirming that the failure mode is structural rather than selection-based (§6.4).
 
 ## 2. Background and Related Work
 
