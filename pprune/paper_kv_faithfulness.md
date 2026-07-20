@@ -76,6 +76,7 @@ All methods in this section target 65% token retention (r = 0.65). We use propor
 
 - *SnapKV*: attention weights pooled over the last 128-token observation window [Li et al., 2024].
 - *Streaming (sink + recency, with key re-rotation)*: first 4 attention sink tokens plus a recency window to fill the remaining budget, following StreamingLLM's selection rule [Xiao et al., 2023]. Implemented via `kvpress`'s `StreamingLLMPress` wrapped in `KeyRerotationPress`, which remaps retained keys onto compact RoPE positions after eviction — the defining correctness-motivated feature of the published method. Unlike the original StreamingLLM paper's online design — where the cache is bounded continuously and a full-length KV cache is never built — our kvpress implementation performs a full prefill before trimming (post-prefill cache eviction, §6.1). This departs from the original design's TTFT advantage but puts Streaming on equal footing with SnapKV and PyramidKV, which are inherently post-prefill methods, so retained tokens' hidden states are computed with access to the complete context.
+- *PyramidKV*: same SnapKV-style attention scoring, but with a layer-adaptive budget that allocates more KV slots to lower layers and fewer to higher layers [Cai et al., 2024]. The per-layer budget follows a linear decay controlled by `beta=20`; budgets are clamped to `[window_size, sequence_length]`.
 
 ### 3.2 Setup
 
