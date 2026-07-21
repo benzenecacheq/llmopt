@@ -61,7 +61,7 @@ All methods in this section target 65% token retention (r = 0.65). We use propor
 **Reference.**
 - *Full context*: unmodified model with the complete prompt; serves as the ceiling, not a compressed method.
 
-**Prompt-construction baselines.** These methods truncate the prompt to form a shorter, self-consistent input with no KV patching or attention mask modification.
+**Prompt-construction baseline.** This method truncates the prompt to form a shorter, self-consistent input with no KV patching or attention mask modification.
 - *Naive proportional truncation (Naive)*: the prompt is split into a 10% head (literal first tokens) and a 90% recency tail, concatenated to form a new prompt at 65% of the original length.
 
 **KV pruning methods.** The benchmarked KV pruning methods (SnapKV, PyramidKV, Streaming) are implemented via `kvpress` v0.5.4. They process the full prompt, score each token's KV entry using post-prefill attention weights, and evict lower-scoring entries after the prefill pass. The last `window_size` tokens (the observation window) are always retained by being assigned high scores; we use `window_size=128` throughout (kvpress stock default is 64). For GQA models such as Llama-3.1-8B (32 Q-heads, 8 KV-heads), kvpress aggregates scores via mean-pooling across query heads sharing a KV head. The §6.2 diagnostic experiments (Table 1) use a separate custom implementation with `q_buffer_size=128`, `always_keep_first=16`, `always_keep_last=16`, and max-pooling for GQA aggregation.
@@ -74,7 +74,7 @@ All methods in this section target 65% token retention (r = 0.65). We use propor
 
 **Models.** Llama-3.1-8B [Dubey et al., 2024] and Mistral-7B-v0.3 [Jiang et al., 2023b] (both base, not instruction-tuned) in fp16 on a single V100 32GB GPU.
 
-**Benchmark.** LongBench v1 [Bai et al., 2023], 16 English tasks: single-document QA (NarrativeQA, Qasper, MultifieldQA), multi-document QA (HotpotQA, 2WikiMQA, MuSiQue), summarization (GovReport, QMSum, MultiNews), few-shot tasks (TREC, TriviaQA, SAMSum), synthetic tasks (PassageCount, PassageRetrieval), and code completion (LCC, RepoBench-P). 100 examples per task.
+**Benchmark.** LongBench v1 [Bai et al., 2023], 16 English tasks: single-document QA (NarrativeQA, Qasper, MultifieldQA), multi-document QA (HotpotQA, 2WikiMQA, MuSiQue), summarization (GovReport, QMSum, MultiNews), few-shot tasks (TREC, TriviaQA, SAMSum), synthetic tasks (PassageCount, PassageRetrieval), and code completion (LCC, RepoBench-P). 100 examples per task. LongBench is the primary evaluation benchmark used by SnapKV [Li et al., 2024], PyramidKV [Cai et al., 2024], and most directly comparable KV compression work, making it the natural choice for ground-truth comparability; we extend it with our faithfulness metrics on the same task set.
 
 **Hyperparameters.** Retention fraction r=0.65. For kvpress methods: `window_size=128` (observation window; kvpress stock default 64), PyramidKV `beta=20`. For the §6.2 custom implementation: `q_buffer_size=128`, `always_keep_first=16`, `always_keep_last=16`.
 
