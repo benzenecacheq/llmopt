@@ -374,11 +374,12 @@ def train(args):
 
     if not args.resume:
         log(f'seed={args.seed} lr={args.lr} batch={args.batch_size} block={args.block_size} max_steps={args.max_steps}')
-        log(f'step\telapsed\tlr\ttrain_loss\tval_ppl\tlambada_acc')
+        log(f'step\telapsed\tlr\ttrain_loss\tval_ppl\tlambada_acc\teffective_blend')
 
     step = start_step
     t0 = time.time()
     last_lambada_acc = None
+    last_effective_blend = ''
     micro_step = resume_micro_step
     accum_loss = 0.0
 
@@ -410,9 +411,16 @@ def train(args):
                     ids = flat_labels[flat_valid]
                     per_token_loss = F.cross_entropy(flat_logits[flat_valid], ids, reduction='none')
 
+                    if args.ema_blend_schedule == 'sine':
+                        progress = min(step / max(1, args.max_steps), 1.0)
+                        effective_blend = args.ema_blend * math.sin(0.5 * math.pi * progress)
+                    else:
+                        effective_blend = args.ema_blend
+                    last_effective_blend = effective_blend
+
                     weight = ema_loss[ids]
                     weight = weight / weight.mean()
-                    weight = args.ema_blend * weight + (1 - args.ema_blend) * 1.0
+                    weight = effective_blend * weight + (1 - effective_blend) * 1.0
                     loss = (weight.detach() * per_token_loss).mean()
 
                     with torch.no_grad():
@@ -475,7 +483,8 @@ def train(args):
                     last_lambada_acc = compute_cloze_accuracy(model, tokenizer, device)
                     lambada_acc = f'{last_lambada_acc:.4f}'
                     model.train()
-                log(f'{step}\t{elapsed:.0f}s\t{lr_now:.2e}\t{avg_loss:.4f}\t{val_ppl}\t{lambada_acc}')
+                blend_str = f'{last_effective_blend:.4f}' if isinstance(last_effective_blend, float) else ''
+                log(f'{step}\t{elapsed:.0f}s\t{lr_now:.2e}\t{avg_loss:.4f}\t{val_ppl}\t{lambada_acc}\t{blend_str}')
 
             if args.save_path and step > start_step and step % args.checkpoint_every == 0:
                 save_checkpoint(args.save_path, model, optimizer, scheduler,
@@ -551,7 +560,14 @@ if __name__ == '__main__':
                         help='Decay rate for the per-token-id EMA loss buffer')
     parser.add_argument('--ema-blend', type=float, default=1.0,
                         help='Blend factor between EMA-weighted loss (1.0) and standard '
-                             'unweighted loss (0.0); e.g. 0.5 averages the two per-token weights')
+                             'unweighted loss (0.0); e.g. 0.5 averages the two per-token weights. '
+                             'With --ema-blend-schedule sine, this is the value ramped up to.')
+    parser.add_argument('--ema-blend-schedule', type=str, default='fixed', choices=['fixed', 'sine'],
+                        help='fixed (default): use --ema-blend for the entire run. sine: ramp the '
+                             'effective blend from 0 up to --ema-blend via a sine ease-in curve, '
+                             'reaching the target value exactly at --max-steps. Motivation: the '
+                             'per-token EMA buffer is least trustworthy early in training (few '
+                             'samples per token), so it should count for less then.')
     parser.add_argument('--pretrained', type=str, default='gpt2',
                         help='HuggingFace model id to load pretrained weights from '
                              '(e.g. gpt2, gpt2-medium, gpt2-large, gpt2-xl)')
