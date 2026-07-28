@@ -49,6 +49,54 @@ class BLTAttention(nn.Module):
         return out, None   # (attn_output, past_key_values)
 
 
+class BLTLowRankAttention(nn.Module):
+    """
+    Low-rank bilinear attention: M ≈ U @ V^T, U and V both (D×r), shared
+    globally across all layers (mirrors num_m_groups=1's cross-layer sharing).
+    Forward: softmax((X @ U) @ (X @ V)^T / scale) @ (X @ Wv) @ Wo.
+    U and V are asymmetric and never tied -- query-side and key-side views
+    are different questions, same as full BLT's M is not required to be
+    symmetric.
+    """
+
+    def __init__(self, U_shared: nn.Parameter, V_shared: nn.Parameter,
+                 Wv, Wv_bias, Wo, Wo_bias, config):
+        super().__init__()
+        self.U = U_shared                          # shared across all layers
+        self.V = V_shared                          # shared across all layers
+        self.scale = math.sqrt(config.n_embd // config.n_head)  # sqrt(64), matches GPT-2 MHA
+
+        self.Wv = nn.Parameter(Wv)
+        self.Wv_bias = nn.Parameter(Wv_bias)
+        self.Wo = nn.Parameter(Wo)
+        self.Wo_bias = nn.Parameter(Wo_bias)
+
+    def forward(self, hidden_states, past_key_values=None, attention_mask=None,
+                encoder_hidden_states=None, encoder_attention_mask=None,
+                output_attentions=False, **kwargs):
+        B, L, D = hidden_states.shape
+
+        q = hidden_states @ self.U                 # (B, L, r)
+        k = hidden_states @ self.V                 # (B, L, r)
+        scores = (q @ k.transpose(-2, -1)) / self.scale   # (B, L, L)
+
+        causal = torch.full((L, L), float('-inf'), device=hidden_states.device,
+                            dtype=hidden_states.dtype)
+        causal = torch.triu(causal, diagonal=1)
+        scores = scores + causal
+
+        if attention_mask is not None:
+            scores = scores + attention_mask.squeeze(1)
+
+        A = F.softmax(scores, dim=-1)              # (B, L, L)
+
+        V = hidden_states @ self.Wv + self.Wv_bias # (B, L, D)
+        h = A @ V                                  # (B, L, D)
+        out = h @ self.Wo + self.Wo_bias           # (B, L, D)
+
+        return out, None   # (attn_output, past_key_values)
+
+
 class BLTMultiMAttention(nn.Module):
     """
     N-group bilinear attention: N shared M matrices (D×D), each governing H/N heads'
@@ -452,6 +500,109 @@ def build_blt_model(pretrained='gpt2', num_m_groups=1, layers_per_m=0,
 
         for g, M in enumerate(M_params):
             model.transformer.register_parameter(f'M_blt_{g}', M)
+
+    return model
+
+
+def build_blt_lowrank_model(rank, source_checkpoint=None, pretrained='gpt2',
+                            from_scratch=False):
+    """
+    Build a GPT-2 model with low-rank bilinear attention: M ≈ U @ V^T, both
+    (D×rank), shared globally across all layers (mirrors the original
+    num_m_groups=1 BLT's cross-layer sharing).
+
+    Primary intended use (Option 2 in CLAUDE.md): factorize a trained BLT
+    checkpoint's full M via truncated SVD, carrying over ALL of its other
+    trained weights (embeddings, per-layer Wv/Wo, LN, MLP) unchanged --
+    only the attention score mechanism gets replaced by the compressed
+    approximation. This is a rank-r *warm start* of an already-trained
+    model meant to be fine-tuned afterward, not a fresh model with a
+    hand-picked init.
+
+    rank: factorization rank r. For GPT-2 small (D=768), r=192 (71%
+          Frobenius energy of a converged full M) or r=256 (81%) are the
+          realistic starting points -- see the SVD analysis of a trained M
+          in CLAUDE.md. The spectrum is nearly flat (M multi-tasks across
+          12 layers x 12 heads), so there is no cheap shortcut at low rank;
+          r=64 loses 64% of the energy.
+    source_checkpoint: path to a trained full-rank, single-shared-M BLT
+          checkpoint (num_m_groups=1, no --per-layer-m/--layers-per-m) to
+          factorize and warm-start from. Required unless from_scratch=True.
+    pretrained: HuggingFace model id controlling architecture shape only
+          (weights are always overwritten -- either by the source
+          checkpoint's trained weights, or randomly if from_scratch=True).
+    from_scratch: if True, ignores source_checkpoint entirely and randomly
+          initializes everything (U, V, and all other weights) -- a
+          from-scratch UV^T baseline for comparison, not the primary
+          Option 2 workflow.
+    """
+    if not from_scratch and source_checkpoint is None:
+        raise ValueError('source_checkpoint is required unless from_scratch=True')
+
+    # Config-only build for shape (no real-weight download needed): weights
+    # are either randomly initialized here (from_scratch) or fully
+    # overwritten below by the source checkpoint's own trained weights.
+    model = GPT2LMHeadModel(GPT2Config.from_pretrained(pretrained))
+    cfg = model.config
+    D = cfg.n_embd
+
+    ckpt = None
+    if from_scratch:
+        U_init = torch.randn(D, rank) / math.sqrt(D)
+        V_init = torch.randn(D, rank) / math.sqrt(D)
+    else:
+        ckpt = torch.load(source_checkpoint, map_location='cpu')
+        M = ckpt['model_state']['transformer.M_blt']
+        # Truncated SVD gives the optimal rank-r approximation of M
+        # (Eckart-Young): M ≈ U_svd[:, :r] @ diag(S[:r]) @ V_svd[:, :r]^T.
+        # Splitting sqrt(S) onto both factors preserves that product while
+        # giving fine-tuning a symmetric starting point -- U and V are
+        # never tied afterward and are free to diverge from there.
+        U_svd, S, Vh_svd = torch.linalg.svd(M)
+        sqrt_S = S[:rank].sqrt()
+        U_init = U_svd[:, :rank] * sqrt_S
+        V_init = Vh_svd[:rank, :].T * sqrt_S
+
+    U_shared = nn.Parameter(U_init)
+    V_shared = nn.Parameter(V_init)
+
+    for layer in model.transformer.h:
+        attn = layer.attn
+        Wv      = attn.c_attn.weight[:, 2 * D:].detach()
+        Wv_bias = attn.c_attn.bias[2 * D:].detach()
+        Wo      = attn.c_proj.weight.detach()
+        Wo_bias = attn.c_proj.bias.detach()
+        layer.attn = BLTLowRankAttention(U_shared, V_shared, Wv, Wv_bias, Wo, Wo_bias, cfg)
+
+    model.transformer.register_parameter('U_blt', U_shared)
+    model.transformer.register_parameter('V_blt', V_shared)
+
+    if not from_scratch:
+        # Carry over every other trained weight (embeddings, per-layer
+        # Wv/Wo, LN, MLP) from the source checkpoint -- only M is
+        # replaced by U/V above. Wv/Wv_bias/Wo/Wo_bias key names are
+        # identical between BLTAttention and BLTLowRankAttention, so this
+        # lines up exactly with no renaming needed.
+        #
+        # Both the shared M (source) and the shared U/V (this model) get
+        # auto-registered by PyTorch under every submodule that holds a
+        # direct reference -- not just the top-level transformer.M_blt /
+        # transformer.U_blt / transformer.V_blt names, but also
+        # transformer.h.{i}.attn.M / .attn.U / .attn.V for every layer,
+        # since BLTAttention/BLTLowRankAttention assign self.M / self.U,V
+        # directly. All of these must be filtered (source's M-*) or
+        # expected-missing (this model's U/V-*), not just the top-level ones.
+        source_state = {k: v for k, v in ckpt['model_state'].items()
+                        if k != 'transformer.M_blt' and not k.endswith('.attn.M')}
+        missing, unexpected = model.load_state_dict(source_state, strict=False)
+        expected_missing = {'transformer.U_blt', 'transformer.V_blt'}
+        expected_missing |= {f'transformer.h.{i}.attn.U' for i in range(cfg.n_layer)}
+        expected_missing |= {f'transformer.h.{i}.attn.V' for i in range(cfg.n_layer)}
+        if set(missing) - expected_missing or unexpected:
+            raise RuntimeError(
+                f'Unexpected state_dict mismatch loading {source_checkpoint}: '
+                f'missing={set(missing) - expected_missing}, unexpected={unexpected}'
+            )
 
     return model
 

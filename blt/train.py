@@ -16,7 +16,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, Sampler
 from transformers import GPT2Tokenizer
 
-from model import build_blt_model, build_gqa_model, build_hybrid_model
+from model import build_blt_model, build_gqa_model, build_hybrid_model, build_blt_lowrank_model
 from evaluate import compute_perplexity, compute_cloze_accuracy
 from transformers import GPT2LMHeadModel
 
@@ -287,6 +287,12 @@ def train(args):
         else:
             log(f'Building baseline GPT-2 model (pretrained={args.pretrained})...')
             model = GPT2LMHeadModel.from_pretrained(args.pretrained).to(device)
+    elif args.uv_rank:
+        log(f'Building low-rank BLT model (rank={args.uv_rank}, source={args.uv_source}, '
+            f'from_scratch={args.from_scratch})...')
+        model = build_blt_lowrank_model(rank=args.uv_rank, source_checkpoint=args.uv_source,
+                                        pretrained=args.pretrained,
+                                        from_scratch=args.from_scratch).to(device)
     else:
         log(f'Building BLT model (pretrained={args.pretrained}, num_m_groups={args.num_m_groups}, layers_per_m={args.layers_per_m}, per_layer_m={args.per_layer_m}, random_m={args.random_m}, from_scratch={args.from_scratch}, warmstart_scale={args.warmstart_scale})...')
         model = build_blt_model(pretrained=args.pretrained, num_m_groups=args.num_m_groups,
@@ -546,6 +552,15 @@ if __name__ == '__main__':
                         help='Give each layer its own M instead of sharing one M across all '
                              'layers (still shared across heads within a layer). '
                              'Only valid with --num-m-groups 1.')
+    parser.add_argument('--uv-rank', type=int, default=0,
+                        help='Low-rank BLT: factor M as U @ V^T at this rank instead of using '
+                             'full BLT (0=disabled). Requires --uv-source unless --from-scratch. '
+                             'For GPT-2 small (D=768), r=192 or r=256 are the realistic starting '
+                             'points -- see the SVD analysis of a trained M in CLAUDE.md.')
+    parser.add_argument('--uv-source', type=str, default=None,
+                        help='Path to a trained full-rank single-shared-M BLT checkpoint to '
+                             'SVD-factorize and warm-start from (used with --uv-rank; required '
+                             'unless --from-scratch).')
     parser.add_argument('--lambada-eval-every', type=int, default=2000,
                         help='Evaluate LAMBADA cloze accuracy every N steps (0 to disable)')
     parser.add_argument('--dataset', type=str, default='wikitext103',

@@ -8,12 +8,12 @@ from lm_eval.api.registry import register_model
 from lm_eval.api.instance import Instance
 from transformers import GPT2Tokenizer, GPT2LMHeadModel
 
-from model import build_blt_model, build_gqa_model, build_hybrid_model
+from model import build_blt_model, build_gqa_model, build_hybrid_model, build_blt_lowrank_model
 
 
 def load_model(checkpoint_path, baseline=False, gqa=False, hybrid=False,
                device='cuda', num_m_groups=1, layers_per_m=0, n_mha_layers=6, pretrained='gpt2',
-               gqa_groups=2, per_layer_m=False):
+               gqa_groups=2, per_layer_m=False, uv_rank=0):
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
 
@@ -27,6 +27,15 @@ def load_model(checkpoint_path, baseline=False, gqa=False, hybrid=False,
         ckpt = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(ckpt['model_state'])
         print(f'Loaded GQA checkpoint: step={ckpt["step"]}, val_ppl={ckpt.get("val_ppl")}')
+    elif uv_rank:
+        # from_scratch=True here only skips the SVD/source-checkpoint path to get the
+        # right shape cheaply -- the actual trained U/V/Wv/Wo are all in checkpoint_path
+        # and fully overwrite this random init via load_state_dict below.
+        model = build_blt_lowrank_model(rank=uv_rank, from_scratch=True).to(device)
+        ckpt = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(ckpt['model_state'])
+        print(f'Loaded low-rank BLT checkpoint (rank={uv_rank}): step={ckpt["step"]}, '
+              f'val_ppl={ckpt.get("val_ppl")}')
     elif baseline:
         model = GPT2LMHeadModel.from_pretrained(pretrained).to(device)
         if checkpoint_path:
@@ -49,7 +58,8 @@ def load_model(checkpoint_path, baseline=False, gqa=False, hybrid=False,
 class BLTModel(LM):
     def __init__(self, checkpoint, baseline=False, gqa=False, hybrid=False,
                  device='cuda', batch_size=8, num_m_groups=1, layers_per_m=0,
-                 n_mha_layers=6, pretrained='gpt2', gqa_groups=2, per_layer_m=False):
+                 n_mha_layers=6, pretrained='gpt2', gqa_groups=2, per_layer_m=False,
+                 uv_rank=0):
         super().__init__()
         self._device = torch.device(device)
         self.model, self.tokenizer = load_model(
@@ -62,6 +72,7 @@ class BLTModel(LM):
             n_mha_layers=int(n_mha_layers), pretrained=pretrained,
             gqa_groups=int(gqa_groups),
             per_layer_m=(per_layer_m == 'true' or per_layer_m is True),
+            uv_rank=int(uv_rank),
         )
         self._batch_size = int(batch_size)
         self._max_length = 1024
@@ -198,6 +209,8 @@ if __name__ == '__main__':
                         help='Strided layer-M grouping: layers per M group (0=disabled)')
     parser.add_argument('--per-layer-m', action='store_true',
                         help='Checkpoint uses one M per layer instead of one shared M')
+    parser.add_argument('--uv-rank', type=int, default=0,
+                        help='Checkpoint uses low-rank BLT (M ≈ U@V^T) at this rank (0=disabled)')
     parser.add_argument('--tasks', type=str, default='lambada_openai,hellaswag,piqa,winogrande')
     parser.add_argument('--output', type=str, default=None)
     parser.add_argument('--batch-size', type=int, default=8)
@@ -217,6 +230,7 @@ if __name__ == '__main__':
         pretrained=args.pretrained,
         gqa_groups=args.gqa_groups,
         per_layer_m=args.per_layer_m,
+        uv_rank=args.uv_rank,
     )
 
     results = evaluator.simple_evaluate(
