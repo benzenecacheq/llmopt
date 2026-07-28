@@ -595,15 +595,19 @@ if _KVPRESS_AVAILABLE:
     _KVPRESS_METHODS["snapkv_rerotated_f35"] = _KeyRerotationPress(
         press=_SnapKVPress(compression_ratio=0.65, window_size=128))
 
+    # Streaming (unrotated kvpress): used only to measure the KL improvement from
+    # re-rotation across all three rates (completing the three-rate table in §6.4).
+    # Not used as a recommended method or cited standalone configuration.
+    _KVPRESS_METHODS["streaming_press"]     = _StreamingLLMPress(compression_ratio=0.35, n_sink=4)
+    _KVPRESS_METHODS["streaming_press_f50"] = _StreamingLLMPress(compression_ratio=0.50, n_sink=4)
+    _KVPRESS_METHODS["streaming_press_f35"] = _StreamingLLMPress(compression_ratio=0.65, n_sink=4)
+
     # Streaming: only the KeyRerotationPress-wrapped version is used, since that
     # is the one that matches the published StreamingLLM algorithm. Per kvpress's
     # own StreamingLLMPress docstring, this wrapper is required "to fully match
     # the implementation described in the paper" -- without it, retained keys
     # keep their original absolute positions, the same positional-misalignment
-    # failure mode as this paper's custom "Streaming" baseline (§3.1/§6.1). We
-    # deliberately do not also register the unwrapped variant: running Streaming
-    # any way other than as the original authors specified would just add a
-    # third, uncited configuration to compare against.
+    # failure mode as this paper's custom "Streaming" baseline (§3.1/§6.1).
     _KVPRESS_METHODS["streaming_rerotated"] = _KeyRerotationPress(
         press=_StreamingLLMPress(compression_ratio=0.35, n_sink=4))
     _KVPRESS_METHODS["streaming_rerotated_f50"] = _KeyRerotationPress(
