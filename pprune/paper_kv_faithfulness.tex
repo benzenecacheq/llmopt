@@ -21,6 +21,7 @@
 \usepackage{array}
 \usepackage{multirow}
 \usepackage{graphicx}
+\usepackage{adjustbox}
 
 % ── links & metadata ──────────────────────────────────────────────────────────
 \usepackage[hyphens]{url}
@@ -356,7 +357,7 @@ completion. Per-task ground-truth results across compression rates
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}llllll@{}}
 \toprule
 Task & Full & Naive & SnapKV & Streaming & PyramidKV\\
@@ -384,7 +385,8 @@ RepoBench-P & 55.6 & 53.9 & 55.4 & 53.2 & \textbf{56.0}\\
 \textbf{Average} & 25.0 & 23.4 & 25.0 & 23.7 &
 \textbf{25.1}\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 Full context is the reference and is not bolded. Bold marks the best
@@ -396,7 +398,7 @@ below 15; results on these tasks are noisier.
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}llllll@{}}
 \toprule
 Task & Full & Naive & SnapKV & Streaming & PyramidKV\\
@@ -422,7 +424,8 @@ RepoBench-P & 53.9 & \textbf{54.4} & 54.1 & 54.1 & 54.0\\
 \textbf{Average} & 23.6 & 22.0 & \textbf{23.5} & 22.9 &
 \textbf{23.5}\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 The overall pattern is the same across both architectures: ground-truth
@@ -769,7 +772,7 @@ roughly half the absolute magnitude.
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -792,7 +795,8 @@ LCC & \textbf{0.076} & 0.085 & 0.881 & 1.142\\
 RepoBench-P & \textbf{0.048} & 0.050 & 0.702 & 1.052\\
 \textbf{Average} & 0.175 & \textbf{0.141} & 1.157 & 1.394\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 Values in nats; lower is better. Bold marks the best \(F_{\text{KL}}\)
@@ -808,7 +812,7 @@ against the full model's output text.
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -831,7 +835,8 @@ LCC & 62.0 & 73.8 & \textbf{92.8} & 91.3\\
 RepoBench-P & 77.3 & 65.6 & 90.5 & \textbf{90.6}\\
 \textbf{Average} & 68.6 & 61.2 & 78.5 & \textbf{79.1}\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 Values in \%; higher is better. Bold marks the highest value per row.
@@ -852,7 +857,7 @@ The Mistral results at 65\% show the same pattern.
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -875,7 +880,8 @@ LCC & 0.055 & \textbf{0.041} & 0.861 & 1.070\\
 RepoBench-P & \textbf{0.076} & 0.087 & 0.914 & 0.940\\
 \textbf{Average} & \textbf{0.133} & 0.161 & 0.733 & 0.734\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 Values in nats; lower is better. Bold marks the best value per row.
@@ -888,7 +894,7 @@ PyramidKV (0.734) are similarly poor, both 5.5× worse than Naive
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -911,7 +917,8 @@ LCC & 62.1 & 76.0 & 88.3 & \textbf{90.8}\\
 RepoBench-P & 62.8 & 66.1 & \textbf{93.0} & 90.1\\
 \textbf{Average} & 60.0 & 61.0 & \textbf{83.7} & 83.5\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 Values in \%; higher is better. Bold marks the highest value per row.
@@ -1023,7 +1030,7 @@ the mechanism varies.}
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 \begin{minipage}[b]{0.10\columnwidth}\raggedright
@@ -1113,7 +1120,8 @@ SnapKV-Select --- prompt construction\strut
 \textbf{0.093}\strut
 \end{minipage}\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 SnapKV-Select (0.093) is 11× better than SnapKV (1.026) using the same
@@ -1194,7 +1202,7 @@ isolates the effects of enrichment.
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllllllll@{}}
 \toprule
 Geometry & Gaps & Gapless & Gapped & Evicted & Rerotated & gp/gl & ev/gl
@@ -1209,7 +1217,8 @@ clustered4 & \textasciitilde5 & 2.745 & 4.088 & 3.765 & 3.498 & 1.5× &
 scattered & \textasciitilde1400 & 1.205 & 2.886 & 1.289 & 0.221 & 2.4× &
 1.1× & 0.17×\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 Table 2 reveals several non-obvious patterns across the four geometries.
@@ -1336,7 +1345,7 @@ task.
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lll@{}}
 \toprule
 \begin{minipage}[b]{0.30\columnwidth}\raggedright
@@ -1397,7 +1406,8 @@ KV pruning\strut
 PyramidKV + key re-rotation to compact positions after eviction\strut
 \end{minipage}\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 \hypertarget{kl-faithfulness-main-results}{%
@@ -1416,7 +1426,7 @@ Appendix A.}
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -1429,7 +1439,8 @@ Pyr+rot\\
 35\% & 0.281 & 0.261 & 0.836 & \textbf{0.124} & 0.837 &
 \textbf{0.124}\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 \textbf{Mistral-7B-v0.3.}
@@ -1437,7 +1448,7 @@ Pyr+rot\\
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -1450,7 +1461,8 @@ Pyr+rot\\
 35\% & 0.188 & 0.244 & 0.588 & \textbf{0.096} & 0.586 &
 \textbf{0.096}\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 SnapKV+rot leads at every rate on both models. The improvement ratios
@@ -1496,7 +1508,7 @@ re-rotation across rates (Llama):
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}llll@{}}
 \toprule
 Rate & Streaming (unrotated) & Streaming+rot &
@@ -1506,7 +1518,8 @@ Improvement\\
 50\% & 1.122 & 0.199 & 5.6×\\
 35\% & 0.953 & 0.261 & 3.7×\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 The improvement ratio decreases at tighter budgets for the same reason
@@ -1537,7 +1550,7 @@ breakdown in Appendix B.}
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -1547,7 +1560,8 @@ Pyr+rot\\
 50\% & 52.1 & 56.4 & \textbf{73.2} & 67.8 & 64.2 & 61.3\\
 35\% & 46.9 & 51.8 & 66.8 & 63.0 & \textbf{66.9} & 63.0\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 \textbf{Mistral-7B-v0.3.}
@@ -1555,7 +1569,7 @@ Pyr+rot\\
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -1565,7 +1579,8 @@ Pyr+rot\\
 50\% & 56.9 & 57.4 & \textbf{79.0} & 74.3 & 68.8 & 66.5\\
 35\% & 53.5 & 53.9 & 74.0 & 70.1 & \textbf{74.8} & 70.0\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 \textbf{Cross-rate summary.}
@@ -1622,7 +1637,7 @@ n=20/task (100 total). All timing runs use the same five tasks:
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Retention & Naive & SnapKV & Streaming & Pyr\\
@@ -1634,7 +1649,8 @@ Retention & Naive & SnapKV & Streaming & Pyr\\
 35\% & 1666 ms (−74\%) & 6834 ms (+8\%) & 6861 ms (+8\%) & 7143 ms
 (+13\%)\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 Naive cuts TTFT by 61--74\% by simply feeding the model a shorter
@@ -1771,7 +1787,7 @@ Short = full-model reference output ≤ 90 words (n=1155); Long =
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}llll@{}}
 \toprule
 Method & Short-answer \(F_{\text{out}}\) & Long-form \(F_{\text{out}}\)
@@ -1784,7 +1800,8 @@ SnapKV+rot & 79.3 & 50.0 & 29.3\\
 Naive & 72.8 & \textbf{57.6} & 15.2\\
 Streaming & 66.7 & 47.0 & 19.7\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 PyramidKV and SnapKV show nearly identical short-to-long drops
@@ -1817,7 +1834,7 @@ reference output ≤ 90 words (n = 1155); Long = \textgreater{} 90 words
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lll@{}}
 \toprule
 Method & Short \(F_{\text{KL}}\) & Long \(F_{\text{KL}}\)\\
@@ -1829,7 +1846,8 @@ Naive & 0.143 & 0.256\\
 SnapKV & 1.335 & 0.697\\
 PyramidKV & 1.658 & 0.711\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 On short outputs, unrotated SnapKV and PyramidKV produce KL faithfulness
@@ -1896,7 +1914,7 @@ Gap = unrotated Long − re-rotated Long.}
 \begin{table*}[t]
 \centering
 \small
-\resizebox{\linewidth}{!}{%
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Rate & SnapKV & SnapKV+rot & Gap & PyramidKV & Pyr+rot &
@@ -1906,7 +1924,8 @@ Gap\\
 50\% & 47.7 & 46.2 & 1.5 & 42.7 & 40.3 & 2.4\\
 35\% & 42.1 & 42.0 & 0.1 & 42.3 & 41.8 & 0.5\\
 \bottomrule
-\end{tabular}}%
+\end{tabular}
+\end{adjustbox}
 \end{table*}
 
 The headline aggregate for SnapKV+rot (71.1\%) is above Naive (68.6\%)
