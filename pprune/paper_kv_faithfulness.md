@@ -1066,6 +1066,3 @@ Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Zheng, L., Cai, R., Song, Z., Tian, Y.
 
 ---
 
-## Appendix D: Synthetic Gap-Structure Analysis
-
-The synthetic gap-structure ablation is presented in §6.3 (Table 2).
