@@ -272,7 +272,7 @@ always retained by being assigned high scores; we use
 \texttt{window\_size=128} throughout (kvpress stock default is 64). For
 GQA models such as Llama-3.1-8B (32 Q-heads, 8 KV-heads), kvpress
 aggregates scores via mean-pooling across query heads sharing a KV head.
-The §6.2 diagnostic experiments (Table 1) use a separate custom
+The §6.2 diagnostic experiments (Table~\ref{tab:t1}) use a separate custom
 implementation with \texttt{q\_buffer\_size=128},
 \texttt{always\_keep\_first=16}, \texttt{always\_keep\_last=16}, and
 max-pooling for GQA aggregation.
@@ -575,7 +575,7 @@ short-answer tasks where the first token is the answer. A practitioner
 who only had the outcome metric would not know this, and would have no
 way to predict whether the advantage holds for a task with longer
 outputs, a different query distribution, or any input not resembling the
-test set --- and indeed it mostly does not (Table 5, §8.1).
+test set --- and indeed it mostly does not (Table~\ref{tab:t5}, §8.1).
 
 \hypertarget{kl-faithfulness}{%
 \subsection{5.2 KL Faithfulness}\label{kl-faithfulness}}
@@ -993,9 +993,9 @@ displacement is the dominant failure mode in each case.
 To confirm that mechanism rather than token selection drives the
 faithfulness gap, we compare SnapKV with KV pruning to SnapKV-Select ---
 identical attention-score-based token selection, presented as a new
-prompt rather than patched into the KV cache (Table 1). The same tokens,
+prompt rather than patched into the KV cache (Table~\ref{tab:t1}). The same tokens,
 selected by the same algorithm, behave very differently depending on how
-they are presented to the model. Table 1 also includes a third SnapKV
+they are presented to the model. Table~\ref{tab:t1} also includes a third SnapKV
 variant labeled \emph{recompute-over-gaps}: rather than running a full
 unrestricted prefill and then pruning the cache afterward, the attention
 mask is restricted during prefill so the model only ever attends to the
@@ -1010,14 +1010,14 @@ This makes recompute-over-gaps distinct from prompt construction: both
 lack enrichment, but prompt construction re-indexes the selected tokens
 to compact positions \(0 \ldots M-1\), whereas recompute-over-gaps
 preserves the original scattered positions.
-
-\textbf{Table 1. Mean KL faithfulness for four method configurations.
+\begin{table*}[t]
+\centering
+\small
+\caption{Mean KL faithfulness for four method configurations.
 Llama-3.1-8B, 65\% retention, 6 tasks, n = 100 per task. All three
 SnapKV rows use identical attention-score-based token selection; only
 the mechanism varies.}
-
-\begin{center}
-\small
+\label{tab:t1}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 \begin{minipage}[b]{0.10\textwidth}\raggedright
@@ -1108,7 +1108,7 @@ SnapKV-Select --- prompt construction\strut
 \end{minipage}\\
 \bottomrule
 \end{tabular}
-\end{center}
+\end{table*}
 
 SnapKV-Select (0.093) is 11× better than SnapKV (1.026) using the same
 selected tokens --- the damage is caused by the mechanism, not the token
@@ -1181,12 +1181,12 @@ effect of enrichment at scattered positions. Comparing rerotated to
 evicted isolates position correction alone, since enrichment is
 identical in both conditions. Finally, comparing gapless to rerotated
 isolates the effects of enrichment.
-
-\textbf{Table 2. Mean KL faithfulness by gap geometry (Llama-3.1-8B, r =
-0.65, 6 tasks, n = 20/task).}
-
-\begin{center}
+\begin{table*}[t]
+\centering
 \small
+\caption{Mean KL faithfulness by gap geometry (Llama-3.1-8B, r =
+0.65, 6 tasks, n = 20/task).}
+\label{tab:t2}
 \begin{tabular}{@{}lllllllll@{}}
 \toprule
 Geometry & Gaps & Gapless & Gapped & Evicted & Rerotated & gp/gl & ev/gl
@@ -1202,9 +1202,9 @@ scattered & \textasciitilde1400 & 1.205 & 2.886 & 1.289 & 0.221 & 2.4× &
 1.1× & 0.17×\\
 \bottomrule
 \end{tabular}
-\end{center}
+\end{table*}
 
-Table 2 reveals several non-obvious patterns across the four geometries.
+Table~\ref{tab:t2} reveals several non-obvious patterns across the four geometries.
 
 \begin{itemize}
 \tightlist
@@ -1241,15 +1241,15 @@ Table 2 reveals several non-obvious patterns across the four geometries.
   damage. Within-geometry ratios are the interpretable signal.
 \item
   \textbf{Enrichment direction depends on the nature of the scatter.}
-  The gapped column enables a direct comparison with Table 1's
+  The gapped column enables a direct comparison with Table~\ref{tab:t1}'s
   recompute-over-gaps result, but the two tell opposite stories about
   enrichment. In the synthetic scattered geometry here, enrichment
   appears beneficial at scattered positions: evicted (1.289) is better
-  than gapped (2.886). In Table 1, SnapKV's attention-score-selected
+  than gapped (2.886). In Table~\ref{tab:t1}, SnapKV's attention-score-selected
   tokens show the reverse: recompute-over-gaps (no enrichment, 0.168)
   far outperforms SnapKV post-prefill (enrichment, 1.026). The most
   obvious difference between the two experiments is the nature of the
-  position sets: Table 2's scattered positions are evenly spaced across
+  position sets: Table~\ref{tab:t2}'s scattered positions are evenly spaced across
   the sequence, while SnapKV's are selected by attention score and
   therefore biased toward tokens the model heavily attended to during
   the full-context prefill. Whether and how this distinction drives the
@@ -1274,7 +1274,7 @@ Dominant Failure
 Mode}\label{re-rotation-confirms-positional-displacement-as-the-dominant-failure-mode}}
 
 \textbf{SnapKV.} SnapKV's retained positions are globally scattered ---
-an approximate realization of the scattered geometry in Table 2 --- so
+an approximate realization of the scattered geometry in Table~\ref{tab:t2} --- so
 the synthetic analysis estimates roughly a 6× improvement from
 re-rotation. The actual result substantially exceeds this estimate:
 applying \texttt{KeyRerotationPress} after post-prefill eviction reduces
@@ -1394,19 +1394,18 @@ PyramidKV + key re-rotation to compact positions after eviction\strut
 \hypertarget{kl-faithfulness-main-results}{%
 \subsection{7.2 KL Faithfulness: Main
 Results}\label{kl-faithfulness-main-results}}
-
-\textbf{Table 3. Mean KL Faithfulness by compression rate (lower is
-better). Streaming = StreamingLLM with key re-rotation; SnapKV = SnapKV
-(kvpress post-prefill eviction); SnapKV+rot = SnapKV with key
-re-rotation to compact positions; Pyr+rot = PyramidKV with key
-re-rotation; Pyr = PyramidKV. Bold = best per row. Per-task breakdown in
-Appendix A.}
-
 \textbf{Llama-3.1-8B.}
 
 \begin{table}[H]
 \centering
 \small
+\caption{Mean KL Faithfulness by compression rate (lower is
+better). Streaming = StreamingLLM with key re-rotation; SnapKV = SnapKV
+(kvpress post-prefill eviction); SnapKV+rot = SnapKV with key
+re-rotation to compact positions; Pyr+rot = PyramidKV with key
+re-rotation; Pyr = PyramidKV. Bold = best per row. Per-task breakdown in
+Appendix A.}
+\label{tab:t3}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
@@ -1477,7 +1476,7 @@ layers.
 Unlike Llama, Streaming trails Naive at every rate on Mistral --- a
 difference also visible in \(F_{\text{out}}\) (§7.4).
 
-\textbf{Re-rotation improvement ratios for Streaming.} Table 3 shows
+\textbf{Re-rotation improvement ratios for Streaming.} Table~\ref{tab:t3} shows
 streaming\_rerotated as the recommended method. For comparison, the
 unrotated kvpress StreamingLLMPress baseline and the improvement from
 re-rotation across rates (Llama):
@@ -1514,17 +1513,16 @@ compressed model's generated text is to the full model's generated text
 (§5.3). Higher is better. All comparisons are within-model: Llama
 compressed methods are compared to Llama full context; Mistral
 compressed methods are compared to Mistral full context.
-
-\textbf{Table 4. Mean \(F_{\text{out}}\) by compression rate (higher is
-better). Bold = highest value per row. SnapKV+rot = SnapKV with key
-re-rotation; Pyr+rot = PyramidKV with key re-rotation. Per-task
-breakdown in Appendix B.}
-
 \textbf{Llama-3.1-8B.}
 
 \begin{table}[H]
 \centering
 \small
+\caption{Mean \(F_{\text{out}}\) by compression rate (higher is
+better). Bold = highest value per row. SnapKV+rot = SnapKV with key
+re-rotation; Pyr+rot = PyramidKV with key re-rotation. Per-task
+breakdown in Appendix B.}
+\label{tab:t4}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
@@ -1586,7 +1584,7 @@ rate, consistent with the KL rankings (§7.2).
 PyramidKV lead \(F_{\text{out}}\) while scoring worst on KL faithfulness
 --- the first-token-advantage mechanism explains this divergence (§8).
 SnapKV+rot breaks the pattern: it has the best KL faithfulness of any
-method (Table 3) \emph{and} \(F_{\text{out}}\) substantially above Naive
+method (Table~\ref{tab:t3}) \emph{and} \(F_{\text{out}}\) substantially above Naive
 and Streaming, at the cost of some \(F_{\text{out}}\) relative to plain
 SnapKV/Pyr, for reasons that are not yet fully understood (§8.1).
 
@@ -1689,7 +1687,7 @@ probability mass to alternatives at every subsequent step.
 
 \textbf{Mechanistic confirmation.} That the short-answer advantage comes
 from the full-prefill hidden state --- not from query-relevant token
-selection --- is confirmed directly by §6.2 (Table 1). Comparing
+selection --- is confirmed directly by §6.2 (Table~\ref{tab:t1}). Comparing
 \texttt{snapkv\_press} (post-prefill eviction) to the
 recompute-over-gaps variant of SnapKV from that table isolates this
 precisely: both use identical attention-score selection at the same
@@ -1709,7 +1707,7 @@ positions 0, 1, \ldots, M−1. The first output token \(y^*[0]\) remains
 exactly identical to the full model's because it is generated at the end
 of the prefill from full, unrestricted attention, and before re-rotation
 takes effect. Short-answer \(F_{\text{out}}\) nevertheless falls
-relative to unrotated SnapKV: Table 5 shows SnapKV+rot Short=79.3\%,
+relative to unrotated SnapKV: Table~\ref{tab:t5} shows SnapKV+rot Short=79.3\%,
 below unrotated SnapKV (87.7\%) but above Naive (72.8\%). The cause of
 this reduction is not fully resolved. As §8.1 shows, Pyr+rot --- which
 decodes from T rather than compact position M --- shows an identical
@@ -1724,8 +1722,8 @@ Streaming-rerotated uses the same post-prefill eviction timing --- and
 therefore also produces a first output token that is exactly identical
 to the full model's. The cause of its poor performance lies elsewhere:
 streaming's retained set is structurally a block\_end configuration
-(§6.3, Table 2) --- a few sink tokens plus a recency tail, with evicted
-content massed at the head of the sequence. As Table 2 shows, block\_end
+(§6.3, Table~\ref{tab:t2}) --- a few sink tokens plus a recency tail, with evicted
+content massed at the head of the sequence. As Table~\ref{tab:t2} shows, block\_end
 geometry produces severe KL faithfulness degradation that re-rotation
 cannot fix: rerotated block\_end remains 15.9× worse than gapless in the
 synthetic experiment, compared to near-full recovery for scattered
@@ -1733,7 +1731,7 @@ geometry (0.17×). The structural damage from the single large gap ---
 and from value representations shaped by attending to the evicted head
 during prefill --- persists regardless of key position reassignment,
 limiting re-rotation to an 11.7× KL improvement (1.639 → 0.141) versus
-27× for SnapKV. Table 5 shows the result: Streaming short-answer
+27× for SnapKV. Table~\ref{tab:t5} shows the result: Streaming short-answer
 \(F_{\text{out}}\) at 66.7\%, below Naive (72.8\%) and well below
 SnapKV/Pyr (\textasciitilde88\%).
 
@@ -1741,21 +1739,20 @@ SnapKV/Pyr (\textasciitilde88\%).
 \subsection{\texorpdfstring{8.1 What \(F_{\text{out}}\)
 Reveals}{8.1 What F\_\{\textbackslash text\{out\}\} Reveals}}\label{what-f_textout-reveals}}
 
-Table 5 compares all methods by output-length category (Llama, 65\%),
+Table~\ref{tab:t5} compares all methods by output-length category (Llama, 65\%),
 with Naive as a reference. The 90-word threshold separates the two
 natural output regimes in LongBench: QA, classification, and
 code-completion tasks have full-model mean outputs of 14--48 words
 (≥96\% of examples fall below 90 words), while summarization tasks have
 means of 339--384 words (≥86\% fall above). NarrativeQA, Qasper, and
 SAMSum straddle the boundary with means near 80--90 words.
-
-\textbf{Table 5. \(F_{\text{out}}\) by length category (Llama, 65\%).
-Short = full-model reference output ≤ 90 words (n=1155); Long =
-\textgreater{} 90 words (n=445). Streaming = streaming\_rerotated.}
-
 \begin{table}[H]
 \centering
 \small
+\caption{\(F_{\text{out}}\) by length category (Llama, 65\%).
+Short = full-model reference output ≤ 90 words (n=1155); Long =
+\textgreater{} 90 words (n=445). Streaming = streaming\_rerotated.}
+\label{tab:t5}
 \begin{tabular}{@{}llll@{}}
 \toprule
 Method & Short-answer \(F_{\text{out}}\) & Long-form \(F_{\text{out}}\)
@@ -1790,17 +1787,16 @@ show the same short- and long-form reduction relative to their unrotated
 counterparts, the decode starting position is not the explanation ---
 the reduction is attributable to key re-rotation itself.
 
-Table 6 gives the same short/long breakdown by KL faithfulness, showing
+Table~\ref{tab:t6} gives the same short/long breakdown by KL faithfulness, showing
 what \(F_{\text{out}}\) cannot.
-
-\textbf{Table 6. Mean KL faithfulness by output-length category
-(Llama-3.1-8B, 65\% retention, all 16 tasks). Short = full-model
-reference output ≤ 90 words (n = 1155); Long = \textgreater{} 90 words
-(n = 445). Bold = best per column.}
-
 \begin{table}[H]
 \centering
 \small
+\caption{Mean KL faithfulness by output-length category
+(Llama-3.1-8B, 65\% retention, all 16 tasks). Short = full-model
+reference output ≤ 90 words (n = 1155); Long = \textgreater{} 90 words
+(n = 445). Bold = best per column.}
+\label{tab:t6}
 \begin{tabular}{@{}lll@{}}
 \toprule
 Method & Short \(F_{\text{KL}}\) & Long \(F_{\text{KL}}\)\\
@@ -1832,7 +1828,7 @@ tasks where the first-token advantage gives unrotated methods a
 structural edge; in both output regimes, KL faithfulness correctly
 identifies re-rotation as the more faithful compression.
 
-Table 6 shows an interesting pattern for unrotated methods: Short
+Table~\ref{tab:t6} shows an interesting pattern for unrotated methods: Short
 \(F_{\text{KL}}\) (1.335/1.658 for SnapKV/PyramidKV) is nearly twice
 Long \(F_{\text{KL}}\) (0.697/0.711) while re-rotated methods and Naive
 show the reverse --- Long KL exceeds Short. This apparent KL recovery is
@@ -1860,7 +1856,7 @@ teacher-forced \(F_{\text{KL}}\) appears to recover for unrotated
 methods.
 
 A cross-rate comparison identifies the mechanism for long-form outputs
-(Table 7). The gap between unrotated and re-rotated long-form
+(Table~\ref{tab:t7}). The gap between unrotated and re-rotated long-form
 \(F_{\text{out}}\) narrows sharply as retention tightens, collapsing to
 near-zero at 35\%. Re-rotation compacts all retained keys into a narrow
 absolute-position window (\(0 \ldots M-1\) for SnapKV+rot;
@@ -1872,13 +1868,12 @@ gap is largest (4.7 and 5.4 points). At 35\%, unrotated methods also
 retain fewer keys with a smaller effective spread, the difference in
 position distributions shrinks, and the long-form gap collapses to
 0.1--0.5 points.
-
-\textbf{Table 7. Long-form \(F_{\text{out}}\) by retention rate (Llama).
-Gap = unrotated Long − re-rotated Long.}
-
 \begin{table}[H]
 \centering
 \small
+\caption{Long-form \(F_{\text{out}}\) by retention rate (Llama).
+Gap = unrotated Long − re-rotated Long.}
+\label{tab:t7}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Rate & SnapKV & \makecell{SnapKV+\\rot} & Gap & \makecell{Pyramid-\\KV} & Pyr+rot &
@@ -1896,10 +1891,10 @@ on short tasks but slightly below Naive (57.6\%) on long tasks.
 
 Streaming-rerotated's profile is distinct. It is the worst-performing
 method on both Short \(F_{\text{out}}\) (66.7\%) and Long
-\(F_{\text{out}}\) (47.0\%), below every other method in Table 5. Both
+\(F_{\text{out}}\) (47.0\%), below every other method in Table~\ref{tab:t5}. Both
 follow from the block\_end geometry established in §6.3. Streaming's
 single large evicted region causes structural damage that re-rotation
-cannot repair: as Table 2 shows, re-rotated block\_end remains severely
+cannot repair: as Table~\ref{tab:t2} shows, re-rotated block\_end remains severely
 degraded relative to gapless (15.9×). This corruption takes effect from
 the second decode step onward, suppressing Short \(F_{\text{out}}\)
 below even Naive and compounding over long responses.
