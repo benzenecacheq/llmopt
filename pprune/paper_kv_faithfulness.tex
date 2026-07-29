@@ -20,8 +20,8 @@
 \usepackage{longtable}
 \usepackage{array}
 \usepackage{multirow}
-\usepackage{graphicx}
-\usepackage{adjustbox}
+\usepackage{float}
+\usepackage[section]{placeins}
 
 % ── links & metadata ──────────────────────────────────────────────────────────
 \usepackage[hyphens]{url}
@@ -356,8 +356,6 @@ completion. Per-task ground-truth results across compression rates
 
 \begin{table*}[t]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}llllll@{}}
 \toprule
 Task & Full & Naive & SnapKV & Streaming & PyramidKV\\
@@ -386,7 +384,6 @@ RepoBench-P & 55.6 & 53.9 & 55.4 & 53.2 & \textbf{56.0}\\
 \textbf{25.1}\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
 \end{table*}
 
 Full context is the reference and is not bolded. Bold marks the best
@@ -397,8 +394,6 @@ below 15; results on these tasks are noisier.
 
 \begin{table*}[t]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}llllll@{}}
 \toprule
 Task & Full & Naive & SnapKV & Streaming & PyramidKV\\
@@ -425,7 +420,6 @@ RepoBench-P & 53.9 & \textbf{54.4} & 54.1 & 54.1 & 54.0\\
 \textbf{23.5}\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
 \end{table*}
 
 The overall pattern is the same across both architectures: ground-truth
@@ -769,10 +763,8 @@ generated outputs to \(y^*\) using word-level F1.
 methods on Llama-3.1-8B; the Mistral results follow the same pattern at
 roughly half the absolute magnitude.
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -796,8 +788,7 @@ RepoBench-P & \textbf{0.048} & 0.050 & 0.702 & 1.052\\
 \textbf{Average} & 0.175 & \textbf{0.141} & 1.157 & 1.394\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
-\end{table*}
+\end{table}
 
 Values in nats; lower is better. Bold marks the best \(F_{\text{KL}}\)
 per row (SnapKV and PyramidKV excluded from bold competition --- both
@@ -809,10 +800,8 @@ magnitude worse than either Naive or Streaming.
 methods evaluated on the new metric, comparing each model's output text
 against the full model's output text.
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -836,8 +825,7 @@ RepoBench-P & 77.3 & 65.6 & 90.5 & \textbf{90.6}\\
 \textbf{Average} & 68.6 & 61.2 & 78.5 & \textbf{79.1}\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
-\end{table*}
+\end{table}
 
 Values in \%; higher is better. Bold marks the highest value per row.
 
@@ -854,10 +842,8 @@ The Mistral results at 65\% show the same pattern.
 
 \textbf{KL Faithfulness.}
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -881,8 +867,7 @@ RepoBench-P & \textbf{0.076} & 0.087 & 0.914 & 0.940\\
 \textbf{Average} & \textbf{0.133} & 0.161 & 0.733 & 0.734\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
-\end{table*}
+\end{table}
 
 Values in nats; lower is better. Bold marks the best value per row.
 Naive leads on 12 of 16 tasks; Streaming leads on 4. SnapKV (0.733) and
@@ -891,10 +876,8 @@ PyramidKV (0.734) are similarly poor, both 5.5× worse than Naive
 
 \textbf{Output Faithfulness (\(F_{\text{out}}\)).}
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -918,8 +901,7 @@ RepoBench-P & 62.8 & 66.1 & \textbf{93.0} & 90.1\\
 \textbf{Average} & 60.0 & 61.0 & \textbf{83.7} & 83.5\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
-\end{table*}
+\end{table}
 
 Values in \%; higher is better. Bold marks the highest value per row.
 
@@ -1029,8 +1011,6 @@ the mechanism varies.}
 
 \begin{table*}[t]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 \begin{minipage}[b]{0.10\columnwidth}\raggedright
@@ -1121,7 +1101,6 @@ SnapKV-Select --- prompt construction\strut
 \end{minipage}\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
 \end{table*}
 
 SnapKV-Select (0.093) is 11× better than SnapKV (1.026) using the same
@@ -1201,8 +1180,6 @@ isolates the effects of enrichment.
 
 \begin{table*}[t]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllllllll@{}}
 \toprule
 Geometry & Gaps & Gapless & Gapped & Evicted & Rerotated & gp/gl & ev/gl
@@ -1218,7 +1195,6 @@ scattered & \textasciitilde1400 & 1.205 & 2.886 & 1.289 & 0.221 & 2.4× &
 1.1× & 0.17×\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
 \end{table*}
 
 Table 2 reveals several non-obvious patterns across the four geometries.
@@ -1342,10 +1318,8 @@ task.
 
 \textbf{Methods compared.}
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lll@{}}
 \toprule
 \begin{minipage}[b]{0.30\columnwidth}\raggedright
@@ -1407,8 +1381,7 @@ PyramidKV + key re-rotation to compact positions after eviction\strut
 \end{minipage}\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
-\end{table*}
+\end{table}
 
 \hypertarget{kl-faithfulness-main-results}{%
 \subsection{7.2 KL Faithfulness: Main
@@ -1425,8 +1398,6 @@ Appendix A.}
 
 \begin{table*}[t]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -1440,15 +1411,12 @@ Pyr+rot\\
 \textbf{0.124}\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
 \end{table*}
 
 \textbf{Mistral-7B-v0.3.}
 
 \begin{table*}[t]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -1462,7 +1430,6 @@ Pyr+rot\\
 \textbf{0.096}\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
 \end{table*}
 
 SnapKV+rot leads at every rate on both models. The improvement ratios
@@ -1505,10 +1472,8 @@ streaming\_rerotated as the recommended method. For comparison, the
 unrotated kvpress StreamingLLMPress baseline and the improvement from
 re-rotation across rates (Llama):
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}llll@{}}
 \toprule
 Rate & Streaming (unrotated) & Streaming+rot &
@@ -1519,8 +1484,7 @@ Improvement\\
 35\% & 0.953 & 0.261 & 3.7×\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
-\end{table*}
+\end{table}
 
 The improvement ratio decreases at tighter budgets for the same reason
 as SnapKV --- the unrotated baseline improves (fewer misaligned
@@ -1549,8 +1513,6 @@ breakdown in Appendix B.}
 
 \begin{table*}[t]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -1561,15 +1523,12 @@ Pyr+rot\\
 35\% & 46.9 & 51.8 & 66.8 & 63.0 & \textbf{66.9} & 63.0\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
 \end{table*}
 
 \textbf{Mistral-7B-v0.3.}
 
 \begin{table*}[t]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -1580,7 +1539,6 @@ Pyr+rot\\
 35\% & 53.5 & 53.9 & 74.0 & 70.1 & \textbf{74.8} & 70.0\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
 \end{table*}
 
 \textbf{Cross-rate summary.}
@@ -1634,10 +1592,8 @@ n=20/task (100 total). All timing runs use the same five tasks:
 
 \textbf{Mean TTFT by retention rate} (Full context baseline: 6348 ms):
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Retention & Naive & SnapKV & Streaming & Pyr\\
@@ -1650,8 +1606,7 @@ Retention & Naive & SnapKV & Streaming & Pyr\\
 (+13\%)\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
-\end{table*}
+\end{table}
 
 Naive cuts TTFT by 61--74\% by simply feeding the model a shorter
 prompt. All post-prefill eviction methods incur overhead above the
@@ -1784,10 +1739,8 @@ SAMSum straddle the boundary with means near 80--90 words.
 Short = full-model reference output ≤ 90 words (n=1155); Long =
 \textgreater{} 90 words (n=445). Streaming = streaming\_rerotated.}
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}llll@{}}
 \toprule
 Method & Short-answer \(F_{\text{out}}\) & Long-form \(F_{\text{out}}\)
@@ -1801,8 +1754,7 @@ Naive & 72.8 & \textbf{57.6} & 15.2\\
 Streaming & 66.7 & 47.0 & 19.7\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
-\end{table*}
+\end{table}
 
 PyramidKV and SnapKV show nearly identical short-to-long drops
 (\textasciitilde33 points), more than twice Naive's (15.2). Naive
@@ -1831,10 +1783,8 @@ what \(F_{\text{out}}\) cannot.
 reference output ≤ 90 words (n = 1155); Long = \textgreater{} 90 words
 (n = 445). Bold = best per column.}
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lll@{}}
 \toprule
 Method & Short \(F_{\text{KL}}\) & Long \(F_{\text{KL}}\)\\
@@ -1847,8 +1797,7 @@ SnapKV & 1.335 & 0.697\\
 PyramidKV & 1.658 & 0.711\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
-\end{table*}
+\end{table}
 
 On short outputs, unrotated SnapKV and PyramidKV produce KL faithfulness
 of 1.3--1.7 --- far worse than Naive (0.143) --- despite leading on
@@ -1913,8 +1862,6 @@ Gap = unrotated Long − re-rotated Long.}
 
 \begin{table*}[t]
 \centering
-\small
-\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Rate & SnapKV & SnapKV+rot & Gap & PyramidKV & Pyr+rot &
@@ -1925,7 +1872,6 @@ Gap\\
 35\% & 42.1 & 42.0 & 0.1 & 42.3 & 41.8 & 0.5\\
 \bottomrule
 \end{tabular}
-\end{adjustbox}
 \end{table*}
 
 The headline aggregate for SnapKV+rot (71.1\%) is above Naive (68.6\%)
@@ -2139,12 +2085,13 @@ is better). Bold = best per row.}
 
 \textbf{Table A1a. 65\% retention.}
 
-\begin{longtable}[]{@{}lllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & 0.022 & 0.045 & 0.787 & \textbf{0.010} & 1.337 &
 0.012\\
 Qasper† & 0.281 & 0.237 & 0.881 & \textbf{0.092} & 1.229 &
@@ -2180,16 +2127,18 @@ RepoBench-P & 0.048 & 0.050 & 0.702 & 0.004 & 1.052 &
 \textbf{Average} & 0.175 & 0.141 & 1.157 & \textbf{0.043} & 1.394 &
 0.047\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Table A1b. 50\% retention.}
 
-\begin{longtable}[]{@{}lllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & 0.026 & 0.068 & 0.806 & \textbf{0.019} & 1.380 &
 0.067\\
 Qasper† & 0.457 & 0.447 & 0.810 & \textbf{0.165} & 1.394 &
@@ -2225,16 +2174,18 @@ RepoBench-P & 0.065 & 0.088 & 0.580 & \textbf{0.011} & 1.016 &
 \textbf{Average} & 0.217 & 0.199 & 0.981 & \textbf{0.077} & 1.451 &
 0.096\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Table A1c. 35\% retention.}
 
-\begin{longtable}[]{@{}lllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & 0.045 & 0.091 & 0.559 & \textbf{0.030} & 0.559 &
 0.030\\
 Qasper† & 0.637 & 0.620 & 0.867 & \textbf{0.281} & 0.858 &
@@ -2270,19 +2221,21 @@ RepoBench-P & 0.087 & 0.123 & 0.513 & \textbf{0.027} & 0.511 &
 \textbf{Average} & 0.281 & 0.261 & 0.836 & \textbf{0.124} & 0.837 &
 \textbf{0.124}\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Tables A2a--A2c. KL Faithfulness per task, Mistral-7B-v0.3
 (lower is better). Bold = best per row.}
 
 \textbf{Table A2a. 65\% retention.}
 
-\begin{longtable}[]{@{}lllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & \textbf{0.003} & 0.125 & 0.445 & 0.006 & 0.780 &
 0.005\\
 Qasper† & 0.071 & 0.067 & 0.274 & \textbf{0.023} & 0.472 &
@@ -2318,16 +2271,18 @@ RepoBench-P & 0.076 & 0.087 & 0.914 & \textbf{0.004} & 0.940 &
 \textbf{Average} & 0.133 & 0.161 & 0.733 & \textbf{0.030} & 0.734 &
 0.034\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Table A2b. 50\% retention.}
 
-\begin{longtable}[]{@{}lllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & \textbf{0.003} & 0.149 & 0.349 & 0.014 & 0.782 &
 0.017\\
 Qasper† & 0.130 & 0.129 & 0.248 & \textbf{0.047} & 0.506 &
@@ -2363,16 +2318,18 @@ RepoBench-P & 0.088 & 0.115 & 0.678 & \textbf{0.011} & 0.979 &
 \textbf{Average} & 0.158 & 0.201 & 0.619 & \textbf{0.058} & 0.796 &
 0.079\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Table A2c. 35\% retention.}
 
-\begin{longtable}[]{@{}lllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & \textbf{0.011} & 0.170 & 0.203 & 0.022 & 0.203 &
 0.022\\
 Qasper† & 0.165 & 0.165 & 0.262 & \textbf{0.086} & 0.262 &
@@ -2408,7 +2365,8 @@ RepoBench-P & 0.110 & 0.146 & 0.654 & \textbf{0.025} & 0.661 &
 \textbf{Average} & 0.188 & 0.244 & 0.588 & \textbf{0.096} & 0.586 &
 \textbf{0.096}\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \hypertarget{appendix-b-output-faithfulness-per-task-results}{%
 \section{Appendix B: Output Faithfulness --- Per-Task
@@ -2419,12 +2377,13 @@ Results}\label{appendix-b-output-faithfulness-per-task-results}}
 
 \textbf{Table B1a. 65\% retention.}
 
-\begin{longtable}[]{@{}lllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & \textbf{88.1} & 59.9 & 63.1 & 59.6 & 61.7 &
 60.4\\
 Qasper† & 46.4 & 56.9 & 71.4 & 58.4 & \textbf{72.6} &
@@ -2456,16 +2415,18 @@ RepoBench-P & 77.3 & 65.6 & 90.5 & 77.9 & \textbf{90.6} &
 \textbf{Average} & 68.6 & 61.2 & 78.5 & 71.1 & \textbf{79.1} &
 71.6\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Table B1b. 50\% retention.}
 
-\begin{longtable}[]{@{}lllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & 48.4 & 53.0 & \textbf{62.2} & 58.5 & 53.0 &
 50.6\\
 Qasper† & 38.3 & 46.6 & \textbf{61.1} & 54.0 & 52.2 &
@@ -2497,16 +2458,18 @@ RepoBench-P & 55.3 & 57.7 & \textbf{82.5} & 78.1 & 65.8 &
 \textbf{Average} & 52.1 & 56.4 & \textbf{73.2} & 67.8 & 64.2 &
 61.3\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Table B1c. 35\% retention.}
 
-\begin{longtable}[]{@{}lllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & 44.7 & 48.4 & 57.3 & \textbf{59.6} & 57.3 &
 \textbf{59.6}\\
 Qasper† & 34.3 & 40.6 & \textbf{51.8} & 50.3 & \textbf{51.8} &
@@ -2540,19 +2503,21 @@ RepoBench-P & 50.0 & 57.2 & 71.6 & 66.9 & \textbf{71.7} &
 \textbf{Average} & 46.9 & 51.8 & 66.8 & 63.0 & \textbf{66.9} &
 63.0\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Tables B2a--B2c. \(F_{\text{out}}\) per task, Mistral-7B-v0.3
 (higher is better). Bold = highest value per row.}
 
 \textbf{Table B2a. 65\% retention.}
 
-\begin{longtable}[]{@{}lllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & 40.5 & 38.2 & \textbf{57.4} & 53.1 & 55.4 &
 55.7\\
 Qasper† & 69.0 & 69.4 & \textbf{87.1} & 79.6 & 86.1 &
@@ -2584,16 +2549,18 @@ RepoBench-P & 62.8 & 66.1 & \textbf{93.0} & 83.1 & 90.1 &
 \textbf{Average} & 60.0 & 61.0 & \textbf{83.7} & 78.2 & 83.5 &
 77.0\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Table B2b. 35\% retention.}
 
-\begin{longtable}[]{@{}lllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & 39.5 & 37.1 & 54.4 & 53.8 & \textbf{54.6} &
 53.7\\
 Qasper† & 60.6 & 60.4 & \textbf{77.1} & 73.5 & 77.0 &
@@ -2625,16 +2592,18 @@ RepoBench-P & 62.6 & 57.6 & 82.0 & 77.6 & \textbf{85.9} &
 \textbf{Average} & 53.5 & 53.9 & 74.0 & 70.1 & \textbf{74.8} &
 70.0\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Table B2c. 50\% retention.}
 
-\begin{longtable}[]{@{}lllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & 38.9 & 36.5 & \textbf{56.6} & 53.3 & 47.5 &
 49.3\\
 Qasper† & 61.4 & 64.0 & \textbf{81.1} & 77.5 & 71.4 &
@@ -2666,7 +2635,8 @@ RepoBench-P & 62.9 & 60.3 & \textbf{88.0} & 83.1 & 70.6 &
 \textbf{Average} & 56.9 & 57.4 & \textbf{79.0} & 74.3 & 68.8 &
 66.5\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \hypertarget{appendix-c-ground-truth-accuracy-per-task-results}{%
 \section{Appendix C: Ground-Truth Accuracy --- Per-Task
@@ -2678,12 +2648,13 @@ the reference. Streaming = streaming\_rerotated.}
 
 \textbf{Table C1a. 65\% retention.}
 
-\begin{longtable}[]{@{}llllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & 5.5 & 4.9 & \textbf{5.8} & 5.6 & 5.2 & 5.5 &
 5.3\\
 Qasper† & 11.1 & 10.2 & 9.5 & 11.3 & \textbf{12.0} & 11.8 &
@@ -2719,16 +2690,18 @@ RepoBench-P & 55.6 & 53.9 & 53.2 & 55.4 & 55.5 & \textbf{56.0} &
 \textbf{Average} & 25.0 & 23.4 & 23.7 & 25.0 & 24.8 & \textbf{25.1} &
 25.0\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Table C1b. 50\% retention.}
 
-\begin{longtable}[]{@{}llllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & 5.5 & 5.7 & 5.5 & 6.7 & 5.7 & \textbf{6.8} &
 6.7\\
 Qasper† & 11.1 & 8.6 & 9.4 & 11.1 & \textbf{11.7} & 9.8 &
@@ -2764,16 +2737,18 @@ RepoBench-P & 55.6 & 51.4 & 53.8 & \textbf{55.7} & 55.3 & 52.8 &
 \textbf{Average} & 25.0 & 21.6 & 23.6 & 24.9 & \textbf{25.0} & 24.2 &
 24.0\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Table C1c. 35\% retention.}
 
-\begin{longtable}[]{@{}llllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & 5.5 & \textbf{7.8} & 6.5 & 6.4 & 6.6 & 6.4 &
 6.6\\
 Qasper† & 11.1 & 7.7 & 7.8 & \textbf{10.8} & 10.4 & \textbf{10.8} &
@@ -2809,7 +2784,8 @@ RepoBench-P & 55.6 & 50.6 & \textbf{54.0} & \textbf{55.1} & 54.7 &
 \textbf{Average} & 25.0 & 20.8 & 23.1 & \textbf{24.8} & 24.4 &
 \textbf{24.8} & 24.4\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Tables C2a--C2c. Ground-truth accuracy per task, Mistral-7B-v0.3
 (higher is better). Bold = best compressed method per row; Full is the
@@ -2817,12 +2793,13 @@ reference. Streaming = streaming\_rerotated.}
 
 \textbf{Table C2a. 65\% retention.}
 
-\begin{longtable}[]{@{}llllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & 5.1 & 2.7 & 5.4 & 5.1 & \textbf{5.7} & 4.1 &
 \textbf{5.7}\\
 Qasper† & 5.3 & 4.3 & 5.0 & 5.1 & \textbf{5.2} & 4.8 &
@@ -2857,16 +2834,18 @@ RepoBench-P & 53.9 & \textbf{54.4} & 54.1 & 54.1 & 53.5 & 54.0 &
 \textbf{Average} & 23.6 & 22.0 & 22.9 & \textbf{23.5} & 22.8 &
 \textbf{23.5} & 22.9\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Table C2b. 35\% retention.}
 
-\begin{longtable}[]{@{}llllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & 5.1 & 3.9 & 4.7 & \textbf{5.1} & \textbf{5.1} &
 \textbf{5.1} & \textbf{5.1}\\
 Qasper† & 5.3 & 4.0 & 4.2 & \textbf{4.9} & 4.8 & 4.8 &
@@ -2901,16 +2880,18 @@ RepoBench-P & 53.9 & 49.5 & 52.1 & 53.7 & \textbf{54.1} & 53.7 &
 \textbf{Average} & 23.6 & 20.2 & 21.2 & \textbf{23.0} & 22.3 &
 \textbf{23.0} & 22.3\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \textbf{Table C2c. 50\% retention.}
 
-\begin{longtable}[]{@{}llllllll@{}}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-\endhead
 NarrativeQA† & 5.1 & 4.7 & 4.5 & 5.1 & \textbf{5.2} & 5.0 &
 5.0\\
 Qasper† & 5.3 & 4.5 & 4.5 & 4.7 & \textbf{4.8} & 4.4 &
@@ -2945,6 +2926,7 @@ RepoBench-P & 53.9 & 52.2 & 52.9 & \textbf{54.1} & \textbf{54.1} & 53.8
 \textbf{Average} & 23.6 & 21.1 & 22.1 & \textbf{23.3} & 22.7 & 22.9 &
 22.1\\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \end{document}
