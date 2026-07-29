@@ -4,12 +4,12 @@
 
 Two papers split from a single codebase:
 
-**`paper_kv_faithfulness.md`** — Primary paper. KV cache compression faithfulness: positional
-displacement is the dominant failure mode for SnapKV and PyramidKV. Key re-rotation (SnapKV+rot)
-fixes this: 27× KL improvement at 65%, best method overall. Pyr+rot matches SnapKV+rot at 65%
-(0.047 vs 0.043) and ties exactly at 35% (budget collapse to uniform); a gap opens only at 50%
-where the pyramid reaches its window_size floor at layer 31. No phrase compression content.
-"post-hoc" → "post-prefill" throughout.
+**`paper_kv_faithfulness.tex`** — Primary paper (LaTeX source). KV cache compression faithfulness:
+positional displacement is the dominant failure mode for SnapKV and PyramidKV. Key re-rotation
+(SnapKV+rot) fixes this: 27× KL improvement at 65%, best method overall. Pyr+rot matches
+SnapKV+rot at 65% (0.047 vs 0.043) and ties exactly at 35% (budget collapse to uniform); a gap
+opens only at 50% where the pyramid reaches its window_size floor at layer 31. No phrase
+compression content. Compile with XeLaTeX (requires fontspec + unicode-math).
 
 **`paper_phrase_compression.md`** — Base for future phrase compression paper. Contains all
 phr128/phr160 content, §7 Phrase-Based Context Compression, and the TTFT comparison. Not the
