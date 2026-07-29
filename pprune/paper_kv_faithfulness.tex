@@ -1,11 +1,12 @@
 \documentclass[11pt,a4paper]{article}
 
-% ── fonts & encoding (XeLaTeX) ────────────────────────────────────────────────
-\usepackage{fontspec}
-\usepackage{unicode-math}          % replaces amssymb + amsmath; XeLaTeX only
-\setmainfont{TeX Gyre Pagella}
-\setmathfont{TeX Gyre Pagella Math}
-\setmonofont[Scale=0.88]{DejaVu Sans Mono}
+% ── fonts & encoding (pdfLaTeX) ───────────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{tgpagella}             % TeX Gyre Pagella text font
+\usepackage{mathpazo}              % Palatino-matching math font
+\usepackage{amsmath,amssymb}
+\usepackage{courier}               % monospace font for code
 
 % ── page layout ───────────────────────────────────────────────────────────────
 \usepackage[margin=1.2in]{geometry}
@@ -26,6 +27,14 @@
             linkcolor=black,
             citecolor=black,
             urlcolor=blue]{hyperref}
+
+% Unicode math characters not in T1 (pdfLaTeX compatibility)
+\usepackage{newunicodechar}
+\newunicodechar{−}{\ensuremath{-}}       % U+2212 minus sign
+\newunicodechar{≈}{\ensuremath{\approx}} % U+2248
+\newunicodechar{≥}{\ensuremath{\geq}}    % U+2265
+\newunicodechar{≤}{\ensuremath{\leq}}    % U+2264
+\newunicodechar{→}{\ensuremath{\rightarrow}} % U+2192
 
 % bullet-list spacing helper (pandoc requirement)
 \providecommand{\tightlist}{%
