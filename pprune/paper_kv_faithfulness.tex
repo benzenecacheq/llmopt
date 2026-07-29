@@ -357,6 +357,7 @@ completion. Per-task ground-truth results across compression rates
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}llllll@{}}
 \toprule
 Task & Full & Naive & SnapKV & \makecell{Stream-\\ing} & \makecell{Pyramid-\\KV}\\
@@ -395,6 +396,7 @@ below 15; results on these tasks are noisier.
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}llllll@{}}
 \toprule
 Task & Full & Naive & SnapKV & \makecell{Stream-\\ing} & \makecell{Pyramid-\\KV}\\
@@ -766,6 +768,7 @@ roughly half the absolute magnitude.
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -803,6 +806,7 @@ against the full model's output text.
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -845,6 +849,7 @@ The Mistral results at 65\% show the same pattern.
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -879,6 +884,7 @@ PyramidKV (0.734) are similarly poor, both 5.5× worse than Naive
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -1012,6 +1018,7 @@ the mechanism varies.}
 
 \begin{table*}[t]
 \centering
+\small
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 \begin{minipage}[b]{0.10\columnwidth}\raggedright
@@ -1181,6 +1188,7 @@ isolates the effects of enrichment.
 
 \begin{table*}[t]
 \centering
+\small
 \begin{tabular}{@{}lllllllll@{}}
 \toprule
 Geometry & Gaps & Gapless & Gapped & Evicted & Rerotated & gp/gl & ev/gl
@@ -1321,6 +1329,7 @@ task.
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lll@{}}
 \toprule
 \begin{minipage}[b]{0.30\columnwidth}\raggedright
@@ -1399,6 +1408,7 @@ Appendix A.}
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
@@ -1418,6 +1428,7 @@ Pyr+rot\\
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
@@ -1475,6 +1486,7 @@ re-rotation across rates (Llama):
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}llll@{}}
 \toprule
 Rate & Streaming (unrotated) & Streaming+rot &
@@ -1514,6 +1526,7 @@ breakdown in Appendix B.}
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
@@ -1530,6 +1543,7 @@ Pyr+rot\\
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
@@ -1595,6 +1609,7 @@ n=20/task (100 total). All timing runs use the same five tasks:
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Retention & Naive & SnapKV & Streaming & Pyr\\
@@ -1742,6 +1757,7 @@ Short = full-model reference output ≤ 90 words (n=1155); Long =
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}llll@{}}
 \toprule
 Method & Short-answer \(F_{\text{out}}\) & Long-form \(F_{\text{out}}\)
@@ -1786,6 +1802,7 @@ reference output ≤ 90 words (n = 1155); Long = \textgreater{} 90 words
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lll@{}}
 \toprule
 Method & Short \(F_{\text{KL}}\) & Long \(F_{\text{KL}}\)\\
@@ -1863,6 +1880,7 @@ Gap = unrotated Long − re-rotated Long.}
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Rate & SnapKV & \makecell{SnapKV+\\rot} & Gap & \makecell{Pyramid-\\KV} & Pyr+rot &
@@ -2088,6 +2106,7 @@ is better). Bold = best per row.}
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2135,6 +2154,7 @@ RepoBench-P & 0.048 & 0.050 & 0.702 & 0.004 & 1.052 &
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2182,6 +2202,7 @@ RepoBench-P & 0.065 & 0.088 & 0.580 & \textbf{0.011} & 1.016 &
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2232,6 +2253,7 @@ RepoBench-P & 0.087 & 0.123 & 0.513 & \textbf{0.027} & 0.511 &
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2279,6 +2301,7 @@ RepoBench-P & 0.076 & 0.087 & 0.914 & \textbf{0.004} & 0.940 &
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2326,6 +2349,7 @@ RepoBench-P & 0.088 & 0.115 & 0.678 & \textbf{0.011} & 0.979 &
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2380,6 +2404,7 @@ Results}\label{appendix-b-output-faithfulness-per-task-results}}
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2423,6 +2448,7 @@ RepoBench-P & 77.3 & 65.6 & 90.5 & 77.9 & \textbf{90.6} &
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2466,6 +2492,7 @@ RepoBench-P & 55.3 & 57.7 & \textbf{82.5} & 78.1 & 65.8 &
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2514,6 +2541,7 @@ RepoBench-P & 50.0 & 57.2 & 71.6 & 66.9 & \textbf{71.7} &
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2557,6 +2585,7 @@ RepoBench-P & 62.8 & 66.1 & \textbf{93.0} & 83.1 & 90.1 &
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2600,6 +2629,7 @@ RepoBench-P & 62.6 & 57.6 & 82.0 & 77.6 & \textbf{85.9} &
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2651,6 +2681,7 @@ the reference. Streaming = streaming\_rerotated.}
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2698,6 +2729,7 @@ RepoBench-P & 55.6 & 53.9 & 53.2 & 55.4 & 55.5 & \textbf{56.0} &
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2745,6 +2777,7 @@ RepoBench-P & 55.6 & 51.4 & 53.8 & \textbf{55.7} & 55.3 & 52.8 &
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2796,6 +2829,7 @@ reference. Streaming = streaming\_rerotated.}
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2842,6 +2876,7 @@ RepoBench-P & 53.9 & \textbf{54.4} & 54.1 & 54.1 & 53.5 & 54.0 &
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2888,6 +2923,7 @@ RepoBench-P & 53.9 & 49.5 & 52.1 & 53.7 & \textbf{54.1} & 53.7 &
 
 \begin{table}[H]
 \centering
+\small
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
