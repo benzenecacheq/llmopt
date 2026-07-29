@@ -1,5 +1,5 @@
 % !TeX program = xelatex
-\documentclass[8pt,letterpaper,twocolumn]{extarticle}
+\documentclass[10pt,letterpaper,twocolumn]{article}
 
 % ── fonts & encoding (XeLaTeX) ────────────────────────────────────────────────
 \usepackage{fontspec}
@@ -21,6 +21,7 @@
 \usepackage{array}
 \usepackage{multirow}
 \usepackage{float}
+\usepackage{makecell}
 \usepackage[section]{placeins}
 
 % ── links & metadata ──────────────────────────────────────────────────────────
@@ -354,11 +355,11 @@ completion. Per-task ground-truth results across compression rates
 
 \textbf{Llama-3.1-8B.}
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
 \begin{tabular}{@{}llllll@{}}
 \toprule
-Task & Full & Naive & SnapKV & Streaming & PyramidKV\\
+Task & Full & Naive & SnapKV & \makecell{Stream-\\ing} & \makecell{Pyramid-\\KV}\\
 \midrule
 NarrativeQA† & 5.5 & 4.9 & 5.6 & \textbf{5.8} & 5.5\\
 Qasper† & 11.1 & 10.2 & 11.3 & 9.5 & \textbf{11.8}\\
@@ -384,7 +385,7 @@ RepoBench-P & 55.6 & 53.9 & 55.4 & 53.2 & \textbf{56.0}\\
 \textbf{25.1}\\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
 Full context is the reference and is not bolded. Bold marks the best
 compressed method per task. Tasks marked † have full-context scores
@@ -392,11 +393,11 @@ below 15; results on these tasks are noisier.
 
 \textbf{Mistral-7B-v0.3.}
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
 \begin{tabular}{@{}llllll@{}}
 \toprule
-Task & Full & Naive & SnapKV & Streaming & PyramidKV\\
+Task & Full & Naive & SnapKV & \makecell{Stream-\\ing} & \makecell{Pyramid-\\KV}\\
 \midrule
 NarrativeQA† & 5.1 & 2.7 & 5.1 & \textbf{5.4} & 4.1\\
 Qasper† & 5.3 & 4.3 & \textbf{5.1} & 5.0 & 4.8\\
@@ -420,7 +421,7 @@ RepoBench-P & 53.9 & \textbf{54.4} & 54.1 & 54.1 & 54.0\\
 \textbf{23.5}\\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
 The overall pattern is the same across both architectures: ground-truth
 scores are compressed across methods. On both Llama and Mistral, SnapKV
@@ -1396,11 +1397,11 @@ Appendix A.}
 
 \textbf{Llama-3.1-8B.}
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
 \begin{tabular}{@{}lllllll@{}}
 \toprule
-Retention & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
+Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
 Pyr+rot\\
 \midrule
 65\% & 0.175 & 0.141 & 1.157 & \textbf{0.043} & 1.394 &
@@ -1411,15 +1412,15 @@ Pyr+rot\\
 \textbf{0.124}\\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
 \textbf{Mistral-7B-v0.3.}
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
 \begin{tabular}{@{}lllllll@{}}
 \toprule
-Retention & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
+Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
 Pyr+rot\\
 \midrule
 65\% & 0.133 & 0.161 & 0.733 & \textbf{0.030} & 0.734 &
@@ -1430,7 +1431,7 @@ Pyr+rot\\
 \textbf{0.096}\\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
 SnapKV+rot leads at every rate on both models. The improvement ratios
 from re-rotation (27×/13×/6.7× at 65/50/35\% on Llama; similar on
@@ -1511,11 +1512,11 @@ breakdown in Appendix B.}
 
 \textbf{Llama-3.1-8B.}
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
 \begin{tabular}{@{}lllllll@{}}
 \toprule
-Retention & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
+Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
 Pyr+rot\\
 \midrule
 65\% & 68.6 & 61.2 & 78.5 & 71.1 & \textbf{79.1} & 71.6\\
@@ -1523,15 +1524,15 @@ Pyr+rot\\
 35\% & 46.9 & 51.8 & 66.8 & 63.0 & \textbf{66.9} & 63.0\\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
 \textbf{Mistral-7B-v0.3.}
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
 \begin{tabular}{@{}lllllll@{}}
 \toprule
-Retention & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
+Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
 Pyr+rot\\
 \midrule
 65\% & 60.0 & 61.0 & \textbf{83.7} & 78.2 & 83.5 & 77.0\\
@@ -1539,7 +1540,7 @@ Pyr+rot\\
 35\% & 53.5 & 53.9 & 74.0 & 70.1 & \textbf{74.8} & 70.0\\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
 \textbf{Cross-rate summary.}
 
@@ -1860,11 +1861,11 @@ position distributions shrinks, and the long-form gap collapses to
 \textbf{Table 7. Long-form \(F_{\text{out}}\) by retention rate (Llama).
 Gap = unrotated Long − re-rotated Long.}
 
-\begin{table*}[t]
+\begin{table}[H]
 \centering
 \begin{tabular}{@{}lllllll@{}}
 \toprule
-Rate & SnapKV & SnapKV+rot & Gap & PyramidKV & Pyr+rot &
+Rate & SnapKV & \makecell{SnapKV+\\rot} & Gap & \makecell{Pyramid-\\KV} & Pyr+rot &
 Gap\\
 \midrule
 65\% & 54.7 & 50.0 & 4.7 & 55.5 & 50.1 & 5.4\\
@@ -1872,7 +1873,7 @@ Gap\\
 35\% & 42.1 & 42.0 & 0.1 & 42.3 & 41.8 & 0.5\\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
 The headline aggregate for SnapKV+rot (71.1\%) is above Naive (68.6\%)
 on short tasks but slightly below Naive (57.6\%) on long tasks.
