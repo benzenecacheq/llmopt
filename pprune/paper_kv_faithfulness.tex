@@ -1292,24 +1292,23 @@ Results}\label{kl-faithfulness-main-results}}
 \centering
 \small
 \caption*{Llama-3.1-8B.}
-\caption{Mean KL Faithfulness by compression rate (lower is
+\caption{Mean KL faithfulness by method and retention rate (lower is
 better). Streaming = StreamingLLM with key re-rotation; SnapKV = SnapKV
 (kvpress post-prefill eviction); SnapKV+rot = SnapKV with key
 re-rotation to compact positions; Pyr+rot = PyramidKV with key
-re-rotation; Pyr = PyramidKV. Bold = best per row. Per-task breakdown in
-Appendix A.}
+re-rotation; Pyr = PyramidKV. Bold = best method per retention rate.
+Per-task breakdown in Appendix A.}
 \label{tab:t3}
-\begin{tabular}{@{}lllllll@{}}
+\begin{tabular}{@{}llll@{}}
 \toprule
-Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
-Pyr+rot\\
+Method & 65\% & 50\% & 35\%\\
 \midrule
-65\% & 0.175 & 0.141 & 1.157 & \textbf{0.043} & 1.394 &
-0.047\\
-50\% & 0.217 & 0.199 & 0.981 & \textbf{0.077} & 1.451 &
-0.096\\
-35\% & 0.281 & 0.261 & 0.836 & \textbf{0.124} & 0.837 &
-\textbf{0.124}\\
+Naive      & 0.175 & 0.217 & 0.281\\
+Streaming  & 0.141 & 0.199 & 0.261\\
+SnapKV     & 1.157 & 0.981 & 0.836\\
+SnapKV+rot & \textbf{0.043} & \textbf{0.077} & \textbf{0.124}\\
+Pyr        & 1.394 & 1.451 & 0.837\\
+Pyr+rot    & 0.047 & 0.096 & \textbf{0.124}\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1318,17 +1317,16 @@ Pyr+rot\\
 \centering
 \small
 \caption*{Mistral-7B-v0.3.}
-\begin{tabular}{@{}lllllll@{}}
+\begin{tabular}{@{}llll@{}}
 \toprule
-Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
-Pyr+rot\\
+Method & 65\% & 50\% & 35\%\\
 \midrule
-65\% & 0.133 & 0.161 & 0.733 & \textbf{0.030} & 0.734 &
-0.034\\
-50\% & 0.158 & 0.201 & 0.619 & \textbf{0.058} & 0.796 &
-0.079\\
-35\% & 0.188 & 0.244 & 0.588 & \textbf{0.096} & 0.586 &
-\textbf{0.096}\\
+Naive      & 0.133 & 0.158 & 0.188\\
+Streaming  & 0.161 & 0.201 & 0.244\\
+SnapKV     & 0.733 & 0.619 & 0.588\\
+SnapKV+rot & \textbf{0.030} & \textbf{0.058} & \textbf{0.096}\\
+Pyr        & 0.734 & 0.796 & 0.586\\
+Pyr+rot    & 0.034 & 0.079 & \textbf{0.096}\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1409,19 +1407,21 @@ compressed methods are compared to Mistral full context.
 \centering
 \small
 \caption*{Llama-3.1-8B.}
-\caption{Mean \(F_{\text{out}}\) by compression rate (higher is
-better). Bold = highest value per row. SnapKV+rot = SnapKV with key
-re-rotation; Pyr+rot = PyramidKV with key re-rotation. Per-task
+\caption{Mean \(F_{\text{out}}\) by method and retention rate (higher is
+better). Bold = best method per retention rate. SnapKV+rot = SnapKV with
+key re-rotation; Pyr+rot = PyramidKV with key re-rotation. Per-task
 breakdown in Appendix B.}
 \label{tab:t4}
-\begin{tabular}{@{}lllllll@{}}
+\begin{tabular}{@{}llll@{}}
 \toprule
-Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
-Pyr+rot\\
+Method & 65\% & 50\% & 35\%\\
 \midrule
-65\% & 68.6 & 61.2 & 78.5 & 71.1 & \textbf{79.1} & 71.6\\
-50\% & 52.1 & 56.4 & \textbf{73.2} & 67.8 & 64.2 & 61.3\\
-35\% & 46.9 & 51.8 & 66.8 & 63.0 & \textbf{66.9} & 63.0\\
+Naive      & 68.6 & 52.1 & 46.9\\
+Streaming  & 61.2 & 56.4 & 51.8\\
+SnapKV     & 78.5 & \textbf{73.2} & 66.8\\
+SnapKV+rot & 71.1 & 67.8 & 63.0\\
+Pyr        & \textbf{79.1} & 64.2 & \textbf{66.9}\\
+Pyr+rot    & 71.6 & 61.3 & 63.0\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1430,14 +1430,16 @@ Pyr+rot\\
 \centering
 \small
 \caption*{Mistral-7B-v0.3.}
-\begin{tabular}{@{}lllllll@{}}
+\begin{tabular}{@{}llll@{}}
 \toprule
-Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
-Pyr+rot\\
+Method & 65\% & 50\% & 35\%\\
 \midrule
-65\% & 60.0 & 61.0 & \textbf{83.7} & 78.2 & 83.5 & 77.0\\
-50\% & 56.9 & 57.4 & \textbf{79.0} & 74.3 & 68.8 & 66.5\\
-35\% & 53.5 & 53.9 & 74.0 & 70.1 & \textbf{74.8} & 70.0\\
+Naive      & 60.0 & 56.9 & 53.5\\
+Streaming  & 61.0 & 57.4 & 53.9\\
+SnapKV     & \textbf{83.7} & \textbf{79.0} & 74.0\\
+SnapKV+rot & 78.2 & 74.3 & 70.1\\
+Pyr        & 83.5 & 68.8 & \textbf{74.8}\\
+Pyr+rot    & 77.0 & 66.5 & 70.0\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1491,21 +1493,20 @@ Naive and PyramidKV: n=100/task (500 total); SnapKV and Streaming:
 n=20/task (100 total). All timing runs use the same five tasks:
 2WikiMQA, MultifieldQA, Qasper, RepoBench-P, and TriviaQA.
 
-\textbf{Mean TTFT by retention rate} (Full context baseline: 6348 ms):
+\textbf{Mean TTFT by retention rate} (ms; full-context baseline:
+6348 ms):
 
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{@{}lllll@{}}
+\begin{tabular}{@{}llll@{}}
 \toprule
-Retention & Naive & SnapKV & Streaming & Pyr\\
+Method & 65\% & 50\% & 35\%\\
 \midrule
-65\% & 2464 ms (−61\%) & 6621 ms (+4\%) & 6796 ms (+7\%) & 7022 ms
-(+11\%)\\
-50\% & 2139 ms (−66\%) & 6872 ms (+8\%) & 6750 ms (+6\%) & 7109 ms
-(+12\%)\\
-35\% & 1666 ms (−74\%) & 6834 ms (+8\%) & 6861 ms (+8\%) & 7143 ms
-(+13\%)\\
+Naive     & 2464 & 2139 & 1666\\
+SnapKV    & 6621 & 6872 & 6834\\
+Streaming & 6796 & 6750 & 6861\\
+Pyr       & 7022 & 7109 & 7143\\
 \bottomrule
 \end{tabular}
 \end{table}
