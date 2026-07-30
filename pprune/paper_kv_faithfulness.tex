@@ -21,6 +21,7 @@
 \usepackage{array}
 \usepackage{multirow}
 \usepackage{float}
+\usepackage{caption}
 \usepackage{makecell}
 \usepackage[section]{placeins}
 
@@ -353,11 +354,10 @@ edit-distance-based similarity (\texttt{code\_sim\_score}) for code
 completion. Per-task ground-truth results across compression rates
 (65/50/35\%) are given in Appendix C.
 
-\textbf{Llama-3.1-8B.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Llama-3.1-8B.}
 \begin{tabular}{@{}llllll@{}}
 \toprule
 Task & Full & Naive & SnapKV & \makecell{Stream-\\ing} & \makecell{Pyramid-\\KV}\\
@@ -392,11 +392,10 @@ Full context is the reference and is not bolded. Bold marks the best
 compressed method per task. Tasks marked † have full-context scores
 below 15; results on these tasks are noisier.
 
-\textbf{Mistral-7B-v0.3.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Mistral-7B-v0.3.}
 \begin{tabular}{@{}llllll@{}}
 \toprule
 Task & Full & Naive & SnapKV & \makecell{Stream-\\ing} & \makecell{Pyramid-\\KV}\\
@@ -845,11 +844,10 @@ contradictory: §8 explains the mechanism that decouples
 
 The Mistral results at 65\% show the same pattern.
 
-\textbf{KL Faithfulness.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{KL Faithfulness.}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -1245,11 +1243,10 @@ fp16).
 \textbf{Benchmark.} LongBench v1, 16 English tasks, 100 examples per
 task.
 
-\textbf{Methods compared.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Methods compared.}
 \begin{tabular}{@{}lll@{}}
 \toprule
 \begin{minipage}[b]{0.30\columnwidth}\raggedright
@@ -1316,11 +1313,10 @@ PyramidKV + key re-rotation to compact positions after eviction\strut
 \hypertarget{kl-faithfulness-main-results}{%
 \subsection{7.2 KL Faithfulness: Main
 Results}\label{kl-faithfulness-main-results}}
-\textbf{Llama-3.1-8B.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Llama-3.1-8B.}
 \caption{Mean KL Faithfulness by compression rate (lower is
 better). Streaming = StreamingLLM with key re-rotation; SnapKV = SnapKV
 (kvpress post-prefill eviction); SnapKV+rot = SnapKV with key
@@ -1343,11 +1339,10 @@ Pyr+rot\\
 \end{tabular}
 \end{table}
 
-\textbf{Mistral-7B-v0.3.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Mistral-7B-v0.3.}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
@@ -1435,11 +1430,10 @@ compressed model's generated text is to the full model's generated text
 (§5.3). Higher is better. All comparisons are within-model: Llama
 compressed methods are compared to Llama full context; Mistral
 compressed methods are compared to Mistral full context.
-\textbf{Llama-3.1-8B.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Llama-3.1-8B.}
 \caption{Mean \(F_{\text{out}}\) by compression rate (higher is
 better). Bold = highest value per row. SnapKV+rot = SnapKV with key
 re-rotation; Pyr+rot = PyramidKV with key re-rotation. Per-task
@@ -1457,11 +1451,10 @@ Pyr+rot\\
 \end{tabular}
 \end{table}
 
-\textbf{Mistral-7B-v0.3.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Mistral-7B-v0.3.}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Retention & Naive & \makecell{Stream-\\ing} & SnapKV & \makecell{SnapKV+\\rot} & Pyr &
@@ -2017,11 +2010,10 @@ Results}\label{appendix-a-kl-faithfulness-per-task-results}}
 \textbf{Tables A1a--A1c. KL Faithfulness per task, Llama-3.1-8B (lower
 is better). Bold = best per row.}
 
-\textbf{Table A1a. 65\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table A1a. 65\% retention.}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2065,11 +2057,10 @@ RepoBench-P & 0.048 & 0.050 & 0.702 & 0.004 & 1.052 &
 \end{tabular}
 \end{table}
 
-\textbf{Table A1b. 50\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table A1b. 50\% retention.}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2113,11 +2104,10 @@ RepoBench-P & 0.065 & 0.088 & 0.580 & \textbf{0.011} & 1.016 &
 \end{tabular}
 \end{table}
 
-\textbf{Table A1c. 35\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table A1c. 35\% retention.}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2164,11 +2154,10 @@ RepoBench-P & 0.087 & 0.123 & 0.513 & \textbf{0.027} & 0.511 &
 \textbf{Tables A2a--A2c. KL Faithfulness per task, Mistral-7B-v0.3
 (lower is better). Bold = best per row.}
 
-\textbf{Table A2a. 65\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table A2a. 65\% retention.}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2212,11 +2201,10 @@ RepoBench-P & 0.076 & 0.087 & 0.914 & \textbf{0.004} & 0.940 &
 \end{tabular}
 \end{table}
 
-\textbf{Table A2b. 50\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table A2b. 50\% retention.}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2260,11 +2248,10 @@ RepoBench-P & 0.088 & 0.115 & 0.678 & \textbf{0.011} & 0.979 &
 \end{tabular}
 \end{table}
 
-\textbf{Table A2c. 35\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table A2c. 35\% retention.}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2315,11 +2302,10 @@ Results}\label{appendix-b-output-faithfulness-per-task-results}}
 \textbf{Tables B1a--B1c. \(F_{\text{out}}\) per task, Llama-3.1-8B
 (higher is better). Bold = highest value per row.}
 
-\textbf{Table B1a. 65\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table B1a. 65\% retention.}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2359,11 +2345,10 @@ RepoBench-P & 77.3 & 65.6 & 90.5 & 77.9 & \textbf{90.6} &
 \end{tabular}
 \end{table}
 
-\textbf{Table B1b. 50\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table B1b. 50\% retention.}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2403,11 +2388,10 @@ RepoBench-P & 55.3 & 57.7 & \textbf{82.5} & 78.1 & 65.8 &
 \end{tabular}
 \end{table}
 
-\textbf{Table B1c. 35\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table B1c. 35\% retention.}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2452,11 +2436,10 @@ RepoBench-P & 50.0 & 57.2 & 71.6 & 66.9 & \textbf{71.7} &
 \textbf{Tables B2a--B2c. \(F_{\text{out}}\) per task, Mistral-7B-v0.3
 (higher is better). Bold = highest value per row.}
 
-\textbf{Table B2a. 65\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table B2a. 65\% retention.}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2496,11 +2479,10 @@ RepoBench-P & 62.8 & 66.1 & \textbf{93.0} & 83.1 & 90.1 &
 \end{tabular}
 \end{table}
 
-\textbf{Table B2b. 35\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table B2b. 35\% retention.}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2540,11 +2522,10 @@ RepoBench-P & 62.6 & 57.6 & 82.0 & 77.6 & \textbf{85.9} &
 \end{tabular}
 \end{table}
 
-\textbf{Table B2c. 50\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table B2c. 50\% retention.}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2592,11 +2573,10 @@ Results}\label{appendix-c-ground-truth-accuracy-per-task-results}}
 (higher is better). Bold = best compressed method per row; ``Full'' is
 the reference. Streaming = streaming\_rerotated.}
 
-\textbf{Table C1a. 65\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table C1a. 65\% retention.}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2640,11 +2620,10 @@ RepoBench-P & 55.6 & 53.9 & 53.2 & 55.4 & 55.5 & \textbf{56.0} &
 \end{tabular}
 \end{table}
 
-\textbf{Table C1b. 50\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table C1b. 50\% retention.}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2688,11 +2667,10 @@ RepoBench-P & 55.6 & 51.4 & 53.8 & \textbf{55.7} & 55.3 & 52.8 &
 \end{tabular}
 \end{table}
 
-\textbf{Table C1c. 35\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table C1c. 35\% retention.}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2740,11 +2718,10 @@ RepoBench-P & 55.6 & 50.6 & \textbf{54.0} & \textbf{55.1} & 54.7 &
 (higher is better). Bold = best compressed method per row; Full is the
 reference. Streaming = streaming\_rerotated.}
 
-\textbf{Table C2a. 65\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table C2a. 65\% retention.}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2787,11 +2764,10 @@ RepoBench-P & 53.9 & \textbf{54.4} & 54.1 & 54.1 & 53.5 & 54.0 &
 \end{tabular}
 \end{table}
 
-\textbf{Table C2b. 35\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table C2b. 35\% retention.}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
@@ -2834,11 +2810,10 @@ RepoBench-P & 53.9 & 49.5 & 52.1 & 53.7 & \textbf{54.1} & 53.7 &
 \end{tabular}
 \end{table}
 
-\textbf{Table C2c. 50\% retention.}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Table C2c. 50\% retention.}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & SnapKV & SnapKV+rot & Pyr &
