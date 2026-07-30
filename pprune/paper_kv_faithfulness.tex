@@ -1376,12 +1376,11 @@ re-rotation across rates (Llama):
 \small
 \begin{tabular}{@{}llll@{}}
 \toprule
-Rate & Streaming (unrotated) & Streaming+rot &
-Improvement\\
+Method & 65\% & 50\% & 35\%\\
 \midrule
-65\% & 1.639 & 0.141 & 11.7×\\
-50\% & 1.122 & 0.199 & 5.6×\\
-35\% & 0.953 & 0.261 & 3.7×\\
+Streaming (unrotated) & 1.639 & 1.122 & 0.953\\
+Streaming+rot         & 0.141 & 0.199 & 0.261\\
+Improvement           & 11.7× & 5.6×  & 3.7×\\
 \bottomrule
 \end{tabular}
 \end{table}
