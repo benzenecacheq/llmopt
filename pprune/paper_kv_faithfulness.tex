@@ -799,13 +799,10 @@ are substantially worse). Streaming leads on 8 of 16 tasks and the
 overall average; Naive leads on 8. SnapKV and PyramidKV are an order of
 magnitude worse than either Naive or Streaming.
 
-\textbf{Output Faithfulness (\(F_{\text{out}}\)) at 65\%.} The same
-methods evaluated on the new metric, comparing each model's output text
-against the full model's output text.
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Output Faithfulness (\(F_{\text{out}}\)) at 65\%, Llama-3.1-8B.}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -878,11 +875,10 @@ Naive leads on 12 of 16 tasks; Streaming leads on 4. SnapKV (0.733) and
 PyramidKV (0.734) are similarly poor, both 5.5× worse than Naive
 (0.133).
 
-\textbf{Output Faithfulness (\(F_{\text{out}}\)).}
-
 \begin{table}[H]
 \centering
 \small
+\caption*{Output Faithfulness (\(F_{\text{out}}\)) at 65\%, Mistral-7B-v0.3.}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
