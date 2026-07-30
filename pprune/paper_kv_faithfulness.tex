@@ -1018,15 +1018,17 @@ Llama-3.1-8B, 65\% retention, 6 tasks, n = 100 per task. All three
 SnapKV rows use identical attention-score-based token selection; only
 the mechanism varies.}
 \label{tab:t1}
-\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.28\textwidth}lllllll@{}}
-\toprule
+\begin{tabular}{|>{\raggedright\arraybackslash}p{0.28\textwidth}|l|l|l|l|l|l|l|}
+\hline
 Method & 2WikiMQA & MultifieldQA & Qasper & QMSum & RepoBench-P & TriviaQA & Mean\\
-\midrule
+\hline
 Naive --- prompt construction & 0.221 & 0.262 & 0.281 & 0.081 & \textbf{0.048} & 0.076 & 0.162\\
-SnapKV (pcfg) --- KV pruning (recompute-over-gaps) & 0.254 & 0.186 & 0.223 & 0.117 & 0.106 & 0.122 & 0.168\\
+\hline
+SnapKV --- KV pruning (recompute-over-gaps) & 0.254 & 0.186 & 0.223 & 0.117 & 0.106 & 0.122 & 0.168\\
 SnapKV --- KV pruning (post-prefill eviction) & 1.714 & 1.316 & 0.881 & 0.393 & 0.702 & 1.151 & 1.026\\
+\hline
 SnapKV-Select --- prompt construction & \textbf{0.096} & \textbf{0.118} & \textbf{0.163} & \textbf{0.071} & 0.051 & \textbf{0.060} & \textbf{0.093}\\
-\bottomrule
+\hline
 \end{tabular}
 \end{table*}
 
