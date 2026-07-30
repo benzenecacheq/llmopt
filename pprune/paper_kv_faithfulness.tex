@@ -1291,7 +1291,6 @@ Results}\label{kl-faithfulness-main-results}}
 \begin{table}[H]
 \centering
 \small
-\caption*{Llama-3.1-8B.}
 \caption{Mean KL faithfulness by method and retention rate (lower is
 better). Streaming = StreamingLLM with key re-rotation; SnapKV = SnapKV
 (kvpress post-prefill eviction); SnapKV+rot = SnapKV with key
@@ -1299,6 +1298,7 @@ re-rotation to compact positions; Pyr+rot = PyramidKV with key
 re-rotation; Pyr = PyramidKV. Bold = best method per retention rate.
 Per-task breakdown in Appendix A.}
 \label{tab:t3}
+\caption*{Llama-3.1-8B.}
 \begin{tabular}{@{}llll@{}}
 \toprule
 Method & 65\% & 50\% & 35\%\\
@@ -1405,12 +1405,12 @@ compressed methods are compared to Mistral full context.
 \begin{table}[H]
 \centering
 \small
-\caption*{Llama-3.1-8B.}
 \caption{Mean \(F_{\text{out}}\) by method and retention rate (higher is
 better). Bold = best method per retention rate. SnapKV+rot = SnapKV with
 key re-rotation; Pyr+rot = PyramidKV with key re-rotation. Per-task
 breakdown in Appendix B.}
 \label{tab:t4}
+\caption*{Llama-3.1-8B.}
 \begin{tabular}{@{}llll@{}}
 \toprule
 Method & 65\% & 50\% & 35\%\\
