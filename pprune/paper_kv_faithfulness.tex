@@ -761,13 +761,11 @@ distributions to full model distributions, teacher-forced on \(y^*\).
 \(F_{\text{out}}\) compares the compressed model's independently
 generated outputs to \(y^*\) using word-level F1.
 
-\textbf{KL Faithfulness at 65\%.} The KL results below compare all
-methods on Llama-3.1-8B; the Mistral results follow the same pattern at
-roughly half the absolute magnitude.
-
 \begin{table}[H]
 \centering
 \small
+\caption*{KL faithfulness at 65\%, Llama-3.1-8B. Values in nats; lower
+is better. Bold = best per row (SnapKV and PyramidKV excluded).}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -793,58 +791,10 @@ RepoBench-P & \textbf{0.048} & 0.050 & 0.702 & 1.052\\
 \end{tabular}
 \end{table}
 
-Values in nats; lower is better. Bold marks the best \(F_{\text{KL}}\)
-per row (SnapKV and PyramidKV excluded from bold competition --- both
-are substantially worse). Streaming leads on 8 of 16 tasks and the
-overall average; Naive leads on 8. SnapKV and PyramidKV are an order of
-magnitude worse than either Naive or Streaming.
-
 \begin{table}[H]
 \centering
 \small
-\caption*{Output Faithfulness (\(F_{\text{out}}\)) at 65\%, Llama-3.1-8B.}
-\begin{tabular}{@{}lllll@{}}
-\toprule
-Task & Naive & Streaming & SnapKV & PyramidKV\\
-\midrule
-NarrativeQA† & \textbf{88.1} & 59.9 & 63.1 & 61.7\\
-Qasper† & 46.4 & 56.9 & 71.4 & \textbf{72.6}\\
-MultifieldQA & 57.3 & 63.6 & 81.0 & \textbf{86.0}\\
-HotpotQA† & 88.2 & 72.6 & \textbf{95.3} & 92.2\\
-2WikiMQA† & 64.5 & 77.9 & \textbf{95.6} & \textbf{95.6}\\
-MuSiQue† & \textbf{97.1} & 72.3 & 92.7 & 92.3\\
-GovReport & \textbf{55.8} & 40.1 & 47.8 & 51.2\\
-QMSum† & \textbf{54.4} & 37.0 & 41.7 & 40.4\\
-MultiNews & 43.8 & 41.0 & 44.6 & \textbf{49.0}\\
-TREC & 75.3 & 74.0 & \textbf{82.6} & 81.3\\
-TriviaQA & 71.1 & 60.2 & 92.0 & \textbf{97.0}\\
-SAMSum & 64.9 & 52.6 & \textbf{78.4} & 73.4\\
-PassageCount† & 70.7 & 61.8 & 92.8 & \textbf{96.4}\\
-PassageRetrieval & 80.1 & 70.0 & \textbf{94.0} & 93.8\\
-LCC & 62.0 & 73.8 & \textbf{92.8} & 91.3\\
-RepoBench-P & 77.3 & 65.6 & 90.5 & \textbf{90.6}\\
-\textbf{Average} & 68.6 & 61.2 & 78.5 & \textbf{79.1}\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Values in \%; higher is better. Bold marks the highest value per row.
-
-\textbf{The two metrics sharply disagree on SnapKV and PyramidKV.} On KL
-faithfulness, Streaming (0.141) edges Naive (0.175) on average, while
-SnapKV (1.157) and PyramidKV (1.394) are an order of magnitude worse. On
-\(F_{\text{out}}\), PyramidKV (79.1\%) and SnapKV (78.5\%) are the two
-leading methods --- effectively tied and 10+ points above naive (68.6\%)
---- while Streaming (61.2\%) sits below naive. These reversals are not
-contradictory: §8 explains the mechanism that decouples
-\(F_{\text{out}}\) from KL for post-prefill eviction methods.
-
-The Mistral results at 65\% show the same pattern.
-
-\begin{table}[H]
-\centering
-\small
-\caption*{KL Faithfulness.}
+\caption*{Mistral-7B-v0.3.}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -870,15 +820,44 @@ RepoBench-P & \textbf{0.076} & 0.087 & 0.914 & 0.940\\
 \end{tabular}
 \end{table}
 
-Values in nats; lower is better. Bold marks the best value per row.
-Naive leads on 12 of 16 tasks; Streaming leads on 4. SnapKV (0.733) and
-PyramidKV (0.734) are similarly poor, both 5.5× worse than Naive
-(0.133).
+Streaming leads Naive on both models; SnapKV and PyramidKV are an order
+of magnitude worse. Mistral shows the same ranking at roughly half the
+absolute KL magnitude.
 
 \begin{table}[H]
 \centering
 \small
-\caption*{Output Faithfulness (\(F_{\text{out}}\)) at 65\%, Mistral-7B-v0.3.}
+\caption*{Output faithfulness (\(F_{\text{out}}\)) at 65\%, Llama-3.1-8B.
+Values in \%; higher is better. Bold = best per row.}
+\begin{tabular}{@{}lllll@{}}
+\toprule
+Task & Naive & Streaming & SnapKV & PyramidKV\\
+\midrule
+NarrativeQA† & \textbf{88.1} & 59.9 & 63.1 & 61.7\\
+Qasper† & 46.4 & 56.9 & 71.4 & \textbf{72.6}\\
+MultifieldQA & 57.3 & 63.6 & 81.0 & \textbf{86.0}\\
+HotpotQA† & 88.2 & 72.6 & \textbf{95.3} & 92.2\\
+2WikiMQA† & 64.5 & 77.9 & \textbf{95.6} & \textbf{95.6}\\
+MuSiQue† & \textbf{97.1} & 72.3 & 92.7 & 92.3\\
+GovReport & \textbf{55.8} & 40.1 & 47.8 & 51.2\\
+QMSum† & \textbf{54.4} & 37.0 & 41.7 & 40.4\\
+MultiNews & 43.8 & 41.0 & 44.6 & \textbf{49.0}\\
+TREC & 75.3 & 74.0 & \textbf{82.6} & 81.3\\
+TriviaQA & 71.1 & 60.2 & 92.0 & \textbf{97.0}\\
+SAMSum & 64.9 & 52.6 & \textbf{78.4} & 73.4\\
+PassageCount† & 70.7 & 61.8 & 92.8 & \textbf{96.4}\\
+PassageRetrieval & 80.1 & 70.0 & \textbf{94.0} & 93.8\\
+LCC & 62.0 & 73.8 & \textbf{92.8} & 91.3\\
+RepoBench-P & 77.3 & 65.6 & 90.5 & \textbf{90.6}\\
+\textbf{Average} & 68.6 & 61.2 & 78.5 & \textbf{79.1}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\caption*{Mistral-7B-v0.3.}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -904,14 +883,13 @@ RepoBench-P & 62.8 & 66.1 & \textbf{93.0} & 90.1\\
 \end{tabular}
 \end{table}
 
-Values in \%; higher is better. Bold marks the highest value per row.
-
-The pattern is consistent across architectures. On Mistral, SnapKV
-(83.7\%) and PyramidKV (83.5\%) are effectively tied on
-\(F_{\text{out}}\) --- the same reversal as Llama relative to KL
-faithfulness --- while Streaming (61.0\%) and Naive (60.0\%) cluster
-together, confirming the KV-pruning \(F_{\text{out}}\) advantage holds
-across both models.
+\textbf{The two metrics sharply disagree on SnapKV and PyramidKV.} On KL
+faithfulness, Streaming edges Naive on both models while SnapKV and
+PyramidKV are an order of magnitude worse. \(F_{\text{out}}\) reverses
+this: PyramidKV and SnapKV lead on both models while Streaming falls near
+or below Naive. These reversals are not contradictory: §8 explains the
+mechanism that decouples \(F_{\text{out}}\) from KL for post-prefill
+eviction methods. The pattern holds consistently across architectures.
 
 \hypertarget{structural-corruption-in-kv-cache-pruning}{%
 \section{6. Structural Corruption in KV Cache
