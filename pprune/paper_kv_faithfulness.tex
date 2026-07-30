@@ -1764,14 +1764,16 @@ position distributions shrinks, and the long-form gap collapses to
 \caption{Long-form \(F_{\text{out}}\) by retention rate (Llama).
 Gap = unrotated Long − re-rotated Long.}
 \label{tab:t7}
-\begin{tabular}{@{}lllllll@{}}
+\begin{tabular}{@{}llll@{}}
 \toprule
-Rate & SnapKV & \makecell{SnapKV+\\rot} & Gap & \makecell{Pyramid-\\KV} & Pyr+rot &
-Gap\\
+Method & 65\% & 50\% & 35\%\\
 \midrule
-65\% & 54.7 & 50.0 & 4.7 & 55.5 & 50.1 & 5.4\\
-50\% & 47.7 & 46.2 & 1.5 & 42.7 & 40.3 & 2.4\\
-35\% & 42.1 & 42.0 & 0.1 & 42.3 & 41.8 & 0.5\\
+SnapKV     & 54.7 & 47.7 & 42.1\\
+SnapKV+rot & 50.0 & 46.2 & 42.0\\
+Gap        &  4.7 &  1.5 &  0.1\\
+PyramidKV  & 55.5 & 42.7 & 42.3\\
+Pyr+rot    & 50.1 & 40.3 & 41.8\\
+Gap        &  5.4 &  2.4 &  0.5\\
 \bottomrule
 \end{tabular}
 \end{table}
