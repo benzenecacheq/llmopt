@@ -354,10 +354,11 @@ edit-distance-based similarity (\texttt{code\_sim\_score}) for code
 completion. Per-task ground-truth results across compression rates
 (65/50/35\%) are given in Appendix C.
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
-\caption*{Llama-3.1-8B.}
+\caption{Ground-truth accuracy at 65\% retention, Llama-3.1-8B. Bold = best compressed method per task. \(\dagger\) = low full-context score; results noisier. Full-rate results at all rates in Appendix~C.}
+\label{tab:gt-llama}
 \begin{tabular}{@{}llllll@{}}
 \toprule
 Task & Full & Naive & SnapKV & \makecell{Stream-\\ing} & \makecell{Pyramid-\\KV}\\
@@ -392,10 +393,11 @@ Full context is the reference and is not bolded. Bold marks the best
 compressed method per task. Tasks marked † have full-context scores
 below 15; results on these tasks are noisier.
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
-\caption*{Mistral-7B-v0.3.}
+\caption{Ground-truth accuracy at 65\% retention, Mistral-7B-v0.3. Bold = best compressed method per task.}
+\label{tab:gt-mistral}
 \begin{tabular}{@{}llllll@{}}
 \toprule
 Task & Full & Naive & SnapKV & \makecell{Stream-\\ing} & \makecell{Pyramid-\\KV}\\
@@ -424,7 +426,7 @@ RepoBench-P & 53.9 & \textbf{54.4} & 54.1 & 54.1 & 54.0\\
 \end{tabular}
 \end{table}
 
-The overall pattern is the same across both architectures: ground-truth
+Tables~\ref{tab:gt-llama} and~\ref{tab:gt-mistral} show per-task results. The overall pattern is the same across both architectures: ground-truth
 scores are compressed across methods. On both Llama and Mistral, SnapKV
 ties PyramidKV (Llama: 25.0 vs 25.1; Mistral: 23.5 vs 23.5), both
 exceeding naive. Streaming (23.7 Llama, 22.9 Mistral) exceeds naive on
@@ -757,15 +759,17 @@ Retention}\label{results-at-65-retention}}
 
 \textbf{Faithfulness evaluation.} Full-context outputs (\(y^*\)) are
 generated first and stored. KL faithfulness compares compressed model
-distributions to full model distributions, teacher-forced on \(y^*\).
+distributions to full model distributions, teacher-forced on \(y^*\)
+(Tables~\ref{tab:kl55-llama} and~\ref{tab:kl55-mistral}).
 \(F_{\text{out}}\) compares the compressed model's independently
-generated outputs to \(y^*\) using word-level F1.
+generated outputs to \(y^*\) using word-level F1
+(Tables~\ref{tab:fout55-llama} and~\ref{tab:fout55-mistral}).
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
-\caption*{KL faithfulness at 65\%, Llama-3.1-8B. Values in nats; lower
-is better. Bold = best per row (SnapKV and PyramidKV excluded).}
+\caption{KL faithfulness (\(F_{\text{KL}}\)) at 65\% per task, Llama-3.1-8B. Values in nats; lower is better. Bold = best per row (SnapKV and PyramidKV excluded).}
+\label{tab:kl55-llama}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -791,10 +795,11 @@ RepoBench-P & \textbf{0.048} & 0.050 & 0.702 & 1.052\\
 \end{tabular}
 \end{table}
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
-\caption*{Mistral-7B-v0.3.}
+\caption{KL faithfulness (\(F_{\text{KL}}\)) at 65\% per task, Mistral-7B-v0.3. Values in nats; lower is better. Bold = best per row (SnapKV and PyramidKV excluded).}
+\label{tab:kl55-mistral}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -824,11 +829,11 @@ Streaming leads Naive on both models; SnapKV and PyramidKV are an order
 of magnitude worse. Mistral shows the same ranking at roughly half the
 absolute KL magnitude.
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
-\caption*{Output faithfulness (\(F_{\text{out}}\)) at 65\%, Llama-3.1-8B.
-Values in \%; higher is better. Bold = best per row.}
+\caption{Output faithfulness (\(F_{\text{out}}\)) at 65\% per task, Llama-3.1-8B. Values in \%; higher is better. Bold = best per row.}
+\label{tab:fout55-llama}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -854,10 +859,11 @@ RepoBench-P & 77.3 & 65.6 & 90.5 & \textbf{90.6}\\
 \end{tabular}
 \end{table}
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
-\caption*{Mistral-7B-v0.3.}
+\caption{Output faithfulness (\(F_{\text{out}}\)) at 65\% per task, Mistral-7B-v0.3. Values in \%; higher is better. Bold = best per row.}
+\label{tab:fout55-mistral}
 \begin{tabular}{@{}lllll@{}}
 \toprule
 Task & Naive & Streaming & SnapKV & PyramidKV\\
@@ -1218,10 +1224,11 @@ fp16).
 \textbf{Benchmark.} LongBench v1, 16 English tasks, 100 examples per
 task.
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
-\caption*{Methods compared.}
+\caption{Methods compared in the main experiments (§7).}
+\label{tab:methods}
 \begin{tabular}{@{}lll@{}}
 \toprule
 \begin{minipage}[b]{0.30\columnwidth}\raggedright
@@ -1288,7 +1295,7 @@ PyramidKV + key re-rotation to compact positions after eviction\strut
 \hypertarget{kl-faithfulness-main-results}{%
 \subsection{7.2 KL Faithfulness: Main
 Results}\label{kl-faithfulness-main-results}}
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
 \caption{Mean KL faithfulness by method and retention rate (lower is
@@ -1313,10 +1320,11 @@ Pyr+rot    & 0.047 & 0.096 & \textbf{0.124}\\
 \end{tabular}
 \end{table}
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
-\caption*{Mistral-7B-v0.3.}
+\caption{Mean KL faithfulness by method and retention rate, Mistral-7B-v0.3. Lower is better. Bold = best method per retention rate.}
+\label{tab:kl-mistral}
 \begin{tabular}{@{}llll@{}}
 \toprule
 Method & 65\% & 50\% & 35\%\\
@@ -1331,7 +1339,7 @@ Pyr+rot    & 0.034 & 0.079 & \textbf{0.096}\\
 \end{tabular}
 \end{table}
 
-SnapKV+rot leads at every rate on both models. The improvement ratios
+SnapKV+rot leads at every rate on both models (Table~\ref{tab:kl-mistral} shows the Mistral results). The improvement ratios
 from re-rotation (27×/13×/6.7× at 65/50/35\% on Llama; similar on
 Mistral) decrease at tighter budgets because two effects push in
 opposite directions: unrotated SnapKV KL falls as compression increases
@@ -1369,11 +1377,13 @@ difference also visible in \(F_{\text{out}}\) (§7.4).
 \textbf{Re-rotation improvement ratios for Streaming.} Table~\ref{tab:t3} shows
 streaming\_rerotated as the recommended method. For comparison, the
 unrotated kvpress StreamingLLMPress baseline and the improvement from
-re-rotation across rates (Llama):
+re-rotation across rates (Table~\ref{tab:streaming-imp}, Llama):
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
+\caption{Streaming re-rotation improvement (Llama-3.1-8B). KL faithfulness before and after key re-rotation, with improvement ratio.}
+\label{tab:streaming-imp}
 \begin{tabular}{@{}llll@{}}
 \toprule
 Method & 65\% & 50\% & 35\%\\
@@ -1401,8 +1411,9 @@ Output Faithfulness (\(F_{\text{out}}\)) measures how similar the
 compressed model's generated text is to the full model's generated text
 (§5.3). Higher is better. All comparisons are within-model: Llama
 compressed methods are compared to Llama full context; Mistral
-compressed methods are compared to Mistral full context.
-\begin{table}[H]
+compressed methods are compared to Mistral full context
+(Table~\ref{tab:fout-mistral}).
+\begin{table}[t]
 \centering
 \small
 \caption{Mean \(F_{\text{out}}\) by method and retention rate (higher is
@@ -1425,10 +1436,11 @@ Pyr+rot    & 71.6 & 61.3 & 63.0\\
 \end{tabular}
 \end{table}
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
-\caption*{Mistral-7B-v0.3.}
+\caption{Mean \(F_{\text{out}}\) by method and retention rate, Mistral-7B-v0.3. Higher is better. Bold = best method per retention rate.}
+\label{tab:fout-mistral}
 \begin{tabular}{@{}llll@{}}
 \toprule
 Method & 65\% & 50\% & 35\%\\
@@ -1492,12 +1504,13 @@ Naive and PyramidKV: n=100/task (500 total); SnapKV and Streaming:
 n=20/task (100 total). All timing runs use the same five tasks:
 2WikiMQA, MultifieldQA, Qasper, RepoBench-P, and TriviaQA.
 
-\textbf{Mean TTFT by retention rate} (ms; full-context baseline:
-6348 ms):
+Table~\ref{tab:ttft} shows mean TTFT by retention rate.
 
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
+\caption{Mean time to first token (ms) by retention rate (Llama-3.1-8B, V100). Full-context baseline: 6348\,ms.}
+\label{tab:ttft}
 \begin{tabular}{@{}llll@{}}
 \toprule
 Method & 65\% & 50\% & 35\%\\
@@ -1636,7 +1649,7 @@ code-completion tasks have full-model mean outputs of 14--48 words
 (≥96\% of examples fall below 90 words), while summarization tasks have
 means of 339--384 words (≥86\% fall above). NarrativeQA, Qasper, and
 SAMSum straddle the boundary with means near 80--90 words.
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
 \caption{\(F_{\text{out}}\) by length category (Llama, 65\%).
@@ -1679,7 +1692,7 @@ the reduction is attributable to key re-rotation itself.
 
 Table~\ref{tab:t6} gives the same short/long breakdown by KL faithfulness, showing
 what \(F_{\text{out}}\) cannot.
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
 \caption{Mean KL faithfulness by output-length category
@@ -1758,7 +1771,7 @@ gap is largest (4.7 and 5.4 points). At 35\%, unrotated methods also
 retain fewer keys with a smaller effective spread, the difference in
 position distributions shrinks, and the long-form gap collapses to
 0.1--0.5 points.
-\begin{table}[H]
+\begin{table}[t]
 \centering
 \small
 \caption{Long-form \(F_{\text{out}}\) by retention rate (Llama).
