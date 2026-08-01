@@ -1,5 +1,5 @@
 % !TeX program = xelatex
-\documentclass[10pt,letterpaper,twocolumn]{article}
+\documentclass[10pt,letterpaper]{article}
 
 % ── fonts & encoding (XeLaTeX) ────────────────────────────────────────────────
 \usepackage{fontspec}
@@ -42,13 +42,14 @@
 
 % ── metadata ──────────────────────────────────────────────────────────────────
 \title{Faithfulness over Accuracy:\\Rethinking KV Cache Compression}
-\author{Dave Bennett}
+\author{David Bennett (dave@mytorch.net)}
 \date{2026}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
+\normalsize
 KV cache compression is motivated by a simple observation: long-context
 inference is expensive, and many tokens in the prompt are not equally
 important for generating a good response. A large body of work has
@@ -329,11 +330,80 @@ evaluation benchmark used by SnapKV {[}Li et al., 2024{]}, PyramidKV
 work, making it the natural choice for ground-truth comparability; we
 extend it with our faithfulness metrics on the same task set.
 
+\begin{sloppypar}
 \textbf{Hyperparameters.} Retention fraction r=0.65. For kvpress
 methods: \texttt{window\_size=128} (observation window; kvpress stock
 default 64), PyramidKV \texttt{beta=20}. For the §6.2 custom
 implementation: \texttt{q\_buffer\_size=128},
 \texttt{always\_keep\_first=16}, \texttt{always\_keep\_last=16}.
+\end{sloppypar}
+
+\begin{table}[H]
+\centering
+\small
+\captionsetup{justification=centering}
+\caption{Ground-truth accuracy at 65\% retention.}
+\label{tab:gt}
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\textbf{Llama-3.1-8B}\\[0.4em]
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Task & Full & Naive & \makecell{Stream-\\ing} & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
+\midrule
+NarrativeQA† & 5.5 & 4.9 & \textbf{5.8} & 5.6 & 5.5\\
+Qasper† & 11.1 & 10.2 & 9.5 & 11.3 & \textbf{11.8}\\
+MultifieldQA & 28.9 & 27.0 & 26.3 & \textbf{30.2} & 29.4\\
+HotpotQA† & 9.9 & 9.6 & 9.0 & 9.9 & \textbf{10.2}\\
+2WikiMQA† & 14.1 & 12.6 & \textbf{13.9} & \textbf{13.9} & 13.7\\
+MuSiQue† & 6.9 & 7.0 & 5.6 & \textbf{7.2} & 7.1\\
+GovReport & 20.4 & 19.8 & 18.9 & 19.6 & \textbf{20.1}\\
+QMSum† & 10.3 & \textbf{11.5} & 9.9 & 9.7 & 9.4\\
+MultiNews & 19.0 & 16.5 & 17.7 & \textbf{18.1} & 17.9\\
+TREC & 70.0 & 66.0 & 68.0 & \textbf{71.0} & \textbf{71.0}\\
+TriviaQA & 17.4 & 17.3 & 17.4 & \textbf{17.5} & \textbf{17.5}\\
+SAMSum & 16.0 & 16.5 & \textbf{17.1} & 16.2 & 16.3\\
+PassageCount† & 3.0 & 1.0 & \textbf{3.0} & \textbf{3.0} & \textbf{3.0}\\
+PassageRetrieval & 44.0 & 37.0 & 37.0 & \textbf{44.0} & \textbf{44.0}\\
+LCC & 68.1 & 63.4 & 67.2 & 68.1 & \textbf{68.5}\\
+RepoBench-P & 55.6 & 53.9 & 53.2 & 55.4 & \textbf{56.0}\\
+\midrule
+\textbf{Average} & 25.0 & 23.4 & 23.7 & 25.0 & \textbf{25.1}\\
+\bottomrule
+\end{tabular}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\textbf{Mistral-7B-v0.3}\\[0.4em]
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Task & Full & Naive & \makecell{Stream-\\ing} & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
+\midrule
+NarrativeQA† & 5.1 & 2.7 & \textbf{5.4} & 5.1 & 4.1\\
+Qasper† & 5.3 & 4.3 & 5.0 & \textbf{5.1} & 4.8\\
+MultifieldQA & 25.3 & 22.1 & 23.2 & \textbf{24.9} & 24.8\\
+HotpotQA† & 10.5 & 10.6 & 9.8 & \textbf{10.7} & 10.6\\
+2WikiMQA† & 11.5 & 9.8 & 11.3 & \textbf{11.7} & \textbf{11.7}\\
+MuSiQue† & 5.1 & 3.9 & 4.4 & \textbf{5.1} & \textbf{5.1}\\
+GovReport & 20.0 & 19.7 & 19.4 & 19.8 & \textbf{20.0}\\
+QMSum† & 8.0 & \textbf{8.4} & 8.3 & 7.9 & 7.9\\
+MultiNews & 18.1 & 17.2 & 17.1 & 17.2 & \textbf{17.3}\\
+TREC & 72.0 & 67.0 & 70.0 & 70.0 & \textbf{71.0}\\
+TriviaQA & 23.1 & 24.2 & \textbf{26.5} & 23.4 & 23.3\\
+SAMSum & 16.9 & 17.8 & \textbf{18.3} & 17.9 & 18.1\\
+PassageCount† & 1.0 & \textbf{3.0} & 1.0 & 1.0 & 1.0\\
+PassageRetrieval & 39.0 & 26.0 & 30.0 & \textbf{39.0} & \textbf{39.0}\\
+LCC & 62.9 & 60.2 & 62.1 & \textbf{63.2} & \textbf{63.2}\\
+RepoBench-P & 53.9 & \textbf{54.4} & 54.1 & 54.1 & 54.0\\
+\midrule
+\textbf{Average} & 23.6 & 22.0 & 22.9 & \textbf{23.5} & \textbf{23.5}\\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\par\smallskip
+\textbf{Bold} = best compressed method per task. Full context is the reference and is not bolded.\\ \(\dagger\) = low full-context score (below 15); results noisier.
+\end{table}
 
 \hypertarget{ground-truth-evaluation}{%
 \section{4. Ground-Truth Evaluation}\label{ground-truth-evaluation}}
@@ -344,89 +414,16 @@ Mistral-7B-v0.3 on LongBench v1 (16 tasks, 100 examples each) at 65\%
 retention, comparing naive proportional truncation, SnapKV, StreamingLLM
 (Streaming), and PyramidKV against the full uncompressed model.
 
-\textbf{Setup.} Full details in §3.2. All methods target r = 0.65
+Setup details are in §3.2. All methods target r = 0.65
 retention. Naive truncation keeps the first 6.5\% and last 58.5\% of
 tokens as a new self-consistent prompt. PyramidKV uses a layer-adaptive
 pyramid budget on top of SnapKV scoring. Ground-truth scores use the
 standard LongBench metrics: F1 for QA tasks, ROUGE for summarization,
 classification-specific scoring for classification tasks, and
 edit-distance-based similarity (\texttt{code\_sim\_score}) for code
-completion. Per-task ground-truth results across compression rates
-(65/50/35\%) are given in Appendix C.
+completion.
 
-\begin{table}[t]
-\centering
-\small
-\caption{Ground-truth accuracy at 65\% retention, Llama-3.1-8B. Bold = best compressed method per task. \(\dagger\) = low full-context score; results noisier. Full-rate results at all rates in Appendix~C.}
-\label{tab:gt-llama}
-\begin{tabular}{@{}llllll@{}}
-\toprule
-Task & Full & Naive & SnapKV & \makecell{Stream-\\ing} & \makecell{Pyramid-\\KV}\\
-\midrule
-NarrativeQA† & 5.5 & 4.9 & 5.6 & \textbf{5.8} & 5.5\\
-Qasper† & 11.1 & 10.2 & 11.3 & 9.5 & \textbf{11.8}\\
-MultifieldQA & 28.9 & 27.0 & \textbf{30.2} & 26.3 & 29.4\\
-HotpotQA† & 9.9 & 9.6 & 9.9 & 9.0 & \textbf{10.2}\\
-2WikiMQA† & 14.1 & 12.6 & \textbf{13.9} & \textbf{13.9} &
-13.7\\
-MuSiQue† & 6.9 & 7.0 & \textbf{7.2} & 5.6 & 7.1\\
-GovReport & 20.4 & 19.8 & 19.6 & 18.9 & \textbf{20.1}\\
-QMSum† & 10.3 & \textbf{11.5} & 9.7 & 9.9 & 9.4\\
-MultiNews & 19.0 & 16.5 & \textbf{18.1} & 17.7 & 17.9\\
-TREC & 70.0 & 66.0 & \textbf{71.0} & 68.0 & \textbf{71.0}\\
-TriviaQA & 17.4 & 17.3 & \textbf{17.5} & 17.4 &
-\textbf{17.5}\\
-SAMSum & 16.0 & 16.5 & 16.2 & \textbf{17.1} & 16.3\\
-PassageCount† & 3.0 & 1.0 & \textbf{3.0} & \textbf{3.0} &
-\textbf{3.0}\\
-PassageRetrieval & 44.0 & 37.0 & \textbf{44.0} & 37.0 &
-\textbf{44.0}\\
-LCC & 68.1 & 63.4 & 68.1 & 67.2 & \textbf{68.5}\\
-RepoBench-P & 55.6 & 53.9 & 55.4 & 53.2 & \textbf{56.0}\\
-\textbf{Average} & 25.0 & 23.4 & 25.0 & 23.7 &
-\textbf{25.1}\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Full context is the reference and is not bolded. Bold marks the best
-compressed method per task. Tasks marked † have full-context scores
-below 15; results on these tasks are noisier.
-
-\begin{table}[t]
-\centering
-\small
-\caption{Ground-truth accuracy at 65\% retention, Mistral-7B-v0.3. Bold = best compressed method per task.}
-\label{tab:gt-mistral}
-\begin{tabular}{@{}llllll@{}}
-\toprule
-Task & Full & Naive & SnapKV & \makecell{Stream-\\ing} & \makecell{Pyramid-\\KV}\\
-\midrule
-NarrativeQA† & 5.1 & 2.7 & 5.1 & \textbf{5.4} & 4.1\\
-Qasper† & 5.3 & 4.3 & \textbf{5.1} & 5.0 & 4.8\\
-MultifieldQA & 25.3 & 22.1 & \textbf{24.9} & 23.2 & 24.8\\
-HotpotQA† & 10.5 & 10.6 & \textbf{10.7} & 9.8 & 10.6\\
-2WikiMQA† & 11.5 & 9.8 & \textbf{11.7} & 11.3 &
-\textbf{11.7}\\
-MuSiQue† & 5.1 & 3.9 & \textbf{5.1} & 4.4 & \textbf{5.1}\\
-GovReport & 20.0 & 19.7 & 19.8 & 19.4 & \textbf{20.0}\\
-QMSum† & 8.0 & \textbf{8.4} & 7.9 & 8.3 & 7.9\\
-MultiNews & 18.1 & 17.2 & 17.2 & 17.1 & \textbf{17.3}\\
-TREC & 72.0 & 67.0 & 70.0 & 70.0 & \textbf{71.0}\\
-TriviaQA & 23.1 & 24.2 & 23.4 & \textbf{26.5} & 23.3\\
-SAMSum & 16.9 & 17.8 & 17.9 & \textbf{18.3} & 18.1\\
-PassageCount† & 1.0 & \textbf{3.0} & 1.0 & 1.0 & 1.0\\
-PassageRetrieval & 39.0 & 26.0 & \textbf{39.0} & 30.0 &
-\textbf{39.0}\\
-LCC & 62.9 & 60.2 & \textbf{63.2} & 62.1 & \textbf{63.2}\\
-RepoBench-P & 53.9 & \textbf{54.4} & 54.1 & 54.1 & 54.0\\
-\textbf{Average} & 23.6 & 22.0 & \textbf{23.5} & 22.9 &
-\textbf{23.5}\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Tables~\ref{tab:gt-llama} and~\ref{tab:gt-mistral} show per-task results. The overall pattern is the same across both architectures: ground-truth
+Table~\ref{tab:gt} shows per-task results for both models. The overall pattern is the same across both architectures: ground-truth
 scores are compressed across methods. On both Llama and Mistral, SnapKV
 ties PyramidKV (Llama: 25.0 vs 25.1; Mistral: 23.5 vs 23.5), both
 exceeding naive. Streaming (23.7 Llama, 22.9 Mistral) exceeds naive on
@@ -434,7 +431,7 @@ both models and is competitive across most tasks, but trails SnapKV and
 PyramidKV in average. PyramidKV leads or ties all compressed methods on
 both models.
 
-Taken at face value, PyramidKV is the clear winner. But §5 argues these
+Taken at face value, PyramidKV is the clear winner. But in §5 we argue that these
 scores measure the wrong thing --- and §8 shows that PyramidKV's
 ground-truth advantage conceals a faithfulness cost an order of
 magnitude larger than any other method's.
@@ -760,19 +757,23 @@ Retention}\label{results-at-65-retention}}
 \textbf{Faithfulness evaluation.} Full-context outputs (\(y^*\)) are
 generated first and stored. KL faithfulness compares compressed model
 distributions to full model distributions, teacher-forced on \(y^*\)
-(Tables~\ref{tab:kl55-llama} and~\ref{tab:kl55-mistral}).
+(Table~\ref{tab:kl55-llama}).
 \(F_{\text{out}}\) compares the compressed model's independently
 generated outputs to \(y^*\) using word-level F1
-(Tables~\ref{tab:fout55-llama} and~\ref{tab:fout55-mistral}).
+(Table~\ref{tab:fout55-llama}).
 
-\begin{table}[t]
+\begin{table}[H]
 \centering
 \small
-\caption{KL faithfulness (\(F_{\text{KL}}\)) at 65\% per task, Llama-3.1-8B. Values in nats; lower is better. Bold = best per row (SnapKV and PyramidKV excluded).}
+\captionsetup{justification=centering}
+\caption{KL faithfulness (\(F_{\text{KL}}\)) at 65\% per task.}
 \label{tab:kl55-llama}
-\begin{tabular}{@{}lllll@{}}
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\textbf{Llama-3.1-8B}\\[0.4em]
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & Streaming & SnapKV & PyramidKV\\
+Task & Naive & \makecell{Streaming} & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
 \midrule
 NarrativeQA† & \textbf{0.022} & 0.045 & 0.787 & 1.338\\
 Qasper† & 0.281 & \textbf{0.237} & 0.881 & 1.229\\
@@ -790,19 +791,18 @@ PassageCount† & 0.059 & \textbf{0.002} & 1.560 & 1.626\\
 PassageRetrieval & 0.188 & \textbf{0.032} & 1.624 & 1.416\\
 LCC & \textbf{0.076} & 0.085 & 0.881 & 1.142\\
 RepoBench-P & \textbf{0.048} & 0.050 & 0.702 & 1.052\\
+\midrule
 \textbf{Average} & 0.175 & \textbf{0.141} & 1.157 & 1.394\\
 \bottomrule
 \end{tabular}
-\end{table}
-
-\begin{table}[t]
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.49\textwidth}
 \centering
-\small
-\caption{KL faithfulness (\(F_{\text{KL}}\)) at 65\% per task, Mistral-7B-v0.3. Values in nats; lower is better. Bold = best per row (SnapKV and PyramidKV excluded).}
-\label{tab:kl55-mistral}
-\begin{tabular}{@{}lllll@{}}
+\textbf{Mistral-7B-v0.3}\\[0.4em]
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & Streaming & SnapKV & PyramidKV\\
+Task & Naive & \makecell{Streaming} & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
 \midrule
 NarrativeQA† & \textbf{0.003} & 0.125 & 0.445 & 0.780\\
 Qasper† & 0.071 & \textbf{0.067} & 0.274 & 0.472\\
@@ -820,23 +820,27 @@ PassageCount† & \textbf{0.037} & 0.069 & 1.141 & 0.897\\
 PassageRetrieval & \textbf{0.195} & 0.204 & 0.971 & 0.541\\
 LCC & 0.055 & \textbf{0.041} & 0.861 & 1.070\\
 RepoBench-P & \textbf{0.076} & 0.087 & 0.914 & 0.940\\
+\midrule
 \textbf{Average} & \textbf{0.133} & 0.161 & 0.733 & 0.734\\
 \bottomrule
 \end{tabular}
+\end{minipage}
+\par\smallskip
+\center Values in nats; lower is better. \textbf{Bold} = best per row.
 \end{table}
 
-Streaming leads Naive on both models; SnapKV and PyramidKV are an order
-of magnitude worse. Mistral shows the same ranking at roughly half the
-absolute KL magnitude.
-
-\begin{table}[t]
+\begin{table}[H]
 \centering
 \small
-\caption{Output faithfulness (\(F_{\text{out}}\)) at 65\% per task, Llama-3.1-8B. Values in \%; higher is better. Bold = best per row.}
+\captionsetup{justification=centering}
+\caption{Output faithfulness (\(F_{\text{out}}\)) at 65\% per task.}
 \label{tab:fout55-llama}
-\begin{tabular}{@{}lllll@{}}
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\textbf{Llama-3.1-8B}\\[0.4em]
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & Streaming & SnapKV & PyramidKV\\
+Task & Naive & \makecell{Streaming} & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
 \midrule
 NarrativeQA† & \textbf{88.1} & 59.9 & 63.1 & 61.7\\
 Qasper† & 46.4 & 56.9 & 71.4 & \textbf{72.6}\\
@@ -854,19 +858,18 @@ PassageCount† & 70.7 & 61.8 & 92.8 & \textbf{96.4}\\
 PassageRetrieval & 80.1 & 70.0 & \textbf{94.0} & 93.8\\
 LCC & 62.0 & 73.8 & \textbf{92.8} & 91.3\\
 RepoBench-P & 77.3 & 65.6 & 90.5 & \textbf{90.6}\\
+\midrule
 \textbf{Average} & 68.6 & 61.2 & 78.5 & \textbf{79.1}\\
 \bottomrule
 \end{tabular}
-\end{table}
-
-\begin{table}[t]
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.49\textwidth}
 \centering
-\small
-\caption{Output faithfulness (\(F_{\text{out}}\)) at 65\% per task, Mistral-7B-v0.3. Values in \%; higher is better. Bold = best per row.}
-\label{tab:fout55-mistral}
-\begin{tabular}{@{}lllll@{}}
+\textbf{Mistral-7B-v0.3}\\[0.4em]
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & Streaming & SnapKV & PyramidKV\\
+Task & Naive & \makecell{Streaming} & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
 \midrule
 NarrativeQA† & 40.5 & 38.2 & \textbf{57.4} & 55.4\\
 Qasper† & 69.0 & 69.4 & \textbf{87.1} & 86.1\\
@@ -884,14 +887,19 @@ PassageCount† & 57.3 & 57.7 & 97.0 & \textbf{97.5}\\
 PassageRetrieval & 68.8 & 68.5 & 97.2 & \textbf{97.8}\\
 LCC & 62.1 & 76.0 & 88.3 & \textbf{90.8}\\
 RepoBench-P & 62.8 & 66.1 & \textbf{93.0} & 90.1\\
+\midrule
 \textbf{Average} & 60.0 & 61.0 & \textbf{83.7} & 83.5\\
 \bottomrule
 \end{tabular}
+\end{minipage}
+\par\smallskip
+\center Values in \%; higher is better. \textbf{Bold} = best per row.
 \end{table}
 
 \textbf{The two metrics sharply disagree on SnapKV and PyramidKV.} On KL
-faithfulness, Streaming edges Naive on both models while SnapKV and
-PyramidKV are an order of magnitude worse. \(F_{\text{out}}\) reverses
+faithfulness, On Llama, streaming edges Naive on both models while SnapKV and
+PyramidKV are an order of magnitude worse. Mistral shows the same raking at 
+roughly half the absolute KL magnitude.  \(F_{\text{out}}\) reverses
 this: PyramidKV and SnapKV lead on both models while Streaming falls near
 or below Naive. These reversals are not contradictory: §8 explains the
 mechanism that decouples \(F_{\text{out}}\) from KL for post-prefill
@@ -988,28 +996,26 @@ This makes recompute-over-gaps distinct from prompt construction: both
 lack enrichment, but prompt construction re-indexes the selected tokens
 to compact positions \(0 \ldots M-1\), whereas recompute-over-gaps
 preserves the original scattered positions.
-\begin{table*}[t]
+\begin{table}[H]
 \centering
 \small
-\caption{Mean KL faithfulness for four method configurations.
-Llama-3.1-8B, 65\% retention, 6 tasks, n = 100 per task. All three
-SnapKV rows use identical attention-score-based token selection; only
-the mechanism varies.}
+\caption{Mean KL faithfulness for four method configurations.}
 \label{tab:t1}
-\begin{tabular}{|>{\raggedright\arraybackslash}p{0.28\textwidth}|l|l|l|l|l|l|l|}
-\hline
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.28\textwidth}rrrrrrr@{}}
+\toprule
 Method & 2WikiMQA & MultifieldQA & Qasper & QMSum & RepoBench-P & TriviaQA & Mean\\
-\hline
+\midrule
 Naive --- prompt construction & 0.221 & 0.262 & 0.281 & 0.081 & \textbf{0.048} & 0.076 & 0.162\\
-\hline
 SnapKV --- KV pruning (recompute-over-gaps) & 0.254 & 0.186 & 0.223 & 0.117 & 0.106 & 0.122 & 0.168\\
-\hline
 SnapKV --- KV pruning (post-prefill eviction) & 1.714 & 1.316 & 0.881 & 0.393 & 0.702 & 1.151 & 1.026\\
-\hline
 SnapKV-Select --- prompt construction & \textbf{0.096} & \textbf{0.118} & \textbf{0.163} & \textbf{0.071} & 0.051 & \textbf{0.060} & \textbf{0.093}\\
-\hline
+\bottomrule
+\\
 \end{tabular}
-\end{table*}
+Llama-3.1-8B, 65\% retention, 6 tasks, n = 100 per task.\\All three
+SnapKV rows use identical attention-score-based token selection; only
+the mechanism varies.
+\end{table}
 
 SnapKV-Select (0.093) is 11× better than SnapKV (1.026) using the same
 selected tokens --- the damage is caused by the mechanism, not the token
@@ -1082,11 +1088,10 @@ effect of enrichment at scattered positions. Comparing rerotated to
 evicted isolates position correction alone, since enrichment is
 identical in both conditions. Finally, comparing gapless to rerotated
 isolates the effects of enrichment.
-\begin{table*}[t]
+\begin{table}[H]
 \centering
 \small
-\caption{Mean KL faithfulness by gap geometry (Llama-3.1-8B, r =
-0.65, 6 tasks, n = 20/task).}
+\caption{Mean KL faithfulness by gap geometry}
 \label{tab:t2}
 \begin{tabular}{@{}lllllllll@{}}
 \toprule
@@ -1102,8 +1107,10 @@ clustered4 & \textasciitilde5 & 2.745 & 4.088 & 3.765 & 3.498 & 1.5× &
 scattered & \textasciitilde1400 & 1.205 & 2.886 & 1.289 & 0.221 & 2.4× &
 1.1× & 0.17×\\
 \bottomrule
+\\
 \end{tabular}
-\end{table*}
+\\Llama-3.1-8B, r = 0.65, 6 tasks, n = 20 per task.
+\end{table}
 
 Table~\ref{tab:t2} reveals several non-obvious patterns across the four geometries.
 
@@ -1224,70 +1231,22 @@ fp16).
 \textbf{Benchmark.} LongBench v1, 16 English tasks, 100 examples per
 task.
 
-\begin{table}[t]
+\begin{table}[H]
 \centering
 \small
-\caption{Methods compared in the main experiments (§7).}
+\caption{Methods compared in the main experiments}
 \label{tab:methods}
-\begin{tabular}{@{}lll@{}}
+\begin{tabular}{@{}p{0.14\textwidth}p{0.20\textwidth}p{0.62\textwidth}@{}}
 \toprule
-\begin{minipage}[b]{0.30\columnwidth}\raggedright
-Method\strut
-\end{minipage} & \begin{minipage}[b]{0.30\columnwidth}\raggedright
-Type\strut
-\end{minipage} & \begin{minipage}[b]{0.30\columnwidth}\raggedright
-Description\strut
-\end{minipage}\\
+Method & Type & Description\\
 \midrule
-\begin{minipage}[t]{0.30\columnwidth}\raggedright
-Full context\strut
-\end{minipage} & \begin{minipage}[t]{0.30\columnwidth}\raggedright
-Reference\strut
-\end{minipage} & \begin{minipage}[t]{0.30\columnwidth}\raggedright
-Uncompressed model\strut
-\end{minipage}\\
-\begin{minipage}[t]{0.30\columnwidth}\raggedright
-Naive\strut
-\end{minipage} & \begin{minipage}[t]{0.30\columnwidth}\raggedright
-Prompt construction\strut
-\end{minipage} & \begin{minipage}[t]{0.30\columnwidth}\raggedright
-Last 65\% of tokens, 10\% head / 90\% tail split\strut
-\end{minipage}\\
-\begin{minipage}[t]{0.30\columnwidth}\raggedright
-SnapKV\strut
-\end{minipage} & \begin{minipage}[t]{0.30\columnwidth}\raggedright
-KV pruning\strut
-\end{minipage} & \begin{minipage}[t]{0.30\columnwidth}\raggedright
-Pooled attention weights over observation window\strut
-\end{minipage}\\
-\begin{minipage}[t]{0.30\columnwidth}\raggedright
-SnapKV+rot\strut
-\end{minipage} & \begin{minipage}[t]{0.30\columnwidth}\raggedright
-KV pruning\strut
-\end{minipage} & \begin{minipage}[t]{0.30\columnwidth}\raggedright
-SnapKV + KeyRerotationPress (compact RoPE after eviction)\strut
-\end{minipage}\\
-\begin{minipage}[t]{0.30\columnwidth}\raggedright
-Streaming\strut
-\end{minipage} & \begin{minipage}[t]{0.30\columnwidth}\raggedright
-KV pruning\strut
-\end{minipage} & \begin{minipage}[t]{0.30\columnwidth}\raggedright
-Attention sinks + recency window with key re-rotation\strut
-\end{minipage}\\
-\begin{minipage}[t]{0.30\columnwidth}\raggedright
-PyramidKV\strut
-\end{minipage} & \begin{minipage}[t]{0.30\columnwidth}\raggedright
-KV pruning\strut
-\end{minipage} & \begin{minipage}[t]{0.30\columnwidth}\raggedright
-Layer-adaptive pyramid budget allocation\strut
-\end{minipage}\\
-\begin{minipage}[t]{0.30\columnwidth}\raggedright
-Pyr+rot\strut
-\end{minipage} & \begin{minipage}[t]{0.30\columnwidth}\raggedright
-KV pruning\strut
-\end{minipage} & \begin{minipage}[t]{0.30\columnwidth}\raggedright
-PyramidKV + key re-rotation to compact positions after eviction\strut
-\end{minipage}\\
+Full context & Reference        & Uncompressed model\\
+Naive        & Prompt construction & Last 65\% of tokens, 10\% head / 90\% tail split\\
+SnapKV       & KV pruning       & Pooled attention weights over observation window\\
+SnapKV+rot   & KV pruning       & SnapKV + key re-rotation to compact positions after eviction\\
+Streaming    & KV pruning       & Attention sinks + recency window with key re-rotation\\
+PyramidKV    & KV pruning       & Layer-adaptive pyramid budget allocation\\
+Pyr+rot      & KV pruning       & PyramidKV + key re-rotation to compact positions after eviction\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1295,51 +1254,9 @@ PyramidKV + key re-rotation to compact positions after eviction\strut
 \hypertarget{kl-faithfulness-main-results}{%
 \subsection{7.2 KL Faithfulness: Main
 Results}\label{kl-faithfulness-main-results}}
-\begin{table}[t]
-\centering
-\small
-\caption{Mean KL faithfulness by method and retention rate (lower is
-better). Streaming = StreamingLLM with key re-rotation; SnapKV = SnapKV
-(kvpress post-prefill eviction); SnapKV+rot = SnapKV with key
-re-rotation to compact positions; Pyr+rot = PyramidKV with key
-re-rotation; Pyr = PyramidKV. Bold = best method per retention rate.
-Per-task breakdown in Appendix A.}
-\label{tab:t3}
-\caption*{Llama-3.1-8B.}
-\begin{tabular}{@{}llll@{}}
-\toprule
-Method & 65\% & 50\% & 35\%\\
-\midrule
-Naive      & 0.175 & 0.217 & 0.281\\
-Streaming  & 0.141 & 0.199 & 0.261\\
-SnapKV     & 1.157 & 0.981 & 0.836\\
-SnapKV+rot & \textbf{0.043} & \textbf{0.077} & \textbf{0.124}\\
-Pyr        & 1.394 & 1.451 & 0.837\\
-Pyr+rot    & 0.047 & 0.096 & \textbf{0.124}\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[t]
-\centering
-\small
-\caption{Mean KL faithfulness by method and retention rate, Mistral-7B-v0.3. Lower is better. Bold = best method per retention rate.}
-\label{tab:kl-mistral}
-\begin{tabular}{@{}llll@{}}
-\toprule
-Method & 65\% & 50\% & 35\%\\
-\midrule
-Naive      & 0.133 & 0.158 & 0.188\\
-Streaming  & 0.161 & 0.201 & 0.244\\
-SnapKV     & 0.733 & 0.619 & 0.588\\
-SnapKV+rot & \textbf{0.030} & \textbf{0.058} & \textbf{0.096}\\
-Pyr        & 0.734 & 0.796 & 0.586\\
-Pyr+rot    & 0.034 & 0.079 & \textbf{0.096}\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-SnapKV+rot leads at every rate on both models (Table~\ref{tab:kl-mistral} shows the Mistral results). The improvement ratios
+Table~\ref{tab:t3} shows the KL comparison including the new SnapKV 
+and PyramidKV using rerotation at the compacted positions. 
+SnapKV+rot leads at every rate on both models The improvement ratios
 from re-rotation (27×/13×/6.7× at 65/50/35\% on Llama; similar on
 Mistral) decrease at tighter budgets because two effects push in
 opposite directions: unrotated SnapKV KL falls as compression increases
@@ -1361,6 +1278,50 @@ tokens matter, and the \texttt{min\_num} clamp produces near-uniform but
 not perfectly uniform allocation across the full range of sequence
 lengths in the benchmark.
 
+\begin{table}[H]
+\centering
+\small
+\captionsetup{justification=centering}
+\caption{Mean KL faithfulness by method and retention rate (per-task breakdown in Appendix A)}
+\label{tab:t3}
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\textbf{Llama-3.1-8B}\\[0.4em]
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Method & 65\% & 50\% & 35\%\\
+\midrule
+Naive      & 0.175 & 0.217 & 0.281\\
+Streaming  & 0.141 & 0.199 & 0.261\\
+SnapKV     & 1.157 & 0.981 & 0.836\\
+SnapKV+rot & \textbf{0.043} & \textbf{0.077} & \textbf{0.124}\\
+Pyr        & 1.394 & 1.451 & 0.837\\
+Pyr+rot    & 0.047 & 0.096 & \textbf{0.124}\\
+\bottomrule
+\end{tabular}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\textbf{Mistral-7B-v0.3}\\[0.4em]
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Method & 65\% & 50\% & 35\%\\
+\midrule
+Naive      & 0.133 & 0.158 & 0.188\\
+Streaming  & 0.161 & 0.201 & 0.244\\
+SnapKV     & 0.733 & 0.619 & 0.588\\
+SnapKV+rot & \textbf{0.030} & \textbf{0.058} & \textbf{0.096}\\
+Pyr        & 0.734 & 0.796 & 0.586\\
+Pyr+rot    & 0.034 & 0.079 & \textbf{0.096}\\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\center Lower is better. \textbf{Bold} = best per retention rate.
+Streaming = StreamingLLM with key re-rotation;\\SnapKV+rot = SnapKV with key
+re-rotation; Pyr+rot = PyramidKV with key re-rotation.
+\end{table}
+
 Pyr+rot tracks SnapKV+rot closely at 65\% and ties at 35\%. A gap opens
 at 50\% --- Pyr+rot is 25\% above SnapKV+rot on both models --- because
 the pyramid formula reaches its \texttt{window\_size=64} floor at the
@@ -1379,7 +1340,7 @@ streaming\_rerotated as the recommended method. For comparison, the
 unrotated kvpress StreamingLLMPress baseline and the improvement from
 re-rotation across rates (Table~\ref{tab:streaming-imp}, Llama):
 
-\begin{table}[t]
+\begin{table}[H]
 \centering
 \small
 \caption{Streaming re-rotation improvement (Llama-3.1-8B). KL faithfulness before and after key re-rotation, with improvement ratio.}
@@ -1408,54 +1369,8 @@ positions.
 Results}\label{output-faithfulness-results}}
 
 Output Faithfulness (\(F_{\text{out}}\)) measures how similar the
-compressed model's generated text is to the full model's generated text
-(§5.3). Higher is better. All comparisons are within-model: Llama
-compressed methods are compared to Llama full context; Mistral
-compressed methods are compared to Mistral full context
-(Table~\ref{tab:fout-mistral}).
-\begin{table}[t]
-\centering
-\small
-\caption{Mean \(F_{\text{out}}\) by method and retention rate (higher is
-better). Bold = best method per retention rate. SnapKV+rot = SnapKV with
-key re-rotation; Pyr+rot = PyramidKV with key re-rotation. Per-task
-breakdown in Appendix B.}
-\label{tab:t4}
-\caption*{Llama-3.1-8B.}
-\begin{tabular}{@{}llll@{}}
-\toprule
-Method & 65\% & 50\% & 35\%\\
-\midrule
-Naive      & 68.6 & 52.1 & 46.9\\
-Streaming  & 61.2 & 56.4 & 51.8\\
-SnapKV     & 78.5 & \textbf{73.2} & 66.8\\
-SnapKV+rot & 71.1 & 67.8 & 63.0\\
-Pyr        & \textbf{79.1} & 64.2 & \textbf{66.9}\\
-Pyr+rot    & 71.6 & 61.3 & 63.0\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[t]
-\centering
-\small
-\caption{Mean \(F_{\text{out}}\) by method and retention rate, Mistral-7B-v0.3. Higher is better. Bold = best method per retention rate.}
-\label{tab:fout-mistral}
-\begin{tabular}{@{}llll@{}}
-\toprule
-Method & 65\% & 50\% & 35\%\\
-\midrule
-Naive      & 60.0 & 56.9 & 53.5\\
-Streaming  & 61.0 & 57.4 & 53.9\\
-SnapKV     & \textbf{83.7} & \textbf{79.0} & 74.0\\
-SnapKV+rot & 78.2 & 74.3 & 70.1\\
-Pyr        & 83.5 & 68.8 & \textbf{74.8}\\
-Pyr+rot    & 77.0 & 66.5 & 70.0\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{Cross-rate summary.}
+compressed model's generated text is to the full model's generated text.  Table~\ref{tab:t4} 
+shows the results across the tested compression rates with the new re-rotated SnapKV and PyramidKV.
 
 SnapKV and PyramidKV lead \(F_{\text{out}}\) at all rates without
 re-rotation on both models, for the same mechanistic reason: a full,
@@ -1469,6 +1384,48 @@ compression (§7.2). The \texttt{min\_num} clamp produces uniform
 allocation only when it binds, which depends on sequence length ---
 shorter sequences in the benchmark may still carry a shallow pyramid at
 35\%, retaining slightly different tokens and preventing an exact tie.
+
+\begin{table}[H]
+\centering
+\small
+\captionsetup{justification=centering}
+\caption{Mean \(F_{\text{out}}\) by method and retention rate (per-task breakdown in Appendix B)}
+\label{tab:t4}
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\textbf{Llama-3.1-8B}\\[0.4em]
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Method & 65\% & 50\% & 35\%\\
+\midrule
+Naive      & 68.6 & 52.1 & 46.9\\
+Streaming  & 61.2 & 56.4 & 51.8\\
+SnapKV     & 78.5 & \textbf{73.2} & 66.8\\
+SnapKV+rot & 71.1 & 67.8 & 63.0\\
+Pyr        & \textbf{79.1} & 64.2 & \textbf{66.9}\\
+Pyr+rot    & 71.6 & 61.3 & 63.0\\
+\bottomrule
+\end{tabular}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\textbf{Mistral-7B-v0.3}\\[0.4em]
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Method & 65\% & 50\% & 35\%\\
+\midrule
+Naive      & 60.0 & 56.9 & 53.5\\
+Streaming  & 61.0 & 57.4 & 53.9\\
+SnapKV     & \textbf{83.7} & \textbf{79.0} & 74.0\\
+SnapKV+rot & 78.2 & 74.3 & 70.1\\
+Pyr        & 83.5 & 68.8 & \textbf{74.8}\\
+Pyr+rot    & 77.0 & 66.5 & 70.0\\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\center Higher is better. \textbf{Bold} = best per retention rate.
+\end{table}
 
 SnapKV+rot and Pyr+rot fall below the post-prefill eviction leaders but
 substantially above Naive on both models. All four post-prefill methods
@@ -1504,12 +1461,11 @@ Naive and PyramidKV: n=100/task (500 total); SnapKV and Streaming:
 n=20/task (100 total). All timing runs use the same five tasks:
 2WikiMQA, MultifieldQA, Qasper, RepoBench-P, and TriviaQA.
 
-Table~\ref{tab:ttft} shows mean TTFT by retention rate.
 
-\begin{table}[t]
+\begin{table}[H]
 \centering
 \small
-\caption{Mean time to first token (ms) by retention rate (Llama-3.1-8B, V100). Full-context baseline: 6348\,ms.}
+\caption{Mean time to first token by retention rate}
 \label{tab:ttft}
 \begin{tabular}{@{}llll@{}}
 \toprule
@@ -1521,8 +1477,10 @@ Streaming & 6796 & 6750 & 6861\\
 Pyr       & 7022 & 7109 & 7143\\
 \bottomrule
 \end{tabular}
+\center Time in milliseconds. Model: Llama-3.1-8B. Full-context baseline: 6348\,ms on V100 GPU.
 \end{table}
 
+Table~\ref{tab:ttft} shows mean TTFT by retention rate.
 Naive cuts TTFT by 61--74\% by simply feeding the model a shorter
 prompt. All post-prefill eviction methods incur overhead above the
 full-context baseline: performing a full prefill over the uncompressed
@@ -1536,13 +1494,15 @@ be processed regardless. SnapKV+rot inherits the same timing profile as
 unrotated SnapKV: key re-rotation is a single \(O(M \cdot H \cdot D)\)
 tensor operation applied once to the M retained keys after eviction,
 adding negligible overhead (\textless10ms) that does not affect the TTFT
-or TPT figures above. The original online StreamingLLM design --- which
+or TPT figures above.
+
+The original online StreamingLLM design --- which
 maintains a bounded cache continuously rather than performing a full
 prefill --- would achieve TTFT closer to Naive than to the post-prefill
 methods shown here, since prefill attention cost scales with the bounded
 window size rather than the full context length.
 
-\textbf{Decode speed (TPT)} improves for all compressed methods because
+Decode speed (TPT) improves for all compressed methods because
 fewer retained tokens means a smaller KV cache to scan at each decode
 step. At 65\% retention, mean TPT drops from 67.5 ms/tok (full) to
 \textasciitilde54 ms/tok (\textasciitilde20\% faster) for all methods
@@ -1649,12 +1609,10 @@ code-completion tasks have full-model mean outputs of 14--48 words
 (≥96\% of examples fall below 90 words), while summarization tasks have
 means of 339--384 words (≥86\% fall above). NarrativeQA, Qasper, and
 SAMSum straddle the boundary with means near 80--90 words.
-\begin{table}[t]
+\begin{table}[H]
 \centering
 \small
-\caption{\(F_{\text{out}}\) by length category (Llama, 65\%).
-Short = full-model reference output ≤ 90 words (n=1155); Long =
-\textgreater{} 90 words (n=445). Streaming = streaming\_rerotated.}
+\caption{\(F_{\text{out}}\) by output-length category (Llama, 65\%)}
 \label{tab:t5}
 \begin{tabular}{@{}llll@{}}
 \toprule
@@ -1669,6 +1627,10 @@ Naive & 72.8 & \textbf{57.6} & 15.2\\
 Streaming & 66.7 & 47.0 & 19.7\\
 \bottomrule
 \end{tabular}
+
+\center Llama-3.1-8B, 65\% retention, all 16 tasks.
+\\Short = full-model reference output ≤ 90 words (n=1155); Long =
+\textgreater{} 90 words (n=445).
 \end{table}
 
 PyramidKV and SnapKV show nearly identical short-to-long drops
@@ -1692,28 +1654,6 @@ the reduction is attributable to key re-rotation itself.
 
 Table~\ref{tab:t6} gives the same short/long breakdown by KL faithfulness, showing
 what \(F_{\text{out}}\) cannot.
-\begin{table}[t]
-\centering
-\small
-\caption{Mean KL faithfulness by output-length category
-(Llama-3.1-8B, 65\% retention, all 16 tasks). Short = full-model
-reference output ≤ 90 words (n = 1155); Long = \textgreater{} 90 words
-(n = 445). Bold = best per column.}
-\label{tab:t6}
-\begin{tabular}{@{}lll@{}}
-\toprule
-Method & Short \(F_{\text{KL}}\) & Long \(F_{\text{KL}}\)\\
-\midrule
-SnapKV+rot & \textbf{0.012} & \textbf{0.124}\\
-Pyr+rot & \textbf{0.012} & 0.135\\
-Streaming & 0.080 & 0.297\\
-Naive & 0.143 & 0.256\\
-SnapKV & 1.335 & 0.697\\
-PyramidKV & 1.658 & 0.711\\
-\bottomrule
-\end{tabular}
-\end{table}
-
 On short outputs, unrotated SnapKV and PyramidKV produce KL faithfulness
 of 1.3--1.7 --- far worse than Naive (0.143) --- despite leading on
 \(F_{\text{out}}\). The first-token advantage explains the inversion:
@@ -1731,7 +1671,30 @@ tasks where the first-token advantage gives unrotated methods a
 structural edge; in both output regimes, KL faithfulness correctly
 identifies re-rotation as the more faithful compression.
 
-Table~\ref{tab:t6} shows an interesting pattern for unrotated methods: Short
+\begin{table}[H]
+\centering
+\small
+\caption{Mean KL faithfulness by output-length category}
+\label{tab:t6}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Method & Short \(F_{\text{KL}}\) & Long \(F_{\text{KL}}\)\\
+\midrule
+SnapKV+rot & \textbf{0.012} & \textbf{0.124}\\
+Pyr+rot & \textbf{0.012} & 0.135\\
+Streaming & 0.080 & 0.297\\
+Naive & 0.143 & 0.256\\
+SnapKV & 1.335 & 0.697\\
+PyramidKV & 1.658 & 0.711\\
+\bottomrule
+\end{tabular}
+\center
+Llama-3.1-8B, 65\% retention, all 16 tasks. \textbf{Bold} = best per column.  
+\\Short = full-model reference output ≤ 90 words (n=1155); Long =
+\textgreater{} 90 words (n=445).
+\end{table}
+
+Table~\ref{tab:t6} also shows an interesting pattern for unrotated methods: Short
 \(F_{\text{KL}}\) (1.335/1.658 for SnapKV/PyramidKV) is nearly twice
 Long \(F_{\text{KL}}\) (0.697/0.711) while re-rotated methods and Naive
 show the reverse --- Long KL exceeds Short. This apparent KL recovery is
@@ -1771,24 +1734,24 @@ gap is largest (4.7 and 5.4 points). At 35\%, unrotated methods also
 retain fewer keys with a smaller effective spread, the difference in
 position distributions shrinks, and the long-form gap collapses to
 0.1--0.5 points.
-\begin{table}[t]
+\begin{table}[H]
 \centering
 \small
-\caption{Long-form \(F_{\text{out}}\) by retention rate (Llama).
-Gap = unrotated Long − re-rotated Long.}
+\caption{Long-form \(F_{\text{out}}\) by retention rate}
 \label{tab:t7}
-\begin{tabular}{@{}llll@{}}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Method & 65\% & 50\% & 35\%\\
+& \multicolumn{3}{c}{SnapKV} & \multicolumn{3}{c}{PyramidKV}\\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+Rate & Unrot. & +rot & Gap & Unrot. & +rot & Gap\\
 \midrule
-SnapKV     & 54.7 & 47.7 & 42.1\\
-SnapKV+rot & 50.0 & 46.2 & 42.0\\
-Gap        &  4.7 &  1.5 &  0.1\\
-PyramidKV  & 55.5 & 42.7 & 42.3\\
-Pyr+rot    & 50.1 & 40.3 & 41.8\\
-Gap        &  5.4 &  2.4 &  0.5\\
+65\% & 54.7 & 50.0 & 4.7 & 55.5 & 50.1 & 5.4\\
+50\% & 47.7 & 46.2 & 1.5 & 42.7 & 40.3 & 2.4\\
+35\% & 42.1 & 42.0 & 0.1 & 42.3 & 41.8 & 0.5\\
 \bottomrule
 \end{tabular}
+\center
+Llama-3.1-8B, Gap = unrotated − re-rotated.
 \end{table}
 
 The headline aggregate for SnapKV+rot (71.1\%) is above Naive (68.6\%)
@@ -2285,6 +2248,7 @@ RepoBench-P & 0.110 & 0.146 & 0.654 & \textbf{0.025} & 0.661 &
 \end{tabular}
 \end{table}
 
+\clearpage
 \hypertarget{appendix-b-output-faithfulness-per-task-results}{%
 \section{Appendix B: Output Faithfulness --- Per-Task
 Results}\label{appendix-b-output-faithfulness-per-task-results}}
@@ -2555,6 +2519,7 @@ RepoBench-P & 62.9 & 60.3 & \textbf{88.0} & 83.1 & 70.6 &
 \end{tabular}
 \end{table}
 
+\clearpage
 \hypertarget{appendix-c-ground-truth-accuracy-per-task-results}{%
 \section{Appendix C: Ground-Truth Accuracy --- Per-Task
 Results}\label{appendix-c-ground-truth-accuracy-per-task-results}}

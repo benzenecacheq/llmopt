@@ -139,9 +139,9 @@ Nothing queued.
 | Streaming (corrected) | 61.2 | 56.4 | 51.8 |
 | phr128 | 54.5 | 52.8 | 48.6 |
 
-## Paper structure notes (paper_kv_faithfulness.md)
+## Paper structure notes (paper_kv_faithfulness.tex)
 
-Paper split complete as of Jul 2026. `paper_kv_faithfulness.md` is the active submission.
+Paper split complete as of Jul 2026. `paper_kv_faithfulness.tex` is the active submission.
 Section numbering: §1–§6 unchanged, §7 Main Experiments, §8 Why Post-Prefill KV Eviction...,
 §9 Discussion, §10 Conclusion. "post-hoc" replaced with "post-prefill" throughout.
 
@@ -181,6 +181,19 @@ left-aligned `kl_pyramidkv_rerotated*.json` and `gt_pyramidkv_rerotated*/checkpo
 and re-run with the right-aligned implementation.
 
 `diagnose_distribution.py` (untracked) has a head-truncation bug — NOT used for paper tables.
+
+## LaTeX formatting state (Aug 2026)
+
+`paper_kv_faithfulness.tex` has been reformatted for arXiv single-column submission:
+
+- **Layout**: Single-column (`\documentclass[10pt,letterpaper]{article}`); abstract uses `\normalsize`
+- **Table placement**: All tables non-floating (`[H]` via `float` package); all `table*` converted to `table` (fixes label registration with `[H]`)
+- **Paired tables**: All Llama/Mistral table pairs merged into a single float using `minipage` side-by-side layout with one shared caption and one footnote below the table (outside `\caption{}`)
+- **Tab:t1** (§6.2, four-configuration KL): booktabs style — `\toprule`/`\midrule`/`\bottomrule`, no `|` vertical rules, no `\hline` between rows
+- **Tab:methods** (§5): `p{}` column spec with description column at 62% of `\textwidth` (no wrapping)
+- **Tab:t7** (§8.1): transposed — rates as rows, methods as columns with `\multicolumn`/`\cmidrule` grouped headers (SnapKV / PyramidKV)
+- **Hyperparameters paragraph**: wrapped in `\begin{sloppypar}...\end{sloppypar}` to handle long `\texttt{}` sequences
+- **Appendices**: `\clearpage` before Appendix B and Appendix C
 
 ## Timing notes (Llama-3.1-8B, V100 32GB, fp16)
 
