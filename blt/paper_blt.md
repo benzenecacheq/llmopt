@@ -8,7 +8,7 @@ In this paper we introduce BLT (Bilinear aTtention), a drop-in replacement for s
 
 We trained GPT-2 Small with BLT, standard MHA, and a Grouped-Query Attention (GQA) variant, then evaluated all three on a battery of standard benchmarks.  BLT trails standard MHA on certain tests but beats it or ties on others.  In the aggregate however, the losses are somewhat greater than the gains.  GQA pays a similarly-sized overall cost relative to MHA, for different underlying reasons.  Give or take, neither BLT nor GQA is decisively better than the other.
 
-We also tested a hybrid architecture — half standard MHA layers, half BLT layers — which recovers most of what full BLT gives up in quality, at the cost of keeping only half of BLT's memory benefit.
+We also tested a hybrid architecture — half standard MHA layers, half BLT layers — which recovers most of what full BLT gives up in quality, at the cost of keeping only half of BLT's memory benefit.  A preliminary low-rank variant of BLT (M ≈ UV^T, motivated by cache residency and tensor-parallel compatibility at larger model sizes) trains from scratch to quality at least as good as full-rank BLT in a first seed — a promising but not yet seed-confirmed result.
 
 ---
 
@@ -272,6 +272,30 @@ As a noise check on the four-task suite used above, we ran three additional zero
 
 ---
 
+### 4.7 Low-Rank BLT (UV^T): A First From-Scratch Result
+
+Section 7.3 proposes replacing the full D×D matrix M with a low-rank factorization M = UV^T (U, V ∈ ℝ^{D×r}), motivated by cache residency at larger model scale and tensor-parallel compatibility (Section 6): full-rank M cannot be sharded by head, while U and V are small enough to replicate on every GPU even at high TP degree.  The SVD analysis of a trained full-rank M (Section 6) showed a nearly flat spectrum, so a UV^T model cannot simply truncate a converged M's spectrum without losing substantial energy (r=256 captures only 81%).  Rather than post-hoc factorizing a full-rank checkpoint and fine-tuning — the SVD-truncation path Section 7.3 originally proposed — we instead trained UV^T from scratch, sidestepping both the truncation quality hit and this project's repeated bad experiences with pretrained/warm-start initialization at scale.
+
+We trained GPT-2-scale BLT with M replaced by UV^T at r=256 (81% of a converged full M's Frobenius energy), from scratch, seed 42, using the identical 500K-step OWT protocol as every other from-scratch run in this paper (Section 4.3).
+
+| Metric | UV256 (r=256, seed 42) | BLT seed 42 (500K) | BLT seed 19 (500K) | BLT seed 7 (500K) | GPT-2 seed 42 (500K) |
+|---|---|---|---|---|---|
+| OWT held-out ppl | 29.97 | 31.69 | 32.87 | 30.81 | 27.78 |
+| OWT held-out loss | 3.4002 | 3.4561 | 3.4927 | 3.4279 | 3.3243 |
+| LAMBADA acc | 0.213 | 0.188 | 0.208 | 0.212 | 0.225 |
+| LAMBADA ppl | 222.8 | 369.1 | 343.4 | 244.4 | 174.6 |
+| HellaSwag acc_norm | 0.269 | 0.267 | 0.271 | 0.268 | 0.268 |
+| PIQA acc_norm | 0.569 | 0.567 | 0.559 | 0.568 | 0.579 |
+| Winogrande acc | 0.512 | 0.489 | 0.500 | 0.516 | 0.505 |
+
+At r=256 — 393,216 shared parameters (U+V) versus full M's 589,824, a 33% reduction in the shared interaction matrix's own footprint — UV256 does not simply match full-rank BLT's already-degraded numbers.  On point estimates it beats every individual full-rank BLT seed on 5 of 7 metrics (OWT ppl, OWT loss, LAMBADA acc, LAMBADA ppl, and either PIQA or Winogrande depending on the seed), losing only two individual metric/seed comparisons, each against a different seed and each by a small margin (HellaSwag vs. seed 19: 0.271 vs. 0.269; Winogrande vs. seed 7: 0.516 vs. 0.512).
+
+**This should be read as a promising single data point, not a confirmed result.**  Full-rank BLT's own three seeds span 2.06 ppl on OWT held-out perplexity (30.81 to 32.87) from seed variation alone — a range larger than UV256's 0.84 ppl improvement over BLT's best individual seed (30.81 → 29.97).  Following this paper's own practice of requiring multiple seeds before treating a BLT-family result as confirmed (Section 4.3), a second UV256 seed (seed 19) is in progress at the time of writing.  Landing again in the 29–30 ppl range would be much stronger evidence that the low-rank factorization is not costing quality relative to full-rank BLT — and that the point estimates above reflect something structural (e.g. a mild regularization effect from the reduced parameterization) rather than noise; landing back in BLT's 31–33 ppl range would indicate seed 42 was simply a favorable draw.
+
+If the result holds up under a second seed, it would be a notable outcome for the architecture's practical case (Section 7.3): the primary reasons to prefer UV^T over full-rank M — cache residency at scale and tensor-parallel compatibility — would come at no additional quality cost beyond what full-rank BLT already pays relative to standard MHA, rather than compounding it.
+
+---
+
 ## 5. Related Work
 
 **Grouped-query attention (GQA).** Ainslie et al. propose GQA, which reduces the number of distinct key/value heads from H to a smaller number of groups, interpolating between standard multi-head attention (one KV head per query head) and multi-query attention (a single shared KV head), to reduce KV-cache size and inference bandwidth at a smaller quality cost than MQA ([arXiv 2305.13245](https://arxiv.org/abs/2305.13245), EMNLP 2023).  GQA is the primary baseline used throughout this paper's experiments (Sections 4.3–4.6) precisely because it already establishes the relevant precedent: a worse-than-MHA attention variant, adopted in production-scale models (e.g. LLaMA-2 70B and LLaMA-3) specifically because its bandwidth and KV-cache savings are judged to outweigh a modest, well-characterized quality cost.  BLT's case for adoption follows the same logic, along a different axis of compression (cross-layer weight sharing rather than within-layer KV-head reduction) — see "A worse-than-MHA result is not the same as a useless result" in Section 6.
@@ -380,6 +404,6 @@ UV^T directly addresses the three limitations of full-rank BLT raised above:
 - **Tensor-parallel compatibility.** Full-rank M cannot be sharded by head ("Tensor parallelism compatibility," Section 6); U and V are small enough (8.4 MB at r=256, D=8192) to replicate on every GPU at any TP degree without the bandwidth blowup full M suffers — at 8-way TP on a 70B model, UV^T BLT uses ~37% *less* bandwidth than standard MHA, versus full M BLT's 2.5× *more*.
 - **Cache residency at scale.** U+V (8.4 MB at r=256, D=8192) stay comfortably L2/SRAM resident even where full M (Section 7.1) does not.
 
-This isn't free, though.  The SVD analysis in Section 6 shows M's singular spectrum is nearly flat (550 of 768 singular values exceed 10% of the maximum), so a UV^T model cannot simply be initialized by truncating a trained full-rank M's spectrum — r=256 would capture only 81% of Frobenius energy at GPT-2 scale.  The practical path is post-training SVD factorization followed by fine-tuning: factorize a trained M ≈ UV^T at r=192 or r=256, reinitialize the model with the factored weights, and fine-tune for ~50–100K additional steps.  This has not yet been run.
+This isn't free, though.  The SVD analysis in Section 6 shows M's singular spectrum is nearly flat (550 of 768 singular values exceed 10% of the maximum), so a UV^T model cannot simply be initialized by truncating a trained full-rank M's spectrum — r=256 would capture only 81% of Frobenius energy at GPT-2 scale.  Truncating and fine-tuning (factorize a trained M ≈ UV^T at r=192 or r=256, then fine-tune for ~50–100K additional steps) remains a plausible cheaper path we have not tried; instead, our first result trains UV^T from scratch at r=256, avoiding both the truncation quality hit and this project's repeated bad experiences with warm-started initialization.  A single from-scratch seed matches or beats full-rank BLT on most metrics (Section 4.7) — promising, but not yet confirmed by a second seed, which is in progress.
 
-This sets up a direct architectural comparison we have not yet made: **globally shared low-rank UV^T vs. per-layer full-rank GQA**, at the same KV-cache budget.  GQA has more expressive per-layer key projections; low-rank BLT has stronger cross-layer regularization. Which inductive bias wins, and at what model scale, is an open empirical question.
+This sets up a direct architectural comparison we have not yet made: **globally shared low-rank UV^T vs. per-layer full-rank GQA**, at the same KV-cache budget.  GQA has more expressive per-layer key projections; low-rank BLT has stronger cross-layer regularization. Which inductive bias wins, and at what model scale, is an open empirical question.  A second open question, narrower and cheaper to answer first: does the SVD-truncate-then-fine-tune path reach the same place as training from scratch, in a fraction of the compute?
