@@ -123,6 +123,8 @@ All three land in a fairly tight, consistent band — seed19 is the weakest on O
   ```
   At the time of pausing, this run's early noise comparison against the paused fixed-blend run was looking favorable (see "GPT-2 medium" below for the full writeup and the noise-dynamics hypothesis) — resume when the GPU frees up to continue tracking it toward the `effective_blend`≈0.5 checkpoint (~step 900K-1M) that would confirm or complicate that hypothesis. The **original fixed-blend checkpoint is also still paused, not deleted** — `run_gpt2_medium_ema_blend75_seed42.pt` sits safely at step 594,500 (val_ppl 46.81) and is fully resumable if the sine bet doesn't pan out once the venus seed19 result above lands. See "GPT-2 medium" below for the full decision writeup.
 
+  **Auto-resume watcher launched (2026-08-02)**: `io` picked up another job in the meantime — `kl_faith_eval_ystar.py` (PID 647601, unrelated `pprune/` KV-cache-pruning-paper work, not part of this project). A watcher (`queue_medium_sine_resume_watcher.sh`, PID 648091, polls every 60s) will auto-resume the sine-blend medium run with the exact command above the moment that job exits — no manual action needed once it's done.
+
 ### GPT-2 medium — testing EMA generality at a larger scale (started 2026-07-16)
 **Motivation**: user wants to test whether the EMA per-token loss-weighting finding (currently validated on GPT-2 small and BLT small) generalizes across model size, not just architecture. GQA+EMA and hybrid+EMA (already-implemented architectures, just need the flag combo) were also discussed as cheap next steps but not yet started.
 
