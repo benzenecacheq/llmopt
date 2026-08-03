@@ -24,6 +24,7 @@
 \usepackage{caption}
 \usepackage{makecell}
 \usepackage[section]{placeins}
+\usepackage{tikz}
 
 % ── links & metadata ──────────────────────────────────────────────────────────
 \usepackage[hyphens]{url}
@@ -1090,6 +1091,83 @@ model-based selection. At a typical context length of
   \textbf{scattered} --- evenly-spaced single-token positions
   (\textasciitilde1400 gaps --- the maximally scattered case)
 \end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+  % Layout constants (all in cm)
+  \pgfmathsetmacro{\W}{11.0}   % bar width
+  \pgfmathsetmacro{\H}{0.42}   % bar height
+  \pgfmathsetmacro{\VS}{1.0}   % vertical spacing between row centres
+
+  % Colours
+  \definecolor{retcol}{RGB}{31,90,161}
+  \definecolor{evtcol}{RGB}{218,218,218}
+
+  % ── block\_end (row 3): evicted [0,35%], retained [35%,100%] ───────────────
+  \fill[evtcol] (0,{3*\VS-\H/2}) rectangle ({\W*0.35},{3*\VS+\H/2});
+  \fill[retcol] ({\W*0.35},{3*\VS-\H/2}) rectangle (\W,{3*\VS+\H/2});
+
+  % ── block\_mid (row 2): evicted [0,17.5%], retained [17.5%,82.5%], evicted [82.5%,100%] ──
+  \fill[evtcol] (0,{2*\VS-\H/2}) rectangle ({\W*0.175},{2*\VS+\H/2});
+  \fill[retcol] ({\W*0.175},{2*\VS-\H/2}) rectangle ({\W*0.825},{2*\VS+\H/2});
+  \fill[evtcol] ({\W*0.825},{2*\VS-\H/2}) rectangle (\W,{2*\VS+\H/2});
+
+  % ── clustered4 (row 1): 4 blocks × 16.25%, 5 gaps × 7% ────────────────────
+  % Evicted segments
+  \fill[evtcol] (0,{1*\VS-\H/2}) rectangle ({\W*0.07},{1*\VS+\H/2});
+  \fill[evtcol] ({\W*0.2325},{1*\VS-\H/2}) rectangle ({\W*0.3025},{1*\VS+\H/2});
+  \fill[evtcol] ({\W*0.465},{1*\VS-\H/2}) rectangle ({\W*0.535},{1*\VS+\H/2});
+  \fill[evtcol] ({\W*0.6975},{1*\VS-\H/2}) rectangle ({\W*0.7675},{1*\VS+\H/2});
+  \fill[evtcol] ({\W*0.93},{1*\VS-\H/2}) rectangle (\W,{1*\VS+\H/2});
+  % Retained segments
+  \fill[retcol] ({\W*0.07},{1*\VS-\H/2}) rectangle ({\W*0.2325},{1*\VS+\H/2});
+  \fill[retcol] ({\W*0.3025},{1*\VS-\H/2}) rectangle ({\W*0.465},{1*\VS+\H/2});
+  \fill[retcol] ({\W*0.535},{1*\VS-\H/2}) rectangle ({\W*0.6975},{1*\VS+\H/2});
+  \fill[retcol] ({\W*0.7675},{1*\VS-\H/2}) rectangle ({\W*0.93},{1*\VS+\H/2});
+
+  % ── scattered (row 0): dense comb schematic at 65% duty cycle ──────────────
+  \fill[evtcol] (0,{-\H/2}) rectangle (\W,{\H/2});
+  \pgfmathsetmacro{\NS}{55}
+  \pgfmathsetmacro{\period}{\W/\NS}
+  \pgfmathsetmacro{\sw}{\period*0.65}
+  \foreach \i in {0,...,54} {
+    \pgfmathsetmacro{\xs}{\i*\period}
+    \fill[retcol] ({\xs},{-\H/2}) rectangle ({\xs+\sw},{\H/2});
+  }
+
+  % ── borders ────────────────────────────────────────────────────────────────
+  \foreach \row in {0,1,2,3} {
+    \draw[black!30, line width=0.3pt] (0,{\row*\VS-\H/2}) rectangle (\W,{\row*\VS+\H/2});
+  }
+
+  % ── row labels ─────────────────────────────────────────────────────────────
+  \node[anchor=east, font=\small, inner sep=2pt] at (-0.2,{3*\VS}) {\texttt{block\_end}};
+  \node[anchor=east, font=\small, inner sep=2pt] at (-0.2,{2*\VS}) {\texttt{block\_mid}};
+  \node[anchor=east, font=\small, inner sep=2pt] at (-0.2,{1*\VS}) {\texttt{clustered4}};
+  \node[anchor=east, font=\small, inner sep=2pt] at (-0.2,0) {\texttt{scattered}};
+
+  % ── gap-count annotations ──────────────────────────────────────────────────
+  \node[anchor=west, font=\scriptsize, text=black!55, inner sep=2pt] at ({\W+0.15},{3*\VS}) {1 gap};
+  \node[anchor=west, font=\scriptsize, text=black!55, inner sep=2pt] at ({\W+0.15},{2*\VS}) {2 gaps};
+  \node[anchor=west, font=\scriptsize, text=black!55, inner sep=2pt] at ({\W+0.15},{1*\VS}) {$\sim$5 gaps};
+  \node[anchor=west, font=\scriptsize, text=black!55, inner sep=2pt] at ({\W+0.15},0) {$\sim$1400 gaps};
+
+  % ── legend ─────────────────────────────────────────────────────────────────
+  \fill[retcol] ({\W*0.28},{-0.78}) rectangle ({\W*0.28+0.45},{-0.52});
+  \node[anchor=west, font=\small] at ({\W*0.28+0.55},{-0.65}) {retained};
+  \fill[evtcol] ({\W*0.58},{-0.78}) rectangle ({\W*0.58+0.45},{-0.52});
+  \draw[black!30, line width=0.3pt] ({\W*0.58},{-0.78}) rectangle ({\W*0.58+0.45},{-0.52});
+  \node[anchor=west, font=\small] at ({\W*0.58+0.55},{-0.65}) {evicted};
+
+\end{tikzpicture}
+\caption{Gap geometries used in the synthetic analysis (Table~\ref{tab:t2}). Each bar represents
+the full token sequence at $r = 0.65$ retention; blue = retained in KV cache, gray = evicted.
+Gap counts are approximate at the typical benchmark context length ($\sim$4000 tokens).
+The \texttt{scattered} bar is schematic: individual retained tokens are sub-pixel at this scale,
+so 55 representative stripes are shown at the correct 65\% duty cycle.}
+\label{fig:gap-geometries}
+\end{figure}
 
 Each geometry evaluates the same retained position set under four
 presentations:
