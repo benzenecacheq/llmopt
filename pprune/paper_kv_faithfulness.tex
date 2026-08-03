@@ -432,7 +432,7 @@ PyramidKV in average. PyramidKV leads or ties all compressed methods on
 both models.
 
 Taken at face value, PyramidKV is the clear winner. But in §5 we argue that these
-scores measure the wrong thing --- and §8 shows that PyramidKV's
+scores measure the wrong thing and §8 shows that PyramidKV's
 ground-truth advantage conceals a faithfulness cost an order of
 magnitude larger than any other method's.
 
@@ -461,7 +461,9 @@ metric.
 
 \begin{itemize}
 \item
-  \textbf{Reference mismatch.} For the four ROUGE-based summarization
+  \textbf{Reference mismatch.}
+
+  For the four ROUGE-based summarization
   tasks in LongBench (GovReport, QMSum, MultiNews, SAMSum), ground-truth
   is computed against a human-written reference. Two methods can
   generate completely different summaries with identical ROUGE scores,
@@ -473,22 +475,28 @@ metric.
   retrieval tasks does ground truth directly constrain the model's
   output to match specific tokens.
 \item
-  \textbf{Faithful errors are penalized.} If the full-context model
+  \textbf{Faithful errors are penalized.}
+
+  If the full-context model
   produces a wrong answer, a compressed model that faithfully reproduces
   that same wrong answer scores 0 on ground truth. The metric penalizes
   faithfulness when it produces the wrong answer for the ``right
   reasons.'' A compression method should not be penalized for being a
   good approximation.
 \item
-  \textbf{Accidental correctness is rewarded.} Conversely, a compressed
+  \textbf{Accidental correctness is rewarded.}
+
+  Conversely, a compressed
   model that accidentally produces the correct answer --- because
   truncation happened to leave in the relevant span, or because a
   different reasoning path led to the same answer --- scores the same as
   a method that genuinely approximates the full model. Ground truth
   cannot distinguish these cases.
 \item
-  \textbf{Most of these metrics are not testing correctness at all.} Of
-  the 16 tasks, only three (TREC, PassageCount, PassageRetrieval) score
+  \textbf{Most of these metrics are not testing correctness at all.}
+
+\nopagebreak
+  Of the 16 tasks, only three (TREC, PassageCount, PassageRetrieval) score
   a prediction as binary right or wrong. The other thirteen --- seven QA
   tasks scored by word-overlap F1, four summarization tasks scored by
   ROUGE-L, two code-completion tasks scored by string similarity ---
@@ -505,6 +513,7 @@ metric.
   phrasing than to a judgment of whether the model got the answer right.
 \item
   \textbf{Low full-model accuracy amplifies the first three problems.}
+
   The base models used here (Llama-3.1-8B and Mistral-7B-v0.3) achieve
   macro-average GT scores of approximately 25 out of 100 on LongBench.
   The instruction-tuned variants used by the most directly comparable
@@ -613,11 +622,19 @@ ground-truth benchmarks --- registers as a faithfulness cost in
 \(F_{\text{KL}}\). KL faithfulness does not share the limitations
 documented in §5.1: because it measures whether the compressed model's
 actual computation matches the full model's at every step, it is
-informative about mechanism, not just outcome. That distinction is what
+informative about mechanism, not just outcome. 
+
+This distinction is what
 lets a result generalize to inputs that were never tested, and it is
 what makes KL faithfulness sensitive to structural corruption that GT
-evaluation cannot detect --- as §8 demonstrates for SnapKV and
-PyramidKV.
+evaluation cannot detect, as §8 demonstrates for SnapKV and
+PyramidKV. Because \(F_{\text{KL}}\) measures a structural property of
+positional encoding rather than a training-regime artifact, the finding
+transfers across model variants: on \texttt{Llama-3.1-8B-Instruct},
+post-prefill SnapKV eviction produces a mean \(F_{\text{KL}}\) of 0.94
+nats across six tasks, and key re-rotation reduces this to 0.039
+nats --- a 24\(\times\) reduction comparable to the 27\(\times\)
+observed on the base model (§6.4).
 
 \hypertarget{output-faithfulness}{%
 \subsection{5.3 Output Faithfulness}\label{output-faithfulness}}
@@ -655,10 +672,10 @@ For a compression method that is a good approximation,
 outputs are ``correct.''
 
 \(F_{\text{KL}}\) and \(F_{\text{out}}\) are measuring different things:
-- \(F_{\text{KL}}\) measures \textbf{distributional faithfulness}: how
-similar are the two models' probability distributions over the
-vocabulary at every generation step? - \(F_{\text{out}}\) measures
-\textbf{behavioral faithfulness}: how similar are the two models' final
+\(F_{\text{KL}}\) measures \textbf{distributional faithfulness}, which is how
+similar the two models' probability distributions are over the
+vocabulary at every generation step, while \(F_{\text{out}}\) measures
+\textbf{behavioral faithfulness}, how similar are the two models' final
 generated texts?
 
 These can disagree. A method could have low \(F_{\text{KL}}\)
@@ -669,7 +686,9 @@ high \(F_{\text{out}}\) (same final answers) but high \(F_{\text{KL}}\)
 shows that PyramidKV falls into this second category, making both
 metrics jointly necessary to characterize it.
 
-\textbf{Why these two metrics.} Other distributional or behavioral
+\textbf{Why these two metrics?}
+
+Other distributional or behavioral
 metrics are possible --- Jensen-Shannon divergence (bounded and
 symmetric, but without \(F_{\text{KL}}\)'s direct expected-surprise
 interpretation), rank correlation between full and compressed top-k
@@ -688,15 +707,18 @@ We use word-level F1 because it requires no reference distribution at
 all, only the two models' realized text, and reuses the scoring function
 LongBench already applies to extractive QA, keeping faithfulness
 evaluation on the same footing as the ground-truth evaluation it is
-meant to improve on. Neither choice is the only defensible one; we
+meant to improve on.
+
+Neither choice is the only defensible one; we
 expect findings that hold under KL faithfulness and \(F_{\text{out}}\)
 to hold in substance under JS divergence or a comparably motivated
 behavioral metric, since each is a different lens on one of the same two
 questions --- does the distribution match, does the output match --- not
 a different question.
 
-\textbf{Caveat emptor on output-text metrics.} \(F_{\text{out}}\) is
-more principled than ground-truth evaluation, but word-level F1
+\textbf{Caveat emptor on output-text metrics.}
+
+\(F_{\text{out}}\) is more principled than ground-truth evaluation, but word-level F1
 introduces its own distortions that any output-text measurement
 inherits. Readers should treat \(F_{\text{out}}\) scores, and any
 generated output-based measurement, with appropriate skepticism:
@@ -754,8 +776,7 @@ the structural corruption investigation described in §6.
 \subsection{5.5 Results at 65\%
 Retention}\label{results-at-65-retention}}
 
-\textbf{Faithfulness evaluation.} Full-context outputs (\(y^*\)) are
-generated first and stored. KL faithfulness compares compressed model
+KL faithfulness compares compressed model
 distributions to full model distributions, teacher-forced on \(y^*\)
 (Table~\ref{tab:kl55-llama}).
 \(F_{\text{out}}\) compares the compressed model's independently
@@ -896,8 +917,8 @@ RepoBench-P & 62.8 & 66.1 & \textbf{93.0} & 90.1\\
 \center Values in \%; higher is better. \textbf{Bold} = best per row.
 \end{table}
 
-\textbf{The two metrics sharply disagree on SnapKV and PyramidKV.} On KL
-faithfulness, On Llama, streaming edges Naive on both models while SnapKV and
+The two metrics sharply disagree on SnapKV and PyramidKV. 
+On Llama, streaming edges Naive on both models on KL faithfulness, while SnapKV and
 PyramidKV are an order of magnitude worse. Mistral shows the same raking at 
 roughly half the absolute KL magnitude.  \(F_{\text{out}}\) reverses
 this: PyramidKV and SnapKV lead on both models while Streaming falls near
@@ -917,30 +938,38 @@ PyramidKV, and Streaming-rerotated --- use \emph{post-prefill cache
 eviction}: the model performs one normal, unrestricted prefill pass over
 the complete prompt, attending to the full context at every layer, and
 only after that pass completes is the KV cache trimmed before the first
-decode step. Retained keys and values are computed cleanly under full
+decode step. 
+
+Retained keys and values are computed cleanly under full
 attention; nothing during prefill is modified. The earliest a gap can
 affect anything is at T=1 --- the first decode step, when the newly
-generated query attends back over the now-sparse cache. §8's case study
-shows the empirical signature: \(\mathrm{KL}(T=0) = 0\), a clean
-prefill, followed by a sharp spike at T=1.
+generated query attends back over the now-sparse cache.
 
-\textbf{Prefill enrichment.} Post-prefill eviction has a second
-consequence beyond gap timing: the KV pairs that survive carry
+There are competing factors that affect the final results of the pruned query:
+
+\begin{itemize}
+\item
+\textbf{Prefill enrichment.}
+
+KV pairs that survive carry
 representations computed under full-context attention over the entire
 original sequence, including attention to positions that are immediately
-evicted once the forward pass completes. A token retained in a
-post-prefill-evicted cache has attended to every other token in the
-document at every layer; a token retained in a compressed prompt has
-never attended to the evicted content at any layer. Prompt construction,
-such as the Naïve method benchmarked here, retains the algorithmically
-selected tokens in a structurally clean input; post-prefill eviction
-retains the tokens in a structurally gapped input but with richer
-representations of each. The enrichment benefit accrues equally to all
+evicted once the prefill completes. Thus the remaining tokens
+attend to every other token in the
+document at every layer including those that were evicted. 
+The remaining tokens in the KV cache are structurally gapped but with richer
+representations. This "enrichment" benefit accrues equally to all
 three post-prefill methods regardless of their selection policies.
-Whether it outweighs the decode-time gap cost depends on how many gaps
-remain and how they are distributed --- examined in §6.4.
 
-\textbf{Gap corruption.} Once a decode-time query attends over the
+The tokens retained in prompt construction,
+such as the Naive method benchmarked here, have never attended to the evicted content at any layer.
+The algorithmically selected tokens are therefore in a structurally clean 
+input with no gaps but also with no enrichment.
+
+\item
+\textbf{Gap corruption.}
+
+Once a decode-time query attends over the
 sparse cache, the degenerate attention distribution does not stay local.
 Transformer hidden states are deeply entangled across layers: layer
 \emph{l}'s computation at every position depends on the full layer
@@ -953,25 +982,30 @@ attention whenever a decode query crosses it. Recency-biased selection
 concentrates the budget at the tail, leaving the head and middle with
 severe gaps; attention-score-based selection distributes retained
 positions more evenly across the full sequence, leaving gaps throughout.
-The mechanism is identical in both cases; §6.4 examines how gap density
-and distribution determine whether enrichment or gap damage dominates.
 
-\textbf{Positional misalignment.} KV pruning introduces a second
+\item
+\textbf{Positional misalignment.}
+
+KV pruning introduces a second
 structural problem independent of causal gaps: retained tokens keep
 their original RoPE encodings, so two tokens logically adjacent in the
 retained set may carry a relative distance of hundreds or thousands of
 positions in the original prompt. The attention mechanism was trained on
 sequences where positional distance reflects informational proximity;
 retained tokens with large RoPE gaps between them are
-out-of-distribution at every decode step. Key re-rotation
-(\texttt{KeyRerotationPress}) addresses positional misalignment by
+out-of-distribution at every decode step.
+
+Key re-rotation
+(\texttt{KeyRerotationPress}) can be used to address positional misalignment by
 re-encoding retained keys at compact positions \(0 \ldots M-1\) after
 eviction, leaving the gap structure and enriched value representations
-unchanged. Prompt construction eliminates positional misalignment
+unchanged.  This creates a tension with the enrichment, which is based
+on the pre-pruned rotation.
+
+Prompt construction eliminates positional misalignment
 together with causal gaps by creating a structurally self-consistent new
-sequence. §6.4 applies key re-rotation to all three benchmarked methods
---- SnapKV, Streaming, and PyramidKV --- to determine whether positional
-displacement is the dominant failure mode in each case.
+sequence.
+\end{itemize}
 
 \hypertarget{empirical-evidence}{%
 \subsection{6.2 Empirical Evidence}\label{empirical-evidence}}
