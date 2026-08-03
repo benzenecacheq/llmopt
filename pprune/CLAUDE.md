@@ -86,6 +86,8 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 | `lb_results_base/gt_mechanism_mistral_f65/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
 | `lb_results_base/gt_mechanism_mistral_f50/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
 | `lb_results_base/gt_mechanism_mistral_f35/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
+| `lb_results_base/kl_instruct_pilot.json` | KL for snapkv_press + snapkv_rerotated + streaming_rerotated on Llama-3.1-8B-Instruct, 65%, 6 tasks, n=100 ✓ |
+| `lb_results_base/ystar_cache_instruct.pt` | Cached y* tokens + log_p_full for Instruct model, 6 tasks, n=100 |
 
 ## Completed data
 
@@ -98,6 +100,7 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 - `kl_pyramidkv_rerotated_f50.json` — 50%, all 16 tasks ✓ (mean KL=0.096; pyramid at window_size floor)
 - `kl_pyramidkv_rerotated_f35.json` — 35%, all 16 tasks ✓ (mean KL=0.124; budget collapse → ties SnapKV+rot)
 - `gap_structure.json` — 4 geometries × 4 presentations, 6 tasks, n=20 ✓
+- `kl_instruct_pilot.json` — Llama-3.1-8B-Instruct, 65%, 6 tasks, n=100 ✓ (snapkv_press=0.94, snapkv_rerotated=0.039, 24×; cited in §5.2)
 
 **KL (Mistral):**
 - `kl_snapkv_rerotated_mistral.json` — 65%, all 16 tasks ✓ (mean KL=0.030)
@@ -143,17 +146,22 @@ Nothing queued.
 
 Paper split complete as of Jul 2026. `paper_kv_faithfulness.tex` is the active submission.
 Section numbering: §1–§6 unchanged, §7 Main Experiments, §8 Why Post-Prefill KV Eviction...,
-§9 Discussion, §10 Conclusion. "post-hoc" replaced with "post-prefill" throughout.
+§9 Conclusion. "post-hoc" replaced with "post-prefill" throughout.
 
+- §5.2: KL faithfulness metric. Includes Instruct model generalization paragraph: Llama-3.1-8B-Instruct
+  reproduces base model finding (snapkv_press 0.94→0.039 nats, 24×) on same 6 tasks (`kl_instruct_pilot.json`).
+- §6.1: Mechanism section restructured as itemize list (prefill enrichment / gap corruption / positional
+  misalignment). Notes that re-rotation creates tension with pre-eviction enrichment.
 - §6.2: SnapKV-Select diagnostic (KL only). Only place Sel appears.
 - §6.3: Gap structure table — 4 geometries × gapless/evicted/rerotated presentations. ✓
-- §6.4: Re-rotation results for all three methods. SnapKV+rot (27× KL), Streaming (1.9×),
+- §6.4: Re-rotation results for all three methods. SnapKV+rot (27× KL), Streaming (11.7× at 65%),
   PyramidKV three-rate story (65%: Pyr+rot≈SnapKV+rot; 50%: gap from window_size floor;
   35%: tied from budget collapse). F_out tradeoff covers all methods. Right-aligned re-rotation
   implementation note. §6.5 removed — merged into §6.4.
 - §7: Main experiment tables (KL, TTFT, F_out). All Llama and Mistral values complete at all three rates. No phr128.
-- §8: PyramidKV case study — Table 5 (short/long F_out), first-token advantage explanation.
-- §9: Discussion — "budget allocation and re-rotation interact" paragraph reflects three-rate story.
+- §8: First-token advantage mechanism; §8.1 short/long F_out breakdown (Table 5), KL by output length
+  (Table 6), long-form F_out cross-rate (Table 7). Concludes with deployment implications.
+- §9: Conclusion — three-rate story, Pyr+rot 50% gap explanation, generalization claims.
 - KL metric uses y* shared prefix (fixed path-dependence flaw); see `kl_faith_eval_ystar.py`.
 
 ## Data validity note
