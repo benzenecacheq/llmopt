@@ -83,6 +83,21 @@ Added `--ema-blend-schedule {fixed,sine}` (`train.py`; default `fixed`, exactly 
 
 **Second sine-schedule seed launched (2026-07-27).** `run_gpt2_ema_blend75_sine_scratch_seed19.pt` on `venus` (idle after the seed42 run finished) — seed 19 (matches the existing fixed-blend75 family's seed sequence for eventual direct comparison), otherwise identical config to the seed42 sine run. Confirmed healthy at step 0 (`effective_blend=0.0000`, as expected). In progress — past step 380,000/500,000 (76%) as of 2026-08-01, see "Current status snapshot" above for the in-training val_ppl comparison against seed42 (and why it shouldn't be over-read).
 
+**DONE (2026-08-03).** Finished all 500,000 steps; the pre-existing watcher (`queue_sine_seed19_watcher.sh`, running on `bender`, polling venus's training PID over SSH) fired both benchmarks automatically on exit. Results (`lm_eval_gpt2_ema_blend75_sine_scratch_seed19.json`, `eval_owt_gpt2_ema_blend75_sine_scratch_seed19.stdout`, both on `venus`): OWT held-out ppl **29.37** (loss 3.3799), LAMBADA acc **0.246**, LAMBADA ppl 146.0, HellaSwag acc_norm 0.270, PIQA acc_norm 0.566, Winogrande acc 0.507.
+
+| | seed19 (sine) | seed42 (sine) | Fixed-75/25 avg (3 seeds) | Non-EMA baseline |
+|---|---|---|---|---|
+| OWT held-out ppl | 29.37 | 29.44 | ~29.55 | 27.78 |
+| LAMBADA acc | 0.246 | **0.281** | ~0.260 | 0.225 |
+| LAMBADA ppl | 146.0 | **117.7** | ~130.0 | 174.6 |
+| HellaSwag acc_norm | 0.270 | 0.267 | ~0.270 | 0.268 |
+| PIQA acc_norm | 0.566 | 0.571 | ~0.574 | 0.579 |
+| Winogrande acc | 0.507 | 0.511 | ~0.517 | 0.505 |
+
+**Both sine seeds land well above baseline and above every individual fixed-blend seed's LAMBADA acc (0.253-0.269)** — the sine-schedule improvement over fixed-blend is a genuine two-seed result, not just seed42 alone. But seed19 (0.246) is noticeably weaker than seed42 (0.281), so seed42's original headline number was partly favorable variance rather than the sine schedule reliably landing at 0.28+; the two-seed average (~0.264) is still a clear, if smaller, win over fixed-blend's average (~0.260). **This is read as further supporting evidence for the sine-schedule bet on the medium-model EMA run** (`io`, `run_gpt2_medium_ema_blend75_sine_seed42.pt`) — two-for-two on beating fixed-blend's LAMBADA acc reinforces that decision, though the medium run's own confirmation still awaits its real lm-eval benchmark once it finishes.
+
+**Third sine-schedule seed launched (2026-08-03).** `venus` was idle again (0% GPU util) once seed19 finished, so a third seed was kicked off immediately: `run_gpt2_ema_blend75_sine_scratch_seed7.pt`, seed 7 (completes the same 42/19/7 sequence used throughout this project), otherwise identical config/protocol to the first two sine seeds (`--baseline --from-scratch --dataset openwebtext --ema-loss-weighting --ema-blend 0.75 --ema-blend-schedule sine --max-steps 500000`). Reused the existing tokenized OWT cache on venus (no re-tokenization wait).
+
 ### Cross-machine merge (2026-07-19) — verified, two real bugs found and fixed
 User made changes on another machine in parallel with the medium/EMA work below: generalized `build_gqa_model` (real warm-start support — average pretrained heads per KV group, not just random init) and `build_blt_model` (new `layers_per_m` strided-grouping variant, plus a new generalized `BLTMultiMAttention` class replacing the old `num_m_groups==2`-only `BLT2Attention`), added `bigblt.md` and two new run-sequence scripts (`run_layer4_sequence.sh`, `run_3m_gqa3_sequence.sh`). Merged via `git merge` (commit `d22dc8f`), explicitly keeping both `per_layer_m` (this session's one-M-per-layer) and `layers_per_m` (the other session's strided N-layers-per-M) as coexisting BLT variants.
 
@@ -113,8 +128,19 @@ GPT-2 baseline now has a genuine three-seed iso-step (500K) set:
 | Winogrande acc | 0.520 | 0.505 | 0.519 |
 
 All three land in a fairly tight, consistent band — seed19 is the weakest on OWT ppl/LAMBADA acc but not dramatically, Winogrande favors it. Normal seed variance, no outlier.
-- **`venus`**: running the **second sine-blend-schedule seed** (`run_gpt2_ema_blend75_sine_scratch_seed19.pt`, seed 19, GPT-2 small) — past step 380,000/500,000 (76%) as of last check, `effective_blend` tracking the sine formula exactly (matches seed42's schedule value at every matched step, confirming it's a pure function of step count, not data-dependent). The first sine seed (seed42) already finished and posted the **best LAMBADA acc in the whole EMA/blend family** (0.281) — see "GPT-2 medium" below for the full sine-schedule writeup. This seed19 result (a few more days out at current pace) is the confirm-or-refute point for whether that was a real effect or favorable variance, and is also the trigger for a decision on the `io` medium run below. The three fixed-75/25-blend small-model seeds (42/19/7_v2) all finished earlier and are fully benchmarked — no longer in progress. **Note**: seed19's in-training WikiText val_ppl has been tracking consistently lower than seed42's did at matched steps (e.g. 60.78 vs. 63.60 at step 380K) — worth flagging but *not* worth reading into: the fixed-blend seed19-vs-seed42 pair showed this exact same pattern (seed19 tracked better throughout) and still converged to an identical final OWT held-out ppl (29.61 vs. 29.61). Wait for the real lm-eval-harness benchmark, not this proxy.
+- **`venus`**: seed19 sine-blend run **DONE** (2026-08-03, OWT ppl 29.37, LAMBADA acc 0.246 — see "GPT-2 medium" below for the full two-seed comparison). Now running the **third sine-blend seed** (`run_gpt2_ema_blend75_sine_scratch_seed7.pt`), launched immediately after on the now-idle GPU to complete the 42/19/7 seed sequence. The three fixed-75/25-blend small-model seeds (42/19/7_v2) all finished earlier and are fully benchmarked — no longer in progress.
 - **`io`**: running the **from-scratch sine-blend medium EMA run** (`run_gpt2_medium_ema_blend75_sine_seed42.pt`), launched 2026-07-28 to replace the original fixed-75/25-blend medium run, which was showing ~4x noisier in-training val_ppl than `bender`'s baseline at comparable training fraction (28% vs 6.5% relative swing). **Briefly paused 2026-08-02** (step 314,500 → resumed cleanly same day) to free the GPU for an unrelated `pprune/` job (`kl_faith_eval_ystar.py`) — a watcher (`queue_medium_sine_resume_watcher.sh`) auto-fired `--resume` the moment that job exited; confirmed correct via `effective_blend=0.2426` at the resumed step matching the sine formula exactly (not a step-0 restart). Now back to normal progress. The **original fixed-blend checkpoint is also still paused, not deleted** — `run_gpt2_medium_ema_blend75_seed42.pt` sits safely at step 594,500 (val_ppl 46.81) and is fully resumable if the sine bet doesn't pan out once the venus seed19 result above lands. See "GPT-2 medium" below for the full decision writeup and the noise-dynamics hypothesis this run is tracking toward (`effective_blend`≈0.5 around step 900K-1M).
+
+### Live status re-check (2026-08-03) — fresher numbers than the 2026-08-01 snapshot above
+Direct SSH check of all four machines (not just log-derived estimates):
+- **`bender`** (local): step **1,018,260/1,500,000 (68%)**, healthy — up from 909,000 at the last snapshot.
+- **`titan`**: UV256 seed19 at step **143,500/500,000 (29%)** — still early, no `effective_blend` column (not an EMA run).
+- **`venus`**: sine-blend seed19 much further along than the stale 76% figure above — **step 470,780/500,000 (94%)**, `effective_blend=0.7468` (nearly at the 0.75 target, as expected this close to the end). Likely to finish within hours of this check.
+- **`io`**: the medium sine run is **no longer paused** — confirmed actively training again at step **330,290/1,500,000 (22%)**, `effective_blend=0.2543`, via the `queue_medium_sine_resume_watcher.sh` process still alive there.
+
+**Benchmark watcher for the venus run, and the parquet-copy question that prompted checking it.** User flagged that a background copy of OWT parquet files to `venus` may not have finished, which could be why a benchmark watcher hadn't visibly kicked off. Investigation: `venus`'s parquet dir (`~/.cache/huggingface/hub/datasets--Skylion007--openwebtext/snapshots/.../plain_text/`) has exactly 26 files, `train-00000` through `train-00025` — files 0-20 are **0-byte placeholder stubs**, files 21-25 (the actual held-out set `eval_owt.py` needs) are fully transferred (~300MB each, real data). Ran `eval_owt.py`'s exact `sorted(glob(...))[21:26]` logic for real on `venus` to confirm: it correctly resolves to the 5 real files — the 0-byte stubs for 0-20 are never opened, they only exist to occupy the right positions in the sort order so the positional slice lands correctly. **So the copy is actually sufficient as-is**, not a blocker.
+
+Separately, `queue_sine_seed19_watcher.sh` (already sitting locally, untracked) turned out to **already be running** — PID 270206, launched earlier today, running on `bender` (not `venus`) and polling venus's training PID (133040) over SSH every 60s, ready to SSH back in and run both `blt_lm_eval.py` and `eval_owt.py` remotely the moment training exits. It was missed in the first pass because that pass only checked for a watcher process *on* venus — the script's own header comment explains the orchestration runs from bender since venus has no SSH access onward to other machines. No new watcher was added (would've raced with this one); given the run's at 94%, it should fire on its own within hours.
 
 ### GPT-2 medium — testing EMA generality at a larger scale (started 2026-07-16)
 **Motivation**: user wants to test whether the EMA per-token loss-weighting finding (currently validated on GPT-2 small and BLT small) generalizes across model size, not just architecture. GQA+EMA and hybrid+EMA (already-implemented architectures, just need the flag combo) were also discussed as cheap next steps but not yet started.
@@ -204,6 +230,19 @@ Added `--ema-blend` (commit `c118787`) to test whether a blended objective avoid
 | Winogrande acc | 0.511 | 0.499 | 0.498 | 0.505 |
 
 Open questions: sweep more α values to map the curve; test a *jointly*-trained blend (fixed mixture from step 0 of a from-scratch run) rather than sequential fine-tune-from-EMA; check whether this favorable blend result is architecture-general (BLT) the way the base EMA effect was.
+
+**α=0.25 fills in the sweep — confirms a monotonic curve, not just two endpoints plus a midpoint.** `run_gpt2_ema_blend25_finetune_seed42.pt`, same 10K-step sequential fine-tune-from-EMA protocol, `--ema-blend 0.25`. Result (`lm_eval_gpt2_ema_blend25_finetune_seed42.json`): OWT held-out ppl 29.29, LAMBADA acc **0.231**, LAMBADA ppl 159.3, HellaSwag acc_norm 0.270, PIQA acc_norm 0.563, Winogrande acc 0.506 — lands cleanly between the pure-CE (α=0) and 50/50 (α=0.5) points on every metric, no crossovers. Full sweep:
+
+| α | 0 (pure CE) | 0.25 | 0.5 | EMA (before, α=1 equiv.) | Non-EMA baseline |
+|---|---|---|---|---|---|
+| OWT held-out ppl | 29.13 | 29.29 | 29.68 | 30.06 | 27.78 |
+| LAMBADA acc | 0.217 | 0.231 | 0.244 | 0.253 | 0.225 |
+| LAMBADA ppl | 184.1 | 159.3 | 142.9 | 119.6 | 174.6 |
+| HellaSwag acc_norm | 0.271 | 0.270 | 0.270 | 0.272 | 0.268 |
+| PIQA acc_norm | 0.566 | 0.563 | 0.562 | 0.569 | 0.579 |
+| Winogrande acc | 0.499 | 0.506 | 0.498 | 0.511 | 0.505 |
+
+Both OWT-ppl cost and LAMBADA-acc gain increase smoothly and monotonically with α across all four points (0, 0.25, 0.5, 1.0) — a clean dial, not a threshold effect. Note this result was already on disk (dated 2026-06-24, i.e. before the 50/50 point was written up) but had never been folded into this doc until 2026-08-03.
 
 **Follow-up — jointly-trained blend-from-scratch (α=0.75), not sequential fine-tune.** Tests the first open question above: rather than fine-tuning a converged EMA checkpoint back toward CE, `--ema-blend 0.75` was mixed in from step 0 of a full 500K-step from-scratch OWT run. `run_gpt2_ema_blend75_scratch_seed42.pt` (machine `titan`), seed 42, DONE 2026-06-30: final val_ppl 64.26, OWT held-out ppl **29.61** (loss 3.3881 nats), LAMBADA acc **0.269** (best of the whole GPT-2/EMA family, beating even pure EMA's 0.253), LAMBADA ppl 130.6, HellaSwag acc_norm 0.273, PIQA acc_norm 0.565, Winogrande acc 0.522. Result files: `lm_eval_gpt2_ema_blend75_scratch_seed42.json`, `eval_owt_gpt2_ema_blend75_scratch_seed42.stdout` (checkpoint/log/stdout live only on `titan` as of 2026-07-02, not copied locally).
 
