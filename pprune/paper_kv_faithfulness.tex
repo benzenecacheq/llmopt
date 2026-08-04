@@ -171,12 +171,13 @@ maintaining a running sum of per-head attention scores and evicting the
 lowest-scoring tokens. SnapKV {[}Li et al., 2024{]} refines the scoring
 by pooling attention weights from only the last \emph{w} queries (an
 observation window), better reflecting the queries that will matter at
-decode time, using post-RoPE vectors. StreamingLLM {[}Xiao et al.,
+decode time, using post-RoPE (Rotary Position Embedding) vectors. StreamingLLM {[}Xiao et al.,
 2023{]} abandons score computation entirely, retaining a fixed set of
 attention sink tokens plus a sliding recency window. In its original
 online design the cache is bounded continuously throughout processing
---- the model never builds a full-length KV cache --- which bounds TTFT
-at the cost of discarding all non-recent non-sink content.
+--- the model never builds a full-length KV cache --- which bounds time
+to first token (TTFT) at the cost of discarding all non-recent
+non-sink content.
 
 \textbf{Value-norm scoring.} VATP {[}EMNLP 2024{]} scores tokens by the
 product of attention weight and L1 value norm, observing that attention
@@ -1146,8 +1147,7 @@ is applied before the attention mask filters to the selected set). Its
 score (0.168) nearly matches naive prompt construction (0.162) ---
 positional scatter alone causes limited damage. Adding enrichment back
 (SnapKV post-prefill, 1.026) makes things dramatically worse, not
-better: the full-prefill hidden state appears to be detracting rather
-than helping here. §6.4 examines this more fully and introduces a
+better: the full-prefill hidden state detracts rather than helps here. §6.4 examines this more fully and introduces a
 correction.
 
 \hypertarget{synthetic-gap-structure-analysis}{%
@@ -1328,15 +1328,15 @@ Table~\ref{tab:t2} reveals several non-obvious patterns across the four geometri
   \textbf{Block\_end geometry: positional shift and structural
   corruption both contribute.} Even without enrichment, the gapped
   presentation (2.373) is 13.4× worse than gapless (0.177) --- a
-  substantial gap that is perhaps surprising given that the retained
-  block has only one causal gap and is otherwise contiguous. Enrichment
+  substantial gap: the retained block has only one causal gap and is
+  otherwise contiguous, yet positional shift alone causes 13.4× damage. Enrichment
   increases the damage further: evicted (3.493, 19.8×) exceeds gapped
   (2.373, 13.4×). Most notably, re-rotation --- which fully recovers the
   scattered geometry --- provides only a modest improvement here:
   rerotated (2.814, 15.9×) does not recover to the no-enrichment gapped
   baseline, let alone to gapless. What drives this irreversibility is
-  not established here; several factors plausibly contribute, and we do
-  not attempt to single one out.
+  not established here; several factors contribute, and we do not
+  attempt to isolate the dominant one.
 \item
   \textbf{Block\_mid and clustered4} show modest damage in both gapped
   (1.5×), evicted (1.4×), and rerotated (1.3×) relative to gapless. The
@@ -1349,8 +1349,8 @@ Table~\ref{tab:t2} reveals several non-obvious patterns across the four geometri
   The gapped column enables a direct comparison with Table~\ref{tab:t1}'s
   recompute-over-gaps result, but the two tell opposite stories about
   enrichment. In the synthetic scattered geometry here, enrichment
-  appears beneficial at scattered positions: evicted (1.289) is better
-  than gapped (2.886). In Table~\ref{tab:t1}, SnapKV's attention-score-selected
+  is beneficial at scattered positions: evicted (1.289) is better than
+  gapped (2.886). In Table~\ref{tab:t1}, SnapKV's attention-score-selected
   tokens show the reverse: recompute-over-gaps (no enrichment, 0.168)
   far outperforms SnapKV post-prefill (enrichment, 1.026). The most
   obvious difference between the two experiments is the nature of the
@@ -1358,8 +1358,8 @@ Table~\ref{tab:t2} reveals several non-obvious patterns across the four geometri
   the sequence, while SnapKV's are selected by attention score and
   therefore biased toward tokens the model heavily attended to during
   the full-context prefill. Whether and how this distinction drives the
-  divergent enrichment outcomes is not fully clear, but the reversal
-  suggests that the effect of enrichment under scatter is not a simple
+  divergent enrichment outcomes is not established, but the reversal
+  indicates that the effect of enrichment under scatter is not a simple
   property of scatter alone.
 \end{itemize}
 
