@@ -565,7 +565,7 @@ advantage (§4) is exactly the kind of result that is hard to interpret:
 it may reflect genuine preservation of task-relevant information, or it
 may reflect a combination of structural properties that happen to
 produce correct first tokens without approximating the full model's
-behavior. §8 shows it is the latter.
+behavior. §8 investigates which is the case.
 
 This points to a more general limitation, beyond the failure modes
 above. Ground truth --- or any outcome metric computed on a fixed test
@@ -578,7 +578,7 @@ silent on mechanism by construction.
 
 PyramidKV and SnapKV are the clearest illustrations in this paper: by
 ground truth and output faithfulness both lead all tested methods, but
-§8 shows this is substantially an artifact of how post-prefill eviction
+§8 traces this to a structural property of how post-prefill eviction
 methods compute their answer --- a full, uncompressed prefill makes the
 first generated token identical to the full model's by construction,
 which dominates the aggregate score because the benchmark is full of
@@ -586,7 +586,7 @@ short-answer tasks where the first token is the answer. A practitioner
 who only had the outcome metric would not know this, and would have no
 way to predict whether the advantage holds for a task with longer
 outputs, a different query distribution, or any input not resembling the
-test set --- and indeed it mostly does not (Table~\ref{tab:t5}, §8.1).
+test set.
 
 \hypertarget{kl-faithfulness}{%
 \subsection{5.2 KL Faithfulness}\label{kl-faithfulness}}
@@ -671,8 +671,8 @@ positional encoding rather than a training-regime artifact, the finding
 transfers across model variants: on \texttt{Llama-3.1-8B-Instruct},
 post-prefill SnapKV eviction produces a mean \(F_{\text{KL}}\) of 0.94
 nats across six tasks, and key re-rotation reduces this to 0.039
-nats --- a 24\(\times\) reduction comparable to the 27\(\times\)
-observed on the base model (§6.4).
+nats --- a 24\(\times\) reduction; §6.4 establishes the corresponding
+result on the base model.
 
 \hypertarget{output-faithfulness}{%
 \subsection{5.3 Output Faithfulness}\label{output-faithfulness}}
@@ -721,8 +721,8 @@ These can disagree. A method could have low \(F_{\text{KL}}\)
 to early divergence in sampled text). Conversely, a method could have
 high \(F_{\text{out}}\) (same final answers) but high \(F_{\text{KL}}\)
 (reached those answers via corrupted intermediate distributions). §8
-shows that PyramidKV falls into this second category, making both
-metrics jointly necessary to characterize it.
+examines whether PyramidKV falls into this second category, motivating
+both metrics as jointly necessary to characterize compression behavior.
 
 \textbf{Why these two metrics?}
 
@@ -1530,7 +1530,7 @@ the target range \([T - n_{\text{kept}}, T)\) varies widely across
 layers.
 
 Unlike Llama, Streaming trails Naive at every rate on Mistral --- a
-difference also visible in \(F_{\text{out}}\) (§7.4).
+difference also visible in \(F_{\text{out}}\) (§7.3).
 
 \textbf{Re-rotation improvement ratios for Streaming.} Table~\ref{tab:t3} shows
 streaming\_rerotated as the recommended method. For comparison, the
@@ -1769,11 +1769,11 @@ of the prefill from full, unrestricted attention, and before re-rotation
 takes effect. Short-answer \(F_{\text{out}}\) nevertheless falls
 relative to unrotated SnapKV: Table~\ref{tab:t5} shows SnapKV+rot Short=79.3\%,
 below unrotated SnapKV (87.7\%) but above Naive (72.8\%). The cause of
-this reduction is not fully resolved. As §8.1 shows, Pyr+rot --- which
-decodes from T rather than compact position M --- shows an identical
-short-form reduction, ruling out the decode starting position as the
-explanation; the cost appears to be a byproduct of key re-rotation
-itself, for reasons that are not yet well understood. KL faithfulness
+this reduction is not fully resolved; §8.1 examines it further through
+Pyr+rot, which decodes from T rather than compact position M yet shows
+the same short-form reduction --- evidence that the decode starting
+position is not the explanation. The cost appears to be a byproduct of
+key re-rotation itself, for reasons that are not yet well understood. KL faithfulness
 improves from 1.157 to 0.043 --- a 27× improvement --- because
 positional displacement at subsequent decode steps is eliminated.
 
