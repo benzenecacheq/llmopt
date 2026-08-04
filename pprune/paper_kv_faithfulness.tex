@@ -25,6 +25,9 @@
 \usepackage{makecell}
 \usepackage[section]{placeins}
 \usepackage{tikz}
+\usetikzlibrary{calc}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 
 % ── links & metadata ──────────────────────────────────────────────────────────
 \usepackage[hyphens]{url}
@@ -607,6 +610,40 @@ F_{\text{KL}} = \frac{1}{L} \sum_{t=1}^{L}
   \right)
 \]
 
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw=black!50, rounded corners=2pt, inner sep=5pt,
+              text centered, font=\small},
+  arr/.style={->, >=stealth, semithick}
+]
+  \node[box] (fm) at (1.5,0) {Full model on $c,\,q$};
+  \node[box] (ys) at (5.5,0) {$y^* = (y^*_1,\ldots,y^*_L)$};
+  \draw[arr] (fm) -- (ys);
+
+  \node[box, text width=3.0cm, align=center] (pfull) at (1.2,-3.0)
+    {Full model\\[3pt]$P_{\text{full}}(\cdot \mid c,q,y^*_{<t})$};
+  \node[box, text width=3.0cm, align=center] (pcomp) at (7.0,-3.0)
+    {Compressed model\\[3pt]$P_{\text{comp}}(\cdot \mid \hat{c},q,y^*_{<t})$};
+
+  \coordinate (fk) at ($(ys.south)+(0,-0.55)$);
+  \draw (ys.south) -- (fk);
+  \draw[arr] (fk) -| (pfull.north);
+  \draw[arr] (fk) -| (pcomp.north);
+
+  \node[box] (kl) at (4.1,-5.2)
+    {$F_{\text{KL}} = (1/L)\sum_{t=1}^{L} D_{\text{KL}}(P_{\text{full}} \| P_{\text{comp}})$};
+
+  \draw[arr] (pfull.south) |- (kl.west);
+  \draw[arr] (pcomp.south) |- (kl.east);
+\end{tikzpicture}
+\caption{Evaluation setup for $F_{\text{KL}}$. The full model generates $y^*$ from the
+uncompressed context; both the full model and the compressed model are then teacher-forced on
+this shared token sequence. KL divergence at each step~$t$ is averaged over all $L$ output
+positions to give~$F_{\text{KL}}$.}
+\label{fig:eval-setup}
+\end{figure}
+
 Lower is better; 0 means identical distributions at every step.
 Conditioning all methods on the same shared token sequence eliminates
 path-dependence: a method whose compressed context causes early
@@ -1007,6 +1044,54 @@ Prompt construction eliminates positional misalignment
 together with causal gaps by creating a structurally self-consistent new
 sequence.
 \end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+  \pgfmathsetmacro{\CW}{0.72}   % cell width
+  \pgfmathsetmacro{\CH}{0.46}   % cell height
+  \definecolor{retcol}{RGB}{31,90,161}
+  \definecolor{evtcol}{RGB}{218,218,218}
+
+  % ── Row 1: post-eviction (positions 0–7; retained 0,1,5,6,7; evicted 2,3,4) ──
+  \foreach \p in {0,1,5,6,7} {
+    \fill[retcol] ({\p*\CW},{-\CH/2}) rectangle ({(\p+1)*\CW},{\CH/2});
+    \draw[black!30, line width=0.3pt] ({\p*\CW},{-\CH/2}) rectangle ({(\p+1)*\CW},{\CH/2});
+    \node[font=\scriptsize, text=white] at ({(\p+0.5)*\CW}, 0) {\p};
+  }
+  \foreach \p in {2,3,4} {
+    \fill[evtcol] ({\p*\CW},{-\CH/2}) rectangle ({(\p+1)*\CW},{\CH/2});
+    \draw[black!30, line width=0.3pt] ({\p*\CW},{-\CH/2}) rectangle ({(\p+1)*\CW},{\CH/2});
+    \node[font=\scriptsize, text=black!45] at ({(\p+0.5)*\CW}, 0) {\p};
+  }
+  % Row 1 label
+  \node[anchor=east, font=\small, inner sep=2pt] at (-0.15, 0) {Post-eviction:};
+  % \Delta annotations above retained-token pairs
+  \node[font=\scriptsize] at ({0.5*\CW},   0.62) {$\Delta\!=\!1$};
+  \node[font=\scriptsize] at ({3.0*\CW},   0.62) {$\Delta\!=\!4$};
+  \node[font=\scriptsize] at ({5.5*\CW},   0.62) {$\Delta\!=\!1$};
+  \node[font=\scriptsize] at ({6.5*\CW},   0.62) {$\Delta\!=\!1$};
+
+  % ── Row 2: re-rotated (compact positions 0–4) ─────────────────────────────
+  \foreach \p in {0,1,2,3,4} {
+    \fill[retcol] ({\p*\CW},{-1.7-\CH/2}) rectangle ({(\p+1)*\CW},{-1.7+\CH/2});
+    \draw[black!30, line width=0.3pt] ({\p*\CW},{-1.7-\CH/2}) rectangle ({(\p+1)*\CW},{-1.7+\CH/2});
+    \node[font=\scriptsize, text=white] at ({(\p+0.5)*\CW}, -1.7) {\p};
+  }
+  % Row 2 label
+  \node[anchor=east, font=\small, inner sep=2pt] at (-0.15, -1.7) {Re-rotated:};
+  % \Delta=1 annotations below retained-token pairs
+  \foreach \p in {0,1,2,3} {
+    \node[font=\scriptsize] at ({(\p+0.5)*\CW}, {-2.33}) {$\Delta\!=\!1$};
+  }
+\end{tikzpicture}
+\caption{Positional displacement from post-prefill eviction. Blue cells are retained keys;
+gray cells are evicted. Retained positions 0,\,1,\,5,\,6,\,7 create a $\Delta\!=\!4$ gap
+between positions~1 and~5 --- the query at position~$T$ sees these keys as if 4 positions
+apart, distorting RoPE-encoded relative distances. Re-rotation re-encodes the five retained
+keys at compact positions $0\ldots4$, restoring uniform $\Delta\!=\!1$ spacing throughout.}
+\label{fig:rope-displacement}
+\end{figure}
 
 \hypertarget{empirical-evidence}{%
 \subsection{6.2 Empirical Evidence}\label{empirical-evidence}}
@@ -1832,6 +1917,66 @@ steps is precisely the damage that compounds in practice --- which is
 why \(F_{\text{out}}\) degrades with output length even as
 teacher-forced \(F_{\text{KL}}\) appears to recover for unrotated
 methods.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=\columnwidth,
+  height=5.8cm,
+  xlabel={Generation step $t$},
+  ylabel={KL divergence (nats)},
+  xmin=0, xmax=300,
+  ymin=0, ymax=1.35,
+  xtick={0,50,100,150,200,250,300},
+  legend pos=north east,
+  legend style={font=\small, inner sep=3pt},
+  grid=major,
+  grid style={line width=0.25pt, gray!25},
+  tick label style={font=\small},
+  label style={font=\small},
+  every axis plot/.append style={line width=1.2pt},
+]
+% PyramidKV: high initial KL (positional damage), declining via y* dilution
+\addplot[color=red!70!black] coordinates {
+  (0,0.0000) (10,1.1455) (20,1.1373) (30,1.0702) (40,1.0296) (50,1.0112)
+  (60,0.9399) (70,0.8885) (80,0.8625) (90,0.8399) (100,0.8442)
+  (110,0.8087) (120,0.8132) (130,0.8578) (140,0.7971) (150,0.6792)
+  (160,0.5823) (170,0.4518) (180,0.2709) (190,0.1969) (200,0.1632)
+  (210,0.1367) (220,0.1079) (230,0.1006) (240,0.1156) (250,0.1271)
+  (260,0.1223) (270,0.1334) (280,0.1458) (290,0.1216) (300,0.1122)
+};
+\addlegendentry{PyramidKV}
+% SnapKV: moderate elevated KL throughout
+\addplot[color=blue!65!black, dashed] coordinates {
+  (0,0.1785) (10,0.1714) (20,0.1731) (30,0.1901) (40,0.2162) (50,0.2634)
+  (60,0.2977) (70,0.3205) (80,0.3396) (90,0.3566) (100,0.3455)
+  (110,0.3407) (120,0.3772) (130,0.3874) (140,0.3776) (150,0.3768)
+  (160,0.3848) (170,0.3573) (180,0.3676) (190,0.3548) (200,0.3530)
+  (210,0.3559) (220,0.3917) (230,0.4012) (240,0.4309) (250,0.4311)
+  (260,0.4443) (270,0.4227) (280,0.3923) (290,0.3602) (300,0.3333)
+};
+\addlegendentry{SnapKV}
+% Naive: low initial KL, rising as compressed context is queried more heavily
+\addplot[color=green!50!black, dotted] coordinates {
+  (0,0.0247) (10,0.0358) (20,0.0384) (30,0.0551) (40,0.0635) (50,0.0915)
+  (60,0.1173) (70,0.1330) (80,0.1298) (90,0.1362) (100,0.1191)
+  (110,0.1178) (120,0.1411) (130,0.1474) (140,0.1494) (150,0.1621)
+  (160,0.1645) (170,0.1408) (180,0.1614) (190,0.1590) (200,0.1599)
+  (210,0.1563) (220,0.1646) (230,0.1538) (240,0.1639) (250,0.1745)
+  (260,0.1910) (270,0.1906) (280,0.1970) (290,0.1927) (300,0.1954)
+};
+\addlegendentry{Naive}
+\end{axis}
+\end{tikzpicture}
+\caption{Per-step KL trajectory on \texttt{gov\_report} (Llama-3.1-8B, 65\% retention,
+$n=32$; 50-step rolling mean). PyramidKV starts at KL\,$\approx$\,0 at $t=0$ (first-token
+advantage: post-prefill eviction does not affect the first decode step) then peaks sharply
+before the shared $y^*$ prefix grows large enough to dominate attention --- the dilution
+effect --- pulling KL down after $t\approx150$. Naive shows the reverse: low initial KL
+that rises as longer responses draw more heavily on the compressed context.}
+\label{fig:perstep-kl}
+\end{figure}
 
 A cross-rate comparison identifies the mechanism for long-form outputs
 (Table~\ref{tab:t7}). The gap between unrotated and re-rotated long-form
