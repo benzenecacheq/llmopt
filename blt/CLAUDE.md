@@ -134,7 +134,7 @@ All three land in a fairly tight, consistent band — seed19 is the weakest on O
 ### Live status re-check (2026-08-03) — fresher numbers than the 2026-08-01 snapshot above
 Direct SSH check of all four machines (not just log-derived estimates):
 - **`bender`** (local): step **1,018,260/1,500,000 (68%)**, healthy — up from 909,000 at the last snapshot.
-- **`titan`**: UV256 seed19 at step **143,500/500,000 (29%)** — still early, no `effective_blend` column (not an EMA run).
+- **`titan`**: UV256 seed19 **DONE (2026-08-05)** — OWT ppl 30.13, confirming low-rank BLT beats full-rank BLT as a genuine two-seed result. See "Low-rank BLT (M = UV^T)" below. `titan` is now idle.
 - **`venus`**: sine-blend seed19 much further along than the stale 76% figure above — **step 470,780/500,000 (94%)**, `effective_blend=0.7468` (nearly at the 0.75 target, as expected this close to the end). Likely to finish within hours of this check.
 - **`io`**: the medium sine run is **no longer paused** — confirmed actively training again at step **330,290/1,500,000 (22%)**, `effective_blend=0.2543`, via the `queue_medium_sine_resume_watcher.sh` process still alive there.
 
@@ -602,7 +602,19 @@ Factor M as U (D×r) × V^T (r×D), both globally shared. Attention score: (x_i 
 
 **Reads like a clear win over full-rank BLT at first glance — pairwise, it beats all three BLT seeds on 5 of 7 metrics, losing only two individual metric/seed comparisons (HellaSwag vs. seed19, Winogrande vs. seed7), both tiny and each against a different seed.** But the primary, most-trusted metric (OWT held-out ppl) tells a more cautious story: UV256's improvement over BLT's *best* seed is 0.84 ppl (30.81 → 29.97) — smaller than the 2.06 ppl spread BLT's own three seeds already show from seed variation alone (30.81 to 32.87). One UV seed beating three individual BLT seeds is suggestive, but it's not the same evidence as UV's distribution sitting above BLT's — the margin is inside BLT's own noise floor. **Second UV256 seed (seed19) launched 2026-08-01 on `titan` to settle it**: landing again in the 29-30 range would be real confirmation (especially paired with a second sweep against the BLT seeds); landing back in BLT's 31-33 range would mean seed42 was simply a favorable draw. Same watcher pattern as seed42 (`queue_uv256_seed19_watcher.sh`, polls training PID, auto-benchmarks on exit).
 
-This first result has been written up in `paper_blt.md` Section 4.7 (and Section 7.3 updated to reference it) as a preliminary, not-yet-seed-confirmed finding — consistent with how every other single-seed result in this project has been framed until a second seed lands.
+**DONE (2026-08-05) — second seed confirms it.** `run_blt_uv256_scratch_seed19.pt`, 500,000 steps, final WikiText val_ppl 67.39, watcher auto-benchmarked on exit. Results (`lm_eval_blt_uv256_scratch_seed19.json`, `eval_owt_blt_uv256_scratch_seed19.stdout`): OWT held-out ppl **30.13** (loss 3.4054), LAMBADA acc **0.214**, LAMBADA ppl 237.9, HellaSwag acc_norm 0.267, PIQA acc_norm 0.583, Winogrande acc 0.492.
+
+| Metric | UV256 seed42 | UV256 seed19 | BLT seed42 (500K) | BLT seed19 (500K) | BLT seed7 (500K) |
+|---|---|---|---|---|---|
+| OWT held-out ppl | 29.97 | **30.13** | 31.69 | 32.87 | 30.81 |
+| LAMBADA acc | 0.213 | 0.214 | 0.188 | 0.208 | 0.212 |
+| HellaSwag acc_norm | 0.269 | 0.267 | 0.267 | 0.271 | 0.268 |
+| PIQA acc_norm | 0.569 | 0.583 | 0.567 | 0.559 | 0.568 |
+| Winogrande acc | 0.512 | 0.492 | 0.489 | 0.500 | **0.516** |
+
+**This settles it — UV256's two-seed OWT ppl range (29.97-30.13) sits entirely below all three full-rank BLT seeds (30.81-32.87), with no overlap at all**, unlike the single-seed comparison above where the margin was inside BLT's own noise floor. LAMBADA acc is also consistently a bit better across both UV256 seeds (0.213/0.214) than the full-rank spread (0.188-0.212). **Low-rank BLT (r=256, 66% of full M's parameters) matches or beats full-rank BLT on the primary metric while also fixing the tensor-parallelism problem** (see "Tensor parallelism analysis" above) — genuinely the better BLT variant, not just a cheaper one. Worth updating `paper_blt.md` Section 4.7 to promote this from "preliminary, not-yet-seed-confirmed" to a confirmed two-seed result.
+
+This first result has been written up in `paper_blt.md` Section 4.7 (and Section 7.3 updated to reference it) as a preliminary, not-yet-seed-confirmed finding — consistent with how every other single-seed result in this project has been framed until a second seed lands. **Update pending** to reflect the seed19 confirmation above.
 
 **Limitation of GPT-2 scale testing:** KV cache and M-caching benefits are most compelling at 7B+ scale with long contexts. GPT-2 scale establishes viability; the practical case requires larger models.
 
