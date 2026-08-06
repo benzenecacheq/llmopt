@@ -77,6 +77,8 @@ if __name__ == '__main__':
                         help='Path to low-rank BLT (M ≈ U@V^T) from-scratch checkpoint (.pt)')
     parser.add_argument('--uv-rank', type=int, default=0,
                         help='Rank of the low-rank BLT checkpoint given via --blt-lowrank-checkpoint')
+    parser.add_argument('--num-uv-groups', type=int, default=1,
+                        help='Number of (U,V) groups for the low-rank BLT checkpoint (default: 1)')
     parser.add_argument('--max-tokens', type=int, default=500000,
                         help='Tokens to evaluate over (default 500K)')
     parser.add_argument('--n-files', type=int, default=5,
@@ -130,10 +132,12 @@ if __name__ == '__main__':
 
     if args.blt_lowrank_checkpoint:
         from model import build_blt_lowrank_model
-        print(f'Low-rank BLT (rank={args.uv_rank}): {args.blt_lowrank_checkpoint}')
+        print(f'Low-rank BLT (rank={args.uv_rank}, num_uv_groups={args.num_uv_groups}): '
+              f'{args.blt_lowrank_checkpoint}')
         # from_scratch=True only to get the right shape cheaply -- load_state_dict
         # below fully overwrites with the checkpoint's own trained U/V/Wv/Wo.
-        model = build_blt_lowrank_model(rank=args.uv_rank, from_scratch=True).to(device)
+        model = build_blt_lowrank_model(rank=args.uv_rank, from_scratch=True,
+                                        num_uv_groups=args.num_uv_groups).to(device)
         ckpt = torch.load(args.blt_lowrank_checkpoint, map_location=device)
         model.load_state_dict(ckpt['model_state'])
         model.eval()
