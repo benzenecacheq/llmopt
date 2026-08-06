@@ -289,10 +289,11 @@ def train(args):
             model = GPT2LMHeadModel.from_pretrained(args.pretrained).to(device)
     elif args.uv_rank:
         log(f'Building low-rank BLT model (rank={args.uv_rank}, source={args.uv_source}, '
-            f'from_scratch={args.from_scratch})...')
+            f'from_scratch={args.from_scratch}, num_uv_groups={args.num_uv_groups})...')
         model = build_blt_lowrank_model(rank=args.uv_rank, source_checkpoint=args.uv_source,
                                         pretrained=args.pretrained,
-                                        from_scratch=args.from_scratch).to(device)
+                                        from_scratch=args.from_scratch,
+                                        num_uv_groups=args.num_uv_groups).to(device)
     else:
         log(f'Building BLT model (pretrained={args.pretrained}, num_m_groups={args.num_m_groups}, layers_per_m={args.layers_per_m}, per_layer_m={args.per_layer_m}, random_m={args.random_m}, from_scratch={args.from_scratch}, warmstart_scale={args.warmstart_scale})...')
         model = build_blt_model(pretrained=args.pretrained, num_m_groups=args.num_m_groups,
@@ -561,6 +562,12 @@ if __name__ == '__main__':
                         help='Path to a trained full-rank single-shared-M BLT checkpoint to '
                              'SVD-factorize and warm-start from (used with --uv-rank; required '
                              'unless --from-scratch).')
+    parser.add_argument('--num-uv-groups', type=int, default=1,
+                        help='Low-rank BLT: number of distinct (U,V) pairs, each rank --uv-rank, '
+                             'each still shared globally across all layers but governing only '
+                             '1/N of the heads worth of value capacity -- the low-rank analogue '
+                             'of --num-m-groups. Only supported with --from-scratch (default 1 = '
+                             'original single-pair UV256 design).')
     parser.add_argument('--lambada-eval-every', type=int, default=2000,
                         help='Evaluate LAMBADA cloze accuracy every N steps (0 to disable)')
     parser.add_argument('--dataset', type=str, default='wikitext103',

@@ -139,6 +139,55 @@ class BLTMultiMAttention(nn.Module):
         return h @ self.Wo + self.Wo_bias, None
 
 
+class BLTLowRankMultiAttention(nn.Module):
+    """
+    N-group low-rank bilinear attention: N shared (U_g, V_g) pairs, each
+    D×rank, each governing H/N heads' value capacity -- the low-rank analogue
+    of BLTMultiMAttention, mirroring how num_m_groups slices Wv/Wo per group
+    while keeping each group's own M (here: U,V) at full rank r, not further
+    reduced. All N groups are shared globally across every layer (same
+    cross-layer sharing as num_uv_groups=1), unlike GQA's per-layer groups.
+    """
+
+    def __init__(self, U_list, V_list, Wv_list, Wv_bias_list, Wo, Wo_bias, config):
+        super().__init__()
+        self.scale = math.sqrt(config.n_embd // config.n_head)
+        self._n_groups = len(U_list)
+        for i, (U, V, Wv, Wv_bias) in enumerate(zip(U_list, V_list, Wv_list, Wv_bias_list)):
+            setattr(self, f'U_{i}', U)                        # shared param reference
+            setattr(self, f'V_{i}', V)                        # shared param reference
+            setattr(self, f'Wv_{i}', nn.Parameter(Wv))
+            setattr(self, f'Wv_bias_{i}', nn.Parameter(Wv_bias))
+        self.Wo = nn.Parameter(Wo)
+        self.Wo_bias = nn.Parameter(Wo_bias)
+
+    def forward(self, hidden_states, past_key_values=None, attention_mask=None,
+                encoder_hidden_states=None, encoder_attention_mask=None,
+                output_attentions=False, **kwargs):
+        B, L, D = hidden_states.shape
+        causal = torch.full((L, L), float('-inf'), device=hidden_states.device,
+                            dtype=hidden_states.dtype)
+        causal = torch.triu(causal, diagonal=1)
+
+        outputs = []
+        for i in range(self._n_groups):
+            U       = getattr(self, f'U_{i}')
+            V       = getattr(self, f'V_{i}')
+            Wv      = getattr(self, f'Wv_{i}')
+            Wv_bias = getattr(self, f'Wv_bias_{i}')
+            q = hidden_states @ U
+            k = hidden_states @ V
+            scores = (q @ k.transpose(-2, -1)) / self.scale
+            scores = scores + causal
+            if attention_mask is not None:
+                scores = scores + attention_mask.squeeze(1)
+            A = F.softmax(scores, dim=-1)
+            outputs.append(A @ (hidden_states @ Wv + Wv_bias))
+
+        h = torch.cat(outputs, dim=-1)
+        return h @ self.Wo + self.Wo_bias, None
+
+
 class GQAAttention(nn.Module):
     """
     Grouped Query Attention baseline.
@@ -505,7 +554,7 @@ def build_blt_model(pretrained='gpt2', num_m_groups=1, layers_per_m=0,
 
 
 def build_blt_lowrank_model(rank, source_checkpoint=None, pretrained='gpt2',
-                            from_scratch=False):
+                            from_scratch=False, num_uv_groups=1):
     """
     Build a GPT-2 model with low-rank bilinear attention: M ≈ U @ V^T, both
     (D×rank), shared globally across all layers (mirrors the original
@@ -535,9 +584,25 @@ def build_blt_lowrank_model(rank, source_checkpoint=None, pretrained='gpt2',
           initializes everything (U, V, and all other weights) -- a
           from-scratch UV^T baseline for comparison, not the primary
           Option 2 workflow.
+    num_uv_groups=1: one (U,V) pair (rank r each) shared across all layers
+          AND all heads -- the original UV256 design.
+    num_uv_groups=G>1: G distinct (U,V) pairs, each still rank r and each
+          still shared globally across all layers (same cross-layer sharing
+          as G=1), but each pair governs only H/N heads' worth of value
+          capacity -- the low-rank analogue of num_m_groups, mirroring how
+          it slices Wv/Wo per group without shrinking each group's own
+          matrix further. Unlike GQA's per-layer groups, these G pairs are
+          relearned nowhere else in the model -- loaded once, reused across
+          every layer. Only supported with from_scratch=True; the SVD
+          warm-start path (source_checkpoint) does not yet support grouping.
     """
     if not from_scratch and source_checkpoint is None:
         raise ValueError('source_checkpoint is required unless from_scratch=True')
+    if num_uv_groups < 1:
+        raise ValueError(f'num_uv_groups must be >= 1, got {num_uv_groups}')
+    if num_uv_groups > 1 and not from_scratch:
+        raise ValueError('num_uv_groups > 1 is only supported with from_scratch=True '
+                          '(the SVD warm-start path does not yet support grouping)')
 
     # Config-only build for shape (no real-weight download needed): weights
     # are either randomly initialized here (from_scratch) or fully
@@ -545,6 +610,35 @@ def build_blt_lowrank_model(rank, source_checkpoint=None, pretrained='gpt2',
     model = GPT2LMHeadModel(GPT2Config.from_pretrained(pretrained))
     cfg = model.config
     D = cfg.n_embd
+    n_head = cfg.n_head
+    d_head = D // n_head
+
+    if num_uv_groups > 1:
+        G = num_uv_groups
+        if n_head % G != 0:
+            raise ValueError(f'num_uv_groups={G} must divide n_head={n_head}')
+        n_g = n_head // G
+        d_g = n_g * d_head
+
+        U_params = [nn.Parameter(torch.randn(D, rank) / math.sqrt(D)) for _ in range(G)]
+        V_params = [nn.Parameter(torch.randn(D, rank) / math.sqrt(D)) for _ in range(G)]
+
+        for layer in model.transformer.h:
+            attn = layer.attn
+            Wv      = attn.c_attn.weight[:, 2 * D:].detach()
+            Wv_bias = attn.c_attn.bias[2 * D:].detach()
+            Wo      = attn.c_proj.weight.detach()
+            Wo_bias = attn.c_proj.bias.detach()
+            Wv_groups      = [Wv[:, g * d_g:(g + 1) * d_g] for g in range(G)]
+            Wv_bias_groups = [Wv_bias[g * d_g:(g + 1) * d_g] for g in range(G)]
+            layer.attn = BLTLowRankMultiAttention(U_params, V_params, Wv_groups,
+                                                  Wv_bias_groups, Wo, Wo_bias, cfg)
+
+        for g in range(G):
+            model.transformer.register_parameter(f'U_blt_{g}', U_params[g])
+            model.transformer.register_parameter(f'V_blt_{g}', V_params[g])
+
+        return model
 
     ckpt = None
     if from_scratch:
