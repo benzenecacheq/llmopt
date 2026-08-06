@@ -632,6 +632,27 @@ OWT ppl shows the usual real ~0.10 nat BLT-family cost (~30.0 vs ~27.8). But LAM
 
 **Synthesis with the hybrid result (Section 4.5 of the paper) — sharpens "attention is wasteful" into "where, specifically."** The hybrid experiment (6 MHA + 6 BLT layers) relaxes BLT's *cross-layer* sharing constraint for half the layers and recovers >75% of BLT's OWT-loss gap. UV256 relaxes the *within-layer* head-collapse constraint not at all (still one shared rank-256 Q/K pair per layer) yet still nearly matches MHA on LAMBADA/HellaSwag/PIQA/Winogrande. Together: giving up **cross-layer** independence is expensive (the hybrid needs real per-layer MHA layers to recover quality); giving up **within-layer head** independence is nearly free (UV256 shows collapsing 12 heads to 1 shared computation costs almost nothing on 4 of 5 benchmarks). The redundancy in standard attention is concentrated in per-head multiplicity within a layer, more than in the sheer count of independently-parameterized attention computations overall — a more specific and more actionable claim than "attention has too many parameters."
 
+### UV256 inference (decode-latency) benchmark (2026-08-06)
+
+**Math predicted two things before measuring anything.** Decode-step score computation: standard MHA and full-rank BLT both cost O(D² + D·L) — a D×D-scale query projection plus one O(D) dot product against each of L cached keys. UV256 costs O(D·r + r·L) — at r=256, D=768, a 3× reduction on both terms. Two predictions follow: (1) UV256 should beat MHA by roughly the margin full-rank BLT already does, and (2) UV256's edge over full-rank BLT *specifically* should widen with context length, since the L-dependent term (r·L vs D·L) is the one that shrinks. KV-cache: MHA and full BLT are already documented as "tied" (both cache D-dim per token); UV256 caches the V-projected key at rank r instead — (r+D) vs (2D) per token, ~33% less total cache at r=256.
+
+**`kv_cache_bench.py` had no support for the low-rank attention class** — only `BLTAttention`, `GQAAttention`, `MHAAttention`. Added `blt_lowrank_prefill`/`blt_lowrank_step` (cache `x_j @ V` at rank r instead of the raw D-dim hidden state full-rank BLT caches) and wired it into the dispatch + `__main__` model set. **Verified before trusting any timing**: cached decode matches the model's own non-cached forward pass exactly (max abs logit diff 5.7e-06, CPU, random-init weights).
+
+**Ran the full 5-way benchmark (MHA, BLT, GQA, Hybrid, UV256) on `titan`'s P100** — `bender`'s V100 (where the original 4-way table in `paper_blt.md` was measured) was mid-run on the medium baseline and the user chose not to interrupt it; ran on `titan` instead, which meant briefly pausing UV256's own seed7 confirmation run to get an uncontested GPU (killed cleanly at step 100,500, checkpoint verified finite, watcher stopped first so it wouldn't fire prematurely on the paused checkpoint, then both resumed correctly afterward — confirmed via `Resumed at step 100500` in the log). Also had to copy `run_gpt2_baseline_seed42.pt`/`run_blt_scratch_seed7.pt`/`run_gqa_scratch_seed42.pt`/`run_hybrid_mha6_scratch_seed42.pt` to `titan` (none were there before) and `git pull` titan's repo (one byte-identical untracked-file collision on `lm_eval_blt_uv256_scratch_seed42.json`, resolved the usual way via `md5sum`). **These P100 numbers are not directly comparable in absolute terms to the existing bender/V100 table** — only mutually comparable within this second same-hardware set, all five measured back-to-back on the same idle P100.
+
+| Config | MHA | BLT | GQA | Hybrid | UV256 |
+|---|---|---|---|---|---|
+| bs=1, prompt=128, TTFT | 6.86ms | 6.14ms | 6.77ms | 6.49ms | 6.30ms |
+| bs=1, prompt=128, decode | 320.2 tok/s | 350.1 | 345.8 | 335.5 | **356.6** |
+| bs=8, prompt=128, TTFT | 36.32ms | 32.37ms | 32.48ms | 34.35ms | **30.85ms** |
+| bs=8, prompt=128, decode | 1707.2 | 1898.5 | 1742.7 | 1799.6 | 1895.6 (tied w/ BLT) |
+| bs=1, prompt=900, TTFT | 46.14ms | 35.15ms | 42.51ms | 40.59ms | **32.85ms** |
+| bs=1, prompt=900, decode | 260.8 | 281.3 | 282.6 | 271.2 | **301.4** |
+
+**Both predictions confirmed.** UV256 beats MHA by 11-16% on decode across all three configs (same range as full BLT's own 9-16% edge). And the context-length prediction shows up cleanly: UV256 vs. full BLT is roughly tied at prompt=128 (+1.9% decode, −2.6% TTFT, both within noise) but pulls to a real lead at prompt=900 (+7.1% decode, **+6.5% TTFT**). Prefill (TTFT) is even more exposed than decode since the L×L score matrix scales with L², not L — UV256's TTFT edge over MHA grows from 8.2% (prompt=128) to **28.8%** (prompt=900), a much bigger swing than the corresponding decode-tok/s gap (11.4%→15.6%) over the same range. This is the first evidence that UV256 isn't just "full-rank BLT but cheaper to store" — at long context specifically, it's faster to *run* than full-rank BLT too, not just smaller.
+
+Written up in `paper_blt.md` Section 6 (new paragraph after the existing decode-latency table) — kept as an explicitly separate P100 measurement, not merged into the V100 table's numbers.
+
 **Limitation of GPT-2 scale testing:** KV cache and M-caching benefits are most compelling at 7B+ scale with long contexts. GPT-2 scale establishes viability; the practical case requires larger models.
 
 ### Other future directions

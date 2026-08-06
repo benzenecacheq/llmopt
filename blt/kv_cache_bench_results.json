@@ -4,107 +4,134 @@
     "batch_size": 1,
     "prompt_len": 128,
     "decode_len": 64,
-    "prefill_ms": 7.608586922287941,
-    "decode_ms_per_step": 7.6152907640789635,
-    "decode_tok_per_sec": 131.3147496241328
+    "prefill_ms": 6.860758177936077,
+    "decode_ms_per_step": 3.122873298707418,
+    "decode_tok_per_sec": 320.21792251831283
   },
   {
     "name": "BLT",
     "batch_size": 1,
     "prompt_len": 128,
     "decode_len": 64,
-    "prefill_ms": 5.997989792376757,
-    "decode_ms_per_step": 6.550603575306013,
-    "decode_tok_per_sec": 152.65768848686355
+    "prefill_ms": 6.13901112228632,
+    "decode_ms_per_step": 2.8560859500430524,
+    "decode_tok_per_sec": 350.1295190310803
   },
   {
     "name": "GQA",
     "batch_size": 1,
     "prompt_len": 128,
     "decode_len": 64,
-    "prefill_ms": 7.818003185093403,
-    "decode_ms_per_step": 7.936498957860749,
-    "decode_tok_per_sec": 126.00014254516401
+    "prefill_ms": 6.773324217647314,
+    "decode_ms_per_step": 2.8922200654051267,
+    "decode_tok_per_sec": 345.75515603440965
   },
   {
     "name": "Hybrid (6+6)",
     "batch_size": 1,
     "prompt_len": 128,
     "decode_len": 64,
-    "prefill_ms": 7.058139890432358,
-    "decode_ms_per_step": 7.5313681227271445,
-    "decode_tok_per_sec": 132.77800045151628
+    "prefill_ms": 6.492172833532095,
+    "decode_ms_per_step": 2.9809974948875606,
+    "decode_tok_per_sec": 335.4581819391025
+  },
+  {
+    "name": "UV256 (low-rank BLT)",
+    "batch_size": 1,
+    "prompt_len": 128,
+    "decode_len": 64,
+    "prefill_ms": 6.3042789697647095,
+    "decode_ms_per_step": 2.8045719154761173,
+    "decode_tok_per_sec": 356.5606552935318
   },
   {
     "name": "GPT-2 (MHA)",
     "batch_size": 8,
     "prompt_len": 128,
     "decode_len": 64,
-    "prefill_ms": 22.69703894853592,
-    "decode_ms_per_step": 7.0338856530725025,
-    "decode_tok_per_sec": 1137.3514433669368
+    "prefill_ms": 36.31706302985549,
+    "decode_ms_per_step": 4.686088097514585,
+    "decode_tok_per_sec": 1707.180879557739
   },
   {
     "name": "BLT",
     "batch_size": 8,
     "prompt_len": 128,
     "decode_len": 64,
-    "prefill_ms": 20.333151798695326,
-    "decode_ms_per_step": 6.005258343066089,
-    "decode_tok_per_sec": 1332.1658358357088
+    "prefill_ms": 32.37014031037688,
+    "decode_ms_per_step": 4.213918873574585,
+    "decode_tok_per_sec": 1898.4703407955637
   },
   {
     "name": "GQA",
     "batch_size": 8,
     "prompt_len": 128,
     "decode_len": 64,
-    "prefill_ms": 20.217563956975937,
-    "decode_ms_per_step": 7.381184441328514,
-    "decode_tok_per_sec": 1083.8368914352866
+    "prefill_ms": 32.48392092064023,
+    "decode_ms_per_step": 4.590610646118876,
+    "decode_tok_per_sec": 1742.6875456675
   },
   {
     "name": "Hybrid (6+6)",
     "batch_size": 8,
     "prompt_len": 128,
     "decode_len": 64,
-    "prefill_ms": 21.5359297581017,
-    "decode_ms_per_step": 6.426014078897424,
-    "decode_tok_per_sec": 1244.93969384092
+    "prefill_ms": 34.35015771538019,
+    "decode_ms_per_step": 4.44545854406897,
+    "decode_tok_per_sec": 1799.5893833434616
+  },
+  {
+    "name": "UV256 (low-rank BLT)",
+    "batch_size": 8,
+    "prompt_len": 128,
+    "decode_len": 64,
+    "prefill_ms": 30.84799600765109,
+    "decode_ms_per_step": 4.220390685077291,
+    "decode_tok_per_sec": 1895.5591074273946
   },
   {
     "name": "GPT-2 (MHA)",
     "batch_size": 1,
     "prompt_len": 900,
     "decode_len": 64,
-    "prefill_ms": 27.1688811480999,
-    "decode_ms_per_step": 7.340966702031437,
-    "decode_tok_per_sec": 136.22184115387336
+    "prefill_ms": 46.13940976560116,
+    "decode_ms_per_step": 3.835020375845488,
+    "decode_tok_per_sec": 260.75480753594036
   },
   {
     "name": "BLT",
     "batch_size": 1,
     "prompt_len": 900,
     "decode_len": 64,
-    "prefill_ms": 20.674696192145348,
-    "decode_ms_per_step": 6.387228590028826,
-    "decode_tok_per_sec": 156.56242545649786
+    "prefill_ms": 35.14672117307782,
+    "decode_ms_per_step": 3.554649207217153,
+    "decode_tok_per_sec": 281.32171184983827
   },
   {
     "name": "GQA",
     "batch_size": 1,
     "prompt_len": 900,
     "decode_len": 64,
-    "prefill_ms": 25.054062716662884,
-    "decode_ms_per_step": 7.718756110989489,
-    "decode_tok_per_sec": 129.55455330118045
+    "prefill_ms": 42.51203592866659,
+    "decode_ms_per_step": 3.538123673934024,
+    "decode_tok_per_sec": 282.6356826832185
   },
   {
     "name": "Hybrid (6+6)",
     "batch_size": 1,
     "prompt_len": 900,
     "decode_len": 64,
-    "prefill_ms": 23.97566009312868,
-    "decode_ms_per_step": 6.8838705265079625,
-    "decode_tok_per_sec": 145.26711334114503
+    "prefill_ms": 40.594191290438175,
+    "decode_ms_per_step": 3.687928954605013,
+    "decode_tok_per_sec": 271.154898130922
+  },
+  {
+    "name": "UV256 (low-rank BLT)",
+    "batch_size": 1,
+    "prompt_len": 900,
+    "decode_len": 64,
+    "prefill_ms": 32.84688713029027,
+    "decode_ms_per_step": 3.3182806510012597,
+    "decode_tok_per_sec": 301.3608869093877
   }
 ]
