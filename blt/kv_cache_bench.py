@@ -16,6 +16,11 @@ Per-layer cache contents:
     Section 6 ("KV-cache compatibility"): the implicit key is just x_j, so
     the cache stores x_j itself and x_j @ W_v, with a single (x_t @ M)
     multiply per new token rather than a key projection.
+  - BLT low-rank (UV^T): compressed keys x_j @ V, shape (B, T, r), plus
+    projected values x_j @ W_v, shape (B, T, D) -- per Section 4.7/7.3, the
+    key cache shrinks from D to r since the key-side projection (V, shared
+    globally) is applied once when a token enters the cache rather than
+    kept as a raw D-dim hidden state.
 """
 
 import math
@@ -23,8 +28,9 @@ import time
 import torch
 import torch.nn.functional as F
 
-from model import (BLTAttention, GQAAttention, MHAAttention,
-                    build_blt_model, build_gqa_model, build_hybrid_model)
+from model import (BLTAttention, BLTLowRankAttention, GQAAttention, MHAAttention,
+                    build_blt_model, build_blt_lowrank_model, build_gqa_model,
+                    build_hybrid_model)
 from transformers import GPT2LMHeadModel, GPT2Config
 
 
@@ -38,6 +44,12 @@ def extract_layer_spec(attn, n_head, d_head):
         return {
             'type': 'blt',
             'M': attn.M, 'Wv': attn.Wv, 'Wv_b': attn.Wv_bias,
+            'Wo': attn.Wo, 'Wo_b': attn.Wo_bias, 'scale': attn.scale,
+        }
+    if isinstance(attn, BLTLowRankAttention):
+        return {
+            'type': 'blt_lowrank',
+            'U': attn.U, 'V': attn.V, 'Wv': attn.Wv, 'Wv_b': attn.Wv_bias,
             'Wo': attn.Wo, 'Wo_b': attn.Wo_bias, 'scale': attn.scale,
         }
     if isinstance(attn, (GQAAttention, MHAAttention)):
@@ -141,6 +153,29 @@ def blt_step(x_t, spec, cache):
     return h @ spec['Wo'] + spec['Wo_b']
 
 
+def blt_lowrank_prefill(x, spec, cache, causal_mask):
+    q = x @ spec['U']                          # (B, L, r)
+    k = x @ spec['V']                          # (B, L, r) -- cached at rank r, not D
+    v = x @ spec['Wv'] + spec['Wv_b']          # (B, L, D)
+    cache['K'], cache['V'] = k, v
+    scores = (q @ k.transpose(-2, -1)) / spec['scale'] + causal_mask
+    A = F.softmax(scores, dim=-1)
+    h = A @ v
+    return h @ spec['Wo'] + spec['Wo_b']
+
+
+def blt_lowrank_step(x_t, spec, cache):
+    q_t = x_t @ spec['U']                      # (B, 1, r)
+    k_t = x_t @ spec['V']                      # (B, 1, r)
+    v_t = x_t @ spec['Wv'] + spec['Wv_b']
+    cache['K'] = torch.cat([cache['K'], k_t], dim=1)
+    cache['V'] = torch.cat([cache['V'], v_t], dim=1)
+    scores = (q_t @ cache['K'].transpose(-2, -1)) / spec['scale']
+    A = F.softmax(scores, dim=-1)
+    h = A @ cache['V']
+    return h @ spec['Wo'] + spec['Wo_b']
+
+
 # ---------------------------------------------------------------------------
 # Full-model prefill / decode-step, mixing layer types as needed (hybrid)
 # ---------------------------------------------------------------------------
@@ -162,6 +197,8 @@ def prefill(dm, input_ids):
         h = spec['ln_1'](x)
         if spec['type'] == 'blt':
             attn_out = blt_prefill(h, spec, cache, causal)
+        elif spec['type'] == 'blt_lowrank':
+            attn_out = blt_lowrank_prefill(h, spec, cache, causal)
         else:
             attn_out = mha_prefill(h, spec, cache, causal)
         x = residual + attn_out
@@ -185,6 +222,8 @@ def decode_step(dm, token_ids, caches, position):
         h = spec['ln_1'](x)
         if spec['type'] == 'blt':
             attn_out = blt_step(h, spec, cache)
+        elif spec['type'] == 'blt_lowrank':
+            attn_out = blt_lowrank_step(h, spec, cache)
         else:
             attn_out = mha_step(h, spec, cache)
         x = residual + attn_out
@@ -295,6 +334,9 @@ if __name__ == '__main__':
         build_gqa_model(from_scratch=True), 'run_gqa_scratch_seed42.pt', device).to(device)
     models['Hybrid (6+6)'] = load_checkpoint(
         build_hybrid_model(n_mha=6), 'run_hybrid_mha6_scratch_seed42.pt', device).to(device)
+    models['UV256 (low-rank BLT)'] = load_checkpoint(
+        build_blt_lowrank_model(rank=256, from_scratch=True),
+        'run_blt_uv256_scratch_seed42.pt', device).to(device)
 
     print('\nCorrectness checks (cached decode vs. non-cached full forward):')
     for name, model in models.items():
