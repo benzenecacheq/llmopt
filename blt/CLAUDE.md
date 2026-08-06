@@ -661,13 +661,17 @@ Written up in `paper_blt.md` Section 6 (new paragraph after the existing decode-
 
 **Code done and verified** (commit `7c6933a`): `BLTLowRankMultiAttention` + `build_blt_lowrank_model(num_uv_groups=G)`, mirrors `num_m_groups` exactly (each group's U,V stays full rank r, only Wv/Wo get sliced per group). Verified: correct param count (111,052,032 for G=2, r=256 — exactly 393,216 more than single-pair UV256's 110,658,816, matching one extra (U,V) pair), real forward+backward with gradients flowing to both groups, and `--num-uv-groups` parses correctly through `train.py`'s actual argparser. **Not yet smoke-tested through a live GPU run** — `train.py` hard-fails without CUDA and no machine was free; watch the first few hundred steps closely once launched, in place of a proper dedicated smoke test.
 
-**Launch command once a machine is free** (mirrors the UV256 from-scratch protocol exactly, `num_m_groups=2` chosen as the first point to test — divides evenly into 12 heads):
+**Decided (2026-08-06): start with G=4, not G=2 — one decisive point before committing to a sweep.** Since parameter/bandwidth cost stays negligible at any G (all groups still load once, shared across every layer) but *compute* cost scales roughly linearly with G (each group needs its own rank-r score matrix and softmax — by G=12 this would mean more per-step arithmetic than standard MHA's 12 rank-64 heads, likely eroding the 32% training-speed and TTFT wins UV256 already demonstrated), a single spot-check can't distinguish "real, bounded head-axis effect" from "noise" from "monotonic, needs to go most of the way to G=12." G=4 was chosen as the first informative point (divides evenly into 12 heads; a real midpoint, not an endpoint) — user's framing: "one would expect marked improvement with 4 [if the head-axis theory is right]; if you don't get it, we need to try something different."
+
+**Explicitly not the same as GQA-3 (3-group GQA)**, which is a real, converged, near-baseline result (OWT ppl 27.46, inside the 27.36-28.24 MHA range) — worth not conflating the two. GQA's groups are relearned independently *per layer* (full per-layer/query-head independence kept, only K/V compressed) and never pay BLT's cross-layer-sharing tax at all, so GQA-3 landing near baseline is arguably evidence that the *layer* axis is the forgiving one when left untouched — if anything mild evidence against the head-axis theory, not for it. `num_uv_groups` is a genuinely different, untested cell in the design space: head axis relaxed, cross-layer sharing kept fully intact.
+
+**Launch command once a machine is free** (mirrors the UV256 from-scratch protocol exactly):
 ```
-train.py --uv-rank 256 --num-uv-groups 2 --from-scratch --dataset openwebtext --seed 42 \
+train.py --uv-rank 256 --num-uv-groups 4 --from-scratch --dataset openwebtext --seed 42 \
   --max-steps 500000 --eval-every 1000 --lambada-eval-every 5000 \
-  --save-path run_blt_uv256_groups2_scratch_seed42.pt
+  --save-path run_blt_uv256_groups4_scratch_seed42.pt
 ```
-Compare final OWT held-out ppl against full-rank BLT (30.81-32.87), UV256 single-pair (29.97-30.13), and MHA (27.36-28.24). A result meaningfully below UV256's single-pair range would be real evidence for the head-axis theory; a result close to UV256's existing range would support the user's alternative theory that added capacity anywhere (not specifically the head axis) is what closes gaps.
+Compare final OWT held-out ppl against full-rank BLT (30.81-32.87), UV256 single-pair (29.97-30.13), and MHA (27.36-28.24). Marked improvement over UV256's single-pair range → real evidence for the head-axis theory, worth extending to a fuller {2, 12} sweep. No marked improvement → the head-axis theory as currently framed doesn't hold up, and the layer axis (or some other explanation entirely) needs a genuine from-scratch OWT test instead (see the `layers_per_m` gap noted earlier in this section).
 
 **Limitation of GPT-2 scale testing:** KV cache and M-caching benefits are most compelling at 7B+ scale with long contexts. GPT-2 scale establishes viability; the practical case requires larger models.
 
