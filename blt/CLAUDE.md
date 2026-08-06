@@ -653,6 +653,22 @@ OWT ppl shows the usual real ~0.10 nat BLT-family cost (~30.0 vs ~27.8). But LAM
 
 Written up in `paper_blt.md` Section 6 (new paragraph after the existing decode-latency table) — kept as an explicitly separate P100 measurement, not merged into the V100 table's numbers.
 
+### Queued: num_uv_groups from-scratch OWT run (2026-08-06)
+
+**Not yet launched — waiting for a machine to free up naturally.** All four machines were busy when this was ready (bender 84.7%, venus 48.4%, titan 20.9% just-resumed, io 35.8%); user chose to wait rather than pause any of them again.
+
+**Why**: settles an open question from the UV256/hybrid discussion above. The hybrid result (Section 4.5) can't actually isolate whether BLT's OWT-loss gap comes from lost *cross-layer* independence or lost *within-layer head* independence, because standard MHA layers relax both simultaneously. `num_uv_groups` isolates the head axis alone (multiple (U,V) pairs, each still shared globally across all 12 layers — unlike GQA, whose groups are relearned independently per layer and don't get BLT's cross-layer bandwidth reuse). The one existing full-rank precedent for this axis (BLT-2M, `num_m_groups=2`) was never trained to convergence, so this would be a genuinely new result, not confirming an old one. It's also the better design to actually deploy regardless of the quality answer: G groups can be *sharded* disjointly across GPUs (no replication, just the standard Wo all-reduce), a strictly cleaner TP story than either the single-global-UV design or `layers_per_m`.
+
+**Code done and verified** (commit `7c6933a`): `BLTLowRankMultiAttention` + `build_blt_lowrank_model(num_uv_groups=G)`, mirrors `num_m_groups` exactly (each group's U,V stays full rank r, only Wv/Wo get sliced per group). Verified: correct param count (111,052,032 for G=2, r=256 — exactly 393,216 more than single-pair UV256's 110,658,816, matching one extra (U,V) pair), real forward+backward with gradients flowing to both groups, and `--num-uv-groups` parses correctly through `train.py`'s actual argparser. **Not yet smoke-tested through a live GPU run** — `train.py` hard-fails without CUDA and no machine was free; watch the first few hundred steps closely once launched, in place of a proper dedicated smoke test.
+
+**Launch command once a machine is free** (mirrors the UV256 from-scratch protocol exactly, `num_m_groups=2` chosen as the first point to test — divides evenly into 12 heads):
+```
+train.py --uv-rank 256 --num-uv-groups 2 --from-scratch --dataset openwebtext --seed 42 \
+  --max-steps 500000 --eval-every 1000 --lambada-eval-every 5000 \
+  --save-path run_blt_uv256_groups2_scratch_seed42.pt
+```
+Compare final OWT held-out ppl against full-rank BLT (30.81-32.87), UV256 single-pair (29.97-30.13), and MHA (27.36-28.24). A result meaningfully below UV256's single-pair range would be real evidence for the head-axis theory; a result close to UV256's existing range would support the user's alternative theory that added capacity anywhere (not specifically the head axis) is what closes gaps.
+
 **Limitation of GPT-2 scale testing:** KV cache and M-caching benefits are most compelling at 7B+ scale with long contexts. GPT-2 scale establishes viability; the practical case requires larger models.
 
 ### Other future directions
