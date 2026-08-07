@@ -203,6 +203,29 @@ and re-run with the right-aligned implementation.
 - **Hyperparameters paragraph**: wrapped in `\begin{sloppypar}...\end{sloppypar}` to handle long `\texttt{}` sequences
 - **Appendices**: `\clearpage` before Appendix B and Appendix C
 
+## Paper edits completed (Aug 2026 session)
+
+All edits are in `paper_kv_faithfulness.tex` on branch `kvpress-impl`. Uncommitted changes remain.
+
+**Three inline figures added** (commit 906a1e9):
+- §5.2: TikZ eval-setup fork diagram (full model → y* → two teacher-forced branches → F_KL box)
+- §6.1: TikZ RoPE displacement schematic (post-eviction strip with Δ=4 gap vs re-rotated compact Δ=1)
+- §8.1: pgfplots per-step KL trajectory (PyramidKV solid red, SnapKV dashed blue, Naive dotted green; 50-step rolling mean over gov_report, n=32; data from `lb_results_base/perstep_kl_longbench.json`)
+- Preamble additions: `\usetikzlibrary{calc}`, `\usepackage{pgfplots}`, `\pgfplotsset{compat=1.18}`
+
+**Forward reference fixes** (commit e795e71): Removed results imported from §8 into §5 and §7. Soft pointers ("§8 investigates...") retained; hard citations of specific results removed.
+
+**Undefined terms and hedging fixes** (commit dbe63c7): Defined RoPE and TTFT on first use in §2; removed hedging on observed data (e.g., "appears to be detracting" → direct).
+
+**TTFT table equalized to n=20** (uncommitted): All methods now use the same 20 examples per task (the indices from `timing_snap_stream.json`). Naive TTFT sourced from `kl_ystar_timing_sweep.json` phr128 total_ttft at those 20 indices; PyramidKV from `timing_kvpress.json` subsetted to same indices; full-context baseline from `timing_full.json` subsetted to same indices.
+- New full-context baseline: **6425 ms** (was 6348 ms)
+- Naive: 2400 / 2082 / 1632 ms at 65/50/35% (was 2464/2139/1666)
+- SnapKV: 6621 / 6872 / 6834 ms — unchanged
+- Streaming: 6796 / 6750 / 6861 ms — unchanged
+- Pyr: 6973 / 7245 / 7276 ms (was 7022/7109/7143)
+- Prose overhead ranges updated: Pyr 9--13%, SnapKV+Streaming +3--7%, Naive cuts 63--75%
+- Table footnote now states: "n=20 examples per task"
+
 ## Timing notes (Llama-3.1-8B, V100 32GB, fp16)
 
 At 35% retention: ~8s/example per chunk method, ~9s for pyramidkv_f35.

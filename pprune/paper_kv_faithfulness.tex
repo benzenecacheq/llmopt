@@ -255,93 +255,82 @@ the associated leaderboard and ecosystem.
 \hypertarget{methods}{%
 \subsection{3.1 Methods}\label{methods}}
 
-All methods in this section target 65\% token retention (r = 0.65). We
-use proportional truncation (65\% of actual prompt length) rather than a
-fixed token budget, which would over-retain on short inputs and
-over-prune on long ones.
+We benchmarked the baseline uncompressed prompt and four  compression methods, 
+one of which compresses the input prompt while the remaining three all prune the KV
+cache after prefill.
 
-\textbf{Reference.} - \emph{Full context}: unmodified model with the
-complete prompt; serves as the ceiling, not a compressed method.
+\begin{enumerate}
+\item 
+\textbf{Full context} - This is unmodified model with the
+complete prompt and serves as the baseline for comparison, not a compressed method.
 
-\textbf{Prompt-construction baseline.} This method truncates the prompt
-to form a shorter, self-consistent input with no KV patching or
-attention mask modification. - \emph{Naive proportional truncation
-(Naive)}: the prompt is split into a 10\% head (literal first tokens)
+\item
+\textbf{Naive} This method truncates the prompt
+to form a shorter, self-consistent input with no modification to the KV patching or
+attention mask calculations. The prompt is split into a 10\% head (literal first tokens)
 and a 90\% recency tail, concatenated to form a new prompt at 65\% of
 the original length.
 
-\textbf{KV pruning methods.} The benchmarked KV pruning methods (SnapKV,
-PyramidKV, Streaming) are implemented via \texttt{kvpress} v0.5.4. They
-process the full prompt, score each token's KV entry using post-prefill
-attention weights, and evict lower-scoring entries after the prefill
+\item
+\textbf{Streaming} - The KV Cache is pruned reserving the first 4 attention sink tokens plus a recency 
+window to fill the remaining budget, following StreamingLLM’s selection rule [Xiao et al., 2023].
+
+\item 
+\textbf{SnapKV} - Prunes the KV cache based on the attention weights pooled over the last 128-token
+  observation window {[}Li et al., 2024{]}.
+
+\item 
+\textbf{PyramidKV} - Follows the same SnapKV-style attention scoring, but with a layer-adaptive 
+budget that allocates more KV slots to lower layers and fewer to higher layers [Cai et al., 2024]. 
+The per-layer budget follows a linear decay controlled by beta=20; budgets are clamped to 
+\texttt{[window\_size, sequence\_length]}.
+
+\end{enumerate}
+
+The benchmarked KV pruning methods (Streaming, SnapKV, PyramidKV) are implemented via 
+\texttt{kvpress} v0.5.4. They process the full prompt, score each token's KV entry using
+post-prefill attention weights, and evict lower-scoring entries after the prefill
 pass. The last \texttt{window\_size} tokens (the observation window) are
 always retained by being assigned high scores; we use
 \texttt{window\_size=128} throughout (kvpress stock default is 64). For
 GQA models such as Llama-3.1-8B (32 Q-heads, 8 KV-heads), kvpress
 aggregates scores via mean-pooling across query heads sharing a KV head.
-The §6.2 diagnostic experiments (Table~\ref{tab:t1}) use a separate custom
-implementation with \texttt{q\_buffer\_size=128},
-\texttt{always\_keep\_first=16}, \texttt{always\_keep\_last=16}, and
-max-pooling for GQA aggregation.
 
-\begin{itemize}
-\tightlist
-\item
-  \emph{SnapKV}: attention weights pooled over the last 128-token
-  observation window {[}Li et al., 2024{]}.
-\item
-  \emph{PyramidKV}: same SnapKV-style attention scoring, but with a
-  layer-adaptive budget that allocates more KV slots to lower layers and
-  fewer to higher layers {[}Cai et al., 2024{]}. The per-layer budget
-  follows a linear decay controlled by \texttt{beta=20}; budgets are
-  clamped to \texttt{{[}window\_size,\ sequence\_length{]}}.
-\item
-  \emph{Streaming (sink + recency, with key re-rotation)}: first 4
-  attention sink tokens plus a recency window to fill the remaining
-  budget, following StreamingLLM's selection rule {[}Xiao et al.,
-  2023{]}. Implemented via \texttt{kvpress}`s \texttt{StreamingLLMPress}
-  wrapped in \texttt{KeyRerotationPress}. The kvpress documentation for
-  \texttt{StreamingLLMPress} explicitly recommends this wrapper ``to
-  fully match the implementation described in the paper'': in the
-  original online design, HuggingFace's \texttt{SinkCache} re-rotates
-  keys as the recency window slides forward during generation to keep
-  positions consistent; in kvpress's post-prefill adaptation,
-  \texttt{KeyRerotationPress} serves the same function after eviction.
-  Unlike the original StreamingLLM paper's online design --- where the
-  cache is bounded continuously and a full-length KV cache is never
-  built --- our kvpress implementation performs a full prefill before
-  trimming (post-prefill cache eviction, §6.1). This departs from the
-  original design's TTFT advantage but puts Streaming on equal footing
-  with SnapKV and PyramidKV, which are inherently post-prefill methods,
-  so retained tokens' hidden states are computed with access to the
-  complete context.
-\end{itemize}
+Note that our Streaming implementation uses kvpress‘s \texttt{StreamingLLMPress}
+wrapped in \texttt{KeyRerotationPress}. The kvpress documentation for
+\texttt{StreamingLLMPress} explicitly recommends this wrapper ``to
+fully match the implementation described in the paper.'' In the
+original online design, HuggingFace's \texttt{SinkCache} re-rotates
+keys as the recency window slides forward during generation to keep
+positions consistent. In kvpress's post-prefill adaptation,
+\texttt{KeyRerotationPress} serves the same function after eviction.
+Unlike the original StreamingLLM paper's online design --- where the
+cache is bounded continuously and a full-length KV cache is never
+built --- our kvpress implementation performs a full prefill before
+trimming (post-prefill cache eviction, §6.1). This departs from the
+original design's TTFT advantage but puts Streaming on equal footing
+with SnapKV and PyramidKV, which are inherently post-prefill methods,
+so retained tokens' hidden states are computed with access to the
+complete context.
 
-\hypertarget{setup}{%
-\subsection{3.2 Setup}\label{setup}}
+\hypertarget{ground-truth-evaluation}{%
+\section{4. Ground-Truth Evaluation}\label{ground-truth-evaluation}}
 
-\textbf{Models.} Llama-3.1-8B {[}Dubey et al., 2024{]} and
-Mistral-7B-v0.3 {[}Jiang et al., 2023b{]} (both base, not
-instruction-tuned) in fp16 on a single V100 32GB GPU.
-
-\textbf{Benchmark.} LongBench v1 {[}Bai et al., 2023{]}, 16 English
-tasks: single-document QA (NarrativeQA, Qasper, MultifieldQA),
-multi-document QA (HotpotQA, 2WikiMQA, MuSiQue), summarization
-(GovReport, QMSum, MultiNews), few-shot tasks (TREC, TriviaQA, SAMSum),
-synthetic tasks (PassageCount, PassageRetrieval), and code completion
-(LCC, RepoBench-P). 100 examples per task. LongBench is the primary
+Before introducing our faithfulness metrics, we establish what the
+standard evaluation paradigm reveals. We run Llama-3.1-8B {[}Dubey et
+al., 2024{]} and Mistral-7B-v0.3 {[}Jiang et al., 2023b{]} (both base,
+fp16 on a single V100 32GB GPU) on LongBench v1 {[}Bai et al., 2023{]}
+(16 English tasks, 100 examples per task) at 65\% retention, comparing
+naive proportional truncation, StreamingLLM (Streaming), SnapKV, and
+PyramidKV against the full uncompressed model. LongBench is the primary
 evaluation benchmark used by SnapKV {[}Li et al., 2024{]}, PyramidKV
 {[}Cai et al., 2024{]}, and most directly comparable KV compression
-work, making it the natural choice for ground-truth comparability; we
-extend it with our faithfulness metrics on the same task set.
-
-\begin{sloppypar}
-\textbf{Hyperparameters.} Retention fraction r=0.65. For kvpress
-methods: \texttt{window\_size=128} (observation window; kvpress stock
-default 64), PyramidKV \texttt{beta=20}. For the §6.2 custom
-implementation: \texttt{q\_buffer\_size=128},
-\texttt{always\_keep\_first=16}, \texttt{always\_keep\_last=16}.
-\end{sloppypar}
+work, making it the natural choice for comparability.
+Ground-truth scores use
+the standard LongBench metrics: F1 for QA tasks, ROUGE for
+summarization, classification-specific scoring for classification tasks,
+and edit-distance-based similarity (\texttt{code\_sim\_score}) for code
+completion.
 
 \begin{table}[H]
 \centering
@@ -409,24 +398,6 @@ RepoBench-P & 53.9 & \textbf{54.4} & 54.1 & 54.1 & 54.0\\
 \par\smallskip
 \textbf{Bold} = best compressed method per task. Full context is the reference and is not bolded.\\ \(\dagger\) = low full-context score (below 15); results noisier.
 \end{table}
-
-\hypertarget{ground-truth-evaluation}{%
-\section{4. Ground-Truth Evaluation}\label{ground-truth-evaluation}}
-
-Before introducing our faithfulness metrics, we establish what the
-standard evaluation paradigm reveals. We run both Llama-3.1-8B and
-Mistral-7B-v0.3 on LongBench v1 (16 tasks, 100 examples each) at 65\%
-retention, comparing naive proportional truncation, SnapKV, StreamingLLM
-(Streaming), and PyramidKV against the full uncompressed model.
-
-Setup details are in §3.2. All methods target r = 0.65
-retention. Naive truncation keeps the first 6.5\% and last 58.5\% of
-tokens as a new self-consistent prompt. PyramidKV uses a layer-adaptive
-pyramid budget on top of SnapKV scoring. Ground-truth scores use the
-standard LongBench metrics: F1 for QA tasks, ROUGE for summarization,
-classification-specific scoring for classification tasks, and
-edit-distance-based similarity (\texttt{code\_sim\_score}) for code
-completion.
 
 Table~\ref{tab:gt} shows per-task results for both models. The overall pattern is the same across both architectures: ground-truth
 scores are compressed across methods. On both Llama and Mistral, SnapKV
@@ -797,22 +768,8 @@ step, is insensitive to output length, and requires no string matching.
 that distributional faithfulness corresponds to observable output
 similarity --- rather than as independent evidence.
 
-\hypertarget{naive-truncation-as-a-baseline}{%
-\subsection{5.4 Naive Truncation as a
-Baseline}\label{naive-truncation-as-a-baseline}}
-
-A key empirical finding motivating this work is that naïve proportional
-truncation substantially outperforms attention-score-based KV cache
-pruning (SnapKV, PyramidKV) on KL faithfulness. The method retains 65\%
-of the prompt tokens, split as a 10\%/90\% head/tail budget: the first
-6.5\% of tokens (literal prompt prefix) and the last 58.5\% of tokens
-(recency tail), concatenated into a new self-consistent prompt. The
-middle portion is discarded. On NarrativeQA, naive truncation achieves
-KL 0.022 vs.~0.787 for SnapKV. This result was surprising and prompted
-the structural corruption investigation described in §6.
-
 \hypertarget{results-at-65-retention}{%
-\subsection{5.5 Results at 65\%
+\subsection{5.4 Results at 65\%
 Retention}\label{results-at-65-retention}}
 
 KL faithfulness compares compressed model
@@ -956,14 +913,31 @@ RepoBench-P & 62.8 & 66.1 & \textbf{93.0} & 90.1\\
 \center Values in \%; higher is better. \textbf{Bold} = best per row.
 \end{table}
 
-The two metrics sharply disagree on SnapKV and PyramidKV. 
-On Llama, streaming edges Naive on both models on KL faithfulness, while SnapKV and
-PyramidKV are an order of magnitude worse. Mistral shows the same raking at 
-roughly half the absolute KL magnitude.  \(F_{\text{out}}\) reverses
-this: PyramidKV and SnapKV lead on both models while Streaming falls near
-or below Naive. These reversals are not contradictory: §8 explains the
-mechanism that decouples \(F_{\text{out}}\) from KL for post-prefill
-eviction methods. The pattern holds consistently across architectures.
+The two metrics sharply disagree on SnapKV and PyramidKV.
+On Llama, Streaming edges Naive on KL faithfulness (0.141 vs.\ 0.175),
+while SnapKV and PyramidKV are an order of magnitude worse. On Mistral
+the Streaming/Naive ranking reverses (Naive 0.133 vs.\ Streaming 0.161),
+but SnapKV and PyramidKV remain far worse on both models at roughly half
+the absolute KL magnitude. \(F_{\text{out}}\) reverses the picture for
+the KV-pruning methods: PyramidKV and SnapKV lead on both models while
+Streaming falls near or below Naive. These reversals are not
+contradictory: §8 explains the mechanism that decouples
+\(F_{\text{out}}\) from KL for post-prefill eviction methods.
+
+\hypertarget{naive-truncation-as-a-baseline}{%
+\subsection{5.5 Naive Truncation as a
+Baseline}\label{naive-truncation-as-a-baseline}}
+
+A key empirical finding motivating this work is that naïve proportional
+truncation substantially outperforms attention-score-based KV cache
+pruning (SnapKV, PyramidKV) on KL faithfulness. The method retains 65\%
+of the prompt tokens, split as a 10\%/90\% head/tail budget: the first
+6.5\% of tokens (literal prompt prefix) and the last 58.5\% of tokens
+(recency tail), concatenated into a new self-consistent prompt. The
+middle portion is discarded. On NarrativeQA, naive truncation achieves
+KL 0.022 vs.~0.787 for SnapKV (Table~\ref{tab:kl55-llama}). This
+result was surprising and prompted the structural corruption
+investigation described in §6.
 
 \hypertarget{structural-corruption-in-kv-cache-pruning}{%
 \section{6. Structural Corruption in KV Cache
@@ -1652,39 +1626,35 @@ Compression is only worthwhile if it makes inference faster. We measure
 two quantities: \textbf{time to first token (TTFT)}, the wall-clock time
 from receiving a prompt to producing the first output token (dominated
 by the prefill pass), and \textbf{time per output token (TPT)}, the mean
-decode step time (dominated by KV cache memory bandwidth). All
-measurements are on a single V100 32GB GPU using Llama-3.1-8B fp16.
-Naive and PyramidKV: n=100/task (500 total); SnapKV and Streaming:
-n=20/task (100 total). All timing runs use the same five tasks:
-2WikiMQA, MultifieldQA, Qasper, RepoBench-P, and TriviaQA.
-
+decode step time (dominated by KV cache memory bandwidth). 
 
 \begin{table}[H]
 \centering
 \small
-\caption{Mean time to first token by retention rate}
+\caption{Mean TTFT by retention rate. Full-context baseline: 6425\,ms.}
 \label{tab:ttft}
 \begin{tabular}{@{}llll@{}}
 \toprule
 Method & 65\% & 50\% & 35\%\\
 \midrule
-Naive     & 2464 & 2139 & 1666\\
-SnapKV    & 6621 & 6872 & 6834\\
-Streaming & 6796 & 6750 & 6861\\
-Pyr       & 7022 & 7109 & 7143\\
+Naive     & 2400\,ms & 2082\,ms & 1632\,ms\\
+SnapKV    & 6621\,ms & 6872\,ms & 6834\,ms\\
+Streaming & 6796\,ms & 6750\,ms & 6861\,ms\\
+Pyr       & 6973\,ms & 7245\,ms & 7276\,ms\\
 \bottomrule
 \end{tabular}
-\center Time in milliseconds. Model: Llama-3.1-8B. Full-context baseline: 6348\,ms on V100 GPU.
+\center
+Llama-3.1-8B fp16 on V100 GPU; 20 examples per task, averaged over\\2WikiMQA, MultifieldQA, Qasper, RepoBench-P, and TriviaQA.
 \end{table}
 
 Table~\ref{tab:ttft} shows mean TTFT by retention rate.
-Naive cuts TTFT by 61--74\% by simply feeding the model a shorter
+Naive cuts TTFT by 63--75\% by simply feeding the model a shorter
 prompt. All post-prefill eviction methods incur overhead above the
 full-context baseline: performing a full prefill over the uncompressed
 prompt before pruning, each is consistently slower than the uncompressed
 model at every retention rate. PyramidKV's layer-wise budget computation
-adds 11--13\% overhead. SnapKV and Streaming-rerotated use simpler
-post-prefill eviction steps and add less overhead (+4--8\%), but both
+adds 9--13\% overhead. SnapKV and Streaming-rerotated use simpler
+post-prefill eviction steps and add less overhead (+3--7\%), but both
 are consistently above full-context TTFT. No KV-pruning method using
 post-prefill eviction can provide prefill savings: the full prompt must
 be processed regardless. SnapKV+rot inherits the same timing profile as
