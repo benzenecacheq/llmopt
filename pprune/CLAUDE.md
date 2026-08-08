@@ -205,7 +205,7 @@ and re-run with the right-aligned implementation.
 
 ## Paper edits completed (Aug 2026 session)
 
-All edits are in `paper_kv_faithfulness.tex` on branch `kvpress-impl`. Uncommitted changes remain.
+All edits are in `paper_kv_faithfulness.tex` on branch `kvpress-impl`.
 
 **Three inline figures added** (commit 906a1e9):
 - §5.2: TikZ eval-setup fork diagram (full model → y* → two teacher-forced branches → F_KL box)
@@ -217,14 +217,25 @@ All edits are in `paper_kv_faithfulness.tex` on branch `kvpress-impl`. Uncommitt
 
 **Undefined terms and hedging fixes** (commit dbe63c7): Defined RoPE and TTFT on first use in §2; removed hedging on observed data (e.g., "appears to be detracting" → direct).
 
-**TTFT table equalized to n=20** (uncommitted): All methods now use the same 20 examples per task (the indices from `timing_snap_stream.json`). Naive TTFT sourced from `kl_ystar_timing_sweep.json` phr128 total_ttft at those 20 indices; PyramidKV from `timing_kvpress.json` subsetted to same indices; full-context baseline from `timing_full.json` subsetted to same indices.
-- New full-context baseline: **6425 ms** (was 6348 ms)
+**§5 restructure and figure** (committed Aug 2026):
+- **F1/ROUGE-L figure** (`fig:fout-f1`): TikZ four-panel figure inserted at end of §5.1 fourth bullet. Panels: (a) standard partial overlap, (b) order-blind failure (winner/loser swapped, F1=1.0), (c) robust reordering (F1=1.0, ROUGE-L=0.750 due to LCS), (d) paraphrase blindness (both=0.0). Each panel shows F1 and ROUGE-L calculations inline. Preamble: color defs (`wov@c` green, `wrf@c` amber, `wpr@c` blue), word-box commands `\wov`/`\wrf`/`\wpr`/`\wst`, `\captionsetup{font=small}`.
+- **§4 closing paragraph removed**: "Taken at face value, PyramidKV is the clear winner. But in §5 we argue..." — was a forward reference.
+- **§5.1 first paragraph**: Last sentence ("We instead ask that question directly...") removed.
+- **§5.1 fourth bullet rewritten**: Integrates F1/ROUGE-L failure modes with panel references (b, c, d); itemize split around figure.
+- **§5.1 "Low full-model accuracy" bullet third paragraph**: Tightened from ~6 sentences to 3.
+- **§5.1 last paragraph deleted**: PyramidKV/SnapKV paragraph that previewed §8 results.
+- **§5.2 opener rewritten**: "Ground Truth's failures" → "ground-truth evaluation's failures"; "those chosen by a third party" → "a human-written reference"; filler transition sentence removed; "We believe that the best method... is by using" → "Compression fidelity is best evaluated by...".
+- **§5.2 last paragraph trimmed**: Instruct model numbers (0.94→0.039 nats, 24×) and §6.4 forward reference removed; first sentence ("This distinction is what lets a result generalize...as §8 demonstrates") folded into previous paragraph.
+- **§5.3 Caveat emptor opener**: Added cross-reference to Figure 1 panels (b) and (d).
+
+**TTFT table equalized to n=20** (committed Aug 2026): All methods use the same 20 examples per task (indices from `timing_snap_stream.json`). Naive TTFT from `kl_ystar_timing_sweep.json` phr128 total_ttft; PyramidKV from `timing_kvpress.json`; full-context baseline from `timing_full.json`.
+- Full-context baseline: **6425 ms** (was 6348 ms)
 - Naive: 2400 / 2082 / 1632 ms at 65/50/35% (was 2464/2139/1666)
 - SnapKV: 6621 / 6872 / 6834 ms — unchanged
 - Streaming: 6796 / 6750 / 6861 ms — unchanged
 - Pyr: 6973 / 7245 / 7276 ms (was 7022/7109/7143)
-- Prose overhead ranges updated: Pyr 9--13%, SnapKV+Streaming +3--7%, Naive cuts 63--75%
-- Table footnote now states: "n=20 examples per task"
+- Prose overhead ranges: Pyr 9--13%, SnapKV+Streaming +3--7%, Naive cuts 63--75%
+- Table footnote: "n=20 examples per task"
 
 ## Timing notes (Llama-3.1-8B, V100 32GB, fp16)
 

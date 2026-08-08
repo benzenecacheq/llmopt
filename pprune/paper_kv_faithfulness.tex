@@ -22,12 +22,28 @@
 \usepackage{multirow}
 \usepackage{float}
 \usepackage{caption}
+\captionsetup{font=small}
 \usepackage{makecell}
 \usepackage[section]{placeins}
 \usepackage{tikz}
 \usetikzlibrary{calc}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
+
+% ── §5.3 F_out word-overlap illustration ─────────────────────────────────────
+\definecolor{wov@c}{RGB}{42,130,80}    % shared (green)
+\definecolor{wrf@c}{RGB}{170,100,20}   % ref-only (amber)
+\definecolor{wpr@c}{RGB}{50,88,150}    % pred-only (blue)
+\tikzset{wbox/.style={rounded corners=2pt,inner xsep=5pt,inner ysep=2pt,
+                      font=\footnotesize\ttfamily}}
+\newcommand{\wov}[1]{\tikz[baseline=(n.base)]%
+  \node[wbox,draw=wov@c,fill=wov@c!12,text=wov@c](n){\strut #1};}
+\newcommand{\wrf}[1]{\tikz[baseline=(n.base)]%
+  \node[wbox,draw=wrf@c,fill=wrf@c!12,text=wrf@c](n){\strut #1};}
+\newcommand{\wpr}[1]{\tikz[baseline=(n.base)]%
+  \node[wbox,draw=wpr@c,fill=wpr@c!10,text=wpr@c](n){\strut #1};}
+\newcommand{\wst}[1]{\tikz[baseline=(n.base)]%
+  \node[wbox,draw=black!22,fill=black!5,text=black!35](n){\strut #1};}
 
 % ── links & metadata ──────────────────────────────────────────────────────────
 \usepackage[hyphens]{url}
@@ -407,11 +423,6 @@ both models and is competitive across most tasks, but trails SnapKV and
 PyramidKV in average. PyramidKV leads or ties all compressed methods on
 both models.
 
-Taken at face value, PyramidKV is the clear winner. But in §5 we argue that these
-scores measure the wrong thing and §8 shows that PyramidKV's
-ground-truth advantage conceals a faithfulness cost an order of
-magnitude larger than any other method's.
-
 \hypertarget{faithfulness-metrics}{%
 \section{5. Faithfulness Metrics}\label{faithfulness-metrics}}
 
@@ -428,9 +439,7 @@ the compressed model's outputs to the full model's outputs. Two methods
 can score identically while producing completely different text --- one
 that closely replicates what the full model would have said, and one
 that does not. Whether the compressed model behaves like the full model
-is simply not measured. We instead ask that question directly: does the
-compressed model produce the same output the full, uncompressed model
-would have produced on the same input?
+is simply not measured.
 
 Ground-truth evaluation has five distinct failure modes as a compression
 metric.
@@ -476,17 +485,113 @@ metric.
   a prediction as binary right or wrong. The other thirteen --- seven QA
   tasks scored by word-overlap F1, four summarization tasks scored by
   ROUGE-L, two code-completion tasks scored by string similarity ---
-  give continuous partial credit for overlap with one human-written
-  reference, with no notion of ``correct'' or ``incorrect'' built into
-  the metric itself. A summary that captures the source faithfully but
-  phrases it differently than the dataset's one reference summary, or a
-  QA answer that conveys the right information in different words, can
-  score below an answer that shares more surface vocabulary with the
-  reference while being less accurate. This does not mean the metric
-  carries no signal --- overlap with a reasonable reference is
-  correlated with quality --- but for most of this benchmark,
-  ``ground-truth accuracy'' is closer to similarity to one human's
-  phrasing than to a judgment of whether the model got the answer right.
+  give partial credit for surface overlap with a single human-written
+  reference, with no notion of ``correct'' or ``incorrect'' built in.
+
+  The failure modes this creates are illustrated in
+  Figure~\ref{fig:fout-f1}. F1 is order-blind: a prediction that
+  reverses who won and who lost a game scores 1.0 if it reuses the same
+  words (panel b). ROUGE-L is order-sensitive via longest common
+  subsequence and avoids this particular failure, but penalizes valid
+  syntactic reorderings --- identical content in a different sentence
+  structure scores 0.75 instead of 1.0 because the reordered word falls
+  outside the LCS (panel c). Both metrics share paraphrase blindness: a
+  prediction that expresses the same meaning in different words scores
+  zero (panel d). Overlap with a reasonable reference is correlated with
+  quality, but for most of this benchmark ``ground-truth accuracy'' is
+  closer to similarity to one human's phrasing than to a judgment of
+  whether the model got the answer right.
+\end{itemize}
+
+\begin{figure}[H]
+\noindent\begin{minipage}{\linewidth}
+\small
+\renewcommand{\arraystretch}{1.7}
+% legend
+\begin{tabular}{@{}l@{\enspace}l@{\quad}l@{\enspace}l@{\quad}l@{\enspace}l@{\quad}l@{\enspace}l@{}}
+  \wov{word} & shared &
+  \wrf{word} & reference only &
+  \wpr{word} & prediction only &
+  \wst{the}  & stripped (article)
+\end{tabular}
+
+\smallskip\noindent\rule{\linewidth}{0.3pt}\smallskip
+
+\textbf{(a)}\ \textit{Standard case --- partial word overlap}
+
+\begin{tabular}{@{}p{1.9cm}@{\hskip 0.3em}l@{}}
+  Reference  & \wov{Napoleon}\ \wov{was}\ \wrf{exiled}\ \wov{to}\ \wov{Elba}\ \wov{in}\ \wov{1814} \\
+  Prediction & \wov{Napoleon}\ \wov{was}\ \wpr{sent}\ \wov{to}\ \wov{Elba}\ \wov{in}\ \wov{1814}
+\end{tabular}\par\noindent
+\makebox[\linewidth][r]{\footnotesize\textcolor{black!50}{%
+  F1:\enspace$|$shared$|=6$\enspace P$=6/7$\enspace R$=6/7$}\enspace
+  \textcolor{wov@c}{\textbf{F1$\,=0.857$}}}
+
+\noindent\makebox[\linewidth][r]{\footnotesize\textcolor{black!50}{%
+  ROUGE-L:\enspace LCS$=6$\enspace P$=6/7$\enspace R$=6/7$}\enspace
+  \textcolor{wov@c}{\textbf{ROUGE-L$\,=0.857$}}}
+
+\smallskip\noindent\rule{\linewidth}{0.3pt}\smallskip
+
+\textbf{(b)}\ \textit{Failure --- identical words, opposite meaning}
+
+\begin{tabular}{@{}p{1.9cm}@{\hskip 0.3em}l@{}}
+  Reference  & \wov{Team}\ \wov{A}\ \wov{defeated}\ \wov{Team}\ \wov{B}\ \wov{in}\ \wov{overtime} \\
+  Prediction & \wov{Team}\ \wov{B}\ \wov{defeated}\ \wov{Team}\ \wov{A}\ \wov{in}\ \wov{overtime}
+\end{tabular}\par\noindent
+\makebox[\linewidth][r]{\footnotesize\textcolor{black!50}{%
+  F1:\enspace$|$shared$|=7$\enspace P$=7/7$\enspace R$=7/7$\enspace(order-blind --- winner/loser swapped)}\enspace
+  \textcolor{wrf@c}{\textbf{F1$\,=1.000$}}}
+
+\noindent\makebox[\linewidth][r]{\footnotesize\textcolor{black!50}{%
+  ROUGE-L:\enspace LCS$=5$\enspace P$=5/7$\enspace R$=5/7$\enspace(order-sensitive via LCS, still high)}\enspace
+  \textcolor{wrf@c}{\textbf{ROUGE-L$\,=0.714$}}}
+
+\smallskip\noindent\rule{\linewidth}{0.3pt}\smallskip
+
+\textbf{(c)}\ \textit{Robust case --- reordered words, identical content}
+
+\begin{tabular}{@{}p{1.9cm}@{\hskip 0.3em}l@{}}
+  Reference  & \wst{The}\ \wov{prime}\ \wov{minister}\ \wov{resigned}\ \wov{yesterday} \\
+  Prediction & \wov{Yesterday}\ \wst{the}\ \wov{prime}\ \wov{minister}\ \wov{resigned}
+\end{tabular}\par\noindent
+\makebox[\linewidth][r]{\footnotesize\textcolor{black!50}{%
+  F1:\enspace$|$shared$|=4$\enspace P$=4/4$\enspace R$=4/4$\enspace(order-blind --- handles reordering correctly)}\enspace
+  \textcolor{wov@c}{\textbf{F1$\,=1.000$}}}
+
+\noindent\makebox[\linewidth][r]{\footnotesize\textcolor{black!50}{%
+  ROUGE-L:\enspace LCS$=3$\enspace P$=3/4$\enspace R$=3/4$\enspace(\emph{yesterday} falls outside the LCS)}\enspace
+  \textcolor{wrf@c}{\textbf{ROUGE-L$\,=0.750$}}}
+
+\smallskip\noindent\rule{\linewidth}{0.3pt}\smallskip
+
+\textbf{(d)}\ \textit{Failure --- synonymous outputs, zero score}
+
+\begin{tabular}{@{}p{1.9cm}@{\hskip 0.3em}l@{}}
+  Reference  & \wst{The}\ \wrf{patient}\ \wrf{recovered}\ \wrf{completely}\ \wrf{after}\ \wrf{treatment} \\
+  Prediction & \wst{The}\ \wpr{sick}\ \wpr{person}\ \wpr{got}\ \wpr{better}\ \wpr{following}\ \wpr{therapy}
+\end{tabular}\par\noindent
+\makebox[\linewidth][r]{\footnotesize\textcolor{black!50}{%
+  F1:\enspace$|$shared$|=0$\enspace P$=0/6$\enspace R$=0/5$\enspace(paraphrase blindness)}\enspace
+  \textcolor{wrf@c}{\textbf{F1$\,=0.000$}}}
+
+\noindent\makebox[\linewidth][r]{\footnotesize\textcolor{black!50}{%
+  ROUGE-L:\enspace LCS$=0$\enspace P$=0/6$\enspace R$=0/5$\enspace(paraphrase blindness)}\enspace
+  \textcolor{wrf@c}{\textbf{ROUGE-L$\,=0.000$}}}
+
+\smallskip\noindent\rule{\linewidth}{0.3pt}
+\end{minipage}
+\caption{Failure modes of surface-overlap metrics used in ground-truth evaluation:
+word-level F1 (seven QA tasks) and ROUGE-L (four summarization tasks).
+\textcolor{wov@c}{Green}: counted as shared.
+\textcolor{wrf@c}{Amber}: reference only.
+\textcolor{wpr@c}{Blue}: prediction only.
+Gray: article stripped (\emph{a, an, the}).
+\(F_{\text{out}}\) (§5.3) inherits (b) and (d) when applied model-to-model.}
+\label{fig:fout-f1}
+\end{figure}
+
+\begin{itemize}
 \item
   \textbf{Low full-model accuracy amplifies the first three problems.}
 
@@ -513,23 +618,14 @@ metric.
   about which questions were answered correctly, only that the same
   number were.
 
-  A perfectly faithful compressed method should also get 94.5\% wrong;
-  ground truth scores all of those as 0. The compressed method's GT
-  score on that task then reflects only how close its wrong answers
-  happen to come to the gold reference --- a function of failure-mode
-  similarity to the reference, not of approximation quality. As a
-  consequence, GT differences between compression methods on
-  low-accuracy tasks are dominated by noise: small random variations in
-  which wrong answers partially overlap with the gold string. The signal
-  about actual compression quality is vanishingly small precisely on the
-  tasks where the method has the most work to do. The problem compounds
-  in the other direction too: a compressed method that outscores the
-  full model would be reported as an improvement, but from a
-  faithfulness perspective it is a failure --- the compressed model is
-  producing different outputs than the full model on examples where the
-  full model was wrong, and those differences happen to align with the
-  reference. Ground truth rewards divergence from the full model when
-  that divergence is accidentally correct.
+  A perfectly faithful compressed method should get 94.5\% wrong; ground
+  truth scores all of those as 0, leaving only noise: how closely each
+  method's wrong answers happen to overlap with the gold string. The
+  signal about compression quality is smallest precisely on the tasks
+  where the method has the most work to do. The failure is symmetric: a
+  compressed method that outscores the full model is a faithfulness
+  failure --- ground truth rewards accidental divergence from the full
+  model.
 \end{itemize}
 
 These failure modes matter in practice. PyramidKV's ground-truth
@@ -548,23 +644,16 @@ determines whether a result generalizes. An outcome metric tells us
 nothing about behavior on inputs outside the test distribution; it is
 silent on mechanism by construction.
 
-PyramidKV and SnapKV are the clearest illustrations in this paper: by
-ground truth and output faithfulness both lead all tested methods, but
-§8 traces this to a structural property of how post-prefill eviction
-methods compute their answer --- a full, uncompressed prefill makes the
-first generated token identical to the full model's by construction,
-which dominates the aggregate score because the benchmark is full of
-short-answer tasks where the first token is the answer. A practitioner
-who only had the outcome metric would not know this, and would have no
-way to predict whether the advantage holds for a task with longer
-outputs, a different query distribution, or any input not resembling the
-test set.
-
 \hypertarget{kl-faithfulness}{%
 \subsection{5.2 KL Faithfulness}\label{kl-faithfulness}}
 
-We evaluate compression fidelity using KL divergence between the full
-and compressed models' next-token distributions, measured on a shared
+We need a metric that addresses ground-truth evaluation's failures. Rather than comparing
+the outputs of the original and compressed models to a human-written reference,
+we need to directly compare the compressed model to the original model to determine
+whether it is faithful to the original.
+
+Compression fidelity is best evaluated by comparing the compressed model's next-token
+distributions directly to the full model's, using KL divergence on a shared
 generation sequence. The uncompressed model generates a response \(y^*\)
 = (\(y^*_1, \ldots, y^*_L\)) from the full context. Both the full model
 and each compressed model are then teacher-forced on this shared token
@@ -632,19 +721,10 @@ ground-truth benchmarks --- registers as a faithfulness cost in
 \(F_{\text{KL}}\). KL faithfulness does not share the limitations
 documented in §5.1: because it measures whether the compressed model's
 actual computation matches the full model's at every step, it is
-informative about mechanism, not just outcome. 
-
-This distinction is what
+informative about mechanism, not just outcome. This distinction is what
 lets a result generalize to inputs that were never tested, and it is
 what makes KL faithfulness sensitive to structural corruption that GT
-evaluation cannot detect, as §8 demonstrates for SnapKV and
-PyramidKV. Because \(F_{\text{KL}}\) measures a structural property of
-positional encoding rather than a training-regime artifact, the finding
-transfers across model variants: on \texttt{Llama-3.1-8B-Instruct},
-post-prefill SnapKV eviction produces a mean \(F_{\text{KL}}\) of 0.94
-nats across six tasks, and key re-rotation reduces this to 0.039
-nats --- a 24\(\times\) reduction; §6.4 establishes the corresponding
-result on the base model.
+evaluation cannot detect.
 
 \hypertarget{output-faithfulness}{%
 \subsection{5.3 Output Faithfulness}\label{output-faithfulness}}
@@ -692,9 +772,7 @@ These can disagree. A method could have low \(F_{\text{KL}}\)
 (distributions match well at each step) but low \(F_{\text{out}}\) (due
 to early divergence in sampled text). Conversely, a method could have
 high \(F_{\text{out}}\) (same final answers) but high \(F_{\text{KL}}\)
-(reached those answers via corrupted intermediate distributions). §8
-examines whether PyramidKV falls into this second category, motivating
-both metrics as jointly necessary to characterize compression behavior.
+(reached those answers via corrupted intermediate distributions).
 
 \textbf{Why these two metrics?}
 
@@ -728,9 +806,13 @@ a different question.
 
 \textbf{Caveat emptor on output-text metrics.}
 
+\nopagebreak
 \(F_{\text{out}}\) is more principled than ground-truth evaluation, but word-level F1
 introduces its own distortions that any output-text measurement
-inherits. Readers should treat \(F_{\text{out}}\) scores, and any
+inherits. Panels (b) and (d) of Figure~\ref{fig:fout-f1} apply directly:
+\(F_{\text{out}}\) is blind to word-order reversals and synonymous paraphrases for
+the same reasons the GT metrics are, since it applies the same normalization to
+model-to-model comparisons. Readers should treat \(F_{\text{out}}\) scores, and any
 generated output-based measurement, with appropriate skepticism:
 
 \begin{itemize}
@@ -772,12 +854,8 @@ similarity --- rather than as independent evidence.
 \subsection{5.4 Results at 65\%
 Retention}\label{results-at-65-retention}}
 
-KL faithfulness compares compressed model
-distributions to full model distributions, teacher-forced on \(y^*\)
-(Table~\ref{tab:kl55-llama}).
-\(F_{\text{out}}\) compares the compressed model's independently
-generated outputs to \(y^*\) using word-level F1
-(Table~\ref{tab:fout55-llama}).
+Tables~\ref{tab:kl55-llama} and~\ref{tab:fout55-llama} show the faithfulness 
+metrics of the various compression regimes at 65\% retention.
 
 \begin{table}[H]
 \centering
@@ -928,7 +1006,7 @@ contradictory: §8 explains the mechanism that decouples
 \subsection{5.5 Naive Truncation as a
 Baseline}\label{naive-truncation-as-a-baseline}}
 
-A key empirical finding motivating this work is that naïve proportional
+A key empirical finding motivating this work is that naive proportional
 truncation substantially outperforms attention-score-based KV cache
 pruning (SnapKV, PyramidKV) on KL faithfulness. The method retains 65\%
 of the prompt tokens, split as a 10\%/90\% head/tail budget: the first
@@ -966,10 +1044,10 @@ There are competing factors that affect the final results of the pruned query:
 
 KV pairs that survive carry
 representations computed under full-context attention over the entire
-original sequence, including attention to positions that are immediately
+original sequence, including positions that are immediately
 evicted once the prefill completes. Thus the remaining tokens
 attend to every other token in the
-document at every layer including those that were evicted. 
+original prompt at every layer. 
 The remaining tokens in the KV cache are structurally gapped but with richer
 representations. This "enrichment" benefit accrues equally to all
 three post-prefill methods regardless of their selection policies.
@@ -1015,11 +1093,6 @@ eviction, leaving the gap structure and enriched value representations
 unchanged.  This creates a tension with the enrichment, which is based
 on the pre-pruned rotation.
 
-Prompt construction eliminates positional misalignment
-together with causal gaps by creating a structurally self-consistent new
-sequence.
-\end{itemize}
-
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}
@@ -1061,13 +1134,21 @@ sequence.
   }
 \end{tikzpicture}
 \caption{Positional displacement from post-prefill eviction. Blue cells are retained keys;
-gray cells are evicted. Retained positions 0,\,1,\,5,\,6,\,7 create a $\Delta\!=\!4$ gap
-between positions~1 and~5 --- the query at position~$T$ sees these keys as if 4 positions
-apart, distorting RoPE-encoded relative distances. Re-rotation re-encodes the five retained
-keys at compact positions $0\ldots4$, restoring uniform $\Delta\!=\!1$ spacing throughout.}
+gray cells are evicted. 
+}
 \label{fig:rope-displacement}
 \end{figure}
 
+Figure 3 shows an example.  After eviction, retained positions 0,\,1,\,5,\,6,\,7 create a $\Delta\!=\!4$ gap
+between positions~1 and~5 --- the query at position~$T$ sees these keys as if 4 positions
+apart, distorting RoPE-encoded relative distances. Re-rotation re-encodes the five retained
+keys at compact positions $0\ldots4$, restoring uniform $\Delta\!=\!1$ spacing throughout.
+
+Prompt construction, such as that used with the Naive method, eliminates positional misalignment
+together with causal gaps by creating a structurally self-consistent new
+sequence.
+
+\end{itemize}
 \hypertarget{empirical-evidence}{%
 \subsection{6.2 Empirical Evidence}\label{empirical-evidence}}
 
