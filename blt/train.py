@@ -338,8 +338,9 @@ def train(args):
     else:
         dataset = TokenDataset(tokenizer, block_size=args.block_size, dataset=args.dataset)
         log(f'  {len(dataset):,} blocks of {args.block_size} tokens ({args.dataset})')
+        sample_batch_size = args.resume_batch_size or args.batch_size
         sampler = ResumableSampler(len(dataset), args.seed,
-                                   start_sample=resume_micro_step * args.batch_size)
+                                   start_sample=resume_micro_step * sample_batch_size)
         loader = DataLoader(dataset, batch_size=args.batch_size, sampler=sampler,
                             pin_memory=(device.type == 'cuda'), num_workers=2)
 
@@ -528,6 +529,15 @@ if __name__ == '__main__':
     parser.add_argument('--save-path', type=str, default=None)
     parser.add_argument('--checkpoint-every', type=int, default=500)
     parser.add_argument('--resume', type=str, default=None)
+    parser.add_argument('--resume-batch-size', type=int, default=None,
+                        help='The batch size the checkpoint\'s micro_step was actually recorded '
+                             'under, if different from this run\'s --batch-size (e.g. resuming a '
+                             'true-batch-4 checkpoint on a smaller-memory GPU via --batch-size 2 '
+                             '--grad-accum-steps 2). Used only to compute the ResumableSampler\'s '
+                             'start_sample correctly (start_sample = micro_step * ORIGINAL batch '
+                             'size, not the new one) -- getting this wrong silently replays '
+                             'already-consumed data. Defaults to --batch-size (current behavior, '
+                             'unchanged) when batch size hasn\'t changed across the resume.')
     parser.add_argument('--finetune', type=str, default=None,
                         help='Load model weights only (fresh optimizer/scheduler)')
     parser.add_argument('--hybrid', action='store_true',
