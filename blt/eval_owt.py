@@ -79,6 +79,9 @@ if __name__ == '__main__':
                         help='Rank of the low-rank BLT checkpoint given via --blt-lowrank-checkpoint')
     parser.add_argument('--num-uv-groups', type=int, default=1,
                         help='Number of (U,V) groups for the low-rank BLT checkpoint (default: 1)')
+    parser.add_argument('--pretrained', type=str, default='gpt2',
+                        help='HuggingFace model id controlling shape for --baseline-checkpoint '
+                             '(e.g. gpt2-medium). Only affects the baseline path.')
     parser.add_argument('--max-tokens', type=int, default=500000,
                         help='Tokens to evaluate over (default 500K)')
     parser.add_argument('--n-files', type=int, default=5,
@@ -160,8 +163,8 @@ if __name__ == '__main__':
 
     if args.baseline_checkpoint:
         from transformers import GPT2Config, GPT2LMHeadModel
-        print(f'Baseline GPT-2: {args.baseline_checkpoint}')
-        model = GPT2LMHeadModel(GPT2Config()).to(device)
+        print(f'Baseline GPT-2 (pretrained={args.pretrained}): {args.baseline_checkpoint}')
+        model = GPT2LMHeadModel(GPT2Config.from_pretrained(args.pretrained)).to(device)
         ckpt = torch.load(args.baseline_checkpoint, map_location=device)
         model.load_state_dict(ckpt['model_state'])
         model.eval()
