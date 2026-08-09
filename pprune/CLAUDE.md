@@ -152,13 +152,21 @@ Section numbering: §1–§6 unchanged, §7 Main Experiments, §8 Why Post-Prefi
   reproduces base model finding (snapkv_press 0.94→0.039 nats, 24×) on same 6 tasks (`kl_instruct_pilot.json`).
 - §6.1: Mechanism section restructured as itemize list (prefill enrichment / gap corruption / positional
   misalignment). Notes that re-rotation creates tension with pre-eviction enrichment.
-- §6.2: SnapKV-Select diagnostic (KL only). Only place Sel appears.
-- §6.3: Gap structure table — 4 geometries × gapless/evicted/rerotated presentations. ✓
-- §6.4: Re-rotation results for all three methods. SnapKV+rot (27× KL), Streaming (11.7× at 65%),
-  PyramidKV three-rate story (65%: Pyr+rot≈SnapKV+rot; 50%: gap from window_size floor;
-  35%: tied from budget collapse). F_out tradeoff covers all methods. Right-aligned re-rotation
-  implementation note. §6.5 removed — merged into §6.4.
-- §7: Main experiment tables (KL, TTFT, F_out). All Llama and Mistral values complete at all three rates. No phr128.
+- §6.2: SnapKV-Select diagnostic (KL only). Only place Sel appears. Includes explanation of why ROG
+  (recompute-over-gaps) doesn't show rotation damage: without enrichment, scattered positions cause
+  limited harm; enrichment × scatter interaction is what makes SnapKV catastrophic.
+- §6.3: Synthetic gap structure table — 4 geometries × 3 presentations (gapless/evicted/rerotated).
+  **Gapped presentation removed** (evaluation bug: y* tokens were evicted from KV cache during
+  single-pass eval, inflating KL). Tab:t2 has 7 columns. Ends with prediction: SnapKV should
+  benefit enormously from re-rotation; Streaming should see a meaningfully smaller gain. §7.2 confirms.
+- §6.4: **Removed** — content absorbed into §7.2.
+- §7.1: Setup (models, benchmark, methods table).
+- §7.2: KL Faithfulness main results (Tab:t3). SnapKV+rot leads at every rate on both models.
+  Right-aligned re-rotation explanation for PyramidKV (naive [0,n_kept) is inconsistent across
+  layers; [T−n_kept,T) fixes it). Pyr+rot three-rate story. Streaming improvement table (Tab:t4-ish);
+  value-corruption explanation for why Streaming trails SnapKV+rot after re-rotation. Confirms §6.3 predictions.
+- §7.3: Output Faithfulness (F_out) results.
+- §7.4: Inference Performance (TTFT / TPT).
 - §8: First-token advantage mechanism; §8.1 short/long F_out breakdown (Table 5), KL by output length
   (Table 6), long-form F_out cross-rate (Table 7). Concludes with deployment implications.
 - §9: Conclusion — three-rate story, Pyr+rot 50% gap explanation, generalization claims.
@@ -227,6 +235,18 @@ All edits are in `paper_kv_faithfulness.tex` on branch `kvpress-impl`.
 - **§5.2 opener rewritten**: "Ground Truth's failures" → "ground-truth evaluation's failures"; "those chosen by a third party" → "a human-written reference"; filler transition sentence removed; "We believe that the best method... is by using" → "Compression fidelity is best evaluated by...".
 - **§5.2 last paragraph trimmed**: Instruct model numbers (0.94→0.039 nats, 24×) and §6.4 forward reference removed; first sentence ("This distinction is what lets a result generalize...as §8 demonstrates") folded into previous paragraph.
 - **§5.3 Caveat emptor opener**: Added cross-reference to Figure 1 panels (b) and (d).
+
+**§6.3 / §7 restructure** (committed Aug 2026):
+- **Gapped presentation removed** from Tab:t2 and §6.3 prose (evaluation bug: single-pass eval
+  evicted y* tokens from KV cache, inflating KL for the gapped condition; ROG in Tab:t1 is unaffected).
+- **ROG mechanistic note added to §6.2**: explains enrichment × scatter interaction — scatter alone
+  causes limited damage; enrichment makes it catastrophic.
+- **§6.4 "Re-rotation Confirms" removed as a section**: content absorbed into §7.2. Right-aligned
+  re-rotation explanation and streaming value-corruption explanation now live in §7.2. §7.2 opener
+  confirms §6.3 predictions. §6.3 closing now says "§7.2 confirms both predictions."
+- **Section renumbering**: §7.4 Output Faithfulness → §7.3; §7.5 Inference Performance → §7.4.
+- **Figure 4 caption**: centered via `\captionsetup{justification=centering}` (not `\centering` inside
+  `\caption{}`, which broke cross-reference counters).
 
 **TTFT table equalized to n=20** (committed Aug 2026): All methods use the same 20 examples per task (indices from `timing_snap_stream.json`). Naive TTFT from `kl_ystar_timing_sweep.json` phr128 total_ttft; PyramidKV from `timing_kvpress.json`; full-context baseline from `timing_full.json`.
 - Full-context baseline: **6425 ms** (was 6348 ms)

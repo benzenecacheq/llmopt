@@ -15,6 +15,9 @@
 \setlength{\parskip}{0.3em}
 \setlength{\parindent}{0pt}
 
+\widowpenalty=10000
+\clubpenalty=10000
+
 % ── tables ────────────────────────────────────────────────────────────────────
 \usepackage{booktabs}
 \usepackage{longtable}
@@ -171,7 +174,7 @@ We make the following contributions:
   \textbf{Key re-rotation as the fix}: Remapping retained keys to
   compact positions after eviction dramatically improves faithfulness,
   making SnapKV+rot the most faithful method overall and confirming that
-  the failure mode is structural rather than selection-based (§6.4).
+  the failure mode is structural rather than selection-based (§7.2).
 \end{itemize}
 
 \hypertarget{background-and-related-work}{%
@@ -1157,15 +1160,17 @@ faithfulness gap, we compare SnapKV with KV pruning to SnapKV-Select ---
 identical attention-score-based token selection, presented as a new
 prompt rather than patched into the KV cache (Table~\ref{tab:t1}). The same tokens,
 selected by the same algorithm, behave very differently depending on how
-they are presented to the model. Table~\ref{tab:t1} also includes a third SnapKV
-variant labeled \emph{recompute-over-gaps}: rather than running a full
+they are presented to the model. 
+
+Table~\ref{tab:t1} also includes a third SnapKV
+variant labeled \emph{recompute-over-gaps}. Rather than running a full
 unrestricted prefill and then pruning the cache afterward, the attention
-mask is restricted during prefill so the model only ever attends to the
-selected positions --- evicted tokens are invisible from the start.
-There is no post-prefill eviction and no enrichment from evicted tokens
---- the selected tokens never attended to the evicted context during
+mask is restricted during prefill. The model only ever attends to the
+selected positions so evicted tokens are invisible from the start.
+There is no post-prefill eviction and no enrichment from evicted tokens,
+which means the selected tokens never attended to the evicted context during
 prefill. Critically, however, the selected tokens retain their original
-pre-eviction RoPE positions: RoPE is applied to all T tokens at their
+pre-eviction RoPE positions because RoPE is applied to all T tokens at their
 original positions before the attention mask filters to the selected
 set, so the keys carry scattered positions rather than compact ones.
 This makes recompute-over-gaps distinct from prompt construction: both
@@ -1200,10 +1205,17 @@ post-prefill eviction combines: it eliminates enrichment (evicted tokens
 are never seen during prefill) but preserves scattered positions (RoPE
 is applied before the attention mask filters to the selected set). Its
 score (0.168) nearly matches naive prompt construction (0.162) ---
-positional scatter alone causes limited damage. Adding enrichment back
-(SnapKV post-prefill, 1.026) makes things dramatically worse, not
-better: the full-prefill hidden state detracts rather than helps here. §6.4 examines this more fully and introduces a
-correction.
+positional scatter alone causes limited damage. Without enrichment, the
+retained values encode only what each token attended to in a restricted,
+position-consistent context: they carry no information about the evicted
+tokens and no strong position-dependent correlations with them. Wrong
+positional biases in the attention scores therefore cause limited harm.
+Adding enrichment back (SnapKV post-prefill, 1.026) makes things
+dramatically worse: the full-prefill hidden state loads the retained
+values with position-sensitive information about the entire evicted
+context. When those enriched values are then accessed through wrong
+positional attention scores, the resulting context representation is
+catastrophically distorted.
 
 \hypertarget{synthetic-gap-structure-analysis}{%
 \subsection{6.3 Synthetic Gap-Structure
@@ -1301,15 +1313,13 @@ model-based selection. At a typical context length of
   \node[anchor=west, font=\small] at ({\W*0.58+0.55},{-0.65}) {evicted};
 
 \end{tikzpicture}
+\captionsetup{justification=centering}
 \caption{Gap geometries used in the synthetic analysis (Table~\ref{tab:t2}). Each bar represents
-the full token sequence at $r = 0.65$ retention; blue = retained in KV cache, gray = evicted.
-Gap counts are approximate at the typical benchmark context length ($\sim$4000 tokens).
-The \texttt{scattered} bar is schematic: individual retained tokens are sub-pixel at this scale,
-so 55 representative stripes are shown at the correct 65\% duty cycle.}
+\\the token sequence at $r = 0.65$ retention; blue = retained in KV cache, gray = evicted.}
 \label{fig:gap-geometries}
 \end{figure}
 
-Each geometry evaluates the same retained position set under four
+Each geometry evaluates the same retained position set under three
 presentations:
 
 \begin{itemize}
@@ -1319,11 +1329,6 @@ presentations:
   prompt --- compact RoPE positions, no enrichment from evicted context,
   no KV patching.
 \item
-  \textbf{Gapped}: attention mask restricted to the selected positions
-  during prefill --- evicted tokens are invisible, so no enrichment, but
-  retained keys carry their original RoPE positions. This is the
-  approach used by recompute-over-gaps in §6.2.
-\item
   \textbf{Evicted}: full prefill over the complete prompt (enabling
   full-context enrichment), then post-prefill eviction; retained keys
   remain at their original RoPE positions. This is the mechanism used by
@@ -1331,33 +1336,25 @@ presentations:
 \item
   \textbf{Rerotated}: identical to evicted but with key re-rotation to
   compact RoPE positions after eviction (\texttt{KeyRerotationPress}).
-  This is the mechanism used by StreamingLLM.
+  This is the mechanism used by StreamingLLM used in our benchmarks.
 \end{itemize}
 
-Comparing gapped to gapless isolates positional scatter alone, with no
-enrichment in either condition. Comparing evicted to gapped isolates the
-effect of enrichment at scattered positions. Comparing rerotated to
-evicted isolates position correction alone, since enrichment is
-identical in both conditions. Finally, comparing gapless to rerotated
-isolates the effects of enrichment.
+Comparing rerotated to evicted isolates position correction alone, since
+enrichment is identical in both conditions. Comparing gapless to
+rerotated isolates the effect of enrichment at compact positions.
 \begin{table}[H]
 \centering
 \small
 \caption{Mean KL faithfulness by gap geometry}
 \label{tab:t2}
-\begin{tabular}{@{}lllllllll@{}}
+\begin{tabular}{@{}lllllll@{}}
 \toprule
-Geometry & Gaps & Gapless & Gapped & Evicted & Rerotated & gp/gl & ev/gl
-& rot/gl\\
+Geometry & Gaps & Gapless & Evicted & Rerotated & ev/gl & rot/gl\\
 \midrule
-block\_end & 1 & 0.177 & 2.373 & 3.493 & 2.814 & 13.4× & 19.8× &
-15.9×\\
-block\_mid & 2 & 3.127 & 4.592 & 4.225 & 3.973 & 1.5× & 1.4× &
-1.3×\\
-clustered4 & \textasciitilde5 & 2.745 & 4.088 & 3.765 & 3.498 & 1.5× &
-1.4× & 1.3×\\
-scattered & \textasciitilde1400 & 1.205 & 2.886 & 1.289 & 0.221 & 2.4× &
-1.1× & 0.17×\\
+block\_end & 1 & 0.177 & 3.493 & 2.814 & 19.8× & 15.9×\\
+block\_mid & 2 & 3.127 & 4.225 & 3.973 & 1.4× & 1.3×\\
+clustered4 & \textasciitilde5 & 2.745 & 3.765 & 3.498 & 1.4× & 1.3×\\
+scattered & \textasciitilde1400 & 1.205 & 1.289 & 0.221 & 1.1× & 0.17×\\
 \bottomrule
 \\
 \end{tabular}
@@ -1369,107 +1366,47 @@ Table~\ref{tab:t2} reveals several non-obvious patterns across the four geometri
 \begin{itemize}
 \tightlist
 \item
-  \textbf{Scattered geometry: position correction is the dominant
-  factor.} Positional scatter without enrichment causes moderate damage:
-  gapped (2.886) is 2.4× worse than gapless (1.205). Enrichment from the
-  full prefill substantially offsets this --- evicted (1.289) recovers
-  most of the scatter cost and lands nearly even with gapless (1.1×).
-  Re-rotation then eliminates the residual positional displacement:
-  rerotated (0.221) is 0.17× of evicted and 0.18× of gapless. The
-  full-prefill hidden state is clearly beneficial here --- with
-  positions corrected, it reaches the best result in the table, well
-  below even the gapless baseline.
-\item
   \textbf{Block\_end geometry: positional shift and structural
-  corruption both contribute.} Even without enrichment, the gapped
-  presentation (2.373) is 13.4× worse than gapless (0.177) --- a
-  substantial gap: the retained block has only one causal gap and is
-  otherwise contiguous, yet positional shift alone causes 13.4× damage. Enrichment
-  increases the damage further: evicted (3.493, 19.8×) exceeds gapped
-  (2.373, 13.4×). Most notably, re-rotation --- which fully recovers the
-  scattered geometry --- provides only a modest improvement here:
-  rerotated (2.814, 15.9×) does not recover to the no-enrichment gapped
-  baseline, let alone to gapless. What drives this irreversibility is
-  not established here; several factors contribute, and we do not
-  attempt to isolate the dominant one.
+  corruption both contribute.} A single large prefix gap combined with
+  enrichment causes severe damage: evicted (3.493) is 19.8× worse than
+  gapless (0.177).
+  Re-rotation provides only partial recovery: rerotated (2.814, 15.9×)
+  substantially outperforms evicted but remains far from gapless. In
+  contrast to the scattered geometry, where re-rotation reaches below
+  gapless, block\_end retains substantial residual damage after position
+  correction. What drives this irreversibility is not established here;
+  several factors contribute, and we do not attempt to isolate the
+  dominant one.
 \item
-  \textbf{Block\_mid and clustered4} show modest damage in both gapped
-  (1.5×), evicted (1.4×), and rerotated (1.3×) relative to gapless. The
-  geometries are not directly comparable in absolute KL faithfulness:
-  block\_mid and clustered4 discard the recency tail, so their elevated
-  gapless baselines reflect lower content informativeness, not mechanism
-  damage. Within-geometry ratios are the interpretable signal.
+  \textbf{Block\_mid and clustered4} show modest damage in both evicted
+  (1.4×) and rerotated (1.3×) relative to gapless. The geometries are
+  not directly comparable in absolute KL faithfulness: block\_mid and
+  clustered4 discard the recency tail, so their elevated gapless
+  baselines reflect lower content informativeness, not mechanism damage.
+  Within-geometry ratios are the interpretable signal.
 \item
-  \textbf{Enrichment direction depends on the nature of the scatter.}
-  The gapped column enables a direct comparison with Table~\ref{tab:t1}'s
-  recompute-over-gaps result, but the two tell opposite stories about
-  enrichment. In the synthetic scattered geometry here, enrichment
-  is beneficial at scattered positions: evicted (1.289) is better than
-  gapped (2.886). In Table~\ref{tab:t1}, SnapKV's attention-score-selected
-  tokens show the reverse: recompute-over-gaps (no enrichment, 0.168)
-  far outperforms SnapKV post-prefill (enrichment, 1.026). The most
-  obvious difference between the two experiments is the nature of the
-  position sets: Table~\ref{tab:t2}'s scattered positions are evenly spaced across
-  the sequence, while SnapKV's are selected by attention score and
-  therefore biased toward tokens the model heavily attended to during
-  the full-context prefill. Whether and how this distinction drives the
-  divergent enrichment outcomes is not established, but the reversal
-  indicates that the effect of enrichment under scatter is not a simple
-  property of scatter alone.
+  \textbf{Scattered geometry: position correction is the dominant
+  factor.} With uniformly-distributed positions, scatter combined with
+  enrichment is approximately neutral: evicted (1.289) nearly matches
+  gapless (1.205, 1.1×). Re-rotation then yields the table's best
+  result: rerotated (0.221) is 0.17× of evicted and also below gapless.
+  Enriched representations at compact positions substantially outperform
+  compact representations without enrichment --- the full-prefill hidden
+  state is clearly beneficial once positions are corrected.
+\item
+  \textbf{The re-rotation results reveal the enrichment direction.}
+  Comparing within the scattered geometry: rerotated (0.221) dramatically
+  outperforms gapless (1.205) despite both using compact positions ---
+  the only difference is that rerotated has seen the full context during
+  prefill. Enrichment carries useful information about the evicted tokens
+  that becomes accessible once positional displacement is corrected.
 \end{itemize}
 
 These results make a concrete prediction for SnapKV and StreamingLLM,
 whose retained-set geometries are approximately scattered and block\_end
-respectively: SnapKV should benefit enormously from re-rotation.
-StreamingLLM, with sink tokens plus a recency tail separated by a single
-large gap, should see a meaningfully smaller gain --- a single gap
-creates less positional displacement than \textasciitilde1400 scattered
-gaps, and structural corruption from attending to the evicted middle
-during prefill may further limit what position correction alone can
-recover. §6.4 tests both predictions.
-
-\hypertarget{re-rotation-confirms-positional-displacement-as-the-dominant-failure-mode}{%
-\subsection{6.4 Re-rotation Confirms Positional Displacement as the
-Dominant Failure
-Mode}\label{re-rotation-confirms-positional-displacement-as-the-dominant-failure-mode}}
-
-\textbf{SnapKV.} SnapKV's retained positions are globally scattered ---
-an approximate realization of the scattered geometry in Table~\ref{tab:t2} --- so
-the synthetic analysis estimates roughly a 6× improvement from
-re-rotation. The actual result substantially exceeds this estimate:
-applying \texttt{KeyRerotationPress} after post-prefill eviction reduces
-mean KL from 1.157 to 0.043 at 65\% retention --- a 27× improvement
-across all 16 LongBench tasks on Llama-3.1-8B. The scattered retained
-set that was the worst-performing KV configuration in §6.3 becomes the
-best-performing method overall once positions are corrected. Positional
-displacement was not a secondary cost for SnapKV; it was the dominant
-failure mode. Multi-rate results and improvement ratios are in §7.2.
-
-\textbf{Streaming.} The prediction from §6.3 is confirmed. Re-rotation
-produces a substantial 11.7× improvement at 65\% (unrotated kvpress
-streaming 1.639 → 0.141), well below SnapKV's 27× but consistent with
-streaming's single-large-gap geometry producing less positional
-displacement than SnapKV's \textasciitilde1400 scattered gaps. The
-remaining gap between streaming\_rerotated (0.141) and SnapKV+rot
-(0.043) reflects structural corruption that re-rotation cannot address:
-streaming's recency tail attended to the large evicted middle section
-during prefill, and those value representations persist regardless of
-key position reassignment. Multi-rate comparison is in §7.2.
-
-\textbf{PyramidKV.} PyramidKV's per-layer budget allocates from ≈99\% at
-layer 0 down to ≈31\% at layer 31 for 65\% overall retention. The naive
-adaptation of \texttt{KeyRerotationPress} to PyramidKV maps each layer's
-retained keys to \texttt{{[}0,\ n\_kept)}. Because \texttt{n\_kept}
-differs per layer under the pyramid budget, no single decode position is
-correct for all layers simultaneously: a query at layer-0's M (≈98\% of
-T) is out-of-distribution for layer 31 (M ≈ 31\% of T), producing
-catastrophic degenerate output on long-form tasks. The fix is
-right-aligned re-rotation: target \texttt{{[}T\ −\ n\_kept,\ T)} so all
-layers share endpoint T−1, and the decode query arrives at position T
-for every layer. With this fix in place, Pyr+rot (0.047) tracks
-SnapKV+rot (0.043) almost exactly at 65\%, confirming that positional
-displacement is the dominant failure mode for PyramidKV as well.
-Multi-rate analysis is in §7.2.
+respectively: SnapKV should benefit enormously from re-rotation, while
+StreamingLLM should see a meaningfully smaller gain.
+§7.2 confirms both predictions.
 
 \hypertarget{main-experiments}{%
 \section{7. Main Experiments}\label{main-experiments}}
@@ -1508,27 +1445,15 @@ Pyr+rot      & KV pruning       & PyramidKV + key re-rotation to compact positio
 Results}\label{kl-faithfulness-main-results}}
 Table~\ref{tab:t3} shows the KL comparison including the new SnapKV 
 and PyramidKV using rerotation at the compacted positions. 
-SnapKV+rot leads at every rate on both models The improvement ratios
+SnapKV+rot leads at every rate on both models. The improvement ratios
 from re-rotation (27×/13×/6.7× at 65/50/35\% on Llama; similar on
 Mistral) decrease at tighter budgets because two effects push in
 opposite directions: unrotated SnapKV KL falls as compression increases
 --- fewer retained positions means fewer misaligned RoPE encodings ---
 while SnapKV+rot KL rises as information loss from tighter eviction
 accumulates. Even at its best (35\%), unrotated SnapKV remains 6.7×
-worse than SnapKV+rot at the same budget.
-
-PyramidKV (unrotated) shows a similar counterintuitive cross-rate
-trajectory: KL rises at 50\% before dropping sharply at 35\%, when the
-\texttt{min\_num} clamp trips the fallback and forces a uniform
-per-layer budget --- PyramidKV reverting to plain SnapKV-style
-allocation. Pyr+rot ties SnapKV+rot exactly at 35\% on all 16 tasks for
-both models --- once the budget is uniform per layer, re-rotation
-produces identical positional structure regardless of which specific
-tokens were selected. Unrotated Pyr tracks SnapKV closely but does not
-tie exactly: without re-rotation, the specific positions of retained
-tokens matter, and the \texttt{min\_num} clamp produces near-uniform but
-not perfectly uniform allocation across the full range of sequence
-lengths in the benchmark.
+worse than SnapKV+rot at the same budget. These results confirm the
+predictions from §6.3.
 
 \begin{table}[H]
 \centering
@@ -1574,6 +1499,14 @@ Streaming = StreamingLLM with key re-rotation;\\SnapKV+rot = SnapKV with key
 re-rotation; Pyr+rot = PyramidKV with key re-rotation.
 \end{table}
 
+Applying re-rotation to PyramidKV requires care: the naive adaptation
+targets \texttt{[0,\ n\_kept)} per layer, but because \texttt{n\_kept}
+differs across layers under the pyramid budget, no single decode
+position is consistent for all layers, producing catastrophic degenerate
+output on long-form tasks. Right-aligned re-rotation targets
+\texttt{[T\ −\ n\_kept,\ T)} instead, so all layers share endpoint T−1
+and the decode query arrives at position T for every layer.
+
 Pyr+rot tracks SnapKV+rot closely at 65\% and ties at 35\%. A gap opens
 at 50\% --- Pyr+rot is 25\% above SnapKV+rot on both models --- because
 the pyramid formula reaches its \texttt{window\_size=64} floor at the
@@ -1588,14 +1521,15 @@ Unlike Llama, Streaming trails Naive at every rate on Mistral --- a
 difference also visible in \(F_{\text{out}}\) (§7.3).
 
 \textbf{Re-rotation improvement ratios for Streaming.} Table~\ref{tab:t3} shows
-streaming\_rerotated as the recommended method. For comparison, the
-unrotated kvpress StreamingLLMPress baseline and the improvement from
-re-rotation across rates (Table~\ref{tab:streaming-imp}, Llama):
+streaming\_rerotated which is the method recommended in the KVPress documentation. 
+For comparison, we implemented a version without re-rotation using the 
+StreamingLLMPress baseline.
+Table~\ref{tab:streaming-imp} shows the results for Llama-3.1-8B.
 
 \begin{table}[H]
 \centering
 \small
-\caption{Streaming re-rotation improvement (Llama-3.1-8B). KL faithfulness before and after key re-rotation, with improvement ratio.}
+\caption{Streaming KL faithfulness before and after key re-rotation, with improvement ratio}
 \label{tab:streaming-imp}
 \begin{tabular}{@{}llll@{}}
 \toprule
@@ -1614,7 +1548,11 @@ positions) while the rerotated method worsens (information loss). The
 improvement at every rate is substantially below SnapKV's
 (27×/13×/6.7×), consistent with streaming's single-large-gap geometry
 producing less positional displacement than SnapKV's scattered
-positions.
+positions. The remaining gap between Streaming (0.141) and SnapKV+rot
+(0.043) reflects structural corruption that re-rotation cannot address:
+streaming's recency tail attended to the large evicted middle section
+during prefill, and those value representations persist regardless of
+key position reassignment.
 
 \hypertarget{output-faithfulness-results}{%
 \subsection{7.3 Output Faithfulness

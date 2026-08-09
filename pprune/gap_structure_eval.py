@@ -59,6 +59,7 @@ os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from dataclasses import dataclass
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -193,6 +194,59 @@ def gapped_pcfg(positions: torch.Tensor, fraction: float) -> PrunedLlamaConfig:
     )
 
 
+@torch.inference_mode()
+def gapped_two_pass(
+    model,
+    comp_ids: torch.Tensor,
+    ystar: torch.Tensor,
+    pcfg: PrunedLlamaConfig,
+    device: str,
+) -> "Optional[torch.Tensor]":
+    """Two-pass KL evaluation for the 'gapped' presentation.
+
+    The single-pass approach (forwarding [comp_ids + ystar] together) evicts y*
+    tokens from the KV cache because fixed_positions only contains prompt indices.
+    This prevents y* step t from attending to y* steps 0..t-1, inflating KL.
+
+    Fix: prefill comp_ids under gapped_pcfg (builds M-key pruned cache), then
+    step-decode each y* token.  The model is unpatched before decoding so
+    _run_filter_prefill does not fire on T=1 decode steps, allowing each new
+    y* token to be appended to the cache normally.
+    """
+    n_gen = ystar.shape[0]
+    comp_input = comp_ids.to(device)
+
+    originals = patch_model(model, pcfg, device)
+    try:
+        out = model(
+            input_ids=comp_input,
+            attention_mask=torch.ones_like(comp_input),
+            use_cache=True,
+        )
+        kv = out.past_key_values
+        logits_list = [out.logits[0, -1, :].float()]
+        del out
+    except torch.cuda.OutOfMemoryError:
+        torch.cuda.empty_cache()
+        return None
+    finally:
+        unpatch_model(model, originals)
+
+    try:
+        for t in range(n_gen - 1):
+            tok = ystar[t : t + 1].unsqueeze(0).to(device)
+            step_out = model(input_ids=tok, past_key_values=kv, use_cache=True)
+            logits_list.append(step_out.logits[0, -1, :].float())
+            kv = step_out.past_key_values
+        del kv
+    except torch.cuda.OutOfMemoryError:
+        torch.cuda.empty_cache()
+        return None
+
+    comp_logits = torch.stack(logits_list, dim=0)   # (n_gen, vocab)
+    return F.log_softmax(comp_logits, dim=-1).cpu()
+
+
 # ---------------------------------------------------------------------------
 # Main evaluation loop
 # ---------------------------------------------------------------------------
@@ -305,8 +359,28 @@ def run_eval(
                         fixed_press.compression_ratio = 1.0 - len(positions) / T
                         pcfg, press = None, fixed_press
                     else:  # "gapped"
-                        comp_ids = full_ids
-                        pcfg, press = gapped_pcfg(positions, fraction), None
+                        # Two-pass: prefill under fixed_positions pcfg, then step-decode y*.
+                        # Single-pass evicted all y* tokens (fixed_positions only contains
+                        # prompt indices), preventing y*[t] from attending to y*[0..t-1].
+                        log_p_comp = gapped_two_pass(
+                            model, full_ids, ystar, gapped_pcfg(positions, fraction), device
+                        )
+                        # early-exit: skip the shared get_comp_log_probs call below
+                        if log_p_comp is not None:
+                            kl = kl_divergence(log_p_full, log_p_comp)
+                            ckpt[ck_key] = {"kl": kl, "n_gen": ystar.shape[0],
+                                            "n_retained": int(positions.shape[0]), "T": T}
+                        else:
+                            ckpt[ck_key] = None
+                        save_ckpt(ckpt, output_path)
+                        grand_done += 1
+                        elapsed = time.time() - grand_start
+                        rate = (grand_done - completed_at_start) / max(elapsed, 1)
+                        remaining = (total_work - grand_done) / max(rate, 1e-9)
+                        kl_str = f"{kl:.4f}" if log_p_comp is not None else "OOM"
+                        print(f"  ex {idx+1:>3}/{n_ex}  {geom:<11} {presentation:<8}"
+                              f"  KL={kl_str}  [ETA {fmt_duration(remaining)}]", flush=True)
+                        continue
 
                     log_p_comp = get_comp_log_probs(model, comp_ids, ystar, pcfg, device,
                                                     press=press)
