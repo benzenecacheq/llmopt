@@ -614,6 +614,20 @@ Factor M as U (D×r) × V^T (r×D), both globally shared. Attention score: (x_i 
 
 **This settles it — UV256's two-seed OWT ppl range (29.97-30.13) sits entirely below all three full-rank BLT seeds (30.81-32.87), with no overlap at all**, unlike the single-seed comparison above where the margin was inside BLT's own noise floor. LAMBADA acc is also consistently a bit better across both UV256 seeds (0.213/0.214) than the full-rank spread (0.188-0.212). **Low-rank BLT (r=256, 66% of full M's parameters) matches or beats full-rank BLT on the primary metric while also fixing the tensor-parallelism problem** (see "Tensor parallelism analysis" above) — genuinely the better BLT variant, not just a cheaper one. Worth updating `paper_blt.md` Section 4.7 to promote this from "preliminary, not-yet-seed-confirmed" to a confirmed two-seed result.
 
+**Third seed — DONE (2026-08-10).** `run_blt_uv256_scratch_seed7.pt`, 500,000 steps on `titan`, final WikiText val_ppl 66.64, watcher auto-benchmarked on exit. Results (`lm_eval_blt_uv256_scratch_seed7.json`, `eval_owt_blt_uv256_scratch_seed7.stdout`): OWT held-out ppl **30.38** (loss 3.4137), LAMBADA acc 0.207, LAMBADA ppl 265.7, HellaSwag acc_norm 0.267, PIQA acc_norm 0.578, Winogrande acc 0.502.
+
+| Metric | UV256 seed42 | UV256 seed19 | UV256 seed7 | BLT seed42 (500K) | BLT seed19 (500K) | BLT seed7 (500K) |
+|---|---|---|---|---|---|---|
+| OWT held-out ppl | 29.97 | 30.13 | 30.38 | 31.69 | 32.87 | 30.81 |
+| LAMBADA acc | **0.213** | **0.214** | 0.207 | 0.188 | 0.208 | 0.212 |
+| HellaSwag acc_norm | 0.269 | 0.267 | 0.267 | 0.267 | 0.271 | 0.268 |
+| PIQA acc_norm | 0.569 | **0.583** | 0.578 | 0.567 | 0.559 | 0.568 |
+| Winogrande acc | 0.512 | 0.492 | 0.502 | 0.489 | 0.500 | **0.516** |
+
+**Now a genuine three-seed-vs-three-seed comparison, matching this project's standard for every other architecture family.** UV256's full range (29.97-30.38) still sits entirely below full-rank BLT's full range (30.81-32.87) — the third seed didn't just fail to break the pattern, it landed right in the middle of where the first two predicted (a good sign the two-seed read wasn't a fluke). LAMBADA acc holds its edge over BLT's weakest seed (seed42's 0.188) on all three UV256 seeds, though seed7 (0.207) is closer to BLT's stronger seeds (0.208, 0.212) than the first two UV256 seeds were — normal seed variance, doesn't change the OWT-ppl conclusion.
+
+titan freed up immediately after (repo was one commit behind — stale git index on `kv_cache_bench_results.json`, verified byte-identical via `md5sum` against the already-committed version before discarding and pulling clean) and immediately launched the queued `num_uv_groups=4` from-scratch OWT run (see "Queued: num_uv_groups" below, now in progress, no longer queued).
+
 This first result has been written up in `paper_blt.md` Section 4.7 (and Section 7.3 updated to reference it) as a preliminary, not-yet-seed-confirmed finding — consistent with how every other single-seed result in this project has been framed until a second seed lands. **Update DONE (2026-08-06)**: Section 4.7 now reports the seed19 confirmation, the direct comparison against the standard MHA baseline (below), and the same-hardware speed measurement; Section 6's synthesis bullet list and Section 7.3's closing paragraph updated to match.
 
 **UV256 vs. standard MHA baseline, not just vs. full-rank BLT (2026-08-06).** Attention parameter count: standard MHA is 28.3M (12 layers × 4 D×D matrices: Wq,Wk,Wv,Wo) vs. UV256's 14.5M (12×2 D×D for per-layer Wv/Wo, plus one globally-shared U,V pair at 2×D×r) — a **48.6% reduction**, matching full-rank BLT's documented 48% almost exactly despite UV256 keeping a real factored Q/K computation (not fused into one opaque matrix like full-rank M).
@@ -653,9 +667,11 @@ OWT ppl shows the usual real ~0.10 nat BLT-family cost (~30.0 vs ~27.8). But LAM
 
 Written up in `paper_blt.md` Section 6 (new paragraph after the existing decode-latency table) — kept as an explicitly separate P100 measurement, not merged into the V100 table's numbers.
 
-### Queued: num_uv_groups from-scratch OWT run (2026-08-06)
+### num_uv_groups=4 from-scratch OWT run — LAUNCHED (2026-08-10, on `titan`)
 
-**Watcher armed, not yet launched.** All four machines were busy when this was ready; user chose to wait for venus specifically (sine-blend seed7, expected to finish first) rather than pause anything. `queue_venus_seed7_then_uvgroups4.sh` is running on `bender` (PID 329155), polling venus's seed7 training PID (216841) every 60s. On completion it will, in order: (1) benchmark seed7 sine (lm-eval-harness + OWT held-out, same protocol as seed19), (2) `git pull` venus's repo and **abort rather than launch on stale code** if `--num-uv-groups` isn't present in `train.py --help` afterward (a real risk — this exact collision has hit venus/titan/io before), (3) launch the G=4 run, (4) dump the first ~2 minutes of its log for a manual health check in place of a proper smoke test, (5) arm a follow-up watcher for the G=4 run's own eventual completion (which will use the now-fixed `--num-uv-groups`-aware `eval_owt.py`/`blt_lm_eval.py`, see below).
+**Plan changed at launch time: titan finished first, not venus.** The original watcher (`queue_venus_seed7_then_uvgroups4.sh` on `bender`, PID 329155) was polling venus's sine-blend seed7 run, expected to finish first. Instead `titan`'s UV256 seed7 confirmation run finished first (2026-08-10) and freed its GPU while venus's own run was still at 99%+ (step 496,730/500,000). Killed the venus-side watcher before it could fire (would have raced with launching the same experiment twice, once per machine, into a shared output filename) and replaced it with `queue_sine_seed7_benchmark_only_watcher.sh` — benchmarks venus's sine seed7 on its own completion, no longer launches anything afterward. Launched `num_uv_groups=4` directly on `titan` instead.
+
+**Confirmed healthy at launch**: `Device: cuda`, `num_uv_groups=4` in the build log, correct param count (111,838,464 — exactly 110,658,816 + 3×393,216 for the three extra (U,V) pairs beyond single-pair UV256), loss declining normally from step 0 (10.96→10.80). `queue_uvgroups4_watcher.sh` armed on `titan` itself (not bender this time, since titan orchestrates its own follow-up here) to auto-benchmark on completion using the now-`--num-uv-groups`-aware `eval_owt.py`/`blt_lm_eval.py`.
 
 **Found and fixed a real gap while building the watcher**: neither `eval_owt.py` nor `blt_lm_eval.py` supported `--num-uv-groups` — both would have built the wrong architecture (single global U,V instead of 4 groups) and failed to load the finished checkpoint's state_dict, days from now with nobody watching. Added `--num-uv-groups` to both (commit `fcd2f10`), verified via a real save/reload round-trip (saved a genuine num_uv_groups=4 checkpoint, reloaded it through both scripts' actual load paths, confirmed identical forward-pass output, max diff 0.0).
 
@@ -667,13 +683,13 @@ Written up in `paper_blt.md` Section 6 (new paragraph after the existing decode-
 
 **Explicitly not the same as GQA-3 (3-group GQA)**, which is a real, converged, near-baseline result (OWT ppl 27.46, inside the 27.36-28.24 MHA range) — worth not conflating the two. GQA's groups are relearned independently *per layer* (full per-layer/query-head independence kept, only K/V compressed) and never pay BLT's cross-layer-sharing tax at all, so GQA-3 landing near baseline is arguably evidence that the *layer* axis is the forgiving one when left untouched — if anything mild evidence against the head-axis theory, not for it. `num_uv_groups` is a genuinely different, untested cell in the design space: head axis relaxed, cross-layer sharing kept fully intact.
 
-**Launch command once a machine is free** (mirrors the UV256 from-scratch protocol exactly):
+**Launch command used** (mirrors the UV256 from-scratch protocol exactly, running now on `titan`):
 ```
 train.py --uv-rank 256 --num-uv-groups 4 --from-scratch --dataset openwebtext --seed 42 \
   --max-steps 500000 --eval-every 1000 --lambada-eval-every 5000 \
   --save-path run_blt_uv256_groups4_scratch_seed42.pt
 ```
-Compare final OWT held-out ppl against full-rank BLT (30.81-32.87), UV256 single-pair (29.97-30.13), and MHA (27.36-28.24). Marked improvement over UV256's single-pair range → real evidence for the head-axis theory, worth extending to a fuller {2, 12} sweep. No marked improvement → the head-axis theory as currently framed doesn't hold up, and the layer axis (or some other explanation entirely) needs a genuine from-scratch OWT test instead (see the `layers_per_m` gap noted earlier in this section).
+Compare final OWT held-out ppl against full-rank BLT (30.81-32.87), UV256 single-pair (29.97-30.38, now three seeds), and MHA (27.36-28.24). Marked improvement over UV256's single-pair range → real evidence for the head-axis theory, worth extending to a fuller {2, 12} sweep. No marked improvement → the head-axis theory as currently framed doesn't hold up, and the layer axis (or some other explanation entirely) needs a genuine from-scratch OWT test instead (see the `layers_per_m` gap noted earlier in this section).
 
 **Limitation of GPT-2 scale testing:** KV cache and M-caching benefits are most compelling at 7B+ scale with long contexts. GPT-2 scale establishes viability; the practical case requires larger models.
 
