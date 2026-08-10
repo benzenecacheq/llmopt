@@ -1517,12 +1517,12 @@ positional disparity under right-aligned re-rotation:
 the target range \([T - n_{\text{kept}}, T)\) varies widely across
 layers.
 
-Unlike Llama, Streaming trails Naive at every rate on Mistral --- a
-difference also visible in \(F_{\text{out}}\) (§7.3).
+\textbf{Re-rotation improvement for Streaming.} 
 
-\textbf{Re-rotation improvement ratios for Streaming.} Table~\ref{tab:t3} shows
+Streaming's KL faithfulness is similar to Naive --- slightly better than Naive on Llama, 
+and slightly worse on Mistral.  Table~\ref{tab:t3} shows
 streaming\_rerotated which is the method recommended in the KVPress documentation. 
-For comparison, we implemented a version without re-rotation using the 
+For comparison --- and to test the prediction made in §6.3 --- we implemented a version without re-rotation using the 
 StreamingLLMPress baseline.
 Table~\ref{tab:streaming-imp} shows the results for Llama-3.1-8B.
 
@@ -1552,7 +1552,7 @@ positions. The remaining gap between Streaming (0.141) and SnapKV+rot
 (0.043) reflects structural corruption that re-rotation cannot address:
 streaming's recency tail attended to the large evicted middle section
 during prefill, and those value representations persist regardless of
-key position reassignment.
+key position reassignment.  This also confirms the prediction made in §6.3.
 
 \hypertarget{output-faithfulness-results}{%
 \subsection{7.3 Output Faithfulness
@@ -1561,19 +1561,6 @@ Results}\label{output-faithfulness-results}}
 Output Faithfulness (\(F_{\text{out}}\)) measures how similar the
 compressed model's generated text is to the full model's generated text.  Table~\ref{tab:t4} 
 shows the results across the tested compression rates with the new re-rotated SnapKV and PyramidKV.
-
-SnapKV and PyramidKV lead \(F_{\text{out}}\) at all rates without
-re-rotation on both models, for the same mechanistic reason: a full,
-uncompressed prefill means the first generated token's distribution is
-identical to the full model's by construction (§8.1). On Llama,
-PyramidKV leads at 65\% and 35\% while SnapKV leads at 50\%; on Mistral,
-SnapKV leads at both 65\% and 50\% while PyramidKV leads at 35\%. Both
-models show the two methods converging closely but not tying at 35\%,
-consistent with PyramidKV nearly collapsing to a uniform budget at tight
-compression (§7.2). The \texttt{min\_num} clamp produces uniform
-allocation only when it binds, which depends on sequence length ---
-shorter sequences in the benchmark may still carry a shallow pyramid at
-35\%, retaining slightly different tokens and preventing an exact tie.
 
 \begin{table}[H]
 \centering
@@ -1617,11 +1604,20 @@ Pyr+rot    & 77.0 & 66.5 & 70.0\\
 \center Higher is better. \textbf{Bold} = best per retention rate.
 \end{table}
 
+SnapKV and PyramidKV lead \(F_{\text{out}}\) at all rates without
+re-rotation on both models. On Llama,
+PyramidKV leads at 65\% and 35\% while SnapKV leads at 50\%; on Mistral,
+SnapKV leads at both 65\% and 50\% while PyramidKV leads at 35\%. Both
+models show the two methods converging closely but not tying at 35\%,
+consistent with PyramidKV nearly collapsing to a uniform budget at tight
+compression (§7.2). The \texttt{min\_num} clamp produces uniform
+allocation only when it binds, which depends on sequence length ---
+shorter sequences in the benchmark may still carry a shallow pyramid at
+35\%, retaining slightly different tokens and preventing an exact tie.
+
 SnapKV+rot and Pyr+rot fall below the post-prefill eviction leaders but
-substantially above Naive on both models. All four post-prefill methods
-share the first-token advantage, but why key re-rotation reduces
-\(F_{\text{out}}\) relative to their unrotated counterparts is covered
-in §8.1. At 50\%, SnapKV+rot exceeds PyramidKV on Llama --- the budget
+substantially above Naive on both models.
+At 50\%, SnapKV+rot exceeds PyramidKV on Llama --- the budget
 floor disadvantages Pyr at that rate. Pyr+rot closely tracks SnapKV+rot
 at 65\% and 35\% but drops several points behind at 50\% --- the same
 upper-layer information loss that widens KL faithfulness at 50\%
@@ -1631,12 +1627,11 @@ Streaming is above Naive on Llama but trails Naive on Mistral at every
 rate, consistent with the KL rankings (§7.2).
 
 \textbf{What \(F_{\text{out}}\) and KL together reveal.} SnapKV and
-PyramidKV lead \(F_{\text{out}}\) while scoring worst on KL faithfulness
---- the first-token-advantage mechanism explains this divergence (§8).
-SnapKV+rot breaks the pattern: it has the best KL faithfulness of any
+PyramidKV lead \(F_{\text{out}}\) while scoring worst on KL faithfulness.
+SnapKV+rot breaks the pattern. It has the best KL faithfulness of any
 method (Table~\ref{tab:t3}) \emph{and} \(F_{\text{out}}\) substantially above Naive
 and Streaming, at the cost of some \(F_{\text{out}}\) relative to plain
-SnapKV/Pyr, for reasons that are not yet fully understood (§8.1).
+SnapKV/Pyr for reasons that are not yet fully understood (§8.1).
 
 \hypertarget{inference-performance}{%
 \subsection{7.4 Inference Performance}\label{inference-performance}}
@@ -1707,7 +1702,9 @@ PyramidKV and SnapKV have the best \(F_{\text{out}}\) of any method
 KL faithfulness (1.394 and 1.157 nats) --- worse than every other method
 including naive truncation (0.175). This section explains the mechanism
 that produces this inversion, and where SnapKV+rot and Streaming fit
-within it.
+within it. Throughout this section, \emph{short-answer} tasks are those
+where the full-model reference output is ≤\,90 words; \emph{long-form}
+tasks are those where it exceeds 90 words (§8.1 elaborates).
 
 \textbf{The first-token advantage.} All post-prefill eviction methods
 run a complete, uncompressed prefill before evicting the KV cache. The
@@ -1736,53 +1733,52 @@ probability mass to alternatives at every subsequent step.
 
 \textbf{Mechanistic confirmation.} That the short-answer advantage comes
 from the full-prefill hidden state --- not from query-relevant token
-selection --- is confirmed directly by §6.2 (Table~\ref{tab:t1}). Comparing
-\texttt{snapkv\_press} (post-prefill eviction) to the
-recompute-over-gaps variant of SnapKV from that table isolates this
-precisely: both use identical attention-score selection at the same
-retention budget; only the eviction point differs. The
-recompute-over-gaps variant restricts attention \emph{during} prefill
-rather than pruning the cache after it, so the full-prefill hidden state
-never exists. recompute-over-gaps SnapKV: Short=56.1\%, Long=50.2\%,
-Gap=6.0 --- nearly flat, no short-answer advantage. snapkv\_press:
-Short=87.7\%, Long=54.7\%, Gap=33.0 --- the same steep gradient shared
-by PyramidKV. The same token selection rule applied at a different point
-in the forward pass produces a completely different behavioral
-signature.
+selection --- is confirmed by comparing \texttt{snapkv\_press}
+(post-prefill eviction) to the recompute-over-gaps variant of SnapKV
+introduced in §6.2 (Table~\ref{tab:t1}): both use identical
+attention-score selection at the same retention budget; only the
+eviction point differs. The recompute-over-gaps variant restricts
+attention \emph{during} prefill rather than pruning the cache after it,
+so the full-prefill hidden state never exists. Table~\ref{tab:rog} shows
+the result: recompute-over-gaps is nearly flat across output lengths
+(Gap=6.0) with no short-answer advantage, while \texttt{snapkv\_press}
+shows the same steep gradient as PyramidKV (Gap=33.0). The same token
+selection rule applied at a different point in the forward pass produces
+a completely different behavioral signature.
+
+\begin{table}[H]
+\centering
+\small
+\caption{\(F_{\text{out}}\) by output-length category: first-token advantage diagnostic (Llama, 65\%)}
+\label{tab:rog}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Method & Short-answer \(F_{\text{out}}\) & Long-form \(F_{\text{out}}\) & Gap\\
+\midrule
+Recompute-over-gaps & 56.1 & 50.2 & 6.0\\
+SnapKV              & 87.7 & 54.7 & 33.0\\
+Streaming           & 66.7 & 47.0 & 19.7\\
+\bottomrule
+\end{tabular}
+
+\center Llama-3.1-8B, 65\% retention. Short = reference output ≤\,90 words; Long = \textgreater{}90 words.
+\end{table}
 
 \textbf{Key re-rotation and the first-token advantage.} SnapKV+rot
 applies re-rotation after eviction, compacting retained keys to
 positions 0, 1, \ldots, M−1. The first output token \(y^*[0]\) remains
 exactly identical to the full model's because it is generated at the end
 of the prefill from full, unrestricted attention, and before re-rotation
-takes effect. Short-answer \(F_{\text{out}}\) nevertheless falls
-relative to unrotated SnapKV: Table~\ref{tab:t5} shows SnapKV+rot Short=79.3\%,
-below unrotated SnapKV (87.7\%) but above Naive (72.8\%). The cause of
-this reduction is not fully resolved; §8.1 examines it further through
-Pyr+rot, which decodes from T rather than compact position M yet shows
-the same short-form reduction --- evidence that the decode starting
-position is not the explanation. The cost appears to be a byproduct of
-key re-rotation itself, for reasons that are not yet well understood. KL faithfulness
-improves from 1.157 to 0.043 --- a 27× improvement --- because
-positional displacement at subsequent decode steps is eliminated.
+takes effect.
 
 \textbf{Streaming and the limits of the first-token advantage.}
-Streaming-rerotated uses the same post-prefill eviction timing --- and
-therefore also produces a first output token that is exactly identical
-to the full model's. The cause of its poor performance lies elsewhere:
-streaming's retained set is structurally a block\_end configuration
-(§6.3, Table~\ref{tab:t2}) --- a few sink tokens plus a recency tail, with evicted
-content massed at the head of the sequence. As Table~\ref{tab:t2} shows, block\_end
-geometry produces severe KL faithfulness degradation that re-rotation
-cannot fix: rerotated block\_end remains 15.9× worse than gapless in the
-synthetic experiment, compared to near-full recovery for scattered
-geometry (0.17×). The structural damage from the single large gap ---
-and from value representations shaped by attending to the evicted head
-during prefill --- persists regardless of key position reassignment,
-limiting re-rotation to an 11.7× KL improvement (1.639 → 0.141) versus
-27× for SnapKV. Table~\ref{tab:t5} shows the result: Streaming short-answer
-\(F_{\text{out}}\) at 66.7\%, below Naive (72.8\%) and well below
-SnapKV/Pyr (\textasciitilde88\%).
+Streaming-rerotated uses the same post-prefill eviction timing, so the
+first output token is also identical to the full model's. Table~\ref{tab:rog}
+shows that this is not enough: the first-token advantage lifts Streaming's
+short-answer \(F_{\text{out}}\) above recompute-over-gaps (66.7\% vs
+56.1\%), but block\_end geometry (§6.3) limits how far re-rotation can
+recover --- short-answer \(F_{\text{out}}\) remains below Naive (72.8\%)
+and well below SnapKV/Pyr (\textasciitilde88\%).
 
 \hypertarget{what-f_textout-reveals}{%
 \subsection{\texorpdfstring{8.1 What \(F_{\text{out}}\)
@@ -1829,6 +1825,14 @@ performance on single-token or short-phrase tasks: TriviaQA (Pyr:
 97.0\%, Snap: 92.0\%), PassageCount (96.4\%, 92.8\%), 2WikiMQA (95.6\%,
 95.6\%), PassageRetrieval (93.8\%, 94.0\%), LCC (91.3\%, 92.8\%),
 HotpotQA (92.2\%, 95.3\%).
+
+Short-answer \(F_{\text{out}}\) nevertheless falls relative to unrotated
+SnapKV: Table~\ref{tab:t5} shows SnapKV+rot Short=79.3\%, below unrotated
+SnapKV (87.7\%) but above Naive (72.8\%). The cost appears to be a
+byproduct of key re-rotation itself, for reasons that are not yet well
+understood. KL faithfulness improves from 1.157 to 0.043 --- a 27×
+improvement --- because positional displacement at subsequent decode
+steps is eliminated.
 
 The two re-rotated methods show nearly identical profiles: SnapKV+rot
 Short=79.3\%, Long=50.0\%, Gap=29.3; Pyr+rot Short=79.9\%, Long=50.1\%,

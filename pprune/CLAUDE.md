@@ -248,6 +248,17 @@ All edits are in `paper_kv_faithfulness.tex` on branch `kvpress-impl`.
 - **Figure 4 caption**: centered via `\captionsetup{justification=centering}` (not `\centering` inside
   `\caption{}`, which broke cross-reference counters).
 
+**§8 short/long definition and Tab:rog** (committed Aug 2026):
+- **Short/long defined** at start of §8 intro paragraph (≤90 words / >90 words), before first use.
+- **Tab:rog added** (§8 Mechanistic confirmation): 3-row diagnostic table — Recompute-over-gaps,
+  SnapKV, Streaming — showing Short/Long F_out. Isolates first-token advantage from geometry effects.
+  Caption: "first-token advantage diagnostic (Llama, 65%)".
+- **Mechanistic confirmation paragraph** revised to cite Tab:rog instead of inline numbers; still
+  references §6.2 (Tab:t1) for the mechanism.
+- **"Streaming and the limits" paragraph** cut from ~9 sentences to 4; now cites Tab:rog directly.
+- **"Short-answer F_out nevertheless falls" paragraph** moved from §8 body into §8.1 (before "The
+  two re-rotated methods" paragraph, where it sets up that discussion naturally).
+
 **TTFT table equalized to n=20** (committed Aug 2026): All methods use the same 20 examples per task (indices from `timing_snap_stream.json`). Naive TTFT from `kl_ystar_timing_sweep.json` phr128 total_ttft; PyramidKV from `timing_kvpress.json`; full-context baseline from `timing_full.json`.
 - Full-context baseline: **6425 ms** (was 6348 ms)
 - Naive: 2400 / 2082 / 1632 ms at 65/50/35% (was 2464/2139/1666)
