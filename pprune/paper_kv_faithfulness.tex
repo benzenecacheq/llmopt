@@ -190,7 +190,7 @@ maintaining a running sum of per-head attention scores and evicting the
 lowest-scoring tokens. SnapKV {[}Li et al., 2024{]} refines the scoring
 by pooling attention weights from only the last \emph{w} queries (an
 observation window), better reflecting the queries that will matter at
-decode time, using post-RoPE (Rotary Position Embedding) vectors. StreamingLLM {[}Xiao et al.,
+decode time, using post-RoPE (Rotary Position Embedding {[}Su et al., 2024{]}) vectors. StreamingLLM {[}Xiao et al.,
 2023{]} abandons score computation entirely, retaining a fixed set of
 attention sink tokens plus a sliding recency window. In its original
 online design the cache is bounded continuously throughout processing
@@ -244,7 +244,7 @@ causal gap problem entirely --- the retained set is contiguous --- but
 produces keys and values that are off-manifold linear combinations not
 present in any normal prompt. The faithfulness cost of such merging
 versus structural corruption from eviction is an open question. CaM does
-not support grouped-query attention (GQA), limiting its applicability to
+not support grouped-query attention (GQA {[}Ainslie et al., 2023{]}), limiting its applicability to
 GQA models such as Llama-3.1.
 
 \textbf{Evaluation critique.} Chen et al.~{[}2025{]} (``Pitfalls of KV
@@ -337,7 +337,7 @@ complete context.
 
 Before introducing our faithfulness metrics, we establish what the
 standard evaluation paradigm reveals. We run Llama-3.1-8B {[}Dubey et
-al., 2024{]} and Mistral-7B-v0.3 {[}Jiang et al., 2023b{]} (both base,
+al., 2024{]} and Mistral-7B-v0.3 {[}Jiang et al., 2023{]} (both base,
 fp16 on a single V100 32GB GPU) on LongBench v1 {[}Bai et al., 2023{]}
 (16 English tasks, 100 examples per task) at 65\% retention, comparing
 naive proportional truncation, StreamingLLM (Streaming), SnapKV, and
@@ -346,7 +346,7 @@ evaluation benchmark used by SnapKV {[}Li et al., 2024{]}, PyramidKV
 {[}Cai et al., 2024{]}, and most directly comparable KV compression
 work, making it the natural choice for comparability.
 Ground-truth scores use
-the standard LongBench metrics: F1 for QA tasks, ROUGE for
+the standard LongBench metrics: F1 for QA tasks, ROUGE {[}Lin, 2004{]} for
 summarization, classification-specific scoring for classification tasks,
 and edit-distance-based similarity (\texttt{code\_sim\_score}) for code
 completion.
@@ -481,6 +481,41 @@ metric.
   a method that genuinely approximates the full model. Ground truth
   cannot distinguish these cases.
 \item
+  \textbf{Low full-model accuracy amplifies the first three problems.}
+
+  The base models used here (Llama-3.1-8B and Mistral-7B-v0.3) achieve
+  macro-average GT scores of approximately 25 out of 100 on LongBench.
+  The instruction-tuned variants used by the most directly comparable
+  compression papers score higher --- PyramidKV reports full-context
+  baselines of 41.46 for LLaMA-3-8B-Instruct and 39.76 for
+  Mistral-7B-Instruct {[}Cai et al., 2024{]} --- but even at a baseline
+  of 40, roughly 60\% of what the model generates does not overlap with
+  the ground-truth reference. For that majority of output, the metric is
+  entirely blind to whether compression changed the model's behavior:
+  the compressed and uncompressed models could produce identical text or
+  completely different text, and the GT score would be the same either
+  way.
+
+  On six of our 16 tasks the full model's ground-truth accuracy is below
+  15 (NarrativeQA: 5.5, MuSiQue: 6.9, PassageCount: 3.0, HotpotQA: 9.9,
+  Qasper: 11.1, QMSum: 10.3). On NarrativeQA, for example, the full
+  model gets 94.5\% of examples wrong. Moreover, even the 5.5\% that the
+  full model answers correctly need not be the same 5.5\% a compressed
+  method gets right --- two methods with identical aggregate scores may
+  agree on no individual examples. The score carries no information
+  about which questions were answered correctly, only that the same
+  number were.
+
+  A perfectly faithful compressed method should get 94.5\% wrong; ground
+  truth scores all of those as 0, leaving only noise: how closely each
+  method's wrong answers happen to overlap with the gold string. The
+  signal about compression quality is smallest precisely on the tasks
+  where the method has the most work to do. The failure is symmetric: a
+  compressed method that outscores the full model is a faithfulness
+  failure --- ground truth rewards accidental divergence from the full
+  model.
+
+\item
   \textbf{Most of these metrics are not testing correctness at all.}
 
 \nopagebreak
@@ -495,7 +530,7 @@ metric.
   Figure~\ref{fig:fout-f1}. F1 is order-blind: a prediction that
   reverses who won and who lost a game scores 1.0 if it reuses the same
   words (panel b). ROUGE-L is order-sensitive via longest common
-  subsequence and avoids this particular failure, but penalizes valid
+  subsequence (LCS) and avoids this particular failure, but penalizes valid
   syntactic reorderings --- identical content in a different sentence
   structure scores 0.75 instead of 1.0 because the reordered word falls
   outside the LCS (panel c). Both metrics share paraphrase blindness: a
@@ -504,7 +539,6 @@ metric.
   quality, but for most of this benchmark ``ground-truth accuracy'' is
   closer to similarity to one human's phrasing than to a judgment of
   whether the model got the answer right.
-\end{itemize}
 
 \begin{figure}[H]
 \noindent\begin{minipage}{\linewidth}
@@ -584,59 +618,23 @@ metric.
 
 \smallskip\noindent\rule{\linewidth}{0.3pt}
 \end{minipage}
-\caption{Failure modes of surface-overlap metrics used in ground-truth evaluation:
+\caption{Failure modes of surface-overlap metrics:
 word-level F1 (seven QA tasks) and ROUGE-L (four summarization tasks).
 \textcolor{wov@c}{Green}: counted as shared.
 \textcolor{wrf@c}{Amber}: reference only.
 \textcolor{wpr@c}{Blue}: prediction only.
-Gray: article stripped (\emph{a, an, the}).
-\(F_{\text{out}}\) (§5.3) inherits (b) and (d) when applied model-to-model.}
+Gray: article stripped (\emph{a, an, the}).}
 \label{fig:fout-f1}
 \end{figure}
-
-\begin{itemize}
-\item
-  \textbf{Low full-model accuracy amplifies the first three problems.}
-
-  The base models used here (Llama-3.1-8B and Mistral-7B-v0.3) achieve
-  macro-average GT scores of approximately 25 out of 100 on LongBench.
-  The instruction-tuned variants used by the most directly comparable
-  compression papers score higher --- PyramidKV reports full-context
-  baselines of 41.46 for LLaMA-3-8B-Instruct and 39.76 for
-  Mistral-7B-Instruct {[}Cai et al., 2024{]} --- but even at a baseline
-  of 40, roughly 60\% of what the model generates does not overlap with
-  the ground-truth reference. For that majority of output, the metric is
-  entirely blind to whether compression changed the model's behavior:
-  the compressed and uncompressed models could produce identical text or
-  completely different text, and the GT score would be the same either
-  way.
-
-  On six of our 16 tasks the full model's ground-truth accuracy is below
-  15 (NarrativeQA: 5.5, MuSiQue: 6.9, PassageCount: 3.0, HotpotQA: 9.9,
-  Qasper: 11.1, QMSum: 10.3). On NarrativeQA, for example, the full
-  model gets 94.5\% of examples wrong. Moreover, even the 5.5\% that the
-  full model answers correctly need not be the same 5.5\% a compressed
-  method gets right --- two methods with identical aggregate scores may
-  agree on no individual examples. The score carries no information
-  about which questions were answered correctly, only that the same
-  number were.
-
-  A perfectly faithful compressed method should get 94.5\% wrong; ground
-  truth scores all of those as 0, leaving only noise: how closely each
-  method's wrong answers happen to overlap with the gold string. The
-  signal about compression quality is smallest precisely on the tasks
-  where the method has the most work to do. The failure is symmetric: a
-  compressed method that outscores the full model is a faithfulness
-  failure --- ground truth rewards accidental divergence from the full
-  model.
 \end{itemize}
+
 
 These failure modes matter in practice. PyramidKV's ground-truth
 advantage (§4) is exactly the kind of result that is hard to interpret:
 it may reflect genuine preservation of task-relevant information, or it
 may reflect a combination of structural properties that happen to
 produce correct first tokens without approximating the full model's
-behavior. §8 investigates which is the case.
+behavior.
 
 This points to a more general limitation, beyond the failure modes
 above. Ground truth --- or any outcome metric computed on a fixed test
@@ -645,7 +643,7 @@ distribution, whether benchmark accuracy or a downstream business metric
 examples tested, not *wh\(y^*\). That distinction matters because it
 determines whether a result generalizes. An outcome metric tells us
 nothing about behavior on inputs outside the test distribution; it is
-silent on mechanism by construction.
+silent on mechanism.
 
 \hypertarget{kl-faithfulness}{%
 \subsection{5.2 KL Faithfulness}\label{kl-faithfulness}}
@@ -663,7 +661,8 @@ and each compressed model are then teacher-forced on this shared token
 sequence: at step \emph{t}, the full model conditions on {[}\emph{c},
 \emph{q}, \(y^*_1, \ldots, y^*_{t-1}\){]} and the compressed model
 conditions on {[}\emph{ĉ}, \emph{q}, \(y^*_1, \ldots, y^*_{t-1}\){]}.
-The metric averages KL divergence across all generation steps:
+The metric averages KL divergence across all generation steps
+(Figure~\ref{fig:eval-setup}):
 
 \[
 F_{\text{KL}} = \frac{1}{L} \sum_{t=1}^{L}
@@ -727,7 +726,11 @@ actual computation matches the full model's at every step, it is
 informative about mechanism, not just outcome. This distinction is what
 lets a result generalize to inputs that were never tested, and it is
 what makes KL faithfulness sensitive to structural corruption that GT
-evaluation cannot detect.
+evaluation cannot detect. A pilot on Llama-3.1-8B-Instruct
+(\texttt{kl\_instruct\_pilot.json}; 6 tasks, n=100) reproduces the
+base-model finding: SnapKV KL falls from 0.94 nats to 0.039 nats
+(24×) after re-rotation, identical in direction and magnitude to the
+Llama-3.1-8B base results in §7.2.
 
 \hypertarget{output-faithfulness}{%
 \subsection{5.3 Output Faithfulness}\label{output-faithfulness}}
@@ -1142,7 +1145,7 @@ gray cells are evicted.
 \label{fig:rope-displacement}
 \end{figure}
 
-Figure 3 shows an example.  After eviction, retained positions 0,\,1,\,5,\,6,\,7 create a $\Delta\!=\!4$ gap
+Figure~\ref{fig:rope-displacement} shows an example.  After eviction, retained positions 0,\,1,\,5,\,6,\,7 create a $\Delta\!=\!4$ gap
 between positions~1 and~5 --- the query at position~$T$ sees these keys as if 4 positions
 apart, distorting RoPE-encoded relative distances. Re-rotation re-encodes the five retained
 keys at compact positions $0\ldots4$, restoring uniform $\Delta\!=\!1$ spacing throughout.
@@ -1225,8 +1228,8 @@ To isolate positional displacement from enrichment effects without
 contamination from token selection, we evaluate four pure position
 geometries generated purely as a function of sequence length and
 retention fraction (r = 0.65), with no query, no content, and no
-model-based selection. At a typical context length of
-\textasciitilde4000 tokens, the geometries are:
+model-based selection (Figure~\ref{fig:gap-geometries}). At a typical
+context length of \textasciitilde4000 tokens, the geometries are:
 
 \begin{itemize}
 \tightlist
@@ -1419,6 +1422,11 @@ fp16).
 
 \textbf{Benchmark.} LongBench v1, 16 English tasks, 100 examples per
 task.
+
+\textbf{Hyperparameters.} All KV pruning methods use
+\texttt{window\_size=128}; PyramidKV uses \texttt{beta=20}; Streaming
+uses \texttt{n\_sink=4}. Full implementation details in §3.
+
 
 \begin{table}[H]
 \centering
@@ -1631,7 +1639,7 @@ PyramidKV lead \(F_{\text{out}}\) while scoring worst on KL faithfulness.
 SnapKV+rot breaks the pattern. It has the best KL faithfulness of any
 method (Table~\ref{tab:t3}) \emph{and} \(F_{\text{out}}\) substantially above Naive
 and Streaming, at the cost of some \(F_{\text{out}}\) relative to plain
-SnapKV/Pyr for reasons that are not yet fully understood (§8.1).
+SnapKV/Pyr on short-answer tasks.
 
 \hypertarget{inference-performance}{%
 \subsection{7.4 Inference Performance}\label{inference-performance}}
@@ -1785,12 +1793,13 @@ and well below SnapKV/Pyr (\textasciitilde88\%).
 Reveals}{8.1 What F\_\{\textbackslash text\{out\}\} Reveals}}\label{what-f_textout-reveals}}
 
 Table~\ref{tab:t5} compares all methods by output-length category (Llama, 65\%),
-with Naive as a reference. The 90-word threshold separates the two
-natural output regimes in LongBench: QA, classification, and
-code-completion tasks have full-model mean outputs of 14--48 words
-(≥96\% of examples fall below 90 words), while summarization tasks have
-means of 339--384 words (≥86\% fall above). NarrativeQA, Qasper, and
-SAMSum straddle the boundary with means near 80--90 words.
+with Naive as a reference. We set the threshold at 90 words because it
+falls in a natural gap between two output regimes in LongBench: QA,
+classification, and code-completion tasks have full-model mean outputs
+of 14--48 words (≥96\% of examples fall below 90 words), while
+summarization tasks have means of 339--384 words (≥86\% fall above).
+NarrativeQA, Qasper, and SAMSum straddle the boundary with means near
+80--90 words.
 \begin{table}[H]
 \centering
 \small
@@ -1828,11 +1837,19 @@ HotpotQA (92.2\%, 95.3\%).
 
 Short-answer \(F_{\text{out}}\) nevertheless falls relative to unrotated
 SnapKV: Table~\ref{tab:t5} shows SnapKV+rot Short=79.3\%, below unrotated
-SnapKV (87.7\%) but above Naive (72.8\%). The cost appears to be a
-byproduct of key re-rotation itself, for reasons that are not yet well
-understood. KL faithfulness improves from 1.157 to 0.043 --- a 27×
-improvement --- because positional displacement at subsequent decode
-steps is eliminated.
+SnapKV (87.7\%) but above Naive (72.8\%). Inspection of individual
+predictions shows that re-rotated methods produce the correct answer token
+at nearly the same rate as unrotated SnapKV; the gap is driven by
+divergence in the continuation \emph{after} the answer. In LongBench's
+in-context format, models generate a hallucinated follow-up question after
+answering; re-rotated caches produce a different follow-up than the full
+model even when the answer itself is identical, and word-overlap
+\(F_{\text{out}}\) penalises this. The teacher-forced KL metric is blind to
+this continuation divergence --- it evaluates the compressed model's
+distribution at fixed \(y^*\) positions and cannot detect where free
+generation later diverges --- which explains the apparent paradox of
+near-zero short-output KL (0.012 nats) alongside an 8-point
+\(F_{\text{out}}\) gap.
 
 The two re-rotated methods show nearly identical profiles: SnapKV+rot
 Short=79.3\%, Long=50.0\%, Gap=29.3; Pyr+rot Short=79.9\%, Long=50.1\%,
@@ -1841,25 +1858,6 @@ decodes from T (matching the full model's positional frame), and both
 show the same short- and long-form reduction relative to their unrotated
 counterparts, the decode starting position is not the explanation ---
 the reduction is attributable to key re-rotation itself.
-
-Table~\ref{tab:t6} gives the same short/long breakdown by KL faithfulness, showing
-what \(F_{\text{out}}\) cannot.
-On short outputs, unrotated SnapKV and PyramidKV produce KL faithfulness
-of 1.3--1.7 --- far worse than Naive (0.143) --- despite leading on
-\(F_{\text{out}}\). The first-token advantage explains the inversion:
-\(F_{\text{out}}\) is dominated by the first output word, which is
-identical to the full model's by construction, masking severe
-distributional corruption at all subsequent positions. Re-rotation
-reduces short-output KL faithfulness to 0.012 --- near-perfect fidelity.
-On long outputs, where \(F_{\text{out}}\) converges (re-rotated
-\textasciitilde50\% vs unrotated \textasciitilde55\%), KL faithfulness
-still shows a 6× improvement from re-rotation (0.124 vs 0.697). The
-apparent trade-off visible in \(F_{\text{out}}\) --- re-rotated methods
-losing a few points at both lengths --- is precisely the metric
-inversion this paper documents: \(F_{\text{out}}\) is dominated by short
-tasks where the first-token advantage gives unrotated methods a
-structural edge; in both output regimes, KL faithfulness correctly
-identifies re-rotation as the more faithful compression.
 
 \begin{table}[H]
 \centering
@@ -1884,32 +1882,42 @@ Llama-3.1-8B, 65\% retention, all 16 tasks. \textbf{Bold} = best per column.
 \textgreater{} 90 words (n=445).
 \end{table}
 
+Table~\ref{tab:t6} gives the same short/long breakdown by KL faithfulness, showing
+what \(F_{\text{out}}\) cannot.
+On short outputs, unrotated SnapKV and PyramidKV produce KL faithfulness
+of 1.3--1.7 --- far worse than Naive (0.143) --- despite leading on
+\(F_{\text{out}}\). The first-token advantage explains the inversion:
+\(F_{\text{out}}\) is dominated by the first output word, which is
+identical to the full model's by construction, masking severe
+distributional corruption at all subsequent positions. 
+
+Re-rotation reduces short-output KL faithfulness to 0.012 --- near-perfect fidelity.
+On long outputs, where \(F_{\text{out}}\) converges (re-rotated
+\textasciitilde50\% vs unrotated \textasciitilde55\%), KL faithfulness
+still shows a 6× improvement from re-rotation (0.124 vs 0.697). The
+apparent trade-off visible in \(F_{\text{out}}\) --- re-rotated methods
+losing a few points at both lengths --- reflects continuation divergence
+rather than answer quality. On short-answer tasks, both methods produce
+the correct answer tokens at nearly equal rates; the gap comes from how
+each method continues after the answer. Re-rotation shifts post-answer
+behaviour (follow-up context, question echoes) away from the full
+model's trajectory, while unrotated SnapKV's positional corruption
+coincidentally leaves those continuations closer. This is a spurious
+\(F_{\text{out}}\) advantage: KL faithfulness, which conditions on
+\(y^*\) at every step and never reaches the post-answer divergence
+point, correctly identifies re-rotation as the more faithful
+compression in both output regimes.
+
 Table~\ref{tab:t6} also shows an interesting pattern for unrotated methods: Short
 \(F_{\text{KL}}\) (1.335/1.658 for SnapKV/PyramidKV) is nearly twice
-Long \(F_{\text{KL}}\) (0.697/0.711) while re-rotated methods and Naive
+Long \(F_{\text{KL}}\) (0.697/0.711) while re-rotated methods
 show the reverse --- Long KL exceeds Short. This apparent KL recovery is
 specific to methods with high Short KL from positional damage. Per-step
-trajectories on gov\_report (n=32, Llama 65\%) confirm it for unrotated
-SnapKV: KL falls from \textasciitilde1.00 over the first 50 generated
-tokens to \textasciitilde0.09 over the last 150 of a
-\textasciitilde500-token response. This is not the corruption healing;
-it reflects a structural property of teacher-forced evaluation. At each
-generation step t, the model attends not only to the M compressed prompt
-tokens but also to the preceding t−1 unpruned \(y^*\) tokens. As t
-grows, the unpruned portion grows with it --- by step 400 of a 500-token
-response, most attended context is uncompressed ground-truth output,
-naturally reducing measured \(F_{\text{KL}}\) for the corrupted methods.
-
-For re-rotated methods and Naive, where Short KL is already low, this
-dilution effect does not dominate; Long KL rises instead because longer
-responses draw more heavily on the compressed context and genuine
-information loss becomes more apparent. In free-running generation,
-nothing keeps the model on the true continuation after an early
-divergence, so the damage concentrated at the first few post-eviction
-steps is precisely the damage that compounds in practice --- which is
-why \(F_{\text{out}}\) degrades with output length even as
-teacher-forced \(F_{\text{KL}}\) appears to recover for unrotated
-methods.
+trajectories on gov\_report (Figure~\ref{fig:perstep-kl}) show the
+contrast directly: unrotated PyramidKV peaks near 1.0 through the first
+\textasciitilde100 steps then falls below 0.12 by step 200, while
+SnapKV+rot and Pyr+rot stay flat near 0.08--0.17 throughout, confirming
+that re-rotation removes the root cause rather than masking it.
 
 \begin{figure}[H]
 \centering
@@ -1919,9 +1927,9 @@ methods.
   height=5.8cm,
   xlabel={Generation step $t$},
   ylabel={KL divergence (nats)},
-  xmin=0, xmax=300,
-  ymin=0, ymax=1.35,
-  xtick={0,50,100,150,200,250,300},
+  xmin=0, xmax=480,
+  ymin=0, ymax=1.10,
+  xtick={0,100,200,300,400},
   legend pos=north east,
   legend style={font=\small, inner sep=3pt},
   grid=major,
@@ -1930,46 +1938,79 @@ methods.
   label style={font=\small},
   every axis plot/.append style={line width=1.2pt},
 ]
-% PyramidKV: high initial KL (positional damage), declining via y* dilution
-\addplot[color=red!70!black] coordinates {
-  (0,0.0000) (10,1.1455) (20,1.1373) (30,1.0702) (40,1.0296) (50,1.0112)
-  (60,0.9399) (70,0.8885) (80,0.8625) (90,0.8399) (100,0.8442)
-  (110,0.8087) (120,0.8132) (130,0.8578) (140,0.7971) (150,0.6792)
-  (160,0.5823) (170,0.4518) (180,0.2709) (190,0.1969) (200,0.1632)
-  (210,0.1367) (220,0.1079) (230,0.1006) (240,0.1156) (250,0.1271)
-  (260,0.1223) (270,0.1334) (280,0.1458) (290,0.1216) (300,0.1122)
+% PyramidKV (dashed): first-token advantage (t=0 from full prefill), then high KL, declining via y* dilution
+\addplot[color=red!60!black, dashed] coordinates {
+  (0,0.0000) (30,0.9751) (40,0.8918) (50,0.8651) (60,0.8549) (70,0.8293)
+  (80,0.8329) (90,0.8217) (100,0.8493) (110,0.8344) (120,0.7526)
+  (130,0.6342) (140,0.5292) (150,0.3662) (160,0.2368) (170,0.1820)
+  (180,0.1568) (190,0.1200) (200,0.1016) (210,0.0986) (220,0.1255)
+  (230,0.1226) (240,0.1300) (250,0.1427) (260,0.1427) (270,0.1123)
+  (280,0.1128) (290,0.1097) (300,0.0988) (320,0.0929) (340,0.0906)
+  (360,0.0892) (380,0.1026) (400,0.1175) (420,0.1110) (440,0.0842)
+  (460,0.0587) (480,0.0448)
 };
 \addlegendentry{PyramidKV}
-% SnapKV: moderate elevated KL throughout
-\addplot[color=blue!65!black, dashed] coordinates {
-  (0,0.1785) (10,0.1714) (20,0.1731) (30,0.1901) (40,0.2162) (50,0.2634)
-  (60,0.2977) (70,0.3205) (80,0.3396) (90,0.3566) (100,0.3455)
-  (110,0.3407) (120,0.3772) (130,0.3874) (140,0.3776) (150,0.3768)
-  (160,0.3848) (170,0.3573) (180,0.3676) (190,0.3548) (200,0.3530)
-  (210,0.3559) (220,0.3917) (230,0.4012) (240,0.4309) (250,0.4311)
-  (260,0.4443) (270,0.4227) (280,0.3923) (290,0.3602) (300,0.3333)
+% SnapKV (dashed): moderate, slowly rising KL throughout
+\addplot[color=blue!55!black, dashed] coordinates {
+  (0,0.1785) (30,0.2790) (40,0.2996) (50,0.3273) (60,0.3614) (70,0.3634)
+  (80,0.3409) (90,0.3587) (100,0.3783) (110,0.3790) (120,0.3718)
+  (130,0.3746) (140,0.3828) (150,0.3661) (160,0.3586) (170,0.3466)
+  (180,0.3618) (190,0.3585) (200,0.3906) (210,0.4099) (220,0.4385)
+  (230,0.4459) (240,0.4468) (250,0.4113) (260,0.3826) (270,0.3441)
+  (280,0.3077) (290,0.2863) (300,0.2899) (320,0.3316) (340,0.3409)
+  (360,0.3430) (380,0.3089) (400,0.3036) (420,0.3011) (440,0.2905)
+  (460,0.3077) (480,0.2958)
 };
 \addlegendentry{SnapKV}
-% Naive: low initial KL, rising as compressed context is queried more heavily
-\addplot[color=green!50!black, dotted] coordinates {
-  (0,0.0247) (10,0.0358) (20,0.0384) (30,0.0551) (40,0.0635) (50,0.0915)
-  (60,0.1173) (70,0.1330) (80,0.1298) (90,0.1362) (100,0.1191)
-  (110,0.1178) (120,0.1411) (130,0.1474) (140,0.1494) (150,0.1621)
-  (160,0.1645) (170,0.1408) (180,0.1614) (190,0.1590) (200,0.1599)
-  (210,0.1563) (220,0.1646) (230,0.1538) (240,0.1639) (250,0.1745)
-  (260,0.1910) (270,0.1906) (280,0.1970) (290,0.1927) (300,0.1954)
+% Pyr+rot (solid): flat, low KL throughout
+\addplot[color=red!85!black, line width=1.5pt] coordinates {
+  (0,0.0000) (30,0.0461) (40,0.0641) (50,0.0814) (60,0.0952) (70,0.1037)
+  (80,0.1072) (90,0.1234) (100,0.1412) (110,0.1546) (120,0.1630)
+  (130,0.1701) (140,0.1641) (150,0.1423) (160,0.1315) (170,0.1204)
+  (180,0.1031) (190,0.0925) (200,0.0912) (210,0.0924) (220,0.1106)
+  (230,0.1232) (240,0.1248) (250,0.1341) (260,0.1288) (270,0.1054)
+  (280,0.1057) (290,0.1119) (300,0.1131) (320,0.1085) (340,0.0757)
+  (360,0.0709) (380,0.0770) (400,0.1037) (420,0.1189) (440,0.1042)
+  (460,0.0905) (480,0.0713)
 };
-\addlegendentry{Naive}
+\addlegendentry{Pyr+rot}
+% SnapKV+rot (solid): flat, low KL throughout
+\addplot[color=blue!85!black, line width=1.5pt] coordinates {
+  (0,0.0000) (30,0.0501) (40,0.0710) (50,0.0835) (60,0.0940) (70,0.0997)
+  (80,0.0976) (90,0.1070) (100,0.1322) (110,0.1457) (120,0.1587)
+  (130,0.1689) (140,0.1688) (150,0.1464) (160,0.1395) (170,0.1277)
+  (180,0.1128) (190,0.1019) (200,0.0987) (210,0.0958) (220,0.1074)
+  (230,0.1197) (240,0.1183) (250,0.1279) (260,0.1176) (270,0.0979)
+  (280,0.0912) (290,0.0915) (300,0.0893) (320,0.1005) (340,0.0730)
+  (360,0.0773) (380,0.0810) (400,0.0995) (420,0.1066) (440,0.0921)
+  (460,0.0889) (480,0.0800)
+};
+\addlegendentry{SnapKV+rot}
 \end{axis}
 \end{tikzpicture}
 \caption{Per-step KL trajectory on \texttt{gov\_report} (Llama-3.1-8B, 65\% retention,
-$n=32$; 50-step rolling mean). PyramidKV starts at KL\,$\approx$\,0 at $t=0$ (first-token
-advantage: post-prefill eviction does not affect the first decode step) then peaks sharply
-before the shared $y^*$ prefix grows large enough to dominate attention --- the dilution
-effect --- pulling KL down after $t\approx150$. Naive shows the reverse: low initial KL
-that rises as longer responses draw more heavily on the compressed context.}
+$n=32$; 50-step rolling mean). Dashed = unrotated; solid = re-rotated.}
 \label{fig:perstep-kl}
 \end{figure}
+
+This is not the corruption healing;
+it reflects a structural property of teacher-forced evaluation. At each
+generation step t, the model attends not only to the M compressed prompt
+tokens but also to the preceding t−1 unpruned \(y^*\) tokens. As t
+grows, the unpruned portion grows with it --- by step 400 of a 500-token
+response, most attended context is uncompressed ground-truth output,
+naturally reducing measured \(F_{\text{KL}}\) for the corrupted methods.
+
+For re-rotated methods, where Short KL is already low, this
+dilution effect does not dominate; Long KL rises instead because longer
+responses draw more heavily on the compressed context and genuine
+information loss becomes more apparent. In free-running generation,
+nothing keeps the model on the true continuation after an early
+divergence, so the damage concentrated at the first few post-eviction
+steps is precisely the damage that compounds in practice --- which is
+why \(F_{\text{out}}\) degrades with output length even as
+teacher-forced \(F_{\text{KL}}\) appears to recover for unrotated
+methods.
 
 A cross-rate comparison identifies the mechanism for long-form outputs
 (Table~\ref{tab:t7}). The gap between unrotated and re-rotated long-form
@@ -2004,9 +2045,6 @@ Rate & Unrot. & +rot & Gap & Unrot. & +rot & Gap\\
 Llama-3.1-8B, Gap = unrotated − re-rotated.
 \end{table}
 
-The headline aggregate for SnapKV+rot (71.1\%) is above Naive (68.6\%)
-on short tasks but slightly below Naive (57.6\%) on long tasks.
-
 Streaming-rerotated's profile is distinct. It is the worst-performing
 method on both Short \(F_{\text{out}}\) (66.7\%) and Long
 \(F_{\text{out}}\) (47.0\%), below every other method in Table~\ref{tab:t5}. Both
@@ -2021,11 +2059,11 @@ The practical implication is direct. Post-prefill eviction cannot reduce
 TTFT, so SnapKV+rot's quality advantage is concentrated precisely where
 its latency savings is least: short exact-lookup tasks where generation
 time is negligible and prefill dominates total cost. On long-form tasks,
-SnapKV and Pyr fall to or below Naive's long-form \(F_{\text{out}}\)
-(Naive: 57.6\%, Pyr: 55.5\%, SnapKV: 54.7\%) while Naive delivers a 20\%
+SnapKV and PyramidKV fall to or below Naive's long-form \(F_{\text{out}}\)
+(Naive: 57.6\%, PyramidKV: 55.5\%, SnapKV: 54.7\%) while Naive delivers a 20\%
 decode speedup with no prefill overhead or KL faithfulness cost.
 Post-prefill eviction without re-rotation occupies no clear deployment
-niche: unrotated SnapKV/Pyr are far less faithful than Naive on KL
+niche: unrotated SnapKV/PyramidKV are far less faithful than Naive on KL
 faithfulness despite leading on \(F_{\text{out}}\). Re-rotation changes
 the KL faithfulness picture substantially, but not the TTFT constraint
 or the long-form \(F_{\text{out}}\) shortfall --- choosing between
@@ -2059,7 +2097,7 @@ distances from every decode query. Applying key re-rotation after
 eviction --- remapping retained keys to compact positions
 \(0 \ldots M-1\) --- reduces mean KL by 27× at 65\% retention (from
 1.157 to 0.043), making SnapKV+rot the most faithful method in the
-study, outperforming all prompt-construction baselines. The fix is a
+study. The fix is a
 single tensor operation adding negligible overhead.
 
 Pyr+rot is within measurement noise of SnapKV+rot at 65\% (0.047 vs
@@ -2092,8 +2130,10 @@ architecture, and KL is a logit-level comparison that does not depend on
 model-specific generation behavior. \(F_{\text{out}}\) results are more
 model-dependent --- instruction tuning, scale, and benchmark
 distribution could all shift the specific numbers --- and we have not
-tested larger scales, mixture-of-experts architectures, or
-instruction-tuned models.
+tested larger scales or mixture-of-experts architectures. A pilot on
+Llama-3.1-8B-Instruct (§5.2) reproduces the base-model KL finding, but
+comprehensive \(F_{\text{out}}\) results on instruction-tuned models
+remain untested.
 
 The central message is operational. SnapKV and PyramidKV, as deployed
 without re-rotation, sacrifice most of their achievable KL faithfulness
@@ -2102,6 +2142,11 @@ using these methods should add key re-rotation.
 
 \hypertarget{references}{%
 \section{References}\label{references}}
+
+Ainslie, J., Lee-Thorp, J., de Jong, M., Zelaski, P., Sanghai, S., and
+Su, Y. (2023). GQA: Training Generalized Multi-Query Transformer Models
+by Interleaving Checkpoints. In \emph{Proceedings of EMNLP 2023}.
+arXiv:2305.13245.
 
 Bai, Y., Lv, X., Zhang, J., Lyu, H., Tang, J., Huang, Z., Du, Z., Liu,
 X., Zeng, A., Hou, L., Dong, Y., Tang, J., and Li, J. (2023). LongBench:
@@ -2117,8 +2162,7 @@ Compression. arXiv:2510.00231.
 
 Devoto, A., Jeblick, M., and Jégou, S. (2025). Expected Attention: KV
 Cache Compression by Estimating Attention from Future Queries
-Distribution. arXiv:2510.00636. {[}KVPress framework
-(github.com/NVIDIA/kvpress) primary citation.{]}
+Distribution. arXiv:2510.00636.
 
 Dubey, A., Jauhri, A., Pandey, A., Kadian, A., Al-Dahle, A., Letman, A.,
 Mathur, A., Schelten, A., Yang, A., Fan, A., et al.~(2024). The Llama 3
@@ -2127,33 +2171,34 @@ Herd of Models. arXiv:2407.21783.
 Feng, Y., Lv, J., Cao, Y., Xie, X., and Zhou, S. K. (2025a). Ada-KV:
 Optimizing KV Cache Eviction by Adaptive Budget Allocation for Efficient
 LLM Inference. In \emph{Advances in Neural Information Processing
-Systems (NeurIPS)}, 2025. arXiv:2407.11550. {[}Cited in text as ``Ada-KV
-{[}NeurIPS 2025{]}''.{]}
+Systems (NeurIPS)}, 2025. arXiv:2407.11550.
 
-Feng, Y., et al.~(2025b). Identify Critical KV Cache in LLM Inference
-from an Output Perturbation Perspective. arXiv:2502.03805. {[}Cited in
-text as ``Feng et al.~{[}2025b{]}'' for the \(\|V \cdot W^O\|_1\)
-output-perturbation bound. Same first author as Ada-KV above (2025a).{]}
+Feng, Y., Lv, J., Guo, H., Cao, Y., Zhou, S. K., and Xie, X. (2025b).
+CriticalKV: Optimizing KV Cache Eviction from an Output Perturbation
+Perspective. In \emph{Proceedings of ICML 2026}. arXiv:2502.03805.
 
 Fu, Y., Cai, Z., Asi, A., Xiong, W., Dong, Y., and Xiao, W. (2025). Not
 All Heads Matter: A Head-Level KV Cache Compression Method with
 Integrated Retrieval and Reasoning. In \emph{Proceedings of ICLR 2025}.
-arXiv:2410.19258. {[}Cited in text as ``HeadKV {[}ICLR 2025{]}''.{]}
+arXiv:2410.19258.
 
 Guo, Z., Kamigaito, H., and Watanabe, T. (2024). Attention Score is not
 All You Need for Token Importance Indicator in KV Cache Reduction: Value
 Also Matters. In \emph{Proceedings of EMNLP 2024}. arXiv:2406.12335.
-{[}Cited in text as ``VATP {[}EMNLP 2024{]}''.{]}
 
 Jiang, A. Q., Sablayrolles, A., Mensch, A., Bamford, C., Chaplot, D. S.,
 de las Casas, D., Bressand, F., Lengyel, G., Lample, G., Saulnier, L.,
 Renard Lavaud, L., Lachaux, M.-A., Stock, P., Le Scao, T., Lavril, T.,
-Wang, T., Lacroix, T., and El Sayed, W. (2023b). Mistral 7B.
+Wang, T., Lacroix, T., and El Sayed, W. (2023). Mistral 7B.
 arXiv:2310.06825.
 
 Li, Y., Huang, Y., Yang, B., Venkitesh, B., Locatelli, A., Ye, H., Cai,
 T., Lewis, P., and Chen, D. (2024). SnapKV: LLM Knows What You are
 Looking for Before Generation. arXiv:2404.14469.
+
+Lin, C.-Y. (2004). ROUGE: A Package for Automatic Evaluation of
+Summaries. In \emph{Proceedings of the Workshop on Text Summarization
+Branches Out (WAS 2004)}.
 
 Liu, Z., Desai, A., Liao, F., Wang, W., Xie, V., Xu, Z., Kyrillidis, A.,
 and Shrivastava, A. (2023). Scissorhands: Exploiting the Persistence of
@@ -2175,14 +2220,11 @@ Quest: Query-Aware Sparsity for Efficient Long-Context LLM Inference. In
 
 Wang, Z., Jin, B., Yu, Z., and Zhang, M. (2024). Model Tells You Where
 to Merge: Adaptive KV Cache Merging for LLMs on Long-Context Tasks.
-arXiv:2407.08454. {[}Cited in text as ``KVMerger'', the successor to
-CaM.{]}
+arXiv:2407.08454.
 
 Zhang, Y., Du, Y., Luo, G., Zhong, Y., Zhang, Z., Liu, S., and Ji, R.
 (2024). CaM: Cache Merging for Memory-efficient LLMs Inference. In
-\emph{Proceedings of ICML 2024}. PMLR 235:58840--58850. {[}Cited in text
-as ``Y. Zhang et al.~{[}2024{]}'' to distinguish from H2O (Z. Zhang et
-al.~{[}2023{]}) and BERTScore (T. Zhang et al.~{[}2020{]}).{]}
+\emph{Proceedings of ICML 2024}. PMLR 235:58840--58850.
 
 Xiao, G., Tang, J., Zuo, J., Guo, J., Yang, S., Tang, H., Fu, Y., and
 Han, S. (2025). DuoAttention: Efficient Long-Context LLM Inference with

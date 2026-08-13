@@ -88,6 +88,10 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 | `lb_results_base/gt_mechanism_mistral_f35/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
 | `lb_results_base/kl_instruct_pilot.json` | KL for snapkv_press + snapkv_rerotated + streaming_rerotated on Llama-3.1-8B-Instruct, 65%, 6 tasks, n=100 ✓ |
 | `lb_results_base/ystar_cache_instruct.pt` | Cached y* tokens + log_p_full for Instruct model, 6 tasks, n=100 |
+| `lb_results_base/ystar_instruct_llama.pt` | Cached y* tokens + log_p_full for Instruct model, 6 tasks, n=100 (used by b256/b1024 evals) |
+| `lb_results_base/kl_instruct_llama_b256.json` | KL: all methods, Llama-3.1-8B-Instruct, budget=256, ws=8 (snap/pyr), ws=32 (streaming/naive), 6 tasks, n=100 ✓ |
+| `lb_results_base/gt_instruct_llama_b256/checkpoint.json` | GT: all methods, Llama-3.1-8B-Instruct, budget=256, ws=8, 6 tasks, n=100 (in progress) |
+| `lb_results_base/perstep_kl_rerotated.json` | Per-step KL for snapkv_rerotated + pyramidkv_rerotated on gov_report, n=31, 512 steps (used in Fig 5) |
 
 ## Completed data
 
@@ -101,6 +105,7 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 - `kl_pyramidkv_rerotated_f35.json` — 35%, all 16 tasks ✓ (mean KL=0.124; budget collapse → ties SnapKV+rot)
 - `gap_structure.json` — 4 geometries × 4 presentations, 6 tasks, n=20 ✓
 - `kl_instruct_pilot.json` — Llama-3.1-8B-Instruct, 65%, 6 tasks, n=100 ✓ (snapkv_press=0.94, snapkv_rerotated=0.039, 24×; cited in §5.2)
+- `kl_instruct_llama_b256.json` — Llama-3.1-8B-Instruct, budget=256, 6 tasks, n=100 ✓ (snapkv=0.769, snapkv_rot=0.352, pyramidkv=0.882, pyramidkv_rot=0.385, streaming=1.133, streaming_rot=0.736, naive=2.003)
 
 **KL (Mistral):**
 - `kl_snapkv_rerotated_mistral.json` — 65%, all 16 tasks ✓ (mean KL=0.030)
@@ -128,7 +133,10 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 
 ## Currently running
 
-Nothing queued.
+GT@256 (Llama-3.1-8B-Instruct, budget=256, ws=8): running, ~4 of 6 tasks complete.
+Queued in `lb_results_base/queue.txt` to fire automatically after GT@256:
+1. KL@1024 (`kl_instruct_llama_b1024.json`, ws=32)
+2. GT@1024 (`gt_instruct_llama_b1024/`, ws=32)
 
 ## Key empirical results (Llama, F_out macro over 16 tasks)
 
@@ -267,6 +275,47 @@ All edits are in `paper_kv_faithfulness.tex` on branch `kvpress-impl`.
 - Pyr: 6973 / 7245 / 7276 ms (was 7022/7109/7143)
 - Prose overhead ranges: Pyr 9--13%, SnapKV+Streaming +3--7%, Naive cuts 63--75%
 - Table footnote: "n=20 examples per task"
+
+## Instruct eval — interpretation notes (Aug 2026)
+
+These notes pin key findings from the Llama-3.1-8B-Instruct extreme-compression evals so the
+results can be explained correctly when the section is written.
+
+**Why we started with base model + moderate compression (35–65%)**
+This was the right choice. The instruct model at budget=256 (≈5% retention) produces results
+that would have been much harder to interpret had we started there:
+
+- **F_out is near-trivially high for selection methods**: At budget=256, snap/pyr/snap+rot/pyr+rot
+  all score ≈72–73% F_out across 4 tasks — indistinguishable from each other and comparable to
+  the base model's 65% results. This is an artifact of the instruct model's terse output style:
+  hotpotqa answers average **3.9 words** (vs 21.7 for the base model at 65%), narrativeqa
+  averages **4.5 words** (vs 83.2). With a 4-word answer, the compressed model nearly always
+  reproduces the full model's words exactly, regardless of positional fidelity.
+
+- **F_out cannot distinguish rotated from unrotated at b256**: snap vs snap+rot = 72.6 vs 72.7%;
+  pyr vs pyr+rot = 72.5 vs 72.0%. Both are within noise. KL clearly separates them: snap_rot
+  (0.352) vs snap (0.769) — still a 2.1× improvement from re-rotation at 5% retention (vs 27×
+  at 65%). Positional corruption is real at b256; F_out just can't see it.
+
+- **KL is the honest metric at extreme compression for instruct models**: The naive method scores
+  2.003 KL (vs 0.352 for snap_rot) despite streaming being worse on F_out (47% vs 72%). The
+  task-level pattern is also diagnostic: naive shows highest KL on passage_count and
+  passage_retrieval (KL ≈5.8 and 3.8), exactly where block-end truncation is most harmful.
+
+- **Window size matters at extreme budgets**: budget=256 / 32 layers = 8 tokens/layer average.
+  window_size=32 (SnapKV paper default) > 8 → PyramidKV budget collapses to uniform SnapKV.
+  Must use window_size ≤ average per-layer budget. b256 runs use ws=8 for snap/pyr.
+  At budget=1024 (32 tokens/layer average) the pyramid works regardless of ws ≤ 32, so ws=32
+  is fine.
+
+- **Re-rotation still helps at 5% retention**: 2.1× KL improvement (snap_rot vs snap at b256).
+  Positional corruption is multiplicative with information loss, not additive — fixing it still
+  halves KL even when retained keys carry very little signal.
+
+**How to interpret the new section in the paper**
+When writing the high-compression instruct results section: lead with KL (honest signal), explain
+why F_out appears high (short answers, near-zero surface area for divergence), cite the word-count
+numbers as evidence, and note that this reinforces rather than contradicts the KL-first argument.
 
 ## Timing notes (Llama-3.1-8B, V100 32GB, fp16)
 
