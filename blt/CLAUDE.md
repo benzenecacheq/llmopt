@@ -693,6 +693,21 @@ Relaunched by hand using the file-based approach (write a script, `scp` it over,
 
 **What would settle the debate once both land**: if `num_uv_groups=4` (head axis) shows marked improvement over UV256's single-pair range (29.97-30.38) and `layers-per-m=4` (layer axis) doesn't, that's real evidence the redundancy is specifically in within-layer head multiplicity, not cross-layer sharing. If both improve similarly, that supports the alternative theory raised early in this discussion — that added capacity anywhere closes the gap, not specifically the head axis. If neither improves much, the head/layer framing itself needs rethinking.
 
+**Interim read at the halfway point (2026-08-13, step 250K/500K on both) — a large, real, and growing gap, already favoring the head-axis theory.** In-training WikiText val_ppl at matched steps:
+
+| step | full-rank BLT | layers-per-m=4 | num_uv_groups=4 |
+|---|---|---|---|
+| 25,000 | 300.28 | 475.77 | 276.59 |
+| 50,000 | 182.71 | 228.25 | 149.52 |
+| 100,000 | 124.40 | 148.75 | 106.06 |
+| 150,000 | 106.54 | 125.19 | 88.58 |
+| 200,000 | 100.63 | 101.75 | 80.96 |
+| 250,000 | 89.80 | 96.03 | **70.05** |
+
+`num_uv_groups=4` has been ahead of `layers-per-m=4` at every single checkpoint, not just recently — 27% better by step 250K, and already closing in on the MHA baseline's own value at this step (63.92) while `layers-per-m=4` is still behind even single-shared-M full-rank BLT. Real caveats: single seed each, only halfway through training (full-rank BLT's own seeds have converged closer together late in some cases, so this gap could narrow), and this is the in-training WikiText proxy, not the final OWT/lm-eval benchmark this project has repeatedly found doesn't always agree with it. But directionally this is a clean, large signal for the head-axis theory — the opposite conclusion from what GQA-3's near-baseline result had suggested (mild evidence for the layer axis being the forgiving one).
+
+**Not evidence for PyramidKV-style depth-importance claims, despite surface resemblance.** User drew a connection to PyramidKV's argument that later transformer layers carry less information and tolerate more KV-cache compression. `layers-per-m=4` can't actually speak to that: its grouping is **strided, not contiguous** (`layer i uses M_params[i % 3]`, so each of the 3 M's serves layers spanning the *entire* depth — e.g. M_0 serves {0,3,6,9} — early, middle, and late layers all feed every group equally). It tests "does relaxing cross-layer sharing at all help," not "do later layers need less capacity." The experiment that actually tests the depth-position claim already exists: the **hybrid model** (Section 4.5, 6 MHA layers placed *first*, 6 fully-collapsed BLT layers placed *last*, that placement explicitly reasoned from Gromov et al. ICLR 2025's layer-pruning finding) — and it already supports the PyramidKV-style claim: converting only the *later* half of layers recovered >75% of the full-BLT OWT-loss gap, well above the ~50% a depth-independent cost would predict.
+
 ### GPT-2 medium baseline — DONE, and the io→bender EMA migration confirmed working (2026-08-11)
 
 **`run_gpt2_medium_baseline_seed42.pt` completed all 1,500,000 steps** (overnight, 2026-08-10, via the `queue_bender_finish_then_migrate_io_ema.sh` watcher — see the "GPT-2 medium" saga above for the full multi-week history: OOM fixes, the resume-replay bug, the two-pass cache-loading fix, the power outage, all of it). Benchmarked automatically on completion: **OWT held-out ppl 18.09** (loss 2.8951) — its first fully-converged result, and notably better than every 500K-step small-model baseline (27.36-28.24), consistent with the ~16.5 tokens/param training-adequacy target this step count was chosen for. lm-eval-harness results in `lm_eval_gpt2_medium_baseline_seed42.json`.
