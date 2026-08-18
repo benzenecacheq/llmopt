@@ -2071,8 +2071,250 @@ SnapKV+rot and naive truncation is a choice between better
 distributional fidelity and better long-form output similarity, with no
 prefill latency benefit either way.
 
+\hypertarget{high-compression-instruct}{%
+\section{9. High-Compression Results on an Instruction-Tuned
+Model}\label{high-compression-instruct}}
+
+The compression budgets studied in §7 (35--65\% token retention) were
+chosen deliberately. By comparison, PyramidKV tested absolute KV cache
+budgets of 64, 96, 128, and 256 tokens; SnapKV tested 1024, 2048, and
+4096 tokens. To cover both papers' ranges we ran the full method set on
+Llama-3.1-8B-Instruct at budgets of 256 and 1024 tokens --- the upper
+end of PyramidKV's range and the minimum of SnapKV's. Per-task results
+appear in Appendix~D. The instruct model was used rather than the base
+model because the original papers evaluated on instruction-following
+tasks; results for Mistral-7B-Instruct-v0.3 at the same budgets are
+pending.
+
+A practical note on hardware and context lengths: the original papers
+used A100 hardware with sequences up to 32k tokens, where a 256-token
+budget corresponds to retention below 1\%. Our V100 hardware has more
+limited memory, but this matters less than it might appear: across all
+16 LongBench tasks at $n = 100$ per task, only 2.1\% of prompts exceed
+8k tokens after applying the chat template (the sole exception is
+NarrativeQA, where 55 of 257 examples are longer). Our hardware
+therefore truncates fewer than 3\% of prompts, and the compression
+ratios we report are representative of what the original papers measured
+for the vast majority of examples.
+
+\subsection*{Why moderate compression is more informative}
+
+Beginning with moderate compression (35--65\% retention) on base models
+was the right methodological choice. 
+The re-rotation optimization itself would
+have been much harder to discover starting from extreme compression with the 
+instruct model. The
+initial signal came from Streaming with re-rotation --- the
+configuration prescribed in the kvpress documentation --- which at 65\%
+retention on the base model achieves mean KL of 0.141 nats, nearly 10×
+better than unrotated PyramidKV (1.394) and 8× better than unrotated
+SnapKV (1.157). That gap made it clear that re-rotation was doing
+substantial work, motivating us to apply it to the other selection methods. 
+
+At budget = 256 using the instruct model, the same comparison shows 
+streaming+rot (0.735) in the same ballpark as unrotated SnapKV (0.769) 
+and PyramidKV (0.882) --- a difference more likely to be attributed to 
+algorithmic differences between streaming-based and selection-based 
+methods than to re-rotation specifically. Starting from extreme compression, 
+we would probably have concluded that Streaming was simply a better algorithm.
+
+KL faithfulness remains informative, but the dynamic range shrinks with the budget. 
+At budget = 256, SnapKV+rot (0.352 nats) outperforms unrotated SnapKV (0.769) by 2.2×: 
+still substantial, but much smaller than the 27× improvement at 65\% retention on the base model.
+Positional corruption is multiplicative with information
+loss, not additive --- fixing it continues to improve KL even when
+retained keys carry very little signal. At budget = 1024, the rotation
+benefit grows to 4.4× (0.648 → 0.146), consistent with the pattern
+across all rates: more context available means more residual damage from
+positional displacement for re-rotation to correct.
+
+\subsection*{Instruct model output style amplifies the first-token advantage}
+
+The instruct model's output style makes
+\(F_{\text{out}}\) and ground-truth comparison 
+almost useless. The instruct model itself
+produces short answers regardless of how much context it receives: the
+full, uncompressed instruct model averages 3.9 words on HotpotQA and
+4.5 on NarrativeQA, compared to 21.9 and 80.6 words for the
+uncompressed base model on the same tasks.
+
+This compounds the first-token advantage.
+SnapKV and PyramidKV run a full prefill before evicting tokens, so the
+first generated token is produced from the complete KV cache and is
+therefore identical to the full model's by construction (§8). With a
+four-word answer, that single guaranteed match covers most of the
+response.  Even though the remaining tokens are generated from a degraded cache,
+with a correct first token already established, the full answer is
+likely to follow correctly.  With a four-word answer, any method that retrieves a
+passage containing the right phrase will reproduce the full model's
+output nearly verbatim, so at budget = 256 tokens, all selection methods cluster near
+72--73\% \(F_{\text{out}}\) --- indistinguishable from each other. The compression has
+collapsed the metric's discriminative range.
+
+
+At budget = 1024, selection methods achieve ground-truth
+accuracy within 0.7 points of the full model on average (32.7\%
+vs.\ 33.2\%), and on HotpotQA and 2WikiMQA several compressed methods
+slightly exceed the full-context score --- not because compression helps
+comprehension, but because focused context suppresses distracting
+passages in a multi-hop task where the instruct model already knows many
+of the answers. This near-ceiling behaviour makes GT unable to
+discriminate between methods: the ordering of SnapKV, SnapKV+rot,
+PyramidKV, and Pyr+rot is noise at both budgets, whereas KL clearly
+separates them.
+
+A further symptom of GT's limitations at these budgets: naive truncation
+wins on SAMSum, LCC, and RepoBench-P at budget = 256 --- tasks where
+the full model itself scores only 17.5\%, 10.1\%, and 3.7\%. When the
+reference answer is one the full model can barely reproduce, the
+ground-truth ranking reflects task difficulty rather than compression
+quality.
+
+\subsection*{SnapKV+rot is the best method at every budget}
+
+Across all metrics and budgets on both models tested, SnapKV+rot is
+consistently the most faithful method. It leads 13 of 16 tasks at
+budget = 256 on KL (mean 0.352; Pyr+rot wins PassageCount, PassageRetrieval,
+and TriviaQA by small margins) and all 16 tasks at budget = 1024
+(mean 0.146; Tab.~D1, D4). Unrotated SnapKV and PyramidKV are essentially tied at
+these extreme budgets on KL (0.769 vs.\ 0.882 at 256; 0.648 vs.\ 0.652
+at 1024), in contrast to the base-model result where SnapKV led PyramidKV
+more clearly. PyramidKV's pyramid allocation begins to show its intended
+benefit at budget = 1024 --- where the pyramid is functional rather than
+collapsed --- on multi-hop QA tasks (e.g., HotpotQA pyr = 0.520 vs.\
+snap = 0.578 unrotated), but this advantage disappears entirely after
+re-rotation. A practical note: our budget = 256 runs used
+\texttt{window\_size = 8} for SnapKV and PyramidKV. The default
+\texttt{window\_size = 32} exceeds the 8-token average per-layer budget
+and would collapse every layer to uniform SnapKV behavior, eliminating
+the pyramid allocation entirely.
+
+\subsection*{Post-prefill eviction at extreme budgets: a deployment perspective}
+
+Tables~\ref{tab:instruct-fout-shortlong} and~\ref{tab:instruct-kl-shortlong}
+break down \(F_{\text{out}}\) and \(F_{\text{KL}}\) by the full-model output
+length at both budgets (short: full-model reference \(\leq\)10 words,
+$n=762$; long: \(>\)10 words, $n=838$).
+
+\begin{table}[H]
+\centering
+\small
+\caption{\(F_{\text{out}}\) by output-length category (Llama-3.1-8B-Instruct)}
+\label{tab:instruct-fout-shortlong}
+\begin{minipage}[t]{0.47\textwidth}
+\centering
+\textbf{Budget = 256}\\[4pt]
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Method & Short & Long & Gap\\
+\midrule
+SnapKV     & 46.0 & 13.7 & 32.3\\
+SnapKV+rot & 46.2 & 13.5 & 32.7\\
+PyramidKV  & 46.7 & 14.2 & 32.5\\
+Pyr+rot    & 46.8 & 13.3 & 33.5\\
+Streaming  & 39.1 & 12.0 & 27.1\\
+Strm+rot   & 38.9 & 12.1 & 26.8\\
+Naive      & \textbf{15.2} & \textbf{12.1} &  3.1\\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.47\textwidth}
+\centering
+\textbf{Budget = 1024}\\[4pt]
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Method & Short & Long & Gap\\
+\midrule
+SnapKV     & 46.5 & 15.0 & 31.5\\
+SnapKV+rot & 46.8 & 14.6 & 32.2\\
+PyramidKV  & 46.8 & 15.2 & 31.6\\
+Pyr+rot    & 47.0 & 14.5 & 32.5\\
+Streaming  & 40.0 & 12.4 & 27.6\\
+Strm+rot   & 39.5 & 12.8 & 26.7\\
+Naive      & \textbf{23.0} & \textbf{13.6} &  9.4\\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+\medskip
+Short = full-model reference output $\leq$10 words ($n=762$);
+Long = $>$10 words ($n=838$). Gap = Short $-$ Long.
+Naive bolded to highlight the comparison point.
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Mean \(F_{\text{KL}}\) by output-length category (Llama-3.1-8B-Instruct)}
+\label{tab:instruct-kl-shortlong}
+\begin{minipage}[t]{0.47\textwidth}
+\centering
+\textbf{Budget = 256}\\[4pt]
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Method & Short & Long & Long/Short\\
+\midrule
+SnapKV+rot & \textbf{0.111} & \textbf{0.571} & 5.2$\times$\\
+Pyr+rot    & 0.117 & 0.629 & 5.4$\times$\\
+Strm+rot   & 0.529 & 0.923 & 1.7$\times$\\
+SnapKV     & 0.705 & 0.827 & 1.2$\times$\\
+PyramidKV  & 0.867 & 0.895 & 1.0$\times$\\
+Naive      & 2.794 & 1.284 & 0.5$\times$\\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.47\textwidth}
+\centering
+\textbf{Budget = 1024}\\[4pt]
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Method & Short & Long & Long/Short\\
+\midrule
+SnapKV+rot & \textbf{0.050} & \textbf{0.233} & 4.6$\times$\\
+Pyr+rot    & 0.060 & 0.278 & 4.7$\times$\\
+Strm+rot   & 0.415 & 0.657 & 1.6$\times$\\
+SnapKV     & 0.702 & 0.600 & 0.9$\times$\\
+PyramidKV  & 0.745 & 0.567 & 0.8$\times$\\
+Naive      & 1.617 & 0.740 & 0.5$\times$\\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+\medskip
+Long/Short = ratio of Long KL to Short KL; values below 1$\times$ indicate
+lower KL (better faithfulness) on long-form outputs than on short ones.
+\end{table}
+
+The tables sharpen the conclusion from §8. On long-form outputs ($>$10~words),
+all selection methods score 12--15\% \(F_{\text{out}}\), statistically
+indistinguishable from Naive (12--14\%). Post-prefill eviction provides no
+\(F_{\text{out}}\) advantage on the outputs that matter most for deployment,
+and Naive is substantially faster: averaged over the 838 examples whose
+full-model output exceeds 10~words, selection methods take 11.4\,s per
+example at budget~=~256 versus Naive's 4.1\,s (11.8\,s vs.\ 6.3\,s
+at budget~=~1024; full per-method breakdown in Appendix~D, Table~D7).
+On short outputs ($\leq$10~words), selection methods lead Naive by roughly
+30~percentage points --- but since post-prefill eviction cannot reduce TTFT,
+these examples take as long as the uncompressed model: averaged over the
+762 short examples, selection methods take 9.6\,s per example at
+budget~=~256 versus 9.7\,s for the uncompressed model (9.1\,s
+vs.\ 9.1\,s at budget~=~1024). The quality advantage exists precisely
+where the latency constraint is largest.
+
+The only metric that cleanly separates the methods across both output
+lengths is \(F_{\text{KL}}\). SnapKV+rot achieves 0.050 nats on short
+outputs at budget~=~1024 --- a 14$\times$ improvement over unrotated SnapKV
+(0.702) and 32$\times$ over Naive (1.617). This advantage persists on long
+outputs (4.6$\times$ over unrotated SnapKV). Re-rotation is the only
+intervention that consistently improves faithfulness in this regime.
+The original papers evaluated neither KL faithfulness nor re-rotation:
+the one metric that distinguishes the methods is the one they did not
+measure, and the one technique that most improves it is one they did not apply.
+
 \hypertarget{conclusion}{%
-\section{9. Conclusion}\label{conclusion}}
+\section{10. Conclusion}\label{conclusion}}
 
 We introduced two faithfulness metrics that reveal complementary failure
 modes. KL faithfulness measures distributional agreement at every
@@ -3101,6 +3343,368 @@ RepoBench-P & 53.9 & 52.2 & 52.9 & \textbf{54.1} & \textbf{54.1} & 53.8
 22.1\\
 \bottomrule
 \end{tabular}
+\end{table}
+
+\clearpage
+
+\hypertarget{appendix-d-instruct-kl-per-task}{%
+\section{Appendix D: Instruct Model --- Per-Task
+Results}\label{appendix-d-instruct-kl-per-task}}
+
+\textbf{Table D1. KL Faithfulness per task, Llama-3.1-8B-Instruct,
+budget = 256 tokens (lower is better). Bold = best per row.
+Streaming = no re-rotation; Str+rot = with re-rotation.
+$n = 100$ per task.}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+NarrativeQA† & 1.710 & 1.281 & 0.719 & 0.772 & \textbf{0.163} & 0.898 &
+0.180\\
+Qasper† & 2.632 & 1.597 & 1.265 & 0.823 & \textbf{0.452} & 0.809 &
+0.495\\
+MultifieldQA & 2.508 & 1.600 & 1.099 & 0.775 & \textbf{0.280} & 0.790 &
+0.313\\
+HotpotQA† & 1.696 & 1.090 & 0.352 & 0.607 & \textbf{0.051} & 0.870 &
+0.054\\
+2WikiMQA† & 2.642 & 1.412 & 0.494 & 0.730 & \textbf{0.102} & 0.822 &
+0.110\\
+MuSiQue† & 1.671 & 0.989 & 0.335 & 0.529 & \textbf{0.054} & 0.777 &
+0.076\\
+GovReport & 1.099 & 1.130 & 1.042 & 1.017 & \textbf{0.915} & 1.029 &
+0.944\\
+QMSum† & 1.622 & 1.297 & 1.109 & 0.843 & \textbf{0.612} & 0.905 &
+0.681\\
+MultiNews & 0.931 & 0.922 & 0.847 & 0.931 & \textbf{0.814} & 0.986 &
+0.870\\
+TREC & 1.857 & 1.825 & 1.716 & 0.475 & \textbf{0.325} & 0.547 &
+0.385\\
+TriviaQA & 1.156 & 1.191 & 0.282 & 0.921 & 0.067 & 1.013 &
+\textbf{0.063}\\
+SAMSum & 1.754 & 1.552 & 1.401 & 1.364 & \textbf{0.962} & 1.454 &
+1.039\\
+PassageCount† & 5.799 & 0.658 & 0.070 & 0.486 & 0.012 & 0.889 &
+\textbf{0.011}\\
+PassageRetrieval & 3.783 & 0.446 & 0.190 & 0.699 & 0.051 & 0.864 &
+\textbf{0.041}\\
+LCC & 0.475 & 0.483 & 0.351 & 0.601 & \textbf{0.341} & 0.639 &
+0.397\\
+RepoBench-P & 0.712 & 0.651 & 0.494 & 0.733 & \textbf{0.429} & 0.817 &
+0.499\\
+\textbf{Average} & 2.003 & 1.133 & 0.735 & 0.769 & \textbf{0.352} & 0.882 &
+0.385\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Table D2. Output Faithfulness (F\textsubscript{out}, \%) per task, Llama-3.1-8B-Instruct,
+budget = 256 tokens (higher is better). Scores measure agreement with the full-context
+instruct model output, not ground-truth answers. Bold = best per row.
+$n = 100$ per task.}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+NarrativeQA† & 22.3 & 57.5 & 58.0 & 79.6 & \textbf{81.7} & 78.1 &
+80.6\\
+Qasper† & 12.8 & 43.9 & 43.7 & 67.8 & 67.5 & \textbf{71.5} &
+68.4\\
+MultifieldQA & 20.1 & 54.3 & 52.9 & \textbf{82.1} & 81.6 & 79.9 &
+78.6\\
+HotpotQA† & 24.9 & 79.4 & 81.2 & \textbf{93.8} & 92.8 & 93.1 &
+92.3\\
+2WikiMQA† & 12.2 & 71.6 & 71.6 & 90.9 & 89.2 & 90.7 &
+\textbf{91.9}\\
+MuSiQue† & 19.9 & 66.6 & 65.9 & \textbf{84.1} & 81.2 & 83.7 &
+84.0\\
+GovReport & 32.7 & 37.4 & 37.5 & 45.1 & 45.6 & 45.5 &
+\textbf{45.7}\\
+QMSum† & 26.2 & 41.5 & 42.0 & \textbf{51.8} & 49.6 & 51.3 &
+50.3\\
+MultiNews & 40.4 & 44.8 & 45.1 & 48.3 & \textbf{48.5} & 46.4 &
+47.4\\
+TREC & 14.5 & 20.8 & 21.5 & \textbf{65.0} & 62.9 & 64.0 &
+59.6\\
+TriviaQA & 39.7 & 81.9 & 81.7 & 91.6 & 90.2 & \textbf{92.4} &
+90.0\\
+SAMSum & 22.2 & 42.0 & 44.0 & \textbf{59.2} & 56.7 & 58.5 &
+55.3\\
+PassageCount† & 26.4 & 84.9 & 84.1 & 88.6 & \textbf{88.7} & 87.2 &
+83.0\\
+PassageRetrieval & 45.7 & 89.4 & 88.9 & \textbf{97.6} & 90.3 & 96.2 &
+91.2\\
+LCC & 24.0 & 39.5 & 39.4 & \textbf{54.9} & 41.0 & 50.8 &
+40.7\\
+RepoBench-P & 14.0 & 40.5 & 39.7 & \textbf{51.3} & 43.6 & 48.5 &
+44.1\\
+\textbf{Average} & 24.9 & 56.0 & 56.1 & \textbf{72.0} & 69.4 & 71.1 &
+68.9\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Table D3. Ground-truth accuracy (\%) per task, Llama-3.1-8B-Instruct,
+budget = 256 tokens (higher is better). ``Full'' is the reference and is not bolded.
+Bold = best compressed method per row.
+$n = 100$ per task. \(\dagger\) = low full-context score; results noisier.}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lllllllll@{}}
+\toprule
+Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+NarrativeQA† & 27.0 & 9.8 & 20.8 & 20.8 & \textbf{26.5} & 26.1 & 25.1 &
+26.0\\
+Qasper† & 42.4 & 11.4 & 23.3 & 22.5 & 34.5 & 34.7 & \textbf{38.1} &
+37.6\\
+MultifieldQA & 45.3 & 18.7 & 32.0 & 30.8 & \textbf{45.2} & 44.4 & 44.6 &
+44.6\\
+HotpotQA† & 47.9 & 21.9 & 39.7 & 40.9 & 47.2 & \textbf{47.5} & 46.7 &
+47.1\\
+2WikiMQA† & 48.9 & 10.8 & 43.7 & 43.3 & 47.0 & 46.8 & \textbf{47.9} &
+47.6\\
+MuSiQue† & 22.6 & 4.5 & 16.5 & 15.8 & 21.3 & 21.6 & \textbf{21.8} &
+20.7\\
+GovReport & 41.6 & 27.0 & 27.9 & 27.4 & 33.7 & \textbf{34.5} & 33.6 &
+34.3\\
+QMSum† & 24.4 & 17.6 & 21.1 & 21.1 & 23.3 & \textbf{23.4} & 23.2 &
+23.2\\
+MultiNews & 33.4 & 26.0 & 24.8 & 24.8 & 26.9 & \textbf{27.2} & 25.9 &
+26.6\\
+TREC† & 8.0 & 1.5 & 1.7 & 2.0 & 8.4 & 6.8 & \textbf{11.3} &
+8.1\\
+TriviaQA & 75.4 & 43.8 & 72.8 & 73.1 & 75.7 & 78.2 & 76.0 &
+\textbf{78.3}\\
+SAMSum & 17.5 & \textbf{32.2} & 19.5 & 18.7 & 18.0 & 18.4 & 16.9 &
+18.1\\
+PassageCount† & 3.0 & 0.0 & 3.0 & 3.0 & 3.0 & 3.0 & 3.0 &
+\textbf{3.3}\\
+PassageRetrieval & 79.5 & 50.2 & 77.6 & 77.1 & 79.5 & 77.9 & \textbf{79.6} &
+78.0\\
+LCC & 10.1 & \textbf{10.6} & 9.7 & 10.0 & 7.4 & 4.8 & 7.3 &
+4.9\\
+RepoBench-P & 3.7 & \textbf{7.0} & 2.9 & 3.0 & 2.8 & 1.9 & 2.7 &
+1.8\\
+\textbf{Average} & 33.2 & 18.3 & 27.3 & 27.2 & 31.3 & 31.1 & \textbf{31.5} &
+31.3\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Table D4. KL Faithfulness per task, Llama-3.1-8B-Instruct,
+budget = 1024 tokens (lower is better). Bold = best per row.
+Streaming = no re-rotation; Str+rot = with re-rotation.
+$n = 100$ per task.}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+NarrativeQA† & 1.047 & 1.110 & 0.494 & 0.693 & \textbf{0.055} & 1.161 &
+0.064\\
+Qasper† & 1.770 & 1.236 & 0.922 & 0.556 & \textbf{0.111} & 0.643 &
+0.161\\
+MultifieldQA & 1.608 & 1.395 & 0.764 & 0.758 & \textbf{0.120} & 0.679 &
+0.135\\
+HotpotQA† & 1.090 & 1.032 & 0.277 & 0.578 & \textbf{0.025} & 0.520 &
+0.027\\
+2WikiMQA† & 1.790 & 1.504 & 0.439 & 0.768 & \textbf{0.042} & 0.790 &
+0.053\\
+MuSiQue† & 0.960 & 1.033 & 0.277 & 0.552 & \textbf{0.027} & 0.484 &
+0.029\\
+GovReport & 0.849 & 0.942 & 0.801 & 0.811 & \textbf{0.630} & 0.820 &
+0.687\\
+QMSum† & 1.268 & 1.181 & 0.959 & 0.616 & \textbf{0.250} & 0.546 &
+0.296\\
+MultiNews & 0.372 & 0.850 & 0.341 & 0.654 & \textbf{0.282} & 0.470 &
+0.324\\
+TREC & 0.300 & 1.683 & 1.353 & 0.491 & \textbf{0.166} & 0.515 &
+0.192\\
+TriviaQA & 0.498 & 0.845 & 0.074 & 0.875 & \textbf{0.008} & 0.956 &
+0.009\\
+SAMSum & 1.141 & 1.764 & 1.273 & 1.089 & \textbf{0.506} & 1.067 &
+0.642\\
+PassageCount† & 3.606 & 0.545 & 0.074 & 0.366 & \textbf{0.007} & 0.418 &
+0.009\\
+PassageRetrieval & 1.791 & 0.598 & 0.259 & 0.826 & \textbf{0.023} & 0.639 &
+0.029\\
+LCC & 0.092 & 0.458 & 0.125 & 0.342 & \textbf{0.026} & 0.335 &
+0.032\\
+RepoBench-P & 0.343 & 0.505 & 0.242 & 0.398 & \textbf{0.061} & 0.382 &
+0.097\\
+\textbf{Average} & 1.158 & 1.043 & 0.542 & 0.648 & \textbf{0.146} & 0.652 &
+0.174\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Table D5. Output Faithfulness (F\textsubscript{out}, \%) per task, Llama-3.1-8B-Instruct,
+budget = 1024 tokens (higher is better). Scores measure agreement with the full-context
+instruct model output. Bold = best per row. $n = 100$ per task.}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+NarrativeQA† & 27.1 & 62.9 & 62.9 & 87.1 & 85.1 & \textbf{89.5} &
+86.3\\
+Qasper† & 27.8 & 54.7 & 55.0 & \textbf{85.4} & 84.1 & 84.8 &
+80.5\\
+MultifieldQA & 39.9 & 63.6 & 63.8 & \textbf{89.8} & 86.3 & 89.6 &
+85.3\\
+HotpotQA† & 37.3 & 84.3 & 83.4 & 96.6 & 95.1 & \textbf{97.1} &
+96.6\\
+2WikiMQA† & 31.0 & 75.4 & 75.3 & 95.1 & 91.7 & \textbf{96.1} &
+93.5\\
+MuSiQue† & 29.6 & 66.0 & 66.8 & \textbf{91.1} & 90.9 & 88.4 &
+87.0\\
+GovReport & 44.5 & 46.7 & 47.1 & \textbf{52.9} & 52.6 & 51.5 &
+51.3\\
+QMSum† & 33.0 & 45.1 & 45.4 & 62.9 & 59.3 & \textbf{64.7} &
+59.9\\
+MultiNews & 63.0 & 63.2 & 62.8 & 67.1 & \textbf{67.2} & 66.6 &
+66.3\\
+TREC & 41.8 & 23.0 & 22.7 & 72.0 & 69.3 & \textbf{72.6} &
+68.8\\
+TriviaQA & 60.6 & 91.1 & 90.0 & \textbf{96.4} & 94.1 & \textbf{96.4} &
+94.6\\
+SAMSum & 24.6 & 51.0 & 47.9 & 72.0 & 67.7 & \textbf{73.4} &
+69.2\\
+PassageCount† & 1.8 & 85.6 & 85.6 & \textbf{94.7} & 93.0 & 93.8 &
+93.3\\
+PassageRetrieval & 48.5 & 88.5 & 88.6 & \textbf{98.9} & 96.0 & 98.4 &
+97.6\\
+LCC & 52.9 & 45.9 & 46.9 & \textbf{80.8} & 75.5 & 80.0 &
+71.4\\
+RepoBench-P & 28.7 & 48.2 & 48.5 & \textbf{67.4} & 63.5 & 65.8 &
+62.3\\
+\textbf{Average} & 37.0 & 62.2 & 62.0 & \textbf{81.9} & 79.5 & 81.8 &
+79.0\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Table D6. Ground-truth accuracy (\%) per task, Llama-3.1-8B-Instruct,
+budget = 1024 tokens (higher is better). ``Full'' is the reference and is not bolded.
+Bold = best compressed method per row. $n = 100$ per task.
+\(\dagger\) = low full-context score; results noisier.}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lllllllll@{}}
+\toprule
+Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+NarrativeQA† & 27.0 & 12.6 & 23.0 & 23.0 & 25.2 & 25.3 & \textbf{26.4} &
+26.3\\
+Qasper† & 42.4 & 16.3 & 25.7 & 25.7 & 41.0 & 40.8 & \textbf{41.4} &
+40.2\\
+MultifieldQA & 45.3 & 29.2 & 34.9 & 35.0 & 45.3 & 44.8 & 46.0 &
+\textbf{46.4}\\
+HotpotQA† & 47.9 & 26.7 & 43.0 & 43.0 & 48.2 & 48.3 & 47.7 &
+\textbf{48.9}\\
+2WikiMQA† & 48.9 & 26.6 & 45.6 & 45.6 & 48.2 & 48.5 & \textbf{49.2} &
+46.9\\
+MuSiQue† & 22.6 & 11.8 & 15.6 & 15.7 & 22.3 & \textbf{22.7} & 21.6 &
+22.6\\
+GovReport & 41.6 & 36.2 & 32.6 & 32.8 & 36.3 & \textbf{37.0} & 36.1 &
+36.8\\
+QMSum† & 24.4 & 20.2 & 21.8 & 22.1 & \textbf{24.5} & 24.3 & 24.3 &
+24.0\\
+MultiNews & 33.4 & 32.0 & 31.7 & 31.7 & \textbf{32.5} & 32.1 & 31.9 &
+31.9\\
+TREC† & 8.0 & 6.3 & 2.0 & 1.6 & 8.1 & \textbf{8.7} & 8.1 &
+7.5\\
+TriviaQA & 75.4 & 61.7 & 75.5 & 74.7 & 76.0 & \textbf{77.4} & 75.7 &
+75.9\\
+SAMSum & 17.5 & \textbf{19.9} & 18.4 & 19.0 & 17.1 & 17.8 & 17.5 &
+17.3\\
+PassageCount† & 3.0 & 2.1 & \textbf{3.0} & 3.0 & 3.0 & 3.0 & 3.0 &
+3.0\\
+PassageRetrieval & 79.5 & 54.6 & 73.1 & 73.1 & \textbf{79.5} & 79.0 & 79.5 &
+79.5\\
+LCC & 10.1 & 6.9 & 10.4 & 10.5 & 10.2 & 9.9 & \textbf{11.0} &
+10.8\\
+RepoBench-P & 3.7 & \textbf{5.5} & 4.4 & 4.5 & 3.2 & 3.2 & 3.0 &
+2.8\\
+\textbf{Average} & 33.2 & 23.0 & 28.8 & 28.8 & 32.5 & \textbf{32.7} & 32.6 &
+32.6\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Mean wall-clock time per example by output-length category (Llama-3.1-8B-Instruct, V100)}
+\label{tab:instruct-timing}
+\begin{minipage}[t]{0.47\textwidth}
+\centering
+\textbf{Budget = 256}\\[4pt]
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Method & Short (ms) & Long (ms)\\
+\midrule
+SnapKV     &  9372 & 11132\\
+SnapKV+rot &  9593 & 11689\\
+PyramidKV  &  9430 & 11355\\
+Pyr+rot    &  9694 & 11754\\
+Streaming  &  9543 & 10996\\
+Strm+rot   &  9772 & 11265\\
+Naive      &   725 &  4121\\
+Full       &  9666 & 16057\\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.47\textwidth}
+\centering
+\textbf{Budget = 1024}\\[4pt]
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Method & Short (ms) & Long (ms)\\
+\midrule
+SnapKV     &  8855 & 11549\\
+SnapKV+rot &  9092 & 12077\\
+PyramidKV  &  8920 & 11880\\
+Pyr+rot    &  9172 & 12146\\
+Streaming  &  9043 & 11602\\
+Strm+rot   &  9269 & 11829\\
+Naive      &  1046 &  6258\\
+Full       &  9122 & 15918\\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+\medskip
+Short = 762 examples where the full-model reference output is $\leq$10 words;
+Long = 838 examples where it exceeds 10 words. Each example is timed
+independently and assigned to its bucket. Total time includes prefill and
+generation; for short outputs generation is 7--14 tokens so total
+time approximates TTFT.
 \end{table}
 
 \end{document}

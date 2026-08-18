@@ -154,7 +154,8 @@ Queued in `lb_results_base/queue.txt` to fire automatically after GT@256:
 
 Paper split complete as of Jul 2026. `paper_kv_faithfulness.tex` is the active submission.
 Section numbering: §1–§6 unchanged, §7 Main Experiments, §8 Why Post-Prefill KV Eviction...,
-§9 Conclusion. "post-hoc" replaced with "post-prefill" throughout.
+§9 High-Compression Results on Instruction-Tuned Model, §10 Conclusion.
+"post-hoc" replaced with "post-prefill" throughout.
 
 - §5.2: KL faithfulness metric. Includes Instruct model generalization paragraph: Llama-3.1-8B-Instruct
   reproduces base model finding (snapkv_press 0.94→0.039 nats, 24×) on same 6 tasks (`kl_instruct_pilot.json`).
@@ -177,7 +178,14 @@ Section numbering: §1–§6 unchanged, §7 Main Experiments, §8 Why Post-Prefi
 - §7.4: Inference Performance (TTFT / TPT).
 - §8: First-token advantage mechanism; §8.1 short/long F_out breakdown (Table 5), KL by output length
   (Table 6), long-form F_out cross-rate (Table 7). Concludes with deployment implications.
-- §9: Conclusion — three-rate story, Pyr+rot 50% gap explanation, generalization claims.
+- §9: High-Compression Results on an Instruction-Tuned Model — Llama-3.1-8B-Instruct at budgets 256
+  and 1024 tokens. Four subsections: why moderate compression is more informative; instruct output
+  style amplifies first-token advantage (F_out useless at extreme compression); SnapKV+rot best at
+  every budget (KL: 0.352 at b=256, 0.146 at b=1024); deployment perspective with short/long
+  F_out and KL tables (Tab:instruct-fout-shortlong, Tab:instruct-kl-shortlong) and timing table
+  (Tab:instruct-timing). Mistral-Instruct results noted as pending. Appendix D has per-task results.
+- §10: Conclusion — metric inversion (Pyr/SnapKV best F_out, worst KL), 27× KL improvement from
+  re-rotation, Pyr+rot cross-layer disparity explanation, generalization claims, operational message.
 - KL metric uses y* shared prefix (fixed path-dependence flaw); see `kl_faith_eval_ystar.py`.
 
 ## Data validity note
@@ -276,10 +284,19 @@ All edits are in `paper_kv_faithfulness.tex` on branch `kvpress-impl`.
 - Prose overhead ranges: Pyr 9--13%, SnapKV+Streaming +3--7%, Naive cuts 63--75%
 - Table footnote: "n=20 examples per task"
 
+**§9 added and Appendix D expanded** (Aug 2026): Full "High-Compression Results on an Instruction-Tuned
+Model" section written (Llama-3.1-8B-Instruct, budgets 256 and 1024). Data sources:
+`kl_instruct_llama_b256.json` (KL@256 ✓), `gt_instruct_llama_b256/checkpoint.json` (GT@256, in
+progress), `kl_instruct_llama_b1024.json` (KL@1024, queued), `gt_instruct_llama_b1024/` (GT@1024,
+queued). Section concludes: "The original papers evaluated neither KL faithfulness nor re-rotation:
+the one metric that distinguishes the methods is the one they did not measure, and the one technique
+that most improves it is one they did not apply." Appendix D per-task tables cover both budgets;
+GT@1024 table is pending completion of that run.
+
 ## Instruct eval — interpretation notes (Aug 2026)
 
-These notes pin key findings from the Llama-3.1-8B-Instruct extreme-compression evals so the
-results can be explained correctly when the section is written.
+§9 is now written. These notes record the reasoning behind the key interpretive choices in that
+section.
 
 **Why we started with base model + moderate compression (35–65%)**
 This was the right choice. The instruct model at budget=256 (≈5% retention) produces results
