@@ -133,10 +133,17 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 
 ## Currently running
 
-GT@256 (Llama-3.1-8B-Instruct, budget=256, ws=8): running, ~4 of 6 tasks complete.
-Queued in `lb_results_base/queue.txt` to fire automatically after GT@256:
-1. KL@1024 (`kl_instruct_llama_b1024.json`, ws=32)
-2. GT@1024 (`gt_instruct_llama_b1024/`, ws=32)
+**Llama-3.1-8B-Instruct — all complete (all 16 tasks):**
+- `kl_instruct_llama_b256.json` ✓ (6 tasks, original; numbers cited in §9)
+- `kl_instruct_llama_b1024.json` ✓ (16 tasks; snapkv_rot=0.146, snapkv=0.648, pyr=0.652, pyr_rot=0.174)
+- `gt_instruct_llama_b256/checkpoint.json` ✓ (16 tasks)
+- `gt_instruct_llama_b1024/checkpoint.json` ✓ (16 tasks)
+
+**Mistral-7B-Instruct-v0.3 — in progress (queued in `lb_results_base/queue.txt`):**
+1. `kl_instruct_mistral_b256.json` — **running**, 12/16 tasks done, ~8h remaining
+2. `gt_instruct_mistral_b256/` — queued
+3. `kl_instruct_mistral_b1024.json` — queued
+4. `gt_instruct_mistral_b1024/` — queued
 
 ## Key empirical results (Llama, F_out macro over 16 tasks)
 
