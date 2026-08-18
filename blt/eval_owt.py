@@ -9,7 +9,7 @@ from transformers import GPT2TokenizerFast
 from tqdm import tqdm
 
 
-def owt_heldout_tokens(tokenizer, start_file=21, n_files=5, max_tokens=None):
+def owt_heldout_tokens(tokenizer, start_file=21, n_files=5, max_tokens=None, chunk_size=10000):
     parquet_dir = os.path.expanduser(
         '~/.cache/huggingface/hub/datasets--Skylion007--openwebtext/'
         'snapshots/b4325f019c648b1641a1784748667e8b74e5e064/plain_text/')
@@ -18,14 +18,30 @@ def owt_heldout_tokens(tokenizer, start_file=21, n_files=5, max_tokens=None):
         raise FileNotFoundError(f'No parquet files found in {parquet_dir}')
     print(f'  Loading {len(files)} files: {os.path.basename(files[0])} .. {os.path.basename(files[-1])}')
     ds = load_dataset('parquet', data_files={'train': files}, split='train')
-    texts = [t for t in ds['text'] if t.strip()]
+    # Read and tokenize directly from the Arrow dataset in chunks, never materializing the
+    # full text corpus as one Python list -- that pattern OOM-killed a much larger (75-file)
+    # corpus elsewhere in this project (see TokenDataset's openwebtext_large path), and
+    # separately OOM-killed here too the first time this function got called *during*
+    # training (train.py's periodic OWT eval) rather than standalone: the training corpus
+    # is already resident in RAM at that point, so there's much less headroom than this
+    # function has ever had to work within before. Every real caller passes an explicit
+    # max_tokens, so stop as soon as enough tokens are collected -- keeps this fast for a
+    # small in-training check too, not just memory-safe, since it never has to touch most
+    # of the 5-file corpus for a 50K-token budget.
+    id_chunks = []
+    total = 0
+    for i in range(0, len(ds), chunk_size):
+        batch_texts = [t for t in ds[i:i + chunk_size]['text'] if t.strip()]
+        if not batch_texts:
+            continue
+        encs = tokenizer._tokenizer.encode_batch(batch_texts)
+        ids = torch.tensor([t for enc in encs for t in enc.ids], dtype=torch.long)
+        id_chunks.append(ids)
+        total += len(ids)
+        if max_tokens and total >= max_tokens:
+            break
     del ds
-    all_ids = []
-    chunk_size = 10000
-    for i in range(0, len(texts), chunk_size):
-        encs = tokenizer._tokenizer.encode_batch(texts[i:i + chunk_size])
-        all_ids.append(torch.tensor([t for enc in encs for t in enc.ids], dtype=torch.long))
-    tokens = torch.cat(all_ids)
+    tokens = torch.cat(id_chunks)
     if max_tokens:
         tokens = tokens[:max_tokens]
     return tokens

@@ -18,6 +18,7 @@ from transformers import GPT2Tokenizer
 
 from model import build_blt_model, build_gqa_model, build_hybrid_model, build_blt_lowrank_model
 from evaluate import compute_perplexity, compute_cloze_accuracy
+from eval_owt import owt_heldout_tokens, sliding_window_loss
 from transformers import GPT2LMHeadModel
 
 
@@ -221,7 +222,7 @@ def model_is_finite(model):
 
 
 def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None, ema_loss=None,
-                    micro_step=None):
+                    micro_step=None, token_count=None):
     if not model_is_finite(model):
         raise RuntimeError(
             f'Refusing to save checkpoint at step {step}: model parameters contain NaN/Inf. '
@@ -238,6 +239,7 @@ def save_checkpoint(path, model, optimizer, scheduler, step, seed, val_ppl=None,
         'val_ppl': val_ppl,
         'ema_loss': ema_loss,
         'micro_step': micro_step,
+        'token_count': token_count,
     }, tmp)
     # Keep previous checkpoint as .bak so a power cut during write leaves a fallback.
     if os.path.exists(path):
@@ -357,7 +359,12 @@ def train(args):
     start_step = 0
     last_val_ppl = None
     vocab_size = model.config.vocab_size
-    ema_loss = torch.full((vocab_size,), math.log(vocab_size), device=device)
+    # token_loss: per-token-id historical loss estimate, either an EMA (--loss-weighting-mode
+    # ema, default) or an exact running mean (--loss-weighting-mode cumulative). token_count is
+    # only meaningfully used in cumulative mode (int64 -- a high-frequency token can exceed
+    # float32's 2^24 exact-integer range over a long run, which would silently corrupt the count).
+    token_loss = torch.full((vocab_size,), math.log(vocab_size), device=device)
+    token_count = torch.zeros(vocab_size, device=device, dtype=torch.int64)
 
     if args.resume:
         log(f'Resuming from {args.resume} ...')
@@ -368,7 +375,9 @@ def train(args):
         start_step = ckpt['step']
         last_val_ppl = ckpt.get('val_ppl')
         if ckpt.get('ema_loss') is not None:
-            ema_loss = ckpt['ema_loss'].to(device)
+            token_loss = ckpt['ema_loss'].to(device)
+        if ckpt.get('token_count') is not None:
+            token_count = ckpt['token_count'].to(device)
         log(f'  Resumed at step {start_step}')
 
     if args.finetune:
@@ -377,17 +386,27 @@ def train(args):
         model.load_state_dict(ckpt['model_state'])
         log(f'  Loaded weights from step {ckpt["step"]}, val_ppl={ckpt.get("val_ppl")}')
         if ckpt.get('ema_loss') is not None:
-            ema_loss = ckpt['ema_loss'].to(device)
-            log('  Loaded EMA per-token-loss buffer from checkpoint')
+            token_loss = ckpt['ema_loss'].to(device)
+            log('  Loaded per-token-loss buffer from checkpoint')
+        if ckpt.get('token_count') is not None:
+            token_count = ckpt['token_count'].to(device)
+
+    owt_eval_tokens = None
+    if args.owt_eval_every > 0:
+        log(f'Loading OWT held-out tokens for periodic eval (every {args.owt_eval_every} steps)...')
+        owt_eval_tokens = owt_heldout_tokens(tokenizer, start_file=21, n_files=5,
+                                             max_tokens=args.eval_tokens)
+        log(f'  {len(owt_eval_tokens):,} tokens cached (tokenized once, reused every check)')
 
     if not args.resume:
         log(f'seed={args.seed} lr={args.lr} batch={args.batch_size} block={args.block_size} max_steps={args.max_steps}')
-        log(f'step\telapsed\tlr\ttrain_loss\tval_ppl\tlambada_acc\teffective_blend')
+        log(f'step\telapsed\tlr\ttrain_loss\tval_ppl\tlambada_acc\teffective_blend\towt_ppl')
 
     step = start_step
     t0 = time.time()
     last_lambada_acc = None
     last_effective_blend = ''
+    last_owt_ppl = None
     micro_step = resume_micro_step
     accum_loss = 0.0
 
@@ -426,7 +445,7 @@ def train(args):
                         effective_blend = args.ema_blend
                     last_effective_blend = effective_blend
 
-                    weight = ema_loss[ids]
+                    weight = token_loss[ids]
                     weight = weight / weight.mean()
                     weight = effective_blend * weight + (1 - effective_blend) * 1.0
                     loss = (weight.detach() * per_token_loss).mean()
@@ -437,8 +456,21 @@ def train(args):
                         sum_loss.scatter_add_(0, ids, per_token_loss.detach())
                         counts.scatter_add_(0, ids, torch.ones_like(per_token_loss))
                         seen = counts > 0
-                        batch_mean = sum_loss[seen] / counts[seen]
-                        ema_loss[seen] = args.ema_decay * ema_loss[seen] + (1 - args.ema_decay) * batch_mean
+                        if args.loss_weighting_mode == 'cumulative':
+                            # Exact running mean: every token occurrence weighted equally
+                            # regardless of when it happened, unlike EMA's fixed-rate decay.
+                            # Computed from the OLD count/average (order matters -- this batch's
+                            # own tokens must not influence the weight used to score this same
+                            # batch, same look-ahead discipline as the EMA branch below).
+                            n_new = counts[seen].to(torch.int64)
+                            new_count = token_count[seen] + n_new
+                            token_loss[seen] = (token_count[seen].float() * token_loss[seen]
+                                                + sum_loss[seen]) / new_count.float()
+                            token_count[seen] = new_count
+                        else:
+                            batch_mean = sum_loss[seen] / counts[seen]
+                            token_loss[seen] = (args.ema_decay * token_loss[seen]
+                                                + (1 - args.ema_decay) * batch_mean)
                 else:
                     out = model(input_ids=input_ids, labels=labels)
                     loss = out.loss
@@ -491,13 +523,19 @@ def train(args):
                     last_lambada_acc = compute_cloze_accuracy(model, tokenizer, device)
                     lambada_acc = f'{last_lambada_acc:.4f}'
                     model.train()
+                owt_ppl_str = ''
+                if args.owt_eval_every and step % args.owt_eval_every == 0:
+                    model.eval()
+                    _, last_owt_ppl = sliding_window_loss(model, owt_eval_tokens, device)
+                    owt_ppl_str = f'{last_owt_ppl:.2f}'
+                    model.train()
                 blend_str = f'{last_effective_blend:.4f}' if isinstance(last_effective_blend, float) else ''
-                log(f'{step}\t{elapsed:.0f}s\t{lr_now:.2e}\t{avg_loss:.4f}\t{val_ppl}\t{lambada_acc}\t{blend_str}')
+                log(f'{step}\t{elapsed:.0f}s\t{lr_now:.2e}\t{avg_loss:.4f}\t{val_ppl}\t{lambada_acc}\t{blend_str}\t{owt_ppl_str}')
 
             if args.save_path and step > start_step and step % args.checkpoint_every == 0:
                 save_checkpoint(args.save_path, model, optimizer, scheduler,
-                                step, args.seed, last_val_ppl, ema_loss,
-                                micro_step=micro_step)
+                                step, args.seed, last_val_ppl, token_loss,
+                                micro_step=micro_step, token_count=token_count)
 
             step += 1
 
@@ -507,8 +545,8 @@ def train(args):
 
     if args.save_path:
         save_checkpoint(args.save_path, model, optimizer, scheduler,
-                        step, args.seed, final_ppl, ema_loss,
-                        micro_step=micro_step)
+                        step, args.seed, final_ppl, token_loss,
+                        micro_step=micro_step, token_count=token_count)
         log(f'Saved to {args.save_path}')
 
     log_f.close()
@@ -580,6 +618,16 @@ if __name__ == '__main__':
                              'original single-pair UV256 design).')
     parser.add_argument('--lambada-eval-every', type=int, default=2000,
                         help='Evaluate LAMBADA cloze accuracy every N steps (0 to disable)')
+    parser.add_argument('--owt-eval-every', type=int, default=0,
+                        help='Evaluate OpenWebText held-out perplexity (files 21-25, same split '
+                             'eval_owt.py uses) every N steps (0=disabled, the default). Uses the '
+                             'same sliding-window loop as the WikiText val_ppl check, at --eval-tokens '
+                             'tokens, tokenized once and cached at startup -- not a substitute for '
+                             'running eval_owt.py itself at the end (that uses more tokens by '
+                             'default). Requires the held-out parquet files (21-25) to already be '
+                             'present locally; --dataset openwebtext/openwebtext_large deliberately '
+                             'exclude them from the training corpus, so they are not guaranteed to be '
+                             'cached on every training machine.')
     parser.add_argument('--dataset', type=str, default='wikitext103',
                         choices=['wikitext103', 'lambada', 'lambada_cloze', 'pg19', 'openwebtext',
                                 'openwebtext_large'])
@@ -600,6 +648,15 @@ if __name__ == '__main__':
                              'reaching the target value exactly at --max-steps. Motivation: the '
                              'per-token EMA buffer is least trustworthy early in training (few '
                              'samples per token), so it should count for less then.')
+    parser.add_argument('--loss-weighting-mode', type=str, default='ema', choices=['ema', 'cumulative'],
+                        help='ema (default): --ema-decay fixed-rate exponential moving average per '
+                             'token-id -- has a permanent noise floor since the newest batch always '
+                             'gets the same (1-ema_decay) weight no matter how much history exists. '
+                             'cumulative: exact running mean per token-id, every occurrence weighted '
+                             'equally regardless of when it happened -- variance shrinks as more data '
+                             'accumulates (law of large numbers), so it stabilizes on its own without '
+                             'needing --ema-blend-schedule to protect against early-training noise. '
+                             '--ema-decay is ignored in this mode.')
     parser.add_argument('--pretrained', type=str, default='gpt2',
                         help='HuggingFace model id to load pretrained weights from '
                              '(e.g. gpt2, gpt2-medium, gpt2-large, gpt2-xl)')
