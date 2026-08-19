@@ -207,6 +207,7 @@ def run_eval(
     ckpt_path: Path,
     max_examples: int,
     device: str,
+    ystar_cache: Optional[dict] = None,
 ):
     ckpt    = load_ckpt(ckpt_path)
     eos_ids = _eos_set(model, tokenizer)
@@ -247,10 +248,20 @@ def run_eval(
             for method in needed:
                 t0 = time.perf_counter()
                 try:
-                    pred = run_one(
-                        model, tokenizer, full_ids, method, budget, window_size,
-                        max_seq_full, max_new, device, eos_ids,
-                    )
+                    if method == "full" and ystar_cache is not None:
+                        entry = ystar_cache.get(f"{task}|{idx}")
+                        if entry is not None:
+                            pred = tokenizer.decode(entry["tokens"], skip_special_tokens=True).strip()
+                        else:
+                            pred = run_one(
+                                model, tokenizer, full_ids, method, budget, window_size,
+                                max_seq_full, max_new, device, eos_ids,
+                            )
+                    else:
+                        pred = run_one(
+                            model, tokenizer, full_ids, method, budget, window_size,
+                            max_seq_full, max_new, device, eos_ids,
+                        )
                 except Exception as e:
                     print(f"  WARNING [{task}][{idx}][{method}]: {e}", flush=True)
                     traceback.print_exc()
@@ -306,6 +317,9 @@ def parse_args():
     p.add_argument("--device",      default="cuda")
     p.add_argument("--score_only",  action="store_true",
                    help="Skip inference; just score the checkpoint")
+    p.add_argument("--ystar_cache", default=None,
+                   help="Path to y* cache (.pt); if given, skips full-model generation "
+                        "for method='full' by decoding cached tokens instead")
     return p.parse_args()
 
 
@@ -324,6 +338,11 @@ def main():
     print(f"Methods  : {methods}")
     print(f"Budget   : {args.budget} tokens, window_size={args.window_size}, instruct={args.instruct}")
     print(f"Checkpoint: {ckpt_path}")
+
+    ystar_cache = None
+    if args.ystar_cache:
+        ystar_cache = torch.load(args.ystar_cache, map_location="cpu", weights_only=True)
+        print(f"y* cache   : {args.ystar_cache}  ({len(ystar_cache)} entries)")
 
     if not args.score_only:
         print(f"\nLoading {args.model} ...")
@@ -345,6 +364,7 @@ def main():
                 ckpt_path=ckpt_path,
                 max_examples=args.n,
                 device=args.device,
+                ystar_cache=ystar_cache,
             )
         except KeyboardInterrupt:
             print("\nInterrupted — progress saved. Re-run to resume.")
