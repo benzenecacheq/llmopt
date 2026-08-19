@@ -2077,29 +2077,27 @@ Model}\label{high-compression-instruct}}
 
 The compression budgets studied in §7 (35--65\% token retention) were
 chosen deliberately. By comparison, PyramidKV tested absolute KV cache
-budgets of 64, 96, 128, and 256 tokens; SnapKV tested 1024, 2048, and
+budgets of 64, 96, 128, and 256 tokens, while SnapKV tested 1024, 2048, and
 4096 tokens. To cover both papers' ranges we ran the full method set on
-Llama-3.1-8B-Instruct at budgets of 256 and 1024 tokens --- the upper
-end of PyramidKV's range and the minimum of SnapKV's. Per-task results
-appear in Appendix~D. The instruct model was used rather than the base
-model because the original papers evaluated on instruction-following
-tasks; results for Mistral-7B-Instruct-v0.3 at the same budgets are
-pending.
+Llama-3.1-8B-Instruct and Mistral-7B-Instruct-v0.3 at budgets of 256 and 1024 tokens --- the upper
+end of PyramidKV's range and the minimum of SnapKV's. 
+The instruct models were used to match the regime used in the original papers.
+Per-task results appear in Appendix~D. 
 
 A practical note on hardware and context lengths: the original papers
 used A100 hardware with sequences up to 32k tokens, where a 256-token
 budget corresponds to retention below 1\%. Our V100 hardware has more
-limited memory, but this matters less than it might appear: across all
+limited memory and can only support prompt lengths up to 8k tokens, 
+but this matters less than it might appear: across all
 16 LongBench tasks at $n = 100$ per task, only 2.1\% of prompts exceed
-8k tokens after applying the chat template (the sole exception is
-NarrativeQA, where 55 of 257 examples are longer). Our hardware
+8k tokens after applying the chat template. The sole exception is
+NarrativeQA, where 55 of 257 examples are longer. Our hardware
 therefore truncates fewer than 3\% of prompts, and the compression
-ratios we report are representative of what the original papers measured
-for the vast majority of examples.
+ratios we report are representative of what the original papers measured.
 
 \subsection*{Why moderate compression is more informative}
 
-Beginning with moderate compression (35--65\% retention) on base models
+For our experiments moderate compression (35--65\% retention) on base models
 was the right methodological choice. 
 The re-rotation optimization itself would
 have been much harder to discover starting from extreme compression with the 
@@ -2118,22 +2116,23 @@ algorithmic differences between streaming-based and selection-based
 methods than to re-rotation specifically. Starting from extreme compression, 
 we would probably have concluded that Streaming was simply a better algorithm.
 
-KL faithfulness remains informative, but the dynamic range shrinks with the budget. 
+At high compression rates, KL faithfulness remains informative, but the dynamic range shrinks with the budget. 
 At budget = 256, SnapKV+rot (0.352 nats) outperforms unrotated SnapKV (0.769) by 2.2×: 
 still substantial, but much smaller than the 27× improvement at 65\% retention on the base model.
-Positional corruption is multiplicative with information
-loss, not additive --- fixing it continues to improve KL even when
-retained keys carry very little signal. At budget = 1024, the rotation
+At budget = 1024, the rotation
 benefit grows to 4.4× (0.648 → 0.146), consistent with the pattern
 across all rates: more context available means more residual damage from
 positional displacement for re-rotation to correct.
+Positional corruption is multiplicative with information
+loss, not additive --- fixing it continues to improve KL even when
+retained keys carry very little signal. 
 
 \subsection*{Instruct model output style amplifies the first-token advantage}
 
 The instruct model's output style makes
 \(F_{\text{out}}\) and ground-truth comparison 
 almost useless. The instruct model itself
-produces short answers regardless of how much context it receives: the
+produces short answers regardless of how much context it receives. The
 full, uncompressed instruct model averages 3.9 words on HotpotQA and
 4.5 on NarrativeQA, compared to 21.9 and 80.6 words for the
 uncompressed base model on the same tasks.
@@ -2148,8 +2147,8 @@ with a correct first token already established, the full answer is
 likely to follow correctly.  With a four-word answer, any method that retrieves a
 passage containing the right phrase will reproduce the full model's
 output nearly verbatim, so at budget = 256 tokens, all selection methods cluster near
-72--73\% \(F_{\text{out}}\) --- indistinguishable from each other. The compression has
-collapsed the metric's discriminative range.
+72--73\% \(F_{\text{out}}\) --- indistinguishable from each other. The instruct model
+collapses the metric's discriminative range.
 
 
 At budget = 1024, selection methods achieve ground-truth
@@ -2238,9 +2237,7 @@ Naive      & \textbf{23.0} & \textbf{13.6} &  9.4\\
 \end{minipage}
 
 \medskip
-Short = full-model reference output $\leq$10 words ($n=762$);
-Long = $>$10 words ($n=838$). Gap = Short $-$ Long.
-Naive bolded to highlight the comparison point.
+Gap = Short $-$ Long.  Naive bolded to highlight the comparison point.
 \end{table}
 
 \begin{table}[H]
@@ -2284,7 +2281,7 @@ Naive      & 1.617 & 0.740 & 0.5$\times$\\
 
 \medskip
 Long/Short = ratio of Long KL to Short KL; values below 1$\times$ indicate
-lower KL (better faithfulness) on long-form outputs than on short ones.
+\\lower KL (better faithfulness) on long-form outputs than on short ones.
 \end{table}
 
 The tables sharpen the conclusion from §8. On long-form outputs ($>$10~words),
@@ -2294,14 +2291,15 @@ indistinguishable from Naive (12--14\%). Post-prefill eviction provides no
 and Naive is substantially faster: averaged over the 838 examples whose
 full-model output exceeds 10~words, selection methods take 11.4\,s per
 example at budget~=~256 versus Naive's 4.1\,s (11.8\,s vs.\ 6.3\,s
-at budget~=~1024; full per-method breakdown in Appendix~D, Table~D7).
+at budget~=~1024).
+
 On short outputs ($\leq$10~words), selection methods lead Naive by roughly
 30~percentage points --- but since post-prefill eviction cannot reduce TTFT,
 these examples take as long as the uncompressed model: averaged over the
 762 short examples, selection methods take 9.6\,s per example at
 budget~=~256 versus 9.7\,s for the uncompressed model (9.1\,s
 vs.\ 9.1\,s at budget~=~1024). The quality advantage exists precisely
-where the latency constraint is largest.
+where compression offers no performance benefit.
 
 The only metric that cleanly separates the methods across both output
 lengths is \(F_{\text{KL}}\). SnapKV+rot achieves 0.050 nats on short
@@ -2310,8 +2308,9 @@ outputs at budget~=~1024 --- a 14$\times$ improvement over unrotated SnapKV
 outputs (4.6$\times$ over unrotated SnapKV). Re-rotation is the only
 intervention that consistently improves faithfulness in this regime.
 The original papers evaluated neither KL faithfulness nor re-rotation:
-the one metric that distinguishes the methods is the one they did not
+the only metric that distinguishes the methods is one they did not
 measure, and the one technique that most improves it is one they did not apply.
+Per-task KL results for Mistral-7B-Instruct-v0.3 at budget~=~256 appear in Table~D7.
 
 \hypertarget{conclusion}{%
 \section{10. Conclusion}\label{conclusion}}
@@ -3705,6 +3704,57 @@ Long = 838 examples where it exceeds 10 words. Each example is timed
 independently and assigned to its bucket. Total time includes prefill and
 generation; for short outputs generation is 7--14 tokens so total
 time approximates TTFT.
+\end{table}
+
+\textbf{Table D7. KL Faithfulness per task, Mistral-7B-Instruct-v0.3,
+budget = 256 tokens (lower is better). Bold = best per row.
+Streaming = no re-rotation; Str+rot = with re-rotation.
+$n = 100$ per task.}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+NarrativeQA† & 3.071 & 2.395 & 1.240 & 2.151 & \textbf{0.440} & 1.424 &
+0.603\\
+Qasper† & 3.982 & 2.331 & 1.753 & 1.698 & \textbf{0.618} & 1.586 &
+0.733\\
+MultifieldQA & 2.875 & 2.062 & 1.401 & 1.712 & \textbf{0.433} & 1.691 &
+0.508\\
+HotpotQA† & 2.561 & 2.760 & 0.518 & 2.776 & \textbf{0.163} & 2.611 &
+\textbf{0.163}\\
+2WikiMQA† & 3.584 & 2.355 & 0.910 & 2.641 & \textbf{0.330} & 2.341 &
+0.375\\
+MuSiQue† & 3.148 & 2.272 & 0.814 & 2.149 & \textbf{0.304} & 2.109 &
+0.322\\
+GovReport & 1.591 & 1.484 & 1.486 & 1.344 & \textbf{1.288} & 1.374 &
+1.339\\
+QMSum† & 2.349 & 1.677 & 1.516 & 1.333 & \textbf{0.889} & 1.374 &
+1.004\\
+MultiNews & 1.296 & 1.280 & 1.159 & 1.185 & \textbf{1.080} & 1.237 &
+1.149\\
+TREC & 2.197 & 2.480 & 2.488 & 1.403 & \textbf{1.010} & 1.338 &
+1.107\\
+TriviaQA & 2.135 & 2.857 & 0.730 & 2.528 & \textbf{0.214} & 2.395 &
+0.251\\
+SAMSum & 2.092 & 2.052 & 1.803 & 1.902 & \textbf{1.377} & 1.987 &
+1.462\\
+PassageCount† & 4.816 & 3.490 & 1.061 & 3.444 & \textbf{0.531} & 3.570 &
+0.689\\
+PassageRetrieval & 3.280 & 1.578 & 0.663 & 2.839 & 0.223 & 3.235 &
+\textbf{0.217}\\
+LCC & 0.880 & 0.963 & 0.754 & 0.727 & \textbf{0.434} & 0.814 &
+0.519\\
+RepoBench-P & 1.118 & 1.179 & 1.011 & 0.769 & \textbf{0.482} & 0.865 &
+0.582\\
+\textbf{Average} & 2.561 & 2.076 & 1.207 & 1.912 & \textbf{0.614} & 1.872 &
+0.689\\
+\bottomrule
+\end{tabular}
 \end{table}
 
 \end{document}

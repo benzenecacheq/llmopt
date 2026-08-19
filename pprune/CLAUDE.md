@@ -136,12 +136,12 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 **Llama-3.1-8B-Instruct — all complete (all 16 tasks):**
 - `kl_instruct_llama_b256.json` ✓ (6 tasks, original; numbers cited in §9)
 - `kl_instruct_llama_b1024.json` ✓ (16 tasks; snapkv_rot=0.146, snapkv=0.648, pyr=0.652, pyr_rot=0.174)
-- `gt_instruct_llama_b256/checkpoint.json` ✓ (16 tasks)
-- `gt_instruct_llama_b1024/checkpoint.json` ✓ (16 tasks)
+- `gt_instruct_llama_b256/checkpoint.json` ✓ (16 tasks, 100/100)
+- `gt_instruct_llama_b1024/checkpoint.json` ✓ (16 tasks, 100/100)
 
 **Mistral-7B-Instruct-v0.3 — in progress (queued in `lb_results_base/queue.txt`):**
-1. `kl_instruct_mistral_b256.json` — **running**, 12/16 tasks done, ~8h remaining
-2. `gt_instruct_mistral_b256/` — queued
+1. `kl_instruct_mistral_b256.json` — **complete** (all 16 tasks, 36h44m). Mean KL: snapkv=1.912, snapkv_rot=0.614, pyr=1.872, pyr_rot=0.689, streaming=2.076, streaming_rot=1.207, naive=2.561
+2. `gt_instruct_mistral_b256/` — **running** (trec ~35/100; 9/16 tasks complete)
 3. `kl_instruct_mistral_b1024.json` — queued
 4. `gt_instruct_mistral_b1024/` — queued
 
@@ -292,13 +292,12 @@ All edits are in `paper_kv_faithfulness.tex` on branch `kvpress-impl`.
 - Table footnote: "n=20 examples per task"
 
 **§9 added and Appendix D expanded** (Aug 2026): Full "High-Compression Results on an Instruction-Tuned
-Model" section written (Llama-3.1-8B-Instruct, budgets 256 and 1024). Data sources:
-`kl_instruct_llama_b256.json` (KL@256 ✓), `gt_instruct_llama_b256/checkpoint.json` (GT@256, in
-progress), `kl_instruct_llama_b1024.json` (KL@1024, queued), `gt_instruct_llama_b1024/` (GT@1024,
-queued). Section concludes: "The original papers evaluated neither KL faithfulness nor re-rotation:
-the one metric that distinguishes the methods is the one they did not measure, and the one technique
-that most improves it is one they did not apply." Appendix D per-task tables cover both budgets;
-GT@1024 table is pending completion of that run.
+Model" section written (Llama-3.1-8B-Instruct, budgets 256 and 1024). All Llama data now complete.
+Appendix D tables D1–D6 cover Llama b256 and b1024 (KL, F_out, GT per task). Timing table
+(tab:instruct-timing) breaks down short/long wall-clock time by budget. **Known issue**: Table D7
+is cited in §9 text ("full per-method breakdown") but does not exist — either add it or fix the
+reference. Mistral-Instruct tables (D7+) not yet written; waiting on gt_instruct_mistral_b256
+(running) and kl/gt_instruct_mistral_b1024 (queued).
 
 ## Instruct eval — interpretation notes (Aug 2026)
 
