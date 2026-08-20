@@ -2146,9 +2146,11 @@ response.  Even though the remaining tokens are generated from a degraded cache,
 with a correct first token already established, the full answer is
 likely to follow correctly.  With a four-word answer, any method that retrieves a
 passage containing the right phrase will reproduce the full model's
-output nearly verbatim, so at budget = 256 tokens, all selection methods cluster near
-72--73\% \(F_{\text{out}}\) --- indistinguishable from each other. The instruct model
-collapses the metric's discriminative range.
+output nearly verbatim, so at budget = 256 tokens, all four selection methods cluster near
+69--72\% \(F_{\text{out}}\) --- within 3 percentage points of each other and well ahead
+of Naive (25\%). \(F_{\text{out}}\) separates selection from Naive but cannot
+distinguish rotated from unrotated: SnapKV (72.0\%) and SnapKV+rot (69.4\%) differ
+by only 2.6 percentage points while KL shows a 2.2$\times$ gap (0.769 vs.\ 0.352).
 
 
 At budget = 1024, selection methods achieve ground-truth
@@ -2207,13 +2209,13 @@ $n=762$; long: \(>\)10 words, $n=838$).
 \toprule
 Method & Short & Long & Gap\\
 \midrule
-SnapKV     & 46.0 & 13.7 & 32.3\\
-SnapKV+rot & 46.2 & 13.5 & 32.7\\
-PyramidKV  & 46.7 & 14.2 & 32.5\\
-Pyr+rot    & 46.8 & 13.3 & 33.5\\
-Streaming  & 39.1 & 12.0 & 27.1\\
-Strm+rot   & 38.9 & 12.1 & 26.8\\
-Naive      & \textbf{15.2} & \textbf{12.1} &  3.1\\
+SnapKV     & 91.0 & 54.7 & 36.3\\
+SnapKV+rot & 88.9 & 51.8 & 37.1\\
+PyramidKV  & 90.5 & 53.5 & 37.1\\
+Pyr+rot    & 89.2 & 50.5 & 38.7\\
+Streaming  & 72.0 & 41.5 & 30.5\\
+Strm+rot   & 72.1 & 41.5 & 30.6\\
+Naive      & \textbf{23.8} & \textbf{25.8} & $-$2.0\\
 \bottomrule
 \end{tabular}
 \end{minipage}
@@ -2225,13 +2227,13 @@ Naive      & \textbf{15.2} & \textbf{12.1} &  3.1\\
 \toprule
 Method & Short & Long & Gap\\
 \midrule
-SnapKV     & 46.5 & 15.0 & 31.5\\
-SnapKV+rot & 46.8 & 14.6 & 32.2\\
-PyramidKV  & 46.8 & 15.2 & 31.6\\
-Pyr+rot    & 47.0 & 14.5 & 32.5\\
-Streaming  & 40.0 & 12.4 & 27.6\\
-Strm+rot   & 39.5 & 12.8 & 26.7\\
-Naive      & \textbf{23.0} & \textbf{13.6} &  9.4\\
+SnapKV     & 95.3 & 69.7 & 25.6\\
+SnapKV+rot & 94.3 & 65.9 & 28.4\\
+PyramidKV  & 95.2 & 69.6 & 25.6\\
+Pyr+rot    & 94.3 & 65.1 & 29.2\\
+Streaming  & 76.4 & 49.3 & 27.1\\
+Strm+rot   & 75.9 & 49.4 & 26.5\\
+Naive      & \textbf{33.2} & \textbf{40.4} & $-$7.2\\
 \bottomrule
 \end{tabular}
 \end{minipage}
@@ -2284,33 +2286,25 @@ Long/Short = ratio of Long KL to Short KL; values below 1$\times$ indicate
 \\lower KL (better faithfulness) on long-form outputs than on short ones.
 \end{table}
 
-The tables sharpen the conclusion from §8. On long-form outputs ($>$10~words),
-all selection methods score 12--15\% \(F_{\text{out}}\), statistically
-indistinguishable from Naive (12--14\%). Post-prefill eviction provides no
-\(F_{\text{out}}\) advantage on the outputs that matter most for deployment,
-and Naive is substantially faster: averaged over the 838 examples whose
-full-model output exceeds 10~words, selection methods take 11.4\,s per
-example at budget~=~256 versus Naive's 4.1\,s (11.8\,s vs.\ 6.3\,s
-at budget~=~1024).
+The tables show that the short/long gap is large at both budgets. On short
+outputs ($\leq$10~words), selection methods score 89--91\% \(F_{\text{out}}\),
+leading Naive (24\%) by 65--67 percentage points. But since post-prefill
+eviction cannot reduce TTFT, these examples take as long as the uncompressed
+model: averaged over the 762 short examples, selection methods take 9.6\,s
+per example at budget~=~256 versus 9.7\,s for the uncompressed model (9.1\,s
+vs.\ 9.1\,s at budget~=~1024). The quality advantage exists precisely where
+compression offers no performance benefit.
 
-On short outputs ($\leq$10~words), selection methods lead Naive by roughly
-30~percentage points --- but since post-prefill eviction cannot reduce TTFT,
-these examples take as long as the uncompressed model: averaged over the
-762 short examples, selection methods take 9.6\,s per example at
-budget~=~256 versus 9.7\,s for the uncompressed model (9.1\,s
-vs.\ 9.1\,s at budget~=~1024). The quality advantage exists precisely
-where compression offers no performance benefit.
-
-The only metric that cleanly separates the methods across both output
-lengths is \(F_{\text{KL}}\). SnapKV+rot achieves 0.050 nats on short
-outputs at budget~=~1024 --- a 14$\times$ improvement over unrotated SnapKV
-(0.702) and 32$\times$ over Naive (1.617). This advantage persists on long
-outputs (4.6$\times$ over unrotated SnapKV). Re-rotation is the only
-intervention that consistently improves faithfulness in this regime.
-The original papers evaluated neither KL faithfulness nor re-rotation:
-the only metric that distinguishes the methods is one they did not
-measure, and the one technique that most improves it is one they did not apply.
-Per-task KL results for Mistral-7B-Instruct-v0.3 at budget~=~256 appear in Table~D7.
+On long-form outputs ($>$10~words), selection methods score 42--55\%
+\(F_{\text{out}}\), outperforming Naive (26\%) by 16--29 percentage points ---
+a substantial but smaller gap than on short outputs. On these longer examples
+Naive is substantially faster: averaged over the 838 examples whose full-model
+output exceeds 10~words, selection methods take 11.4\,s per example at
+budget~=~256 versus Naive's 4.1\,s (11.8\,s vs.\ 6.3\,s at budget~=~1024).
+Naive's Gap in Table~\ref{tab:instruct-fout-shortlong} goes slightly negative
+(long $>$ short at both budgets), reflecting that with more context Naive can
+produce partial summaries that overlap with the full model's output, whereas
+on single-fact QA the missing context gives it nothing to work with.
 
 \hypertarget{conclusion}{%
 \section{10. Conclusion}\label{conclusion}}
@@ -3770,40 +3764,40 @@ $n = 100$ per task.}
 Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
 Pyr+rot\\
 \midrule
-NarrativeQA† & 21.2 & 35.4 & 34.7 & \textbf{42.8} & 40.7 & \textbf{42.8} &
-42.6\\
-Qasper† & 17.5 & 40.6 & 41.1 & \textbf{60.3} & 56.4 & 58.1 &
-55.6\\
-MultifieldQA & 25.7 & 41.9 & 41.9 & \textbf{64.2} & 59.9 & 63.4 &
+NarrativeQA† & 13.5 & 49.3 & 48.4 & \textbf{68.5} & 65.4 & 63.4 &
+62.6\\
+Qasper† & 16.3 & 43.6 & 44.1 & \textbf{65.1} & 61.3 & 62.0 &
 60.2\\
-HotpotQA† & 33.5 & 50.5 & 50.4 & 65.9 & 65.6 & \textbf{66.9} &
-66.7\\
-2WikiMQA† & 13.8 & 59.2 & 58.0 & 68.3 & 64.8 & \textbf{70.4} &
-62.4\\
-MuSiQue† & 25.5 & 45.8 & 46.4 & 56.9 & 55.3 & 56.6 &
-\textbf{58.3}\\
-GovReport & 31.7 & 29.4 & 29.6 & \textbf{39.3} & 38.5 & 38.8 &
-38.7\\
-QMSum† & 26.8 & 33.5 & 33.9 & \textbf{41.9} & 41.6 & 41.2 &
-40.9\\
-MultiNews & 37.7 & 38.3 & 37.9 & 44.4 & \textbf{45.3} & 44.1 &
-43.9\\
-TREC & 17.8 & 11.3 & 10.8 & 21.9 & 19.0 & \textbf{22.3} &
-20.7\\
-TriviaQA & 39.2 & 70.1 & 70.1 & 74.0 & 73.9 & \textbf{74.4} &
-72.9\\
-SAMSum & 27.5 & 29.4 & 28.2 & 33.3 & 32.4 & \textbf{33.8} &
-32.3\\
-PassageCount† & 0.3 & 4.5 & 4.0 & 11.9 & 11.1 & \textbf{16.4} &
-11.8\\
-PassageRetrieval & 48.6 & 57.5 & 57.5 & \textbf{82.0} & 81.0 & 81.0 &
-80.0\\
-LCC & 29.7 & 37.6 & 36.6 & \textbf{49.9} & 47.1 & 48.6 &
-47.3\\
-RepoBench-P & 22.4 & 20.3 & 20.7 & 23.2 & 23.9 & 22.8 &
-\textbf{24.0}\\
-\textbf{Average} & 26.2 & 37.8 & 37.6 & 48.8 & 47.3 & \textbf{48.9} &
-47.4\\
+MultifieldQA & 23.5 & 40.2 & 40.5 & \textbf{69.2} & 65.4 & 67.8 &
+64.0\\
+HotpotQA† & 30.1 & 61.4 & 62.9 & 83.4 & 83.4 & 83.4 &
+\textbf{83.9}\\
+2WikiMQA† & 13.1 & 66.4 & 64.9 & 78.7 & 72.5 & \textbf{80.8} &
+70.6\\
+MuSiQue† & 18.0 & 54.7 & 55.2 & 75.9 & 75.3 & 74.8 &
+\textbf{77.2}\\
+GovReport & 30.0 & 28.5 & 29.1 & \textbf{42.5} & 40.6 & 40.9 &
+41.4\\
+QMSum† & 23.9 & 37.7 & 37.7 & \textbf{51.1} & 50.5 & 49.2 &
+48.8\\
+MultiNews & 37.6 & 38.4 & 37.9 & 44.8 & \textbf{45.3} & 44.2 &
+44.2\\
+TREC & 14.2 & 32.4 & 30.5 & 49.2 & 45.8 & \textbf{52.6} &
+50.1\\
+TriviaQA & 39.9 & 85.2 & 84.1 & 92.6 & 91.7 & \textbf{93.4} &
+93.3\\
+SAMSum & 47.2 & 57.6 & 57.5 & 69.5 & 67.8 & \textbf{70.8} &
+68.2\\
+PassageCount† & 4.6 & 22.4 & 23.6 & 44.1 & \textbf{45.1} & 41.3 &
+38.1\\
+PassageRetrieval & 49.1 & 62.0 & 62.0 & \textbf{92.5} & 81.5 & 92.0 &
+83.0\\
+LCC & 29.6 & 40.3 & 39.3 & \textbf{52.4} & 49.3 & 51.4 &
+49.6\\
+RepoBench-P & 20.2 & 33.5 & 32.6 & \textbf{42.4} & 39.6 & 39.2 &
+39.9\\
+\textbf{Average} & 25.7 & 47.1 & 46.9 & \textbf{63.9} & 61.3 & 63.0 &
+60.9\\
 \bottomrule
 \end{tabular}
 \end{table}
