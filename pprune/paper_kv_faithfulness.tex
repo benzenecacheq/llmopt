@@ -2286,25 +2286,28 @@ Long/Short = ratio of Long KL to Short KL; values below 1$\times$ indicate
 \\lower KL (better faithfulness) on long-form outputs than on short ones.
 \end{table}
 
-The tables show that the short/long gap is large at both budgets. On short
-outputs ($\leq$10~words), selection methods score 89--91\% \(F_{\text{out}}\),
-leading Naive (24\%) by 65--67 percentage points. But since post-prefill
-eviction cannot reduce TTFT, these examples take as long as the uncompressed
-model: averaged over the 762 short examples, selection methods take 9.6\,s
-per example at budget~=~256 versus 9.7\,s for the uncompressed model (9.1\,s
-vs.\ 9.1\,s at budget~=~1024). The quality advantage exists precisely where
-compression offers no performance benefit.
+Table~\ref{tab:instruct-fout-shortlong} shows selection methods outperforming
+Naive on both output-length categories, but neither category offers a clean
+deployment win. On short outputs ($\leq$10~words), selection methods score
+89--91\% \(F_{\text{out}}\) versus Naive's 24\% --- a 65--67 percentage point
+gap driven by first-token advantage and the ability to retrieve the correct
+short answer from the compressed cache. But TTFT dominates generation cost at
+these lengths: averaged over the 762 short examples, selection methods take
+9.6\,s per example at budget~=~256, the same as the uncompressed model (9.7\,s;
+9.1\,s vs.\ 9.1\,s at budget~=~1024). The quality advantage exists precisely
+where compression provides no speedup.
 
 On long-form outputs ($>$10~words), selection methods score 42--55\%
-\(F_{\text{out}}\), outperforming Naive (26\%) by 16--29 percentage points ---
-a substantial but smaller gap than on short outputs. On these longer examples
-Naive is substantially faster: averaged over the 838 examples whose full-model
-output exceeds 10~words, selection methods take 11.4\,s per example at
-budget~=~256 versus Naive's 4.1\,s (11.8\,s vs.\ 6.3\,s at budget~=~1024).
-Naive's Gap in Table~\ref{tab:instruct-fout-shortlong} goes slightly negative
-(long $>$ short at both budgets), reflecting that with more context Naive can
-produce partial summaries that overlap with the full model's output, whereas
-on single-fact QA the missing context gives it nothing to work with.
+\(F_{\text{out}}\) versus Naive's 26\%, a 16--29 percentage point gap that
+persists across both budgets. Here Naive does offer a genuine throughput gain:
+4.1\,s versus 11.4\,s per example at budget~=~256 (6.3\,s vs.\ 11.8\,s at
+budget~=~1024). Naive's Gap is slightly negative (long $F_{\text{out}}$ exceeds
+short) because partial summaries always share vocabulary with the full model's
+output, whereas a wrong single-fact answer scores zero. Across both output
+categories, \(F_{\text{out}}\) cannot distinguish rotated from unrotated
+methods --- SnapKV (91.0\% short) and SnapKV+rot (88.9\%) differ by only 2.1
+points despite a 2.2$\times$ KL gap (0.769 vs.\ 0.352) ---
+which is why KL remains the decisive metric.
 
 \hypertarget{conclusion}{%
 \section{10. Conclusion}\label{conclusion}}
