@@ -2,20 +2,17 @@
 # Orchestrates, in order:
 #   1. Wait for bender's current medium EMA sine-blend job (PID 3705) to finish.
 #   2. Benchmark that finished run.
-#   3. Wait for titan's cumulative-mode from-scratch run to reach step 100,000
-#      (well-populated token_loss/token_count buffer), snapshot it.
-#   4. Stop titan's cumulative run cleanly, migrate it to bender, resume there
-#      (bender becomes the new home for the full 500K-step "full monty" run).
-#   5. Titan is now free -- placeholder, awaiting user decision on what to run
-#      there (2026-08-21: the original plan of a fine-tune-from-100K-snapshot
-#      blend sweep was scrapped as methodologically weak -- confounds buffer
-#      immaturity AND model-undertrained-ness. venus's part of that plan was
-#      replaced with a clean from-scratch blend=0.75 run, handled by a
-#      separate standalone script since it doesn't depend on this chain at
-#      all. Titan's replacement plan is still TBD as of this edit.)
-# NOTE: originally also had venus steps (copy snapshot, launch alpha=0.5
-# fine-tune) -- removed below, superseded by the standalone venus
-# from-scratch design (queue_venus_blend75_scratch.sh).
+#   3. Stop titan's cumulative-mode from-scratch run cleanly, migrate it to
+#      bender, resume there (bender becomes the new home for the full
+#      500K-step "full monty" run, blend=1.0 baseline).
+#   4. Titan is now free -- launch a clean from-scratch cumulative-mode run
+#      at blend=0.5 there (mirrors venus's blend=0.75 run: no snapshot
+#      dependency, avoids the undertrained-model confound the original
+#      fine-tune-from-100K-snapshot plan had -- see CLAUDE.md 2026-08-21).
+#
+# Together with venus's blend=0.75 run and this migrated blend=1.0 "full
+# monty", this gives three clean from-scratch points on the cumulative-mode
+# blend curve (0.5, 0.75, 1.0) plus the existing non-EMA baseline (0.0).
 set -x
 cd /home/benzene/llmopt/blt
 LOG=queue_bender_finish_then_cumulative_migrate_and_blend_sweep.log
@@ -38,23 +35,9 @@ echo "$(date): medium run OWT eval done."
   > lm_eval_gpt2_medium_ema_blend75_sine_seed42.stdout 2>&1
 echo "$(date): medium run lm-eval done."
 
-echo "=== $(date): waiting for titan cumulative run to reach step 100000 ==="
-while true; do
-  STEP=$(ssh titan "cd ~/llmopt/blt && tail -1 run_gpt2_cumulative_scratch_seed42.log | cut -f1")
-  echo "$(date): titan cumulative run at step $STEP"
-  if [ -n "$STEP" ] && [ "$STEP" -ge 100000 ] 2>/dev/null; then
-    break
-  fi
-  sleep 300
-done
-
-echo "=== $(date): snapshotting titan checkpoint at ~100K steps ==="
-ssh titan "cp ~/llmopt/blt/run_gpt2_cumulative_scratch_seed42.pt ~/llmopt/blt/run_gpt2_cumulative_scratch_seed42_ckpt100k.pt"
-
 echo "=== $(date): stopping titan cumulative training cleanly ==="
 TITAN_PID=2894048
 echo "titan training PID: $TITAN_PID"
-ssh titan "ps -p $TITAN_PID -o cmd=" | grep -q run_gpt2_cumulative_scratch_seed42 || echo "WARNING: PID $TITAN_PID does not match expected cumulative-run command -- aborting kill"
 if ssh titan "ps -p $TITAN_PID -o cmd=" | grep -q run_gpt2_cumulative_scratch_seed42; then
   ssh titan "kill -TERM $TITAN_PID"
   sleep 15
@@ -96,8 +79,10 @@ else
   echo "$(date): *** BENDER RESUME FAILED OR DIED -- NEEDS MANUAL INTERVENTION *** see run_gpt2_cumulative_scratch_seed42_bender_resume.stdout"
 fi
 
-echo "=== $(date): titan is now free -- NO ACTION ARMED YET, awaiting decision ==="
-echo "$(date): snapshot still available at run_gpt2_cumulative_scratch_seed42_ckpt100k.pt on titan if needed later."
-echo "$(date): *** MANUAL FOLLOW-UP NEEDED ON TITAN *** see CLAUDE.md / this session for context."
+echo "=== $(date): titan is now free -- launching blend=0.5 from-scratch cumulative run ==="
+ssh titan "cd ~/llmopt/blt && nohup ~/miniconda3/envs/blt/bin/python train.py --baseline --from-scratch --ema-loss-weighting --loss-weighting-mode cumulative --ema-blend 0.5 --dataset openwebtext --seed 42 --max-steps 500000 --eval-every 1000 --lambada-eval-every 5000 --owt-eval-every 5000 --save-path run_gpt2_cumulative_blend50_scratch_seed42.pt > run_gpt2_cumulative_blend50_scratch_seed42.stdout 2>&1 &"
+sleep 30
+echo "$(date): titan blend=0.5 launch attempted, verifying..."
+ssh titan "ps aux | grep cumulative_blend50 | grep -v grep"
 
-echo "=== $(date): orchestration complete (titan follow-up pending) ==="
+echo "=== $(date): orchestration complete ==="
