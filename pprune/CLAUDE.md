@@ -90,7 +90,7 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 | `lb_results_base/ystar_cache_instruct.pt` | Cached y* tokens + log_p_full for Instruct model, 6 tasks, n=100 |
 | `lb_results_base/ystar_instruct_llama.pt` | Cached y* tokens + log_p_full for Instruct model, 6 tasks, n=100 (used by b256/b1024 evals) |
 | `lb_results_base/kl_instruct_llama_b256.json` | KL: all methods, Llama-3.1-8B-Instruct, budget=256, ws=8 (snap/pyr), ws=32 (streaming/naive), 6 tasks, n=100 ✓ |
-| `lb_results_base/gt_instruct_llama_b256/checkpoint.json` | GT: all methods, Llama-3.1-8B-Instruct, budget=256, ws=8, 6 tasks, n=100 (in progress) |
+| `lb_results_base/gt_instruct_llama_b256/checkpoint.json` | GT: all methods, Llama-3.1-8B-Instruct, budget=256, ws=8, 16 tasks, n=100 ✓ |
 | `lb_results_base/perstep_kl_rerotated.json` | Per-step KL for snapkv_rerotated + pyramidkv_rerotated on gov_report, n=31, 512 steps (used in Fig 5) |
 
 ## Completed data
@@ -139,11 +139,11 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 - `gt_instruct_llama_b256/checkpoint.json` ✓ (16 tasks, 100/100)
 - `gt_instruct_llama_b1024/checkpoint.json` ✓ (16 tasks, 100/100)
 
-**Mistral-7B-Instruct-v0.3 — in progress (queued in `lb_results_base/queue.txt`):**
-1. `kl_instruct_mistral_b256.json` — **complete** (all 16 tasks, 36h44m). Mean KL: snapkv=1.912, snapkv_rot=0.614, pyr=1.872, pyr_rot=0.689, streaming=2.076, streaming_rot=1.207, naive=2.561
-2. `gt_instruct_mistral_b256/` — **running** (trec ~35/100; 9/16 tasks complete)
-3. `kl_instruct_mistral_b1024.json` — queued
-4. `gt_instruct_mistral_b1024/` — queued
+**Mistral-7B-Instruct-v0.3 — in progress:**
+1. `kl_instruct_mistral_b256.json` — **complete** (all 16 tasks). Mean KL: snapkv=1.912, snapkv_rot=0.614, pyr=1.872, pyr_rot=0.689, streaming=2.076, streaming_rot=1.207, naive=2.561 → Tab D7
+2. `gt_instruct_mistral_b256/` — **complete** (all 16 tasks, 800 entries/task) → Tab D8 (F_out, verified correct), Tab D9 (GT, corrected Aug 2026: PassageCount/LCC/RepoBench-P were wrong). Avg GT: Full=32.8, SnapKV=31.3, Pyr=31.6 (best compressed)
+3. `kl_instruct_mistral_b1024.json` — **running** (9/16 tasks done, multi_news partial; 7 tasks remaining). Partial means (9-task): snapkv_rot=0.308, pyr_rot=0.363, snapkv=1.685, pyr=1.516 → Tab D10 pending
+4. `gt_instruct_mistral_b1024/` — **queued** (in `lb_results_base/queue.txt`; starts after kl_b1024 finishes)
 
 ## Key empirical results (Llama, F_out macro over 16 tasks)
 
