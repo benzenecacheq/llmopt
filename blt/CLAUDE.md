@@ -806,7 +806,7 @@ Compare final OWT held-out ppl against full-rank BLT (30.81-32.87), UV256 single
 
 **Status snapshot (2026-08-21 ~15:25 MDT):**
 - `bender`: medium sine-blend run, step 1,439,640/1,500,000 (96.0%), ~1.16 s/step recent pace → ETA **~11 AM MDT tomorrow (2026-08-22)**. The migration/benchmark watcher (`queue_bender_finish_then_cumulative_migrate_and_blend_sweep.sh`) is confirmed still alive, correctly polling PID 3705.
-- `titan`: cumulative-mode from-scratch run, step 44,190/500,000. Will get migrated to bender once bender's job finishes (per the watcher above); **what titan runs once freed is still an open decision** — the original fine-tune-from-snapshot plan was scrapped (see above), no replacement chosen yet.
+- `titan`: cumulative-mode from-scratch run, step 44,190/500,000. Will get migrated to bender once bender's job finishes (per the watcher above), which now happens immediately rather than waiting for step 100K (no snapshot dependency anymore). Once freed, titan launches a clean from-scratch **blend=0.5** cumulative-mode run (`run_gpt2_cumulative_blend50_scratch_seed42.pt`), mirroring venus's blend=0.75 design. Together with the migrated blend=1.0 baseline and venus's blend=0.75, this gives three clean points (0.5, 0.75, 1.0) on the cumulative-mode blend curve.
 - `venus`: new cumulative-mode blend=0.75 from-scratch run, step 7,530/500,000, `effective_blend=0.7500`, healthy.
 
 ### Other future directions
