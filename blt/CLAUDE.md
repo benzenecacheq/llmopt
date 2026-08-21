@@ -775,6 +775,29 @@ Compare final OWT held-out ppl against full-rank BLT (30.81-32.87), UV256 single
 
 **Limitation of GPT-2 scale testing:** KV cache and M-caching benefits are most compelling at 7B+ scale with long contexts. GPT-2 scale establishes viability; the practical case requires larger models.
 
+### Cumulative loss-weighting mode — first real test, plus a migration/blend-sweep chain (started 2026-08-21)
+
+`--loss-weighting-mode cumulative` (see "Flags added" below and `project_loss_function_ideas` memory) had been committed but never actually run. Tested it for real:
+
+**Smoke test passed** (`titan`, 30 steps, wikitext103): checked the checkpoint's `token_loss`/`token_count` buffers directly — perfectly consistent (no token with a count but no differentiated loss, or vice versa), real per-token differentiation already visible (std 0.73) after just 30 steps. Confirmed the mechanism works before trusting a real run, same discipline as every other EMA-family change in this project.
+
+**Real run launched**: `run_gpt2_cumulative_scratch_seed42.pt` on `titan` — mirrors the original pure-EMA protocol exactly (`--baseline --from-scratch --ema-loss-weighting --dataset openwebtext --seed 42 --max-steps 500000`, default `--ema-blend 1.0`, fixed schedule) with `--loss-weighting-mode cumulative` swapped in, isolating exactly one variable against `run_gpt2_ema_seed42.pt` (OWT ppl 30.06, LAMBADA acc 0.253). Also using `--owt-eval-every 5000` (now confirmed working end-to-end, see the memory file) for live OWT-ppl visibility. As of this writeup: step 2,940/500,000.
+
+**User wants a blend-sweep fine-tune too, like the original α=0/0.25/0.5/0.75 sweep** — but that sweep branched from an *already fully-converged* EMA checkpoint (500K steps of buffer differentiation already baked in); a short fine-tune only had to vary the blend. Cumulative mode has no such converged checkpoint yet, and unlike fixed-decay EMA (which fully differentiates within ~100 steps regardless of how long training runs), cumulative mode's *long tail* of rarer tokens needs many more accumulated samples before their running mean is trustworthy — so a fine-tune branching from an under-trained cumulative buffer would inherit a lot of noise. Decision: wait for the from-scratch run above to reach step 100,000 (a "fair number of steps," per the user), snapshot it there, and branch the blend sweep from that snapshot instead of from scratch. Fine-tune length: 50,000 steps per blend value (upper range user OK'd was 50K-100K; went with the lower end given P100 speed). Alpha values: **0.25 and 0.5** — exactly two, one per machine, matching the two P100s (`titan`, `venus`) that become free around the same time (see below).
+
+**Scheduling constraint that shaped this**: `bender`'s current medium EMA sine-blend run (`run_gpt2_medium_ema_blend75_sine_seed42.pt`) is ~1.5 days from finishing its 1.5M steps (step 1,396,800/1,500,000 as of this writeup) — coincidentally close to when the new titan cumulative run above will hit its own step-100K threshold (ETA ~35 hours from launch). User's plan: once `bender` frees up, migrate the titan cumulative run there to keep the full 500K-step "full monty" going, which frees up `titan`; combined with `venus` freeing up once its own `num_uv_groups=4` seed7 run finishes (step 480,620/500,000, much sooner — a few hours), that gives two free P100s to run the blend sweep on. Slower than a V100, but "might give us some clue" per the user, without blocking on a fully free machine.
+
+**Armed as a single chained watcher** (`queue_bender_finish_then_cumulative_migrate_and_blend_sweep.sh`, running locally on `bender`, PID logged in `queue_bender_finish_then_cumulative_migrate_and_blend_sweep.log`):
+1. Poll bender's current training PID (3705) until it exits.
+2. Benchmark the finished medium run (`eval_owt.py` + `blt_lm_eval.py`, with `--pretrained gpt2-medium`).
+3. Poll titan's cumulative run until it reaches step 100,000, then snapshot the checkpoint (`run_gpt2_cumulative_scratch_seed42_ckpt100k.pt`) — doesn't touch the live job.
+4. Stop titan's cumulative training cleanly (`SIGTERM` on the known PID, with a guard that verifies the PID still matches the expected command before killing it — protects against a PID-reuse edge case over a multi-hour wait), verify the checkpoint is finite, copy checkpoint+log to bender, resume there.
+5. Verify the bender resume is actually healthy (process alive AND log shows `Resumed at step`) before declaring titan free — logs a loud `*** BENDER RESUME FAILED ***` marker if not, rather than silently pressing on.
+6. Launch the alpha=0.25 fine-tune on titan from the step-100K snapshot.
+7. Poll for venus's own benchmark output to confirm it's free, copy the snapshot there, launch the alpha=0.5 fine-tune.
+
+**Caught and fixed two real bugs before trusting this to run unattended for ~34 hours**: the benchmark commands originally called a nonexistent `~/miniconda3/envs/blt/bin/conda` (conda's own binary only lives in the base install, `~/miniconda3/bin/conda` — env-specific bin dirs don't have it); and the planned PID-rediscovery logic (`ps aux | grep ... | grep -v Sl`) turned out not to match the actual process line at all (tested live, matched nothing) — replaced with the already-known launch-time PID (2894048) plus a guard that checks the PID still corresponds to the expected command before sending `SIGTERM`, rather than blindly trusting a fragile re-derivation. Verified the finiteness-check script and the log step-parsing (`tail -1 | cut -f1`) against live data before deploying.
+
 ### Other future directions
 - **Grouped Wv**: share Wv across groups of heads (GQA-style) to reduce value cache bandwidth.
 - **Token weighting loss**: upweight tokens requiring long-range context using a short-context reference model (arXiv 2503.09202). Most promising fix for LAMBADA/benchmark mismatch.
