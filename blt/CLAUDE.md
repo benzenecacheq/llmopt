@@ -718,7 +718,20 @@ Relaunched by hand using the file-based approach (write a script, `scp` it over,
 
 **This settles the head-axis-vs-layer-axis question this whole side-by-side test was designed to answer.** `num_uv_groups=4` beats every single-pair UV256 seed on OWT ppl (28.95 vs. their 29.97 floor) and lands closer to the MHA/GQA band (27.36–28.24) than to full-rank BLT's — going from 1 to 4 (U,V) groups recovered roughly half of UV256's remaining gap to MHA. `layers-per-m=4`, by contrast, is the *worst* OWT-ppl result of any BLT-family variant in this project, worse even than every full-rank single-shared-M seed — relaxing cross-layer sharing alone didn't just fail to help, it actively hurt relative to keeping one M for the whole model (plausibly: 3 separately-optimized M's each get less gradient signal per step than one M receiving updates from all 12 layers, a cost the head-axis split doesn't pay since every UV group is still shared globally across all layers). **Net conclusion: BLT's redundancy is concentrated in per-head multiplicity within a layer, not in the sheer number of independently-parameterized attention computations across layers** — consistent with, and now much more directly evidenced than, the earlier hybrid-model finding.
 
-**Caveat**: single seed each. A second `num_uv_groups=4` seed (seed19, titan) and third (seed7, venus) are in progress as of 2026-08-18 to confirm this isn't a favorable seed42 draw — same discipline as every other multi-seed result in this project.
+**Caveat (at the time)**: single seed each. A second `num_uv_groups=4` seed (seed19, titan) and third (seed7, venus) were launched 2026-08-18 to confirm this isn't a favorable seed42 draw — same discipline as every other multi-seed result in this project.
+
+**Second seed — DONE (2026-08-20), and it lands remarkably close to seed42.** `run_blt_uv256_groups4_scratch_seed19.pt` finished on titan, final val_ppl 62.28. Benchmarked (`lm_eval_blt_uv256_groups4_scratch_seed19.json`, `eval_owt_blt_uv256_groups4_scratch_seed19.stdout`):
+
+| Metric | seed42 | seed19 |
+|---|---|---|
+| OWT held-out ppl | 28.95 | **28.95** |
+| LAMBADA acc | 0.2045 | 0.2016 |
+| LAMBADA ppl | 229.2 | 238.8 |
+| HellaSwag acc_norm | 0.2677 | 0.2683 |
+| PIQA acc_norm | 0.5686 | 0.5637 |
+| Winogrande acc | 0.4988 | 0.5122 |
+
+OWT held-out ppl is identical to two decimal places across seeds — the tightest seed-to-seed agreement of any result in this project so far, and strong confirmation the head-axis finding is real rather than a favorable seed42 draw. Third seed (`run_blt_uv256_groups4_scratch_seed7.pt`, venus) still in progress as of 2026-08-20 (step 476,350/500,000, 95%) to complete the standard three-seed set; no watcher is currently armed for it (the seed19 watcher, `queue_uvgroups4_seed19_watcher.sh`, was found dead/never-launched on titan when its run finished, and its benchmarks had to be run manually — worth checking on venus's seed7 by hand once it finishes rather than assuming a watcher will fire).
 
 **Not evidence for PyramidKV-style depth-importance claims, despite surface resemblance.** User drew a connection to PyramidKV's argument that later transformer layers carry less information and tolerate more KV-cache compression. `layers-per-m=4` can't actually speak to that: its grouping is **strided, not contiguous** (`layer i uses M_params[i % 3]`, so each of the 3 M's serves layers spanning the *entire* depth — e.g. M_0 serves {0,3,6,9} — early, middle, and late layers all feed every group equally). It tests "does relaxing cross-layer sharing at all help," not "do later layers need less capacity." The experiment that actually tests the depth-position claim already exists: the **hybrid model** (Section 4.5, 6 MHA layers placed *first*, 6 fully-collapsed BLT layers placed *last*, that placement explicitly reasoned from Gromov et al. ICLR 2025's layer-pruning finding) — and it already supports the PyramidKV-style claim: converting only the *later* half of layers recovered >75% of the full-BLT OWT-loss gap, well above the ~50% a depth-independent cost would predict.
 
