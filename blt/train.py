@@ -618,16 +618,19 @@ if __name__ == '__main__':
                              'original single-pair UV256 design).')
     parser.add_argument('--lambada-eval-every', type=int, default=2000,
                         help='Evaluate LAMBADA cloze accuracy every N steps (0 to disable)')
-    parser.add_argument('--owt-eval-every', type=int, default=0,
+    parser.add_argument('--owt-eval-every', type=int, default=5000,
                         help='Evaluate OpenWebText held-out perplexity (files 21-25, same split '
-                             'eval_owt.py uses) every N steps (0=disabled, the default). Uses the '
+                             'eval_owt.py uses) every N steps (0 to disable). Default 5000 as of '
+                             '2026-08-21 -- standard on every training run now that the OOM bug in '
+                             'this path is fixed and verified end-to-end (see CLAUDE.md). Uses the '
                              'same sliding-window loop as the WikiText val_ppl check, at --eval-tokens '
                              'tokens, tokenized once and cached at startup -- not a substitute for '
                              'running eval_owt.py itself at the end (that uses more tokens by '
                              'default). Requires the held-out parquet files (21-25) to already be '
                              'present locally; --dataset openwebtext/openwebtext_large deliberately '
                              'exclude them from the training corpus, so they are not guaranteed to be '
-                             'cached on every training machine.')
+                             'cached on every training machine -- pass --owt-eval-every 0 to disable '
+                             'on a machine that lacks them.')
     parser.add_argument('--dataset', type=str, default='wikitext103',
                         choices=['wikitext103', 'lambada', 'lambada_cloze', 'pg19', 'openwebtext',
                                 'openwebtext_large'])
