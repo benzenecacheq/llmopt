@@ -6,10 +6,16 @@
 #      (well-populated token_loss/token_count buffer), snapshot it.
 #   4. Stop titan's cumulative run cleanly, migrate it to bender, resume there
 #      (bender becomes the new home for the full 500K-step "full monty" run).
-#   5. Titan is now free -- launch the alpha=0.25 blend-sweep fine-tune there,
-#      branching from the step-100K snapshot.
-#   6. Once venus's own uv256_groups4 seed7 run + benchmark are done, copy the
-#      snapshot there too and launch the alpha=0.5 blend-sweep fine-tune.
+#   5. Titan is now free -- placeholder, awaiting user decision on what to run
+#      there (2026-08-21: the original plan of a fine-tune-from-100K-snapshot
+#      blend sweep was scrapped as methodologically weak -- confounds buffer
+#      immaturity AND model-undertrained-ness. venus's part of that plan was
+#      replaced with a clean from-scratch blend=0.75 run, handled by a
+#      separate standalone script since it doesn't depend on this chain at
+#      all. Titan's replacement plan is still TBD as of this edit.)
+# NOTE: originally also had venus steps (copy snapshot, launch alpha=0.5
+# fine-tune) -- removed below, superseded by the standalone venus
+# from-scratch design (queue_venus_blend75_scratch.sh).
 set -x
 cd /home/benzene/llmopt/blt
 LOG=queue_bender_finish_then_cumulative_migrate_and_blend_sweep.log
@@ -90,28 +96,8 @@ else
   echo "$(date): *** BENDER RESUME FAILED OR DIED -- NEEDS MANUAL INTERVENTION *** see run_gpt2_cumulative_scratch_seed42_bender_resume.stdout"
 fi
 
-echo "=== $(date): titan is now free -- launching alpha=0.25 blend-sweep fine-tune ==="
-ssh titan "cd ~/llmopt/blt && nohup ~/miniconda3/envs/blt/bin/python train.py --finetune run_gpt2_cumulative_scratch_seed42_ckpt100k.pt --baseline --from-scratch --ema-loss-weighting --loss-weighting-mode cumulative --ema-blend 0.25 --dataset openwebtext --seed 42 --max-steps 50000 --eval-every 1000 --lambada-eval-every 5000 --owt-eval-every 5000 --save-path run_gpt2_cumulative_blend25_finetune_seed42.pt > run_gpt2_cumulative_blend25_finetune_seed42.stdout 2>&1 &"
-sleep 10
-echo "$(date): titan alpha=0.25 launch attempted, verifying..."
-ssh titan "ps aux | grep cumulative_blend25 | grep -v grep"
+echo "=== $(date): titan is now free -- NO ACTION ARMED YET, awaiting decision ==="
+echo "$(date): snapshot still available at run_gpt2_cumulative_scratch_seed42_ckpt100k.pt on titan if needed later."
+echo "$(date): *** MANUAL FOLLOW-UP NEEDED ON TITAN *** see CLAUDE.md / this session for context."
 
-echo "=== $(date): waiting for venus's own uv256_groups4 seed7 run + benchmark to finish ==="
-while true; do
-  DONE=$(ssh venus "ls ~/llmopt/blt/lm_eval_blt_uv256_groups4_scratch_seed7.json 2>/dev/null")
-  if [ -n "$DONE" ]; then
-    break
-  fi
-  sleep 300
-done
-echo "$(date): venus is free."
-
-echo "=== $(date): copying snapshot to venus, launching alpha=0.5 blend-sweep fine-tune ==="
-scp titan:~/llmopt/blt/run_gpt2_cumulative_scratch_seed42_ckpt100k.pt /tmp/run_gpt2_cumulative_scratch_seed42_ckpt100k.pt
-scp /tmp/run_gpt2_cumulative_scratch_seed42_ckpt100k.pt venus:~/llmopt/blt/run_gpt2_cumulative_scratch_seed42_ckpt100k.pt
-ssh venus "cd ~/llmopt/blt && nohup ~/miniconda3/envs/blt/bin/python train.py --finetune run_gpt2_cumulative_scratch_seed42_ckpt100k.pt --baseline --from-scratch --ema-loss-weighting --loss-weighting-mode cumulative --ema-blend 0.5 --dataset openwebtext --seed 42 --max-steps 50000 --eval-every 1000 --lambada-eval-every 5000 --owt-eval-every 5000 --save-path run_gpt2_cumulative_blend50_finetune_seed42.pt > run_gpt2_cumulative_blend50_finetune_seed42.stdout 2>&1 &"
-sleep 10
-echo "$(date): venus alpha=0.5 launch attempted, verifying..."
-ssh venus "ps aux | grep cumulative_blend50 | grep -v grep"
-
-echo "=== $(date): orchestration complete ==="
+echo "=== $(date): orchestration complete (titan follow-up pending) ==="
