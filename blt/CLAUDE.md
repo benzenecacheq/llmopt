@@ -751,6 +751,19 @@ OWT held-out ppl is identical to two decimal places across seeds — the tightes
 
 EMA is both consistently higher (worse) on val_ppl (~17% gap) and ~1.6x noisier at this point — both expected: some val_ppl cost is the known EMA trade-off, and noise scales with `effective_blend` magnitude (currently 0.52, a bit past halfway to the 0.75 target) per the noise-dynamics hypothesis from the original io run. Worth re-checking once `effective_blend` crosses ~0.7 near the end of the run.
 
+**DONE (2026-08-22) — the EMA trade-off holds at medium scale, confirming it's not just a small-model effect.** `run_gpt2_medium_ema_blend75_sine_seed42.pt` completed all 1,500,000 steps on `bender` (after the io→bender migration above). Benchmarked automatically via the migration/blend-sweep watcher (`eval_owt_gpt2_medium_ema_blend75_sine_seed42.stdout`, `lm_eval_gpt2_medium_ema_blend75_sine_seed42.json`): OWT held-out ppl **18.79** (loss 2.9332).
+
+| Metric | Sine-blend EMA (medium) | Non-EMA baseline (medium) |
+|---|---|---|
+| OWT held-out ppl | 18.79 | **18.09** |
+| LAMBADA acc | **0.373** | 0.311 |
+| LAMBADA ppl | **31.2** | 40.8 |
+| HellaSwag acc_norm | **0.302** | 0.297 |
+| PIQA acc_norm | 0.594 | **0.607** |
+| Winogrande acc | 0.515 | **0.522** |
+
+**Same trade-off shape as every small-model EMA result in this project, now confirmed at ~3x the parameter count.** OWT ppl is modestly worse (+3.9% relative), but LAMBADA improves substantially (acc +20% relative, ppl -24%), HellaSwag edges up slightly, PIQA/Winogrande dip slightly — matching Finding 1 from the original small-model EMA work (architecture-general trade-off) and now extending it to model-scale-general as well. This was the whole motivation for running the medium-scale test in the first place (see "GPT-2 medium — testing EMA generality at a larger scale" below) — motivation confirmed.
+
 **Per-step timing, clean segment since the resume (step 718,000→740,490)**: **1.32 s/step** (29,632s / 22,490 steps), consistent across both halves (1.322 / 1.313 s/step, no drift) — essentially identical to bender's own baseline rate (1.322 s/step over its full 1.2M-step run). Confirms the EMA loss-reweighting itself costs no meaningful extra compute (just a per-token multiply, not new matmuls) — the migration didn't introduce any speed penalty beyond what bender's hardware already costs relative to io.
 
 ### num_uv_groups=4 vs layers-per-m=4 — an early, real speed data point (2026-08-11)
@@ -808,6 +821,10 @@ Compare final OWT held-out ppl against full-rank BLT (30.81-32.87), UV256 single
 - `bender`: medium sine-blend run, step 1,439,640/1,500,000 (96.0%), ~1.16 s/step recent pace → ETA **~11 AM MDT tomorrow (2026-08-22)**. The migration/benchmark watcher (`queue_bender_finish_then_cumulative_migrate_and_blend_sweep.sh`) is confirmed still alive, correctly polling PID 3705.
 - `titan`: cumulative-mode from-scratch run, step 44,190/500,000. Will get migrated to bender once bender's job finishes (per the watcher above), which now happens immediately rather than waiting for step 100K (no snapshot dependency anymore). Once freed, titan launches a clean from-scratch **blend=0.5** cumulative-mode run (`run_gpt2_cumulative_blend50_scratch_seed42.pt`), mirroring venus's blend=0.75 design. Together with the migrated blend=1.0 baseline and venus's blend=0.75, this gives three clean points (0.5, 0.75, 1.0) on the cumulative-mode blend curve.
 - `venus`: new cumulative-mode blend=0.75 from-scratch run, step 7,530/500,000, `effective_blend=0.7500`, healthy.
+
+**Migration chain executed 2026-08-22, exactly in the designed order.** `bender`'s medium job finished overnight; the watcher benchmarked it first (results above), only then stopped titan's run (step 104,000, verified finite), migrated it to bender (`Resumed at step 104050`, confirmed healthy), and finally tried to launch titan's blend=0.5 run. **That last step hit the by-now-familiar tcsh `2>&1`-in-a-remote-command bug** (titan's default shell mangles the redirect, same failure mode documented elsewhere for venus/io) — the watcher's own verification step correctly logged that nothing launched, rather than silently claiming success. Fixed by hand via the usual reliable pattern (write the launch command to a local script, `scp` it over, run via `nohup bash script.sh`) — confirmed alive independently before and after cleaning up the local hung SSH task. **Lesson reinforced**: even a watcher that's been tested and works fine for other steps can still hit this exact class of bug on a *new* remote command it hasn't exercised before — worth specifically avoiding inline `2>&1` in any future watcher's remote launch lines, not just trusting that "it worked elsewhere in this same script."
+
+Current state: `bender` running the migrated cumulative-mode blend=1.0 "full monty" from step 104,050; `titan` running blend=0.5 from step 0; `venus` running blend=0.75. All three from-scratch cumulative-mode points now in flight.
 
 ### Other future directions
 - **Grouped Wv**: share Wv across groups of heads (GQA-style) to reduce value cache bandwidth.
