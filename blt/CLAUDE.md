@@ -731,7 +731,20 @@ Relaunched by hand using the file-based approach (write a script, `scp` it over,
 | PIQA acc_norm | 0.5686 | 0.5637 |
 | Winogrande acc | 0.4988 | 0.5122 |
 
-OWT held-out ppl is identical to two decimal places across seeds — the tightest seed-to-seed agreement of any result in this project so far, and strong confirmation the head-axis finding is real rather than a favorable seed42 draw. Third seed (`run_blt_uv256_groups4_scratch_seed7.pt`, venus) still in progress as of 2026-08-20 (step 476,350/500,000, 95%) to complete the standard three-seed set; no watcher is currently armed for it (the seed19 watcher, `queue_uvgroups4_seed19_watcher.sh`, was found dead/never-launched on titan when its run finished, and its benchmarks had to be run manually — worth checking on venus's seed7 by hand once it finishes rather than assuming a watcher will fire).
+OWT held-out ppl is identical to two decimal places across seeds — the tightest seed-to-seed agreement of any result in this project so far, and strong confirmation the head-axis finding is real rather than a favorable seed42 draw.
+
+**Third seed — DONE (2026-08-21).** `run_blt_uv256_groups4_scratch_seed7.pt` finished on venus, final val_ppl 60.90. Its own benchmark watcher (`queue_uvgroups4_seed7_watcher.sh`) vanished without a trace the same way seed19's did on titan — benchmarks were run by hand (see the venus network-outage saga elsewhere in this file), and the results sat only on venus until now. `lm_eval_blt_uv256_groups4_scratch_seed7.json`, `eval_owt_blt_uv256_groups4_scratch_seed7.stdout`:
+
+| Metric | seed42 | seed19 | seed7 |
+|---|---|---|---|
+| OWT held-out ppl | 28.95 | 28.95 | **28.85** |
+| LAMBADA acc | 0.2045 | 0.2016 | 0.2073 |
+| LAMBADA ppl | 229.2 | 238.8 | 232.1 |
+| HellaSwag acc_norm | 0.2677 | 0.2683 | 0.2652 |
+| PIQA acc_norm | 0.5686 | 0.5637 | 0.5686 |
+| Winogrande acc | 0.4988 | 0.5122 | 0.5122 |
+
+**This completes the standard three-seed set for `num_uv_groups=4`.** All three seeds land within 0.10 ppl of each other (28.85–28.95) — the tightest seed cluster of any result in this project. `num_uv_groups=4` is now as solidly confirmed as every other multi-seed architecture family here (full-rank BLT, UV256 single-pair, GQA, MHA), and the head-axis-vs-layer-axis conclusion rests on a complete, standard-strength evidence base rather than a lone seed or two.
 
 **Not evidence for PyramidKV-style depth-importance claims, despite surface resemblance.** User drew a connection to PyramidKV's argument that later transformer layers carry less information and tolerate more KV-cache compression. `layers-per-m=4` can't actually speak to that: its grouping is **strided, not contiguous** (`layer i uses M_params[i % 3]`, so each of the 3 M's serves layers spanning the *entire* depth — e.g. M_0 serves {0,3,6,9} — early, middle, and late layers all feed every group equally). It tests "does relaxing cross-layer sharing at all help," not "do later layers need less capacity." The experiment that actually tests the depth-position claim already exists: the **hybrid model** (Section 4.5, 6 MHA layers placed *first*, 6 fully-collapsed BLT layers placed *last*, that placement explicitly reasoned from Gromov et al. ICLR 2025's layer-pruning finding) — and it already supports the PyramidKV-style claim: converting only the *later* half of layers recovered >75% of the full-BLT OWT-loss gap, well above the ~50% a depth-independent cost would predict.
 
