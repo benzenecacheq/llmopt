@@ -839,6 +839,15 @@ Compare final OWT held-out ppl against full-rank BLT (30.81-32.87), UV256 single
 
 Current state: `bender` running the migrated cumulative-mode blend=1.0 "full monty" from step 104,050; `titan` running blend=0.5 from step 0; `venus` running blend=0.75. All three from-scratch cumulative-mode points now in flight.
 
+**Status snapshot (2026-08-23):**
+- `bender`: cumulative blend=1.0 "full monty", step 237,010/500,000 (47%).
+- `titan`: cumulative blend=0.5, step 47,550/500,000 (10%).
+- `venus`: cumulative blend=0.75, step 112,440/500,000 (22%).
+
+**Also found and cleaned up while checking in on this**: two genuine result files that had been computed but never committed — `lm_eval_blt_uv256_groups4_scratch_seed7.json` (the third `num_uv_groups=4` seed, sitting only on venus since 2026-08-21 — see the "num_uv_groups=4" section above for the now-complete 3-seed writeup) and `lm_eval_gpt2_medium_ema_blend75_sine_seed42.json` (the medium-scale EMA benchmark, see "GPT-2 medium" above). Both committed.
+
+**`paper_blt.md` updated to match the data (2026-08-23).** Added a new Section 4.8 writing up the `num_uv_groups=4` vs `layers-per-m=4` head-axis/layer-axis result in full — previously this lived only in this file, despite being arguably the paper's most decisive finding. Also fixed three places where the paper still described the third UV256 seed as "in progress" (it finished 12 days prior); updated Section 6's synthesis bullet, Section 7.2's future-work framing, and Section 7.3's closing sentence to match. See the paper itself for the full text — not duplicated here.
+
 ### Other future directions
 - **Grouped Wv**: share Wv across groups of heads (GQA-style) to reduce value cache bandwidth.
 - **Token weighting loss**: upweight tokens requiring long-range context using a short-context reference model (arXiv 2503.09202). Most promising fix for LAMBADA/benchmark mismatch.
