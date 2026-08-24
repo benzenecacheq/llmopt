@@ -867,6 +867,10 @@ Current state: `bender` running the migrated cumulative-mode blend=1.0 "full mon
 
 Status: `titan` (blend=0.5) and `venus` (blend=0.75) still in progress. `bender` is now free.
 
+**Migration (2026-08-24): venus's blend=0.75 seed42 run moved to bender, venus started a second blend=0.75 seed.** Once `bender` freed up from finishing the blend=1.0 run above, `venus`'s blend=0.75 run (step 213,000/500,000 at the time) was migrated there to keep running on faster hardware — same protocol as the earlier titan migration: `SIGTERM` (with a PID-match guard), checkpoint verified genuine before touching anything (step 213,000, all finite, `token_count` sum 871,600,092 across 50,117/50,257 tokens), copied to bender (md5sum-verified byte-identical), resumed there (`Resumed at step 213000`, confirmed healthy). `venus` was then immediately used to start a **second blend=0.75 seed** (`run_gpt2_cumulative_blend75_scratch_seed19.pt`, seed 19, otherwise identical config) — the natural next step toward a multi-seed-confirmed result for this blend point, matching this project's usual practice.
+
+Current state: `bender` continuing blend=0.75 seed42 from step 213,000; `titan` still on blend=0.5 seed42; `venus` now on blend=0.75 seed19 from step 0.
+
 **`paper_blt.md` updated to match the data (2026-08-23).** Added a new Section 4.8 writing up the `num_uv_groups=4` vs `layers-per-m=4` head-axis/layer-axis result in full — previously this lived only in this file, despite being arguably the paper's most decisive finding. Also fixed three places where the paper still described the third UV256 seed as "in progress" (it finished 12 days prior); updated Section 6's synthesis bullet, Section 7.2's future-work framing, and Section 7.3's closing sentence to match. See the paper itself for the full text — not duplicated here.
 
 ### Other future directions
