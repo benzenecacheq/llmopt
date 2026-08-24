@@ -850,6 +850,23 @@ Current state: `bender` running the migrated cumulative-mode blend=1.0 "full mon
 
 **Also reconciled stale/duplicated code on both remote machines while doing this.** `venus` had an uncommitted local diff to `train.py` that turned out to be byte-for-byte the same work already merged as commit `59f8d09` weeks earlier (same pattern as the `titan` case documented under "Cross-machine merge" above) — discarded the local diff and pulled clean (one byte-identical untracked-file collision on `lm_eval_blt_uv256_groups4_scratch_seed7.json`, resolved via `md5sum` the usual way). `titan` had no local modifications but was several commits behind; pulled clean with no conflicts. Both machines are now fully current with `origin/blt`, and — since Python already has the previous `train.py` loaded in memory for each live training process — none of this touched the actual running jobs.
 
+**DONE (2026-08-24) — the cumulative-mode blend=1.0 "full monty" finished on `bender`, and it directly confirms the reason cumulative mode was built.** All 500,000 steps complete (migrated from titan at step 104,050, continued on bender to completion), final val_ppl 72.29. Checkpoint verified genuine before trusting it: `token_count` sum 2,046,004,092 across 50,134/50,257 vocab tokens touched, `token_loss` std 2.15 — a fully-populated cumulative buffer, not a partial/interrupted one. Benchmarked (`lm_eval_gpt2_cumulative_scratch_seed42.json`, `eval_owt_gpt2_cumulative_scratch_seed42.stdout`): OWT held-out ppl **30.37** (loss 3.4135).
+
+| Metric | Cumulative (blend=1.0) | Fixed-decay EMA (blend=1.0, `run_gpt2_ema_seed42.pt`) |
+|---|---|---|
+| OWT held-out ppl | 30.37 | 30.06 |
+| LAMBADA acc | **0.268** | 0.253 |
+| LAMBADA ppl | 119.3 | 119.6 |
+| HellaSwag acc_norm | 0.271 | 0.272 |
+| PIQA acc_norm | 0.566 | 0.569 |
+| Winogrande acc | 0.507 | 0.511 |
+
+**This is the direct A/B the whole cumulative-mode feature was built to test** (see `project_loss_function_ideas` memory): does an exact running mean (no permanent noise floor) beat fixed-decay EMA at the same full blend strength? It does — LAMBADA acc up ~6% relative (0.268 vs 0.253), among the best LAMBADA results of any pure-full-blend run in the whole EMA family, at a small OWT-ppl cost (+0.31, ~1%). Everything else ties within noise. One seed so far, matching this project's usual practice of reading a first result as suggestive rather than confirmed until a second seed lands — but it's a clean, real signal in the predicted direction, not an ambiguous one.
+
+**Not yet written up in `paper_ema.md`** — that paper hasn't been updated with anything from the cumulative-mode work yet (smoke test, this blend=1.0 result, or the in-progress blend=0.5/0.75 runs). Worth doing once the other two blend points land, so it's one coherent update rather than three.
+
+Status: `titan` (blend=0.5) and `venus` (blend=0.75) still in progress. `bender` is now free.
+
 **`paper_blt.md` updated to match the data (2026-08-23).** Added a new Section 4.8 writing up the `num_uv_groups=4` vs `layers-per-m=4` head-axis/layer-axis result in full — previously this lived only in this file, despite being arguably the paper's most decisive finding. Also fixed three places where the paper still described the third UV256 seed as "in progress" (it finished 12 days prior); updated Section 6's synthesis bullet, Section 7.2's future-work framing, and Section 7.3's closing sentence to match. See the paper itself for the full text — not duplicated here.
 
 ### Other future directions
