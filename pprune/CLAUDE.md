@@ -139,11 +139,11 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 - `gt_instruct_llama_b256/checkpoint.json` ✓ (16 tasks, 100/100)
 - `gt_instruct_llama_b1024/checkpoint.json` ✓ (16 tasks, 100/100)
 
-**Mistral-7B-Instruct-v0.3 — in progress:**
+**Mistral-7B-Instruct-v0.3 — all complete:**
 1. `kl_instruct_mistral_b256.json` — **complete** (all 16 tasks). Mean KL: snapkv=1.912, snapkv_rot=0.614, pyr=1.872, pyr_rot=0.689, streaming=2.076, streaming_rot=1.207, naive=2.561 → Tab D7
 2. `gt_instruct_mistral_b256/` — **complete** (all 16 tasks, 800 entries/task) → Tab D8 (F_out, verified correct), Tab D9 (GT, corrected Aug 2026: PassageCount/LCC/RepoBench-P were wrong). Avg GT: Full=32.8, SnapKV=31.3, Pyr=31.6 (best compressed)
-3. `kl_instruct_mistral_b1024.json` — **complete** (all 16 tasks). Mean KL: snapkv=1.766, snapkv_rot=0.294, pyr=1.596, pyr_rot=0.349, streaming=1.912, streaming_rot=0.894, naive=1.532 → Tab D10 (added, SnapKV+rot leads all 16 tasks)
-4. `gt_instruct_mistral_b1024/` — **running** (started 2026-08-21; narrativeqa in progress) → Tab D11 (F_out), D12 (GT) pending
+3. `kl_instruct_mistral_b1024.json` — **complete** (all 16 tasks). Mean KL: snapkv=1.766, snapkv_rot=0.294, pyr=1.596, pyr_rot=0.349, streaming=1.912, streaming_rot=0.894, naive=1.532 → Tab D10 (SnapKV+rot leads all 16 tasks)
+4. `gt_instruct_mistral_b1024/` — **complete** (all 16 tasks, 100/100). Avg F_out: Naive=36.8, Streaming=43.3, Strm+rot=42.8, SnapKV=55.2, SnapKV+rot=53.5, Pyr=54.9, Pyr+rot=52.6 → Tab D11. Avg GT: Full=28.9, Naive=20.9, Streaming=26.0, Strm+rot=25.8, SnapKV=32.2, SnapKV+rot=31.5, Pyr=32.1, Pyr+rot=31.5 → Tab D12. Notable: compressed selection methods (32.2%) exceed Full (28.9%) — focused-context effect on TREC/TriviaQA/SAMSum.
 
 ## Key empirical results (Llama, F_out macro over 16 tasks)
 
