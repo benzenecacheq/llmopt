@@ -554,7 +554,8 @@ def build_blt_model(pretrained='gpt2', num_m_groups=1, layers_per_m=0,
 
 
 def build_blt_lowrank_model(rank, source_checkpoint=None, pretrained='gpt2',
-                            from_scratch=False, num_uv_groups=1):
+                            from_scratch=False, num_uv_groups=1,
+                            mha_warmstart_checkpoint=None):
     """
     Build a GPT-2 model with low-rank bilinear attention: M ≈ U @ V^T, both
     (D×rank), shared globally across all layers (mirrors the original
@@ -576,7 +577,19 @@ def build_blt_lowrank_model(rank, source_checkpoint=None, pretrained='gpt2',
           r=64 loses 64% of the energy.
     source_checkpoint: path to a trained full-rank, single-shared-M BLT
           checkpoint (num_m_groups=1, no --per-layer-m/--layers-per-m) to
-          factorize and warm-start from. Required unless from_scratch=True.
+          factorize and warm-start from. Required unless from_scratch=True
+          or mha_warmstart_checkpoint is given.
+    mha_warmstart_checkpoint: path to a trained *standard baseline* (MHA)
+          checkpoint to warm-start from instead of a BLT one -- for cases
+          (e.g. GPT-2 medium) where no full-rank BLT checkpoint exists to
+          factorize. Computes M_avg = mean over layers of Wq^l @ Wk^l,T
+          (the same cross-layer-average formula build_blt_model's own
+          warm-start uses), SVD-truncates that at the requested rank for
+          U/V, and carries over every other trained weight (embeddings,
+          per-layer Wv/Wo, LN, MLP) from the baseline checkpoint unchanged.
+          Quick-and-dirty by design (a cheap probe to compare ranks before
+          committing to a full run, not a from-scratch protocol) -- mutually
+          exclusive with source_checkpoint.
     pretrained: HuggingFace model id controlling architecture shape only
           (weights are always overwritten -- either by the source
           checkpoint's trained weights, or randomly if from_scratch=True).
@@ -594,15 +607,18 @@ def build_blt_lowrank_model(rank, source_checkpoint=None, pretrained='gpt2',
           matrix further. Unlike GQA's per-layer groups, these G pairs are
           relearned nowhere else in the model -- loaded once, reused across
           every layer. Only supported with from_scratch=True; the SVD
-          warm-start path (source_checkpoint) does not yet support grouping.
+          warm-start paths (source_checkpoint, mha_warmstart_checkpoint) do
+          not yet support grouping.
     """
-    if not from_scratch and source_checkpoint is None:
-        raise ValueError('source_checkpoint is required unless from_scratch=True')
+    if source_checkpoint is not None and mha_warmstart_checkpoint is not None:
+        raise ValueError('source_checkpoint and mha_warmstart_checkpoint are mutually exclusive')
+    if not from_scratch and source_checkpoint is None and mha_warmstart_checkpoint is None:
+        raise ValueError('source_checkpoint or mha_warmstart_checkpoint is required unless from_scratch=True')
     if num_uv_groups < 1:
         raise ValueError(f'num_uv_groups must be >= 1, got {num_uv_groups}')
     if num_uv_groups > 1 and not from_scratch:
         raise ValueError('num_uv_groups > 1 is only supported with from_scratch=True '
-                          '(the SVD warm-start path does not yet support grouping)')
+                          '(the SVD warm-start paths do not yet support grouping)')
 
     # Config-only build for shape (no real-weight download needed): weights
     # are either randomly initialized here (from_scratch) or fully
@@ -641,9 +657,29 @@ def build_blt_lowrank_model(rank, source_checkpoint=None, pretrained='gpt2',
         return model
 
     ckpt = None
+    mha_state = None
     if from_scratch:
         U_init = torch.randn(D, rank) / math.sqrt(D)
         V_init = torch.randn(D, rank) / math.sqrt(D)
+    elif mha_warmstart_checkpoint is not None:
+        ckpt = torch.load(mha_warmstart_checkpoint, map_location='cpu')
+        mha_state = ckpt['model_state']
+        # Same cross-layer-average formula as build_blt_model's own warm-start
+        # (Section 2.2), just computed from a saved state_dict's per-layer
+        # Wq/Wk (fused inside c_attn.weight: columns 0:D=Wq, D:2D=Wk) instead
+        # of a live model's attributes -- there is no full-rank BLT M to draw
+        # from at this scale, so this is the only warm-start source available.
+        M_avg = torch.zeros(D, D)
+        for i in range(cfg.n_layer):
+            w = mha_state[f'transformer.h.{i}.attn.c_attn.weight']
+            Wq_l = w[:, :D]
+            Wk_l = w[:, D:2 * D]
+            M_avg += Wq_l @ Wk_l.T
+        M_avg /= cfg.n_layer
+        U_svd, S, Vh_svd = torch.linalg.svd(M_avg)
+        sqrt_S = S[:rank].sqrt()
+        U_init = U_svd[:, :rank] * sqrt_S
+        V_init = Vh_svd[:rank, :].T * sqrt_S
     else:
         ckpt = torch.load(source_checkpoint, map_location='cpu')
         M = ckpt['model_state']['transformer.M_blt']
@@ -660,18 +696,52 @@ def build_blt_lowrank_model(rank, source_checkpoint=None, pretrained='gpt2',
     U_shared = nn.Parameter(U_init)
     V_shared = nn.Parameter(V_init)
 
-    for layer in model.transformer.h:
-        attn = layer.attn
-        Wv      = attn.c_attn.weight[:, 2 * D:].detach()
-        Wv_bias = attn.c_attn.bias[2 * D:].detach()
-        Wo      = attn.c_proj.weight.detach()
-        Wo_bias = attn.c_proj.bias.detach()
-        layer.attn = BLTLowRankAttention(U_shared, V_shared, Wv, Wv_bias, Wo, Wo_bias, cfg)
+    if mha_state is not None:
+        # Wv/Wo have no name-matching counterpart in a standard MHA
+        # checkpoint (c_attn is a fused Wq|Wk|Wv, unlike BLTAttention's
+        # already-separate Wv) -- extract and construct each layer directly
+        # from the checkpoint's real trained weights, not placeholder slices
+        # to be overwritten by load_state_dict later like the other branches.
+        for i, layer in enumerate(model.transformer.h):
+            w = mha_state[f'transformer.h.{i}.attn.c_attn.weight']
+            b = mha_state[f'transformer.h.{i}.attn.c_attn.bias']
+            Wv = w[:, 2 * D:].clone()
+            Wv_bias = b[2 * D:].clone()
+            Wo = mha_state[f'transformer.h.{i}.attn.c_proj.weight'].clone()
+            Wo_bias = mha_state[f'transformer.h.{i}.attn.c_proj.bias'].clone()
+            layer.attn = BLTLowRankAttention(U_shared, V_shared, Wv, Wv_bias, Wo, Wo_bias, cfg)
+    else:
+        for layer in model.transformer.h:
+            attn = layer.attn
+            Wv      = attn.c_attn.weight[:, 2 * D:].detach()
+            Wv_bias = attn.c_attn.bias[2 * D:].detach()
+            Wo      = attn.c_proj.weight.detach()
+            Wo_bias = attn.c_proj.bias.detach()
+            layer.attn = BLTLowRankAttention(U_shared, V_shared, Wv, Wv_bias, Wo, Wo_bias, cfg)
 
     model.transformer.register_parameter('U_blt', U_shared)
     model.transformer.register_parameter('V_blt', V_shared)
 
-    if not from_scratch:
+    if mha_state is not None:
+        # Carry over embeddings/LN/MLP from the baseline checkpoint. Unlike
+        # the BLT-source branch, attention keys (c_attn/c_proj) do NOT
+        # name-match this model's Wv/Wo parameters at all -- already handled
+        # directly above -- so they're excluded here rather than relied on
+        # to line up via strict=False.
+        source_state = {k: v for k, v in mha_state.items() if '.attn.' not in k}
+        missing, unexpected = model.load_state_dict(source_state, strict=False)
+        expected_missing = {'transformer.U_blt', 'transformer.V_blt'}
+        expected_missing |= {f'transformer.h.{i}.attn.U' for i in range(cfg.n_layer)}
+        expected_missing |= {f'transformer.h.{i}.attn.V' for i in range(cfg.n_layer)}
+        expected_missing |= {f'transformer.h.{i}.attn.{name}'
+                             for i in range(cfg.n_layer)
+                             for name in ('Wv', 'Wv_bias', 'Wo', 'Wo_bias')}
+        if set(missing) - expected_missing or unexpected:
+            raise RuntimeError(
+                f'Unexpected state_dict mismatch loading {mha_warmstart_checkpoint}: '
+                f'missing={set(missing) - expected_missing}, unexpected={unexpected}'
+            )
+    elif not from_scratch:
         # Carry over every other trained weight (embeddings, per-layer
         # Wv/Wo, LN, MLP) from the source checkpoint -- only M is
         # replaced by U/V above. Wv/Wv_bias/Wo/Wo_bias key names are

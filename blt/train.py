@@ -291,11 +291,13 @@ def train(args):
             model = GPT2LMHeadModel.from_pretrained(args.pretrained).to(device)
     elif args.uv_rank:
         log(f'Building low-rank BLT model (rank={args.uv_rank}, source={args.uv_source}, '
-            f'from_scratch={args.from_scratch}, num_uv_groups={args.num_uv_groups})...')
+            f'mha_warmstart={args.uv_mha_warmstart}, from_scratch={args.from_scratch}, '
+            f'num_uv_groups={args.num_uv_groups})...')
         model = build_blt_lowrank_model(rank=args.uv_rank, source_checkpoint=args.uv_source,
                                         pretrained=args.pretrained,
                                         from_scratch=args.from_scratch,
-                                        num_uv_groups=args.num_uv_groups).to(device)
+                                        num_uv_groups=args.num_uv_groups,
+                                        mha_warmstart_checkpoint=args.uv_mha_warmstart).to(device)
     else:
         log(f'Building BLT model (pretrained={args.pretrained}, num_m_groups={args.num_m_groups}, layers_per_m={args.layers_per_m}, per_layer_m={args.per_layer_m}, random_m={args.random_m}, from_scratch={args.from_scratch}, warmstart_scale={args.warmstart_scale})...')
         model = build_blt_model(pretrained=args.pretrained, num_m_groups=args.num_m_groups,
@@ -609,7 +611,15 @@ if __name__ == '__main__':
     parser.add_argument('--uv-source', type=str, default=None,
                         help='Path to a trained full-rank single-shared-M BLT checkpoint to '
                              'SVD-factorize and warm-start from (used with --uv-rank; required '
-                             'unless --from-scratch).')
+                             'unless --from-scratch or --uv-mha-warmstart).')
+    parser.add_argument('--uv-mha-warmstart', type=str, default=None,
+                        help='Path to a trained *standard baseline* (MHA) checkpoint to '
+                             'warm-start a low-rank BLT model from instead of --uv-source -- for '
+                             'scales (e.g. gpt2-medium) where no full-rank BLT checkpoint exists '
+                             'to factorize. Computes M_avg from the checkpoint\'s own per-layer '
+                             'Wq@Wk^T (same cross-layer-average formula as build_blt_model\'s '
+                             'warm-start), SVD-truncates at --uv-rank, and carries over every '
+                             'other trained weight unchanged. Mutually exclusive with --uv-source.')
     parser.add_argument('--num-uv-groups', type=int, default=1,
                         help='Low-rank BLT: number of distinct (U,V) pairs, each rank --uv-rank, '
                              'each still shared globally across all layers but governing only '
