@@ -900,7 +900,20 @@ Current state: `bender` continuing blend=0.75 seed42 from step 213,000; `titan` 
 
 Once both land, compare OWT ppl / LAMBADA acc to decide r for the real 3-week medium UV run. This is explicitly a quick, "doesn't have to be perfect" probe (per the user) — not a substitute for the eventual from-scratch result, just enough signal to avoid committing 3 weeks to the wrong rank.
 
-**r=512 DONE (2026-08-26).** All 50,000 steps finished on `io` (final val_ppl 56.34), checkpoint verified finite. Benchmarking initially failed with a real bug: `eval_owt.py`/`blt_lm_eval.py`'s low-rank-checkpoint loading path never passed `--pretrained` through to `build_blt_lowrank_model` (defaulted to `gpt2`'s 12 layers regardless of CLI flag) — never caught before since every prior UV checkpoint benchmarked was small-scale, where the default happened to be correct. Fixed and verified (rebuilds correctly to 24 layers / 305,490,944 params at `pretrained='gpt2-medium'`) before re-running. Real result: `lm_eval_gpt2_medium_uv_r512_finetune_seed42.json` — **OWT held-out ppl 23.56**, LAMBADA acc 0.246, HellaSwag acc_norm 0.276, PIQA acc_norm 0.594, Winogrande acc 0.513. `run_gpt2_medium_uv_r256_finetune_seed42.pt` (bender) still in progress, needed for the actual r=256-vs-r=512 comparison.
+**r=512 DONE (2026-08-26).** All 50,000 steps finished on `io` (final val_ppl 56.34), checkpoint verified finite. Benchmarking initially failed with a real bug: `eval_owt.py`/`blt_lm_eval.py`'s low-rank-checkpoint loading path never passed `--pretrained` through to `build_blt_lowrank_model` (defaulted to `gpt2`'s 12 layers regardless of CLI flag) — never caught before since every prior UV checkpoint benchmarked was small-scale, where the default happened to be correct. Fixed and verified (rebuilds correctly to 24 layers / 305,490,944 params at `pretrained='gpt2-medium'`) before re-running. Real result: `lm_eval_gpt2_medium_uv_r512_finetune_seed42.json` — **OWT held-out ppl 23.56**, LAMBADA acc 0.246, HellaSwag acc_norm 0.276, PIQA acc_norm 0.594, Winogrande acc 0.513.
+
+**r=256 DONE (2026-08-26), and it settles the question.** All 50,000 steps finished on `bender` (final val_ppl 54.45), checkpoint verified finite. Benchmarked (`lm_eval_gpt2_medium_uv_r256_finetune_seed42.json`, `eval_owt_gpt2_medium_uv_r256_finetune_seed42.stdout`):
+
+| Metric | r=256 | r=512 |
+|---|---|---|
+| OWT held-out ppl | **23.37** | 23.56 |
+| LAMBADA acc | **0.248** | 0.246 |
+| LAMBADA ppl | **117.4** | 118.6 |
+| HellaSwag acc_norm | **0.285** | 0.276 |
+| PIQA acc_norm | 0.590 | **0.594** |
+| Winogrande acc | 0.504 | **0.513** |
+
+**r=256 wins on OWT ppl, LAMBADA (both metrics), and HellaSwag; r=512 only edges ahead on PIQA and Winogrande.** Doubling the rank bought nothing on the two metrics this project treats as primary (OWT ppl, LAMBADA), despite the SVD-energy prior suggesting r=512 should capture far more structure (98.2% vs. 81% of a converged full M's Frobenius energy) — the same lesson as the earlier UV256-vs-full-rank-BLT surprise: SVD-truncation energy capture of an existing solution doesn't predict trained-model quality. **Decision: r=256 for the real 3-week from-scratch medium UV run** — better on the metrics that matter and cheaper (fewer params, less memory, faster per step).
 
 ### Cumulative blend sweep — second blend=0.75 seed launched on io (2026-08-26)
 
