@@ -871,6 +871,19 @@ Status: `titan` (blend=0.5) and `venus` (blend=0.75) still in progress. `bender`
 
 Current state: `bender` continuing blend=0.75 seed42 from step 213,000; `titan` still on blend=0.5 seed42; `venus` now on blend=0.75 seed19 from step 0.
 
+**DONE (2026-08-25) — cumulative blend=0.75 seed42 finished, and it's an unexpected trade-off shape.** All 500,000 steps complete (final val_ppl 68.26), checkpoint verified genuine (all finite, `token_count` sum 2,046,004,092 across 50,134/50,257 tokens — fully populated, matching the blend=1.0 run's population level). Benchmarked (`lm_eval_gpt2_cumulative_blend75_scratch_seed42.json`): OWT held-out ppl **29.35** (loss 3.3794).
+
+| Metric | Cumulative blend=0.75 | Cumulative blend=1.0 | Fixed 75/25 avg (3 seeds) | Sine 75/25 avg (3 seeds) |
+|---|---|---|---|---|
+| OWT held-out ppl | **29.35** | 30.37 | 29.55 | 29.39 |
+| LAMBADA acc | 0.249 | **0.268** | 0.260 | 0.259 |
+| LAMBADA ppl | 141.6 | 119.3 | 129.9 | 133.2 |
+| HellaSwag acc_norm | 0.269 | 0.271 | 0.270 | 0.270 |
+| PIQA acc_norm | 0.573 | 0.566 | 0.574 | 0.576 |
+| Winogrande acc | 0.525 | 0.507 | 0.517 | 0.512 |
+
+**Not what the blend-value logic alone would predict.** Cumulative blend=0.75 has the *best* OWT ppl of the four (even better than both established fixed/sine 75%-blend averages), but the *worst* LAMBADA acc — the opposite of blend=1.0's profile (worst OWT ppl, best LAMBADA acc). For fixed-decay EMA, lower blend reliably means "closer to baseline on both metrics" (a monotonic dial, confirmed across the whole α=0/0.25/0.5/0.75/1.0 sweep). Cumulative mode's blend=0.75 point doesn't sit on that same monotonic line relative to its own blend=1.0 — LAMBADA acc dropped by more than the OWT-ppl-vs-blend=1.0 trade would suggest. **One seed — this could be seed noise rather than a real shape difference; titan's blend=0.5 seed42 and venus's blend=0.75 seed19 (both in progress) are the next two points that will clarify whether this is a real pattern or an outlier.** Was running concurrently with the r=256 medium UV fine-tune on the same GPU (tight but survived — see below); both jobs finished/continued without incident.
+
 ### Medium-scale UV rank probe (r=256 vs r=512) — de-risking a 3-week commitment (2026-08-25)
 
 **Context**: user is planning two full 3-week GPT-2-medium training runs (once `bender`/`io` free up from their current small-model work) — one testing cumulative-mode EMA loss weighting, one testing low-rank UV BLT at `num_uv_groups=8` (chosen for NVLink/TP reasons independent of this project's own compute-crossover analysis — see the design discussion earlier this session). Before committing 3 weeks to a specific rank `r`, wanted a cheap way to check whether r=256 vs r=512 makes a meaningful quality difference.
