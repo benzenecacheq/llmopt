@@ -156,7 +156,8 @@ if __name__ == '__main__':
         # from_scratch=True only to get the right shape cheaply -- load_state_dict
         # below fully overwrites with the checkpoint's own trained U/V/Wv/Wo.
         model = build_blt_lowrank_model(rank=args.uv_rank, from_scratch=True,
-                                        num_uv_groups=args.num_uv_groups).to(device)
+                                        num_uv_groups=args.num_uv_groups,
+                                        pretrained=args.pretrained).to(device)
         ckpt = torch.load(args.blt_lowrank_checkpoint, map_location=device)
         model.load_state_dict(ckpt['model_state'])
         model.eval()

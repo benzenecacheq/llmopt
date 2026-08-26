@@ -32,7 +32,8 @@ def load_model(checkpoint_path, baseline=False, gqa=False, hybrid=False,
         # right shape cheaply -- the actual trained U/V/Wv/Wo are all in checkpoint_path
         # and fully overwrite this random init via load_state_dict below.
         model = build_blt_lowrank_model(rank=uv_rank, from_scratch=True,
-                                        num_uv_groups=num_uv_groups).to(device)
+                                        num_uv_groups=num_uv_groups,
+                                        pretrained=pretrained).to(device)
         ckpt = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(ckpt['model_state'])
         print(f'Loaded low-rank BLT checkpoint (rank={uv_rank}, num_uv_groups={num_uv_groups}): '
