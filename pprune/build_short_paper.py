@@ -153,7 +153,7 @@ SnapKV+rot & 30.8 & 31.4\\
 Pyr        & \textbf{31.2} & \textbf{31.6}\\
 Pyr+rot    & 30.9 & 31.4\\
 \midrule
-Full       & 31.7 & 31.7\\
+Full       & 33.2 & 33.2\\
 \bottomrule
 \end{tabular}
 \end{minipage}%
@@ -311,19 +311,19 @@ out_lines += L(432, 473)
 # Skip "Accidental correctness is rewarded" bullet (474-482)
 # Resume at line 483 (the \item for "Low full-model accuracy")
 
-# Rest of §5.1 bullets + Figure 1 + \end{itemize} (483-631)
-out_lines += L(483, 631)
+# Rest of §5.1 bullets + Figure 1 + \end{itemize} (483-629)
+out_lines += L(483, 629)
 
-# Skip the two paragraphs after figure (632-647)
+# Skip the two paragraphs after figure (630-645)
 
-# §5.2 KL Faithfulness + §5.3 Output Faithfulness header + text (648-823)
-out_lines += L(648, 823)
+# §5.2 KL Faithfulness + §5.3 Output Faithfulness header + text (646-821)
+out_lines += L(646, 821)
 
-# §5.3 "Caveat emptor" intro line embedded; skip bullets (824-850)
-# Resume at 851 "These limitations are why..."
-out_lines += L(851, 858)
+# §5.3 "Caveat emptor" intro line embedded; skip bullets (822-848)
+# Resume at 849 "These limitations are why..."
+out_lines += L(849, 856)
 
-# Skip §5.4 (859-1010) and §5.5 (1011-1025)
+# Skip §5.4 (857-1008) and §5.5 (1009-1023)
 
 # ── New §4: Experiments (= §7 + §3 methods + §4.2 GT + §4.3 KL + §4.4 Fout + §4.5 Timing)
 out_lines.append("\n")
@@ -332,7 +332,7 @@ out_lines.append("\\section{4. Experiments}\\label{main-experiments}}\n")
 out_lines.append("\n")
 
 # ── §4.1 Setup ──────────────────────────────────────────────────────────────
-out_lines += L(1417, 1419)  # \subsection{4.1 Setup}
+out_lines += L(1415, 1417)  # \subsection{4.1 Setup}
 
 # Unified Models + Benchmark + Hyperparameters covering base and instruct
 out_lines.append(SETUP_PARA)
@@ -342,8 +342,8 @@ out_lines.append("\n")
 out_lines += L(277, 334)
 out_lines.append("\n")
 
-# §7.1 Methods table (1430-1449)
-out_lines += L(1430, 1449)
+# §7.1 Methods table (1428-1447)
+out_lines += L(1428, 1447)
 
 # ── §4.2 Ground-Truth Results ──────────────────────────────────────────────
 out_lines.append("\n")
@@ -358,7 +358,7 @@ out_lines.append(INSTRUCT_GT_TABLE)
 out_lines.append("\n")
 
 # ── §4.3 KL Faithfulness (= §7.2) ──────────────────────────────────────────
-out_lines += L(1451, 1563)
+out_lines += L(1449, 1561)
 
 # Instruct KL intro + table (inline)
 out_lines.append("\n")
@@ -366,50 +366,50 @@ out_lines.append(INSTRUCT_KL_INTRO)
 out_lines.append(INSTRUCT_KL_TABLE)
 out_lines.append("\n")
 
-# "SnapKV+rot is the best method at every budget" prose from §9 (2174-2194)
-out_lines += L(2174, 2194)
+# "SnapKV+rot is the best method at every budget" prose from §9 (2172-2192)
+out_lines += L(2172, 2192)
 out_lines.append("\n")
 
-# Tab:instruct-kl-shortlong from §9 (2248-2290)
-out_lines += L(2248, 2290)
+# Tab:instruct-kl-shortlong from §9 (2246-2288)
+out_lines += L(2246, 2288)
 out_lines.append("\n")
 
 # ── §4.4 Output Faithfulness (= §7.3) ──────────────────────────────────────
-out_lines += L(1565, 1643)
+out_lines += L(1563, 1641)
 
 # Instruct F_out intro (inline)
 out_lines.append("\n")
 out_lines.append(INSTRUCT_FOUT_INTRO)
 
-# "Instruct model output style amplifies first-token advantage" from §9 (2130-2173)
-out_lines += L(2130, 2173)
+# "Instruct model output style amplifies first-token advantage" from §9 (2128-2171)
+out_lines += L(2128, 2171)
 out_lines.append("\n")
 
-# Tab:instruct-fout-shortlong from §9 (2203-2246)
-out_lines += L(2203, 2246)
+# Tab:instruct-fout-shortlong from §9 (2201-2244)
+out_lines += L(2201, 2244)
 out_lines.append("\n")
 
-# Deployment perspective prose from §9 (2292-2313)
-out_lines += L(2292, 2313)
+# Deployment perspective prose from §9 (2290-2311)
+out_lines += L(2290, 2311)
 out_lines.append("\n")
 
 # ── §4.5 Inference Performance (= §7.4) ─────────────────────────────────────
-out_lines += L(1644, 1701)
+out_lines += L(1642, 1699)
 
 # ── New §5: Structural Corruption (= §6 unchanged) ──────────────────────────
 out_lines.append("\n")
-out_lines += L(1026, 1413)
+out_lines += L(1024, 1411)
 
 # ── New §6: Why Post-Prefill KV Eviction Without Re-rotation (= §8) ─────────
 out_lines.append("\n")
-out_lines += L(1702, 2073)
+out_lines += L(1700, 2071)
 
 # ── New §7: Conclusion (= §10) ───────────────────────────────────────────────
 out_lines.append("\n")
-out_lines += L(2315, 2383)
+out_lines += L(2313, 2381)
 
 # ── References ────────────────────────────────────────────────────────────────
-out_lines += L(2384, len(orig))
+out_lines += L(2382, len(orig))
 
 # Apply all cross-reference text substitutions
 final = text_subs(out_lines)

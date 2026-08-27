@@ -485,16 +485,14 @@ metric.
 
   The base models used here (Llama-3.1-8B and Mistral-7B-v0.3) achieve
   macro-average GT scores of approximately 25 out of 100 on LongBench.
-  The instruction-tuned variants used by the most directly comparable
-  compression papers score higher --- PyramidKV reports full-context
-  baselines of 41.46 for LLaMA-3-8B-Instruct and 39.76 for
-  Mistral-7B-Instruct {[}Cai et al., 2024{]} --- but even at a baseline
-  of 40, roughly 60\% of what the model generates does not overlap with
-  the ground-truth reference. For that majority of output, the metric is
-  entirely blind to whether compression changed the model's behavior:
-  the compressed and uncompressed models could produce identical text or
-  completely different text, and the GT score would be the same either
-  way.
+  Our own evaluations of the instruction-tuned variants on the same
+  benchmark yield 33.2\% for Llama-3.1-8B-Instruct and 32.8\% for
+  Mistral-7B-Instruct-v0.3 (Appendix~D) --- meaning roughly 67\% of what
+  each instruct model generates does not overlap with the ground-truth
+  reference. For that majority of output, the metric is entirely blind
+  to whether compression changed the model's behavior: the compressed
+  and uncompressed models could produce identical text or completely
+  different text, and the GT score would be the same either way.
 
   On six of our 16 tasks the full model's ground-truth accuracy is below
   15 (NarrativeQA: 5.5, MuSiQue: 6.9, PassageCount: 3.0, HotpotQA: 9.9,
@@ -1417,11 +1415,11 @@ StreamingLLM should see a meaningfully smaller gain.
 \hypertarget{setup-1}{%
 \subsection{7.1 Setup}\label{setup-1}}
 
-\textbf{Models.} Llama-3.1-8B (base, fp16) and Mistral-7B-v0.3 (base,
-fp16).
-
 \textbf{Benchmark.} LongBench v1, 16 English tasks, 100 examples per
 task.
+
+\textbf{Models.} Llama-3.1-8B (base, fp16) and Mistral-7B-v0.3 (base,
+fp16).
 
 \textbf{Hyperparameters.} All KV pruning methods use
 \texttt{window\_size=128}; PyramidKV uses \texttt{beta=20}; Streaming
