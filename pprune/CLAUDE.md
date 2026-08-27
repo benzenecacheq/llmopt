@@ -11,6 +11,10 @@ SnapKV+rot at 65% (0.047 vs 0.043) and ties exactly at 35% (budget collapse to u
 opens only at 50% where the pyramid reaches its window_size floor at layer 31. No phrase
 compression content. Compile with XeLaTeX (requires fontspec + unicode-math).
 
+**`paper_kv_short.tex`** — Standalone short-paper version (LaTeX source). As of Aug 2026,
+this is edited directly — do NOT regenerate from `build_short_paper.py`. The generator
+is kept for reference but is no longer used. Compile with XeLaTeX.
+
 **`paper_phrase_compression.md`** — Base for future phrase compression paper. Contains all
 phr128/phr160 content, §7 Phrase-Based Context Compression, and the TTFT comparison. Not the
 active submission.
