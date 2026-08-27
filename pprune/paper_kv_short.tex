@@ -652,17 +652,12 @@ similarity --- rather than as independent evidence.
 \hypertarget{setup-1}{%
 \subsection{4.1 Setup}\label{setup-1}}
 
-\textbf{Models.} Llama-3.1-8B (base, fp16) and Mistral-7B-v0.3 (base,
-fp16).
+\textbf{Models.} Base: Llama-3.1-8B and Mistral-7B-v0.3 (fp16). Instruct: Llama-3.1-8B-Instruct and Mistral-7B-Instruct-v0.3 (fp16), evaluated at absolute token budgets of 256 and 1024 tokens (§§4.2--4.4).
 
-\textbf{Benchmark.} LongBench v1, 16 English tasks, 100 examples per
-task.
+\textbf{Benchmark.} LongBench v1, 16 English tasks, 100 examples per task.
 
-\textbf{Hyperparameters.} All KV pruning methods use
-\texttt{window\_size=128}; PyramidKV uses \texttt{beta=20}; Streaming
-uses \texttt{n\_sink=4}. 
+\textbf{Hyperparameters.} Base model experiments use retention rates 35/50/65\% with \texttt{window\_size=128}; PyramidKV uses \texttt{beta=20}; Streaming uses \texttt{n\_sink=4}. Instruct experiments use \texttt{window\_size=8} for SnapKV and PyramidKV at budget~=~256 (the 8-token per-layer average would collapse to uniform SnapKV behavior at the default \texttt{window\_size=32}); \texttt{window\_size=32} is used at budget~=~1024. Full implementation details in §4; per-task instruct breakdowns in Appendix~D.
 
-\textbf{Instruct models.} We also evaluate on Llama-3.1-8B-Instruct and Mistral-7B-Instruct-v0.3 at absolute token budgets of 256 and 1024 tokens (§4.2, §4.3, §4.4). For SnapKV and PyramidKV at budget~=~256, we use \texttt{window\_size=8} to avoid budget collapse (the 8-token per-layer average would otherwise force every layer to uniform SnapKV behavior with \texttt{window\_size=32}). At budget~=~1024, \texttt{window\_size=32} is sufficient. Per-task breakdowns appear in Appendix~D.
 
 We benchmarked the baseline uncompressed prompt and four  compression methods, 
 one of which compresses the input prompt while the remaining three all prune the KV

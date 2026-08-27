@@ -278,16 +278,21 @@ INSTRUCT_FOUT_INTRO = (
     "the full model's output nearly verbatim, regardless of positional fidelity.\n\n"
 )
 
-INSTRUCT_SETUP_PARA = (
-    "\n"
-    "\\textbf{Instruct models.} "
-    "We also evaluate on Llama-3.1-8B-Instruct and Mistral-7B-Instruct-v0.3 "
-    "at absolute token budgets of 256 and 1024 tokens (§4.2, §4.3, §4.4). "
-    "For SnapKV and PyramidKV at budget~=~256, we use \\texttt{window\\_size=8} "
-    "to avoid budget collapse (the 8-token per-layer average would otherwise force "
-    "every layer to uniform SnapKV behavior with \\texttt{window\\_size=32}). "
-    "At budget~=~1024, \\texttt{window\\_size=32} is sufficient. "
-    "Per-task breakdowns appear in Appendix~D.\n"
+SETUP_PARA = (
+    "\\textbf{Models.} "
+    "Base: Llama-3.1-8B and Mistral-7B-v0.3 (fp16). "
+    "Instruct: Llama-3.1-8B-Instruct and Mistral-7B-Instruct-v0.3 (fp16), "
+    "evaluated at absolute token budgets of 256 and 1024 tokens (§§4.2--4.4).\n\n"
+    "\\textbf{Benchmark.} LongBench v1, 16 English tasks, 100 examples per task.\n\n"
+    "\\textbf{Hyperparameters.} "
+    "Base model experiments use retention rates 35/50/65\\% with "
+    "\\texttt{window\\_size=128}; PyramidKV uses \\texttt{beta=20}; "
+    "Streaming uses \\texttt{n\\_sink=4}. "
+    "Instruct experiments use \\texttt{window\\_size=8} for SnapKV and PyramidKV "
+    "at budget~=~256 (the 8-token per-layer average would collapse to uniform "
+    "SnapKV behavior at the default \\texttt{window\\_size=32}); "
+    "\\texttt{window\\_size=32} is used at budget~=~1024. "
+    "Full implementation details in §3; per-task instruct breakdowns in Appendix~D.\n\n"
 )
 
 
@@ -329,11 +334,8 @@ out_lines.append("\n")
 # ── §4.1 Setup ──────────────────────────────────────────────────────────────
 out_lines += L(1417, 1419)  # \subsection{4.1 Setup}
 
-# §7.1 Models + Benchmark + Hyperparameters (text before the methods table)
-out_lines += L(1420, 1429)
-
-# Instruct model setup paragraph (inline)
-out_lines.append(INSTRUCT_SETUP_PARA)
+# Unified Models + Benchmark + Hyperparameters covering base and instruct
+out_lines.append(SETUP_PARA)
 
 # Methods description from §3 (skip section headers 271-276; content starts at 277)
 out_lines.append("\n")
