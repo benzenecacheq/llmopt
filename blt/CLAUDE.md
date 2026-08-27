@@ -921,6 +921,16 @@ Venus's blend=0.75 seed19 attempt died early (step 990/500,000 — negligible lo
 
 Status as of this writeup: `titan` blend=0.5 seed42 ~53% through (ETA ~3 days), `io` blend=0.75 seed19 just started (ETA ~2.5 days), `bender` running the r=256 medium UV probe. `venus` idle.
 
+### The real 3-week medium UV run — LAUNCHED (2026-08-26, on `bender`)
+
+With the rank probe settled (r=256), launched the actual from-scratch medium UV run: `num_uv_groups=8` (chosen for NVLink/TP reasons, see the design discussion earlier this session), `r=256`, 1.5M steps (matching the standard medium-scale training-adequacy protocol used for the medium baseline and medium EMA runs).
+
+**Smoke-tested first** — `num_uv_groups=8` at medium scale (D=1024, 24 layers) had never been built in code before (only G=1 and G=4 were previously tested, both at small scale only). Verified: correct shape (24 layers, 16 heads, D=1024), correct param count (308,636,672 — matches the 2ND²+2GDr formula at G=8, r=256), all 8 (U,V) pairs registered, a real forward+backward pass produces finite gradients throughout.
+
+**Launched**: `train.py --uv-rank 256 --num-uv-groups 8 --from-scratch --pretrained gpt2-medium --dataset openwebtext_large --seed 42 --max-steps 1500000 --eval-every 1000 --lambada-eval-every 5000 --owt-eval-every 5000 --batch-size 2 --grad-accum-steps 2 --save-path run_gpt2_medium_uvgroups8_r256_scratch_seed42.pt`. Confirmed genuinely running: step 0 logged correctly (train_loss 11.03, matching expected random-init behavior on a fresh from-scratch build).
+
+This is the first of the two planned 3-week medium runs. The second (cumulative-mode EMA at medium scale) is still blocked on the small-scale blend sweep resolving — see above.
+
 **`paper_blt.md` updated to match the data (2026-08-23).** Added a new Section 4.8 writing up the `num_uv_groups=4` vs `layers-per-m=4` head-axis/layer-axis result in full — previously this lived only in this file, despite being arguably the paper's most decisive finding. Also fixed three places where the paper still described the third UV256 seed as "in progress" (it finished 12 days prior); updated Section 6's synthesis bullet, Section 7.2's future-work framing, and Section 7.3's closing sentence to match. See the paper itself for the full text — not duplicated here.
 
 ### Other future directions
