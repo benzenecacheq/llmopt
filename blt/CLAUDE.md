@@ -937,6 +937,26 @@ This is the first of the two planned 3-week medium runs. The second (cumulative-
 
 **Interim observations while titan (blend=0.5) and io (blend=0.75 seed19) are both mid-training, worth a grain of salt each**: at matched step 400,000, OWT ppl reads 0.5→29.19, 0.75(seed19)→28.99, 1.0(seed42 final)→30.82(at 400K)/30.37(final) — the 0.75/0.5 comparison is cross-seed (0.5 is seed42, 0.75 is seed19), so it doesn't isolate blend value from ordinary seed variance and shouldn't be read as "0.75 beats 0.5" yet. io's blend=0.75 seed19 is tracking consistently ~0.7-0.8 ppl better than seed42 did at the same steps (checked at three points: 370K/385K/400K, not a one-off), and extrapolating seed42's own late-training decline suggests seed19 could land close to 28.6 — notably better than any prior cumulative-family result, but still short of even the weakest baseline seed (28.24). The in-training `lambada_acc` proxy (~0.57-0.58, indistinguishable across all three blends at step 400K) is not informative either way — this project has repeatedly found it fails to predict the real lm-eval-harness LAMBADA result, which is the metric that actually matters for the open question here (whether blend=0.75's oddly-low LAMBADA acc was a real pattern or seed42 noise).
 
+### Cumulative blend=0.75 seed19 DONE (2026-08-28) — the LAMBADA weakness is now a real two-seed finding, not a fluke
+
+Finished all 500,000 steps on `io` (final val_ppl 61.02), checkpoint verified genuine (all finite, `token_count` sum 2,046,000,000 across 50,134/50,257 tokens — fully populated). Benchmarked (`lm_eval_gpt2_cumulative_blend75_scratch_seed19.json`, `eval_owt_gpt2_cumulative_blend75_scratch_seed19.stdout`): OWT held-out ppl **28.57** (loss 3.3525) — beating the earlier linear extrapolation (~28.62) very slightly, and the best OWT ppl of the entire cumulative-mode family by a clear margin, though still short of even the weakest baseline seed (28.24).
+
+| Metric | blend=0.75 seed42 | blend=0.75 seed19 | blend=1.0 (seed42) |
+|---|---|---|---|
+| OWT held-out ppl | 29.35 | **28.57** | 30.37 |
+| LAMBADA acc | 0.249 | 0.245 | **0.268** |
+| HellaSwag acc_norm | 0.269 | 0.271 | 0.271 |
+| PIQA acc_norm | 0.573 | 0.583 | 0.566 |
+| Winogrande acc | 0.525 | 0.525 | 0.507 |
+
+**Both blend=0.75 seeds now land in the same 0.245–0.249 LAMBADA-acc band, clearly below blend=1.0's 0.268.** This is no longer explainable as seed42 noise — two independent seeds at blend=0.75 both show the same odd shape (best-in-family OWT ppl paired with a real LAMBADA-acc deficit relative to the full-blend endpoint), which is the opposite of what the fixed-decay EMA sweep's monotonic dial would predict. Whatever mechanism is driving this is a genuine property of cumulative mode's blend=0.75 point, not noise. Still waiting on titan's blend=0.5 (migrated to `io`, see below) and venus's blend=1.0 seed19 to map out whether this non-monotonicity is specific to 0.75 or part of a broader pattern.
+
+### Migration (2026-08-28): titan's blend=0.5 moved to io for the remaining ~10%
+
+Once io freed up (both its blend=0.75 seed19 training and its benchmark run finished), migrated titan's blend=0.5 seed42 run there to finish faster — same protocol as every prior migration: `SIGTERM` (PID-matched first), checkpoint verified genuine (step 450,500/500,000, all finite, `token_count` sum 1,843,450,092 across 50,133/50,257 tokens), copied to io (relayed through local scratchpad, md5sum-verified byte-identical at both hops), resumed there (`Resumed at step 450500`, confirmed healthy). Measured speedup is substantial: **~0.39 s/step on io vs. ~1.15-1.2 s/step on titan** — the remaining ~49,500 steps should take roughly 5.3 hours instead of the ~16+ hours titan's own pace would have needed.
+
+Current state: `bender` running the real medium `num_uv_groups=8` run; `io` running the migrated blend=0.5 (should finish soon); `venus` running blend=1.0 seed19; `titan` now free.
+
 **`paper_blt.md` updated to match the data (2026-08-23).** Added a new Section 4.8 writing up the `num_uv_groups=4` vs `layers-per-m=4` head-axis/layer-axis result in full — previously this lived only in this file, despite being arguably the paper's most decisive finding. Also fixed three places where the paper still described the third UV256 seed as "in progress" (it finished 12 days prior); updated Section 6's synthesis bullet, Section 7.2's future-work framing, and Section 7.3's closing sentence to match. See the paper itself for the full text — not duplicated here.
 
 ### Other future directions
