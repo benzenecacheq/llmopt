@@ -957,22 +957,24 @@ Once io freed up (both its blend=0.75 seed19 training and its benchmark run fini
 
 Current state: `bender` running the real medium `num_uv_groups=8` run; `io` running the migrated blend=0.5 (should finish soon); `venus` running blend=1.0 seed19; `titan` now free.
 
-### Cumulative blend sweep — full picture as of 2026-08-28: non-monotonic, and not in the direction hoped for
+### Cumulative blend sweep — full picture as of 2026-08-28
 
-`blend=0.5` finished on `io` shortly after the migration above (final val_ppl unrecorded in this note, checkpoint verified genuine: step 500,000, all finite, `token_count` sum 2,046,004,092 across 50,134/50,257 tokens). Benchmarked (`lm_eval_gpt2_cumulative_blend50_scratch_seed42.json`, `eval_owt_gpt2_cumulative_blend50_scratch_seed42.stdout`): OWT held-out ppl **28.76** (loss 3.3588).
+`blend=0.5` finished on `io` shortly after the migration above, checkpoint verified genuine: step 500,000, all finite, `token_count` sum 2,046,004,092 across 50,134/50,257 tokens. Benchmarked (`lm_eval_gpt2_cumulative_blend50_scratch_seed42.json`, `eval_owt_gpt2_cumulative_blend50_scratch_seed42.stdout`): OWT held-out ppl **28.76** (loss 3.3588).
 
 | Metric | blend=0.5 (seed42) | blend=0.75 avg (2 seeds) | blend=1.0 (seed42, 1 seed) |
 |---|---|---|---|
-| OWT held-out ppl | 28.76 | **28.96** | 30.37 |
+| OWT held-out ppl | **28.76** | 28.96 | 30.37 |
 | LAMBADA acc | 0.244 | 0.247 | **0.268** |
 | LAMBADA ppl | 150.6 | 133.7 | **119.3** |
 | HellaSwag acc_norm | 0.268 | 0.270 | 0.271 |
 | PIQA acc_norm | 0.571 | 0.578 | 0.566 |
 | Winogrande acc | **0.531** | 0.525 | 0.507 |
 
-**LAMBADA acc is not monotonic in blend, and the direction is the opposite of what would be useful.** Going from blend=1.0 down to 0.75 down to 0.5, LAMBADA acc falls monotonically (0.268 → 0.247 → 0.244) while OWT ppl also falls (30.37 → 28.96 → 28.76) — the two metrics move *together* in cumulative mode, unlike fixed-decay EMA's sweep where dialing blend down reliably bought back OWT ppl at a proportional LAMBADA cost along a predictable curve. Here, blend=0.5's OWT ppl is barely better than blend=0.75's (28.76 vs 28.96, within seed-noise range) while its LAMBADA acc is clearly the worst of the three. There is no blend value in {0.5, 0.75, 1.0} that beats 1.0 on LAMBADA — the full-strength endpoint is the best LAMBADA result in the entire cumulative-mode family so far, which is the opposite of the original motivation for testing intermediate blends (in fixed-decay EMA, 0.75 *beat* 1.0 on LAMBADA). One seed each at 0.5 and 1.0 — venus's blend=1.0 seed19 (in progress) is the next check on whether 1.0's LAMBADA edge holds up.
+**Corrected read (an earlier note here mischaracterized this as non-monotonic — it isn't).** As blend goes 1.0 → 0.75 → 0.5, OWT ppl steadily *improves* (30.37 → 28.96 → 28.76, lower is better) while LAMBADA acc steadily *worsens* (0.268 → 0.247 → 0.244, higher is better) — a clean monotonic trade-off, the same shape fixed-decay EMA's own sweep showed (higher blend costs OWT ppl, buys LAMBADA). Nothing surprising in the direction; cumulative mode's internal dial behaves as expected.
 
-**Compared directly to the old fixed-decay EMA family**: cumulative mode's blend=0.75 (avg 28.96 ppl / 0.247 acc) beats fixed-EMA's blend=0.75 (avg 29.55 ppl / 0.260 acc) on OWT ppl but loses on LAMBADA acc. Cumulative's blend=1.0 (30.37 ppl / 0.268 acc, 1 seed) costs more OWT ppl than fixed-EMA's blend=0.75 but wins on LAMBADA (0.268 vs 0.260) and LAMBADA ppl (119.3 vs 129.9) by a real margin. So cumulative mode isn't uniformly better or worse than the original fixed-decay approach — it shifts where the OWT-ppl/LAMBADA trade-off sits, and its own internal blend dial doesn't behave the way fixed-decay's did.
+**What is still a real, structurally interesting difference from fixed-decay EMA**: in the *fixed-decay* sweep, an interior blend (0.75, jointly-trained-from-scratch) beat the pure-EMA endpoint (1.0) on LAMBADA acc (0.269 vs 0.253 for the strongest seed) — the sweet spot was in the interior. In *cumulative* mode, no interior blend tested so far beats the 1.0 endpoint on LAMBADA — full strength remains the best LAMBADA result in the whole cumulative family. So the two mechanisms' optimal operating points sit in different places along their respective curves, not just at different absolute values. One seed each at 0.5 and 1.0 — venus's blend=1.0 seed19 (in progress) is the next check on whether 1.0's LAMBADA edge holds up.
+
+**Compared directly to the old fixed-decay EMA family at matched blend**: cumulative's blend=0.75 (avg 28.96 ppl / 0.247 acc) beats fixed-EMA's blend=0.75 (avg 29.55 ppl / 0.260 acc) on OWT ppl but loses on LAMBADA acc — cumulative buys OWT ppl at LAMBADA's expense relative to the old mechanism at the same nominal blend value. Cumulative's blend=1.0 (30.37 ppl / 0.268 acc) costs more OWT ppl than fixed-EMA's blend=0.75 but wins on LAMBADA (0.268 vs 0.260) and LAMBADA ppl (119.3 vs 129.9) by a real margin. Net: cumulative mode isn't uniformly better or worse than fixed-decay — it shifts where on the OWT-ppl/LAMBADA curve a given blend value lands.
 
 **`paper_blt.md` updated to match the data (2026-08-23).** Added a new Section 4.8 writing up the `num_uv_groups=4` vs `layers-per-m=4` head-axis/layer-axis result in full — previously this lived only in this file, despite being arguably the paper's most decisive finding. Also fixed three places where the paper still described the third UV256 seed as "in progress" (it finished 12 days prior); updated Section 6's synthesis bullet, Section 7.2's future-work framing, and Section 7.3's closing sentence to match. See the paper itself for the full text — not duplicated here.
 
