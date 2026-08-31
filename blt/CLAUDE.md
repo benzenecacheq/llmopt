@@ -1037,6 +1037,18 @@ User asked for any additional meaningful benchmark suites for the medium model, 
 
 Result files: `lm_eval_gpt2_medium_baseline_seed42_extended.json`, `lm_eval_gpt2_medium_ema_blend75_sine_seed42_extended.json`, `lm_eval_gpt2_medium_baseline_seed42_supplementary.json`.
 
+**BLiMP (67 grammaticality-judgment subtasks) — run on both medium checkpoints, and it's the one place a real (small) cost shows up.** Same two checkpoints on `titan`. BLiMP tests pure syntactic competence (minimal pairs, e.g. "the boys eat" vs "the boys eats") — a different axis entirely from the commonsense/reasoning suites above, and one that's traditionally reported for GPT-2-scale models specifically since it's sensitive at this scale (unlike ARC-Challenge/ANLI, which are near floor).
+
+| | Baseline | EMA sine blend=0.75 |
+|---|---|---|
+| BLiMP mean acc (67 subtasks) | **0.801** | 0.792 |
+
+A small but real gap (-0.9 points), the first place in this whole benchmark sweep where EMA shows a *consistent-direction* cost rather than a wash. Breaking it down: EMA is better on 9 subtasks by >2pts, worse on 15 by >2pts, and the two are within 2pts on the remaining 43 — so it's not uniform degradation, but the losses outweigh the gains and skew larger. Worst hit: `blimp_only_npi_licensor_present` (-18.8pts, 0.912→0.724), `blimp_existential_there_quantifiers_2` (-9.7pts), `blimp_principle_A_reconstruction` (-9.1pts) — these involve negative polarity item licensing and binding-principle judgments, fairly subtle syntactic phenomena. Best gain: `blimp_sentential_negation_npi_scope` (+6.3pts).
+
+**Interpretation, consistent with the OWT-ppl framing above**: BLiMP measures fidelity to the statistical patterns of ordinary written English syntax — closer in spirit to what OWT ppl measures (matching the corpus) than to what LAMBADA measures (using long-range context to nail a hard prediction). A scheme that deliberately downweights common, syntactically-unremarkable tokens to boost gradient on harder ones would plausibly cost a little here, for the same reason it costs OWT ppl — this is a specific, measurable instance of that same trade-off, not a new or separate finding. Given the OWT-ppl reframe (declared cost, not a guardrail), this is more of the same declared cost showing up on a different, syntax-specific measuring stick, not a red flag.
+
+Result files: `lm_eval_gpt2_medium_baseline_seed42_blimp.json`, `lm_eval_gpt2_medium_ema_blend75_sine_seed42_blimp.json`.
+
 **`paper_blt.md` updated to match the data (2026-08-23).** Added a new Section 4.8 writing up the `num_uv_groups=4` vs `layers-per-m=4` head-axis/layer-axis result in full — previously this lived only in this file, despite being arguably the paper's most decisive finding. Also fixed three places where the paper still described the third UV256 seed as "in progress" (it finished 12 days prior); updated Section 6's synthesis bullet, Section 7.2's future-work framing, and Section 7.3's closing sentence to match. See the paper itself for the full text — not duplicated here.
 
 ### Other future directions
