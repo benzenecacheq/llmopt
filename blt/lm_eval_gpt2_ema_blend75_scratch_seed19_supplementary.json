@@ -1,0 +1,27 @@
+{
+  "arc_easy": {
+    "name": "arc_easy",
+    "alias": "arc_easy",
+    "sample_len": 2376,
+    "acc,none": 0.38846801346801346,
+    "acc_stderr,none": 0.010001276044485077,
+    "acc_norm,none": 0.3493265993265993,
+    "acc_norm_stderr,none": 0.009782853449399437
+  },
+  "boolq": {
+    "name": "boolq",
+    "alias": "boolq",
+    "sample_len": 3270,
+    "acc,none": 0.6201834862385321,
+    "acc_stderr,none": 0.008488668235778573
+  },
+  "openbookqa": {
+    "name": "openbookqa",
+    "alias": "openbookqa",
+    "sample_len": 500,
+    "acc,none": 0.14,
+    "acc_stderr,none": 0.015533272840269705,
+    "acc_norm,none": 0.254,
+    "acc_norm_stderr,none": 0.01948659680164342
+  }
+}
