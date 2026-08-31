@@ -996,6 +996,24 @@ Current state: `bender` on the real medium `num_uv_groups=8` run; `venus` on cum
 - `io`: cumulative blend=1.0 seed7, step 232,610/500,000 (46.5%).
 - `venus`: cumulative blend=1.0 seed19, step 133,380/500,000 (26.7%).
 
+### Cumulative blend=1.0 seed7 DONE (2026-08-31) — third seed, and migration titan→io repeated
+
+`io`'s blend=1.0 seed7 run finished all 500,000 steps (final val_ppl 65.50), checkpoint verified genuine (all finite, `token_count` sum 2,046,000,000 across 50,134/50,257 tokens). Benchmarked (`lm_eval_gpt2_cumulative_scratch_seed7.json`, `eval_owt_gpt2_cumulative_scratch_seed7.stdout`): OWT held-out ppl **29.42** (loss 3.3817), LAMBADA acc **0.262**, LAMBADA ppl 112.9, HellaSwag acc_norm 0.272, PIQA acc_norm 0.581, Winogrande acc 0.502.
+
+| Metric | seed42 | seed19 | seed7 |
+|---|---|---|---|
+| OWT held-out ppl | 30.37 | *(pending)* | 29.42 |
+| LAMBADA acc | 0.268 | *(pending)* | 0.262 |
+| HellaSwag acc_norm | 0.271 | *(pending)* | 0.272 |
+| PIQA acc_norm | 0.566 | *(pending)* | 0.581 |
+| Winogrande acc | 0.507 | *(pending)* | 0.502 |
+
+Both completed blend=1.0 seeds land close together on LAMBADA acc (0.268, 0.262) — consistent with each other, both clearly above every blend=0.5/0.75 result. venus's seed19 (in progress) will complete the three-seed set for this blend point.
+
+**Titan's blend=0.75 seed7 migrated to io** immediately after (same protocol as every prior migration): `SIGTERM` (PID-matched first), checkpoint verified genuine (step 183,500/500,000, all finite, `token_count` sum 750,886,092 across 50,120/50,257 tokens), copied to io (relayed through local scratchpad, md5sum-verified byte-identical at both hops), resumed there (`Resumed at step 183500`, confirmed healthy). This is titan's second migration-to-io in this sweep (the first was blend=0.5 seed42) — same speedup rationale (io's V100 vs. titan's P100).
+
+Current state: `bender` on the real medium `num_uv_groups=8` run; `titan` now free; `io` continuing blend=0.75 seed7 from step 183,500; `venus` on cumulative blend=1.0 seed19.
+
 **`paper_blt.md` updated to match the data (2026-08-23).** Added a new Section 4.8 writing up the `num_uv_groups=4` vs `layers-per-m=4` head-axis/layer-axis result in full — previously this lived only in this file, despite being arguably the paper's most decisive finding. Also fixed three places where the paper still described the third UV256 seed as "in progress" (it finished 12 days prior); updated Section 6's synthesis bullet, Section 7.2's future-work framing, and Section 7.3's closing sentence to match. See the paper itself for the full text — not duplicated here.
 
 ### Other future directions
