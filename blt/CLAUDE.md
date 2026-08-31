@@ -1049,6 +1049,18 @@ A small but real gap (-0.9 points), the first place in this whole benchmark swee
 
 Result files: `lm_eval_gpt2_medium_baseline_seed42_blimp.json`, `lm_eval_gpt2_medium_ema_blend75_sine_seed42_blimp.json`.
 
+**BLiMP replicated at small scale (2026-08-31) — same cost, and larger.** Ran the same suite on the small-model (124M) non-EMA baseline vs. the strongest fixed-blend75 seed (seed42, LAMBADA acc 0.269, the best in that family).
+
+| | Baseline (small) | Fixed EMA blend=0.75 seed42 (small) | Baseline (medium) | EMA sine blend=0.75 (medium) |
+|---|---|---|---|---|
+| BLiMP mean acc (67 subtasks) | **0.767** | 0.751 | **0.801** | 0.792 |
+
+**The direction replicates and the gap is bigger at small scale**: -1.6 points (small) vs. -0.9 points (medium) — consistent with the theory that this is a genuine cost of the loss-reweighting mechanism (present at both scales) rather than a fluke of one run, and if anything the smaller model pays more for it, not less. Breakdown is similarly non-uniform: EMA wins 9 subtasks by >2pts (same count as medium), loses 26 by >2pts (medium: 15), ties on 32 (medium: 43) — so at small scale the losses are both more numerous and (looking at the worst cases) sometimes larger: `blimp_sentential_negation_npi_scope` drops 15.7pts (0.599→0.442) at small scale, actually a different subtask than medium's worst hit (`blimp_only_npi_licensor_present`, -18.8pts) — the *specific* phenomena most affected aren't perfectly consistent across scale, but the overall direction and rough magnitude are.
+
+This is a real two-scale, two-mechanism (fixed-decay EMA at small scale, sine-annealed EMA at medium scale) confirmation that the loss-reweighting family pays a small syntax-competence cost — worth citing in `paper_ema.md` alongside the OWT-ppl framing once that paper is updated.
+
+Result files: `lm_eval_gpt2_baseline_seed42_blimp.json`, `lm_eval_gpt2_ema_blend75_scratch_seed42_blimp.json`.
+
 **`paper_blt.md` updated to match the data (2026-08-23).** Added a new Section 4.8 writing up the `num_uv_groups=4` vs `layers-per-m=4` head-axis/layer-axis result in full — previously this lived only in this file, despite being arguably the paper's most decisive finding. Also fixed three places where the paper still described the third UV256 seed as "in progress" (it finished 12 days prior); updated Section 6's synthesis bullet, Section 7.2's future-work framing, and Section 7.3's closing sentence to match. See the paper itself for the full text — not duplicated here.
 
 ### Other future directions
