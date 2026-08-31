@@ -1014,6 +1014,29 @@ Both completed blend=1.0 seeds land close together on LAMBADA acc (0.268, 0.262)
 
 Current state: `bender` on the real medium `num_uv_groups=8` run; `titan` now free; `io` continuing blend=0.75 seed7 from step 183,500; `venus` on cumulative blend=1.0 seed19.
 
+### Expanded benchmark coverage for the medium baseline/EMA checkpoints (2026-08-31)
+
+User asked for any additional meaningful benchmark suites for the medium model, beyond the primary four (LAMBADA/HellaSwag/PIQA/Winogrande). Two things found/done:
+
+**Recovered a genuine, previously-undocumented result sitting only on `venus`**: `lm_eval_gpt2_medium_baseline_seed42_supplementary.json` — the ARC-Easy/BoolQ/OpenBookQA suite (Section 4.6's small-scale supplementary set) had already been run on the medium baseline at some point but never surfaced in CLAUDE.md or committed. Pulled and committed. Results: ARC-Easy acc 0.4415/acc_norm 0.4074, BoolQ acc 0.5566, OpenBookQA acc 0.158/acc_norm 0.262.
+
+**Ran a new, broader suite on both medium checkpoints** (baseline and EMA sine-blend75): ARC-Challenge, SciQ, COPA, TruthfulQA (mc2), ANLI (r1/r2/r3), RACE. Chosen from the installed lm-eval-harness after verifying each task's dataset actually loads (`logiqa` and `wsc273` both fail on this `datasets` library version — old-style dataset-loading scripts no longer supported — dropped rather than chased down). Explicitly left out BLiMP (67 grammaticality subtasks, ~10x the compute of everything else combined) as scope creep beyond what was asked, though it's a real option if deeper linguistic-competence testing is wanted later. Both checkpoints copied to `titan` (idle at the time) for the run.
+
+| Task | Baseline | EMA sine blend=0.75 |
+|---|---|---|
+| ARC-Challenge acc / acc_norm | 0.183 / 0.244 | 0.200 / 0.239 |
+| SciQ acc / acc_norm | **0.725** / **0.649** | 0.718 / 0.642 |
+| COPA acc | 0.650 | 0.650 |
+| TruthfulQA (mc2) acc | 0.411 | **0.427** |
+| ANLI r1 acc | **0.334** | 0.314 |
+| ANLI r2 acc | 0.359 | 0.361 |
+| ANLI r3 acc | 0.340 | 0.343 |
+| RACE acc | 0.282 | **0.285** |
+
+**No clear winner across this broader suite — mostly ties within noise, unlike the sharp LAMBADA gap.** ARC-Challenge and TruthfulQA show the largest differences (EMA up ~2 points and ~1.6 points respectively), ANLI r1 shows baseline up ~2 points, everything else is within ~1 point either way. Both models are near or at floor on ARC-Challenge (which requires real reasoning, not just surface pattern-matching) and only modestly above chance on ANLI/RACE — expected at 355M scale for tasks this hard, so these are unlikely to be sensitive enough to detect a real difference even if one exists. Consistent with the earlier finding that HellaSwag/PIQA/Winogrande also don't move much for this family — the loss-reweighting effect is concentrated specifically in LAMBADA-style long-range next-token prediction, not general reasoning/NLI capability.
+
+Result files: `lm_eval_gpt2_medium_baseline_seed42_extended.json`, `lm_eval_gpt2_medium_ema_blend75_sine_seed42_extended.json`, `lm_eval_gpt2_medium_baseline_seed42_supplementary.json`.
+
 **`paper_blt.md` updated to match the data (2026-08-23).** Added a new Section 4.8 writing up the `num_uv_groups=4` vs `layers-per-m=4` head-axis/layer-axis result in full — previously this lived only in this file, despite being arguably the paper's most decisive finding. Also fixed three places where the paper still described the third UV256 seed as "in progress" (it finished 12 days prior); updated Section 6's synthesis bullet, Section 7.2's future-work framing, and Section 7.3's closing sentence to match. See the paper itself for the full text — not duplicated here.
 
 ### Other future directions
