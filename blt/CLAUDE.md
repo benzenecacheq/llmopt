@@ -1074,6 +1074,12 @@ Result files: `lm_eval_gpt2_baseline_seed42_blimp.json`, `lm_eval_gpt2_ema_blend
 
 Result files: `lm_eval_gpt2_cumulative_scratch_seed42_blimp.json`, `lm_eval_gpt2_ema_seed42_blimp.json`.
 
+### Second seed for fixed EMA blend=1.0 (pure) — launched on titan (2026-09-01)
+
+User raised a substantive mechanistic critique of fixed-decay EMA: with `--ema-decay 0.99`, the half-life is `ln(0.5)/ln(0.99) ≈ 69 occurrences` of a given token — for a common token seen many thousands of times, the buffer's "historical difficulty" reflects only a short, recent window (a few hundred occurrences), not the token's difficulty across the whole corpus. Everything the model learned about that token earlier in training is almost entirely forgotten by the buffer, and which window survives depends on the arbitrary shuffle order of the corpus. Contrasted with cumulative mode, whose only weakness (early-training data scarcity) is the ordinary, self-resolving cold-start problem any online estimator has, not a permanent structural forgetting mechanism. Given fixed EMA blend=1.0 (pure) has only ever had one seed (seed42: OWT ppl 30.06, LAMBADA acc 0.253, BLiMP 0.760) — unlike almost everything else in this project, which follows a 3-seed discipline — decided to get a second data point.
+
+**Launched**: `run_gpt2_ema_seed19.pt` on `titan` (idle) — `train.py --baseline --from-scratch --ema-loss-weighting --dataset openwebtext --seed 19 --max-steps 500000 --eval-every 1000 --lambada-eval-every 5000 --owt-eval-every 5000`, mirroring the original seed42 protocol exactly (default `--ema-blend 1.0`, fixed schedule). Confirmed healthy at launch: correct config in the log header, step 0 building normally.
+
 **`paper_blt.md` updated to match the data (2026-08-23).** Added a new Section 4.8 writing up the `num_uv_groups=4` vs `layers-per-m=4` head-axis/layer-axis result in full — previously this lived only in this file, despite being arguably the paper's most decisive finding. Also fixed three places where the paper still described the third UV256 seed as "in progress" (it finished 12 days prior); updated Section 6's synthesis bullet, Section 7.2's future-work framing, and Section 7.3's closing sentence to match. See the paper itself for the full text — not duplicated here.
 
 ### Other future directions
