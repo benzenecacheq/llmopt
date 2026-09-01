@@ -1061,6 +1061,19 @@ This is a real two-scale, two-mechanism (fixed-decay EMA at small scale, sine-an
 
 Result files: `lm_eval_gpt2_baseline_seed42_blimp.json`, `lm_eval_gpt2_ema_blend75_scratch_seed42_blimp.json`.
 
+**Two more small-scale BLiMP points (2026-09-01) — the blend/mechanism story is messier than expected, not a clean "more reweighting = more syntax cost" line.** Ran BLiMP on two more seed42 checkpoints: `run_gpt2_cumulative_scratch_seed42.pt` (cumulative mode, blend=1.0) and `run_gpt2_ema_seed42.pt` (fixed-decay EMA, pure/blend=1.0 — the original, oldest EMA checkpoint in the whole project).
+
+| | Baseline | Fixed EMA blend=0.75 | Cumulative blend=1.0 | Fixed EMA blend=1.0 (pure) |
+|---|---|---|---|---|
+| BLiMP mean acc (67 subtasks) | **0.767** | 0.751 | 0.746 | 0.760 |
+| vs. baseline: better / worse / tie (>2pt) | — | 9 / 26 / 32 | 7 / 26 / 34 | 15 / 24 / 28 |
+
+**Not what a simple "reweighting strength → syntax cost" story predicts.** Fixed-decay EMA at full strength (blend=1.0, -0.7pt) costs *less* BLiMP than the same mechanism at blend=0.75 (-1.6pt) — the opposite ordering from what OWT ppl and LAMBADA acc both show for this exact pair (blend=1.0 has worse OWT ppl and better LAMBADA than blend=0.75, i.e. blend=1.0 is "more reweighted" by every other metric). Cumulative mode at blend=1.0 (-2.1pt) costs *more* BLiMP than fixed-decay EMA at the same blend value (-0.7pt) — a real mechanism difference at matched blend, on top of the already-known mechanism differences in OWT-ppl/LAMBADA trade-off shape documented above.
+
+**Read with real caution — this is one seed per point, and BLiMP's own subtask-level SE is non-trivial** (individual subtasks have ~1000 examples, several of the biggest swings are single-digit-percent on tasks with 3-5% stderr per subtask — noise at the level of individual subtasks is not small). The one thing that has now replicated across three separate reweighted checkpoints (fixed-075, cumulative-100, fixed-100) is the *direction*: all three lose to baseline, none beats it, and losses consistently outnumber gains (9-15 vs 24-26 tie-adjusted counts) — that part looks robust. The specific *magnitude* ordering across blend values and mechanisms does not look like a clean monotonic story yet, and shouldn't be reported as one without more seeds.
+
+Result files: `lm_eval_gpt2_cumulative_scratch_seed42_blimp.json`, `lm_eval_gpt2_ema_seed42_blimp.json`.
+
 **`paper_blt.md` updated to match the data (2026-08-23).** Added a new Section 4.8 writing up the `num_uv_groups=4` vs `layers-per-m=4` head-axis/layer-axis result in full — previously this lived only in this file, despite being arguably the paper's most decisive finding. Also fixed three places where the paper still described the third UV256 seed as "in progress" (it finished 12 days prior); updated Section 6's synthesis bullet, Section 7.2's future-work framing, and Section 7.3's closing sentence to match. See the paper itself for the full text — not duplicated here.
 
 ### Other future directions
