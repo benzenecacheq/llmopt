@@ -326,50 +326,6 @@ Ground-truth evaluation has four distinct failure modes as a compression metric.
   and uncompressed models could produce identical text or completely
   different text, and the GT score would be the same either way.
 
-  On six of our 16 tasks the full model's ground-truth accuracy is below
-  15 (NarrativeQA: 5.5, MuSiQue: 6.9, PassageCount: 3.0, HotpotQA: 9.9,
-  Qasper: 11.1, QMSum: 10.3). On NarrativeQA, for example, the full
-  model gets 94.5\% of examples wrong. Moreover, even the 5.5\% that the
-  full model answers correctly need not be the same 5.5\% a compressed
-  method gets right --- two methods with identical aggregate scores may
-  agree on no individual examples. The score carries no information
-  about which questions were answered correctly, only that the same
-  number were.
-
-  A perfectly faithful compressed method should get 94.5\% wrong; ground
-  truth scores all of those as 0, leaving only noise: how closely each
-  method's wrong answers happen to overlap with the gold string. The
-  signal about compression quality is smallest precisely on the tasks
-  where the method has the most work to do. The failure is symmetric: a
-  compressed method that outscores the full model is a faithfulness
-  failure --- ground truth rewards accidental divergence from the full
-  model.
-
-\item
-  \textbf{Most of these metrics are not testing correctness at all.}
-
-\nopagebreak
-  Of the 16 tasks, only three (TREC, PassageCount, PassageRetrieval) score
-  a prediction as binary right or wrong. The other thirteen --- seven QA
-  tasks scored by word-overlap F1, four summarization tasks scored by
-  ROUGE-L, two code-completion tasks scored by string similarity ---
-  give partial credit for surface overlap with a single human-written
-  reference, with no notion of ``correct'' or ``incorrect'' built in.
-
-  The failure modes this creates are illustrated in
-  Figure~\ref{fig:fout-f1}. F1 is order-blind: a prediction that
-  reverses who won and who lost a game scores 1.0 if it reuses the same
-  words (panel b). ROUGE-L is order-sensitive via longest common
-  subsequence (LCS) and avoids this particular failure, but penalizes valid
-  syntactic reorderings --- identical content in a different sentence
-  structure scores 0.75 instead of 1.0 because the reordered word falls
-  outside the LCS (panel c). Both metrics share paraphrase blindness: a
-  prediction that expresses the same meaning in different words scores
-  zero (panel d). Overlap with a reasonable reference is correlated with
-  quality, but for most of this benchmark ``ground-truth accuracy'' is
-  closer to similarity to one human's phrasing than to a judgment of
-  whether the model got the answer right.
-
 \begin{figure}[H]
 \noindent\begin{minipage}{\linewidth}
 \small
@@ -456,6 +412,32 @@ word-level F1 (seven QA tasks) and ROUGE-L (four summarization tasks).
 Gray: article stripped (\emph{a, an, the}).}
 \label{fig:fout-f1}
 \end{figure}
+
+\item
+  \textbf{Most of these metrics are not testing correctness at all.}
+
+\nopagebreak
+  Of the 16 tasks, only three (TREC, PassageCount, PassageRetrieval) score
+  a prediction as binary right or wrong. The other thirteen --- seven QA
+  tasks scored by word-overlap F1, four summarization tasks scored by
+  ROUGE-L, two code-completion tasks scored by string similarity ---
+  give partial credit for surface overlap with a single human-written
+  reference, with no notion of ``correct'' or ``incorrect'' built in.
+
+  The failure modes this creates are illustrated in
+  Figure~\ref{fig:fout-f1}. F1 is order-blind: a prediction that
+  reverses who won and who lost a game scores 1.0 if it reuses the same
+  words (panel b). ROUGE-L is order-sensitive via longest common
+  subsequence (LCS) and avoids this particular failure, but penalizes valid
+  syntactic reorderings --- identical content in a different sentence
+  structure scores 0.75 instead of 1.0 because the reordered word falls
+  outside the LCS (panel c). Both metrics share paraphrase blindness: a
+  prediction that expresses the same meaning in different words scores
+  zero (panel d). Overlap with a reasonable reference is correlated with
+  quality, but for most of this benchmark ``ground-truth accuracy'' is
+  closer to similarity to one human's phrasing than to a judgment of
+  whether the model got the answer right.
+
 \end{itemize}
 
 
@@ -650,14 +632,22 @@ similarity --- rather than as independent evidence.
 \hypertarget{setup-1}{%
 \subsection{4.1 Setup}\label{setup-1}}
 
-\textbf{Benchmark.} LongBench v1, 16 English tasks, 100 examples per task.
+\textbf{Benchmark}
+\\LongBench v1, 16 English tasks, 100 examples per task.
 
-\textbf{Models.} Base: Llama-3.1-8B and Mistral-7B-v0.3 (fp16). Instruct: Llama-3.1-8B-Instruct and Mistral-7B-Instruct-v0.3 (fp16), evaluated at absolute token budgets of 256 and 1024 tokens (§§4.2--4.4).
+\textbf{Models}
+\\Base: Llama-3.1-8B and Mistral-7B-v0.3 (fp16) evaluated at 35\%, 50\% and 65\% retention budget.
+\\Instruct: Llama-3.1-8B-Instruct and Mistral-7B-Instruct-v0.3 (fp16), evaluated at absolute token budgets of 256 and 1024 tokens (§§4.2--4.4).
 
-\textbf{Hyperparameters.} Base model experiments use retention rates 35/50/65\% with \texttt{window\_size=128}; PyramidKV uses \texttt{beta=20}; Streaming uses \texttt{n\_sink=4}. Instruct experiments use \texttt{window\_size=8} for SnapKV and PyramidKV at budget~=~256 (the 8-token per-layer average would collapse to uniform SnapKV behavior at the default \texttt{window\_size=32}); \texttt{window\_size=32} is used at budget~=~1024. Full implementation details in §4; per-task instruct breakdowns in Appendix~D.
+\textbf{Hyperparameters}
+\\Base model experiments use retention rates 35/50/65\% with \texttt{window\_size=128}; PyramidKV uses \texttt{beta=20}; Streaming uses \texttt{n\_sink=4}.
+\\Instruct experiments use \texttt{window\_size=8} for SnapKV and PyramidKV at budget~=~256 
+(PyramidKV's per-layer average would collapse to uniform distribution at the default 
+\texttt{window\_size=32}); \texttt{window\_size=32} is used at budget~=~1024.
+\\Full implementation details below; per-task instruct breakdowns in Appendix~D.
 
-
-We benchmarked the baseline uncompressed prompt and four  compression methods, 
+\textbf{Compression Methods Tested}
+\\We benchmarked the baseline uncompressed prompt and four  compression methods, 
 one of which compresses the input prompt while the remaining three all prune the KV
 cache after prefill.
 
@@ -670,8 +660,7 @@ complete prompt and serves as the baseline for comparison, not a compressed meth
 \textbf{Naive} This method truncates the prompt
 to form a shorter, self-consistent input with no modification to the KV patching or
 attention mask calculations. The prompt is split into a 10\% head (literal first tokens)
-and a 90\% recency tail, concatenated to form a new prompt at 65\% of
-the original length.
+and a 90\% recency tail, concatenated to form a new prompt at the budgeted length.
 
 \item
 \textbf{Streaming} - The KV Cache is pruned reserving the first 4 attention sink tokens plus a recency 
@@ -689,10 +678,30 @@ The per-layer budget follows a linear decay controlled by beta=20; budgets are c
 
 \end{enumerate}
 
+\begin{table}[H]
+\centering
+\small
+\caption{Methods compared in the main experiments}
+\label{tab:methods}
+\begin{tabular}{@{}p{0.14\textwidth}p{0.20\textwidth}p{0.62\textwidth}@{}}
+\toprule
+Method & Type & Description\\
+\midrule
+Full context & Reference        & Uncompressed model\\
+Naive        & Prompt construction & Last 65\% of tokens, 10\% head / 90\% tail split\\
+SnapKV       & KV pruning       & Pooled attention weights over observation window\\
+SnapKV+rot   & KV pruning       & SnapKV + key re-rotation to compact positions after eviction\\
+Streaming    & KV pruning       & Attention sinks + recency window with key re-rotation\\
+PyramidKV    & KV pruning       & Layer-adaptive pyramid budget allocation\\
+Pyr+rot      & KV pruning       & PyramidKV + key re-rotation to compact positions after eviction\\
+\bottomrule
+\end{tabular}
+\end{table}
+
 The benchmarked KV pruning methods (Streaming, SnapKV, PyramidKV) are implemented via 
 \texttt{kvpress} v0.5.4. They process the full prompt, score each token's KV entry using
-post-prefill attention weights, and evict lower-scoring entries after the prefill
-pass. The last \texttt{window\_size} tokens (the observation window) are
+post-prefill attention weights, and evict lower-scoring entries from the KV cache after the 
+prefill pass. The last \texttt{window\_size} tokens (the observation window) are
 always retained by being assigned high scores; we use
 \texttt{window\_size=128} throughout (kvpress stock default is 64). For
 GQA models such as Llama-3.1-8B (32 Q-heads, 8 KV-heads), kvpress
@@ -717,25 +726,6 @@ complete context.
 
 
 
-\begin{table}[H]
-\centering
-\small
-\caption{Methods compared in the main experiments}
-\label{tab:methods}
-\begin{tabular}{@{}p{0.14\textwidth}p{0.20\textwidth}p{0.62\textwidth}@{}}
-\toprule
-Method & Type & Description\\
-\midrule
-Full context & Reference        & Uncompressed model\\
-Naive        & Prompt construction & Last 65\% of tokens, 10\% head / 90\% tail split\\
-SnapKV       & KV pruning       & Pooled attention weights over observation window\\
-SnapKV+rot   & KV pruning       & SnapKV + key re-rotation to compact positions after eviction\\
-Streaming    & KV pruning       & Attention sinks + recency window with key re-rotation\\
-PyramidKV    & KV pruning       & Layer-adaptive pyramid budget allocation\\
-Pyr+rot      & KV pruning       & PyramidKV + key re-rotation to compact positions after eviction\\
-\bottomrule
-\end{tabular}
-\end{table}
 
 \hypertarget{gt-evaluation}{%
 \subsection{4.2 Ground-Truth Results}\label{gt-evaluation}}
@@ -761,12 +751,14 @@ cannot separate faithful methods from unfaithful ones (§3). Per-task results at
 \toprule
 Method & 65\% & 50\% & 35\%\\
 \midrule
-Naive      & 23.4 & ---  & ---\\
+Naive      & 23.4 & 21.6 & 20.8\\
 Streaming  & 23.7 & 23.6 & 23.1\\
 SnapKV     & 25.0 & 24.9 & 24.8\\
 SnapKV+rot & 24.8 & 25.0 & 24.4\\
 Pyr        & 25.1 & 24.2 & 24.8\\
 Pyr+rot    & 25.0 & 24.0 & 24.4\\
+\midrule
+Full       & 25.0 & 25.0 & 25.0\\
 \bottomrule
 \end{tabular}
 \end{minipage}%
@@ -784,20 +776,14 @@ SnapKV     & 23.5 & 23.3 & 23.0\\
 SnapKV+rot & 22.8 & 22.7 & 22.3\\
 Pyr        & 23.5 & 22.9 & 23.0\\
 Pyr+rot    & 22.9 & 22.1 & 22.3\\
+\midrule
+Full       & 23.6 & 23.6 & 23.6\\
 \bottomrule
 \end{tabular}
 \end{minipage}
 \par\smallskip
 Full model (rate-independent): Llama~25.0, Mistral~23.6.
-Naive at 50\%/35\% not evaluated for Llama (---).
 \end{table}
-
-\textbf{Instruct models at extreme budgets.} At absolute token budgets of 256 and 1024, all four selection methods approach
-full-model GT scores, making the metric nearly non-discriminating
-(Table~\ref{tab:instruct-gt}). On Llama at budget~=~1024, the best compressed method (Pyr, 31.6\%) is within
-0.1 points of the full model (31.7\%). Naive is far below (16.9\% at budget~=~256), confirming that prompt truncation
-destroys retrieval accuracy, but GT cannot distinguish among the four selection
-methods that all score above 30\%.
 
 
 \begin{table}[H]
@@ -850,6 +836,13 @@ Full       & 32.8 & 28.9\\
 at Mistral $b$=1024, compressed selection methods exceed the full-model average
 (focused-context effect on classification tasks). Per-task results in Appendix~D.
 \end{table}
+
+\textbf{Instruct models at extreme budgets.} At absolute token budgets of 256 and 1024, all four selection methods approach
+full-model GT scores, making the metric nearly non-discriminating
+(Table~\ref{tab:instruct-gt}). On Llama at budget~=~1024, the best compressed method (Pyr, 31.6\%) is within
+0.1 points of the full model (31.7\%). Naive is far below (16.9\% at budget~=~256), confirming that prompt truncation
+destroys retrieval accuracy, but GT cannot distinguish among the four selection
+methods that all score above 30\%.
 
 \hypertarget{kl-faithfulness-main-results}{%
 \subsection{4.3 KL Faithfulness: Main
