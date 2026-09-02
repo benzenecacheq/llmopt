@@ -742,7 +742,7 @@ cannot separate faithful methods from unfaithful ones (§3). Per-task results at
 \centering
 \small
 \captionsetup{justification=centering}
-\caption{Mean ground-truth accuracy by method and retention rate (per-task breakdown in Appendix~C)}
+\caption{Mean ground-truth accuracy by method and retention rate (higher is better; per-task breakdown in Appendix~C)}
 \label{tab:gt-allrates}
 \begin{minipage}[t]{0.49\textwidth}
 \centering
@@ -753,9 +753,9 @@ Method & 65\% & 50\% & 35\%\\
 \midrule
 Naive      & 23.4 & 21.6 & 20.8\\
 Streaming  & 23.7 & 23.6 & 23.1\\
-SnapKV     & 25.0 & 24.9 & 24.8\\
-SnapKV+rot & 24.8 & 25.0 & 24.4\\
-Pyr        & 25.1 & 24.2 & 24.8\\
+SnapKV     & 25.0 & 24.9 & \textbf{24.8}\\
+SnapKV+rot & 24.8 & \textbf{25.0} & 24.4\\
+Pyr        & \textbf{25.1} & 24.2 & \textbf{24.8}\\
 Pyr+rot    & 25.0 & 24.0 & 24.4\\
 \midrule
 Full       & 25.0 & 25.0 & 25.0\\
@@ -772,9 +772,9 @@ Method & 65\% & 50\% & 35\%\\
 \midrule
 Naive      & 22.0 & 21.1 & 20.2\\
 Streaming  & 22.9 & 22.1 & 21.2\\
-SnapKV     & 23.5 & 23.3 & 23.0\\
+SnapKV     & \textbf{23.5} & \textbf{23.3} & \textbf{23.0}\\
 SnapKV+rot & 22.8 & 22.7 & 22.3\\
-Pyr        & 23.5 & 22.9 & 23.0\\
+Pyr        & \textbf{23.5} & 22.9 & \textbf{23.0}\\
 Pyr+rot    & 22.9 & 22.1 & 22.3\\
 \midrule
 Full       & 23.6 & 23.6 & 23.6\\
@@ -782,7 +782,7 @@ Full       & 23.6 & 23.6 & 23.6\\
 \end{tabular}
 \end{minipage}
 \par\smallskip
-Full model (rate-independent): Llama~25.0, Mistral~23.6.
+\textbf{Bold} = best compressed method per column. Full context is the reference (rate-independent): Llama~25.0, Mistral~23.6.
 \end{table}
 
 
