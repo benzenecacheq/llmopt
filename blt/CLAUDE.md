@@ -1080,6 +1080,20 @@ User raised a substantive mechanistic critique of fixed-decay EMA: with `--ema-d
 
 **Launched**: `run_gpt2_ema_seed19.pt` on `titan` (idle) — `train.py --baseline --from-scratch --ema-loss-weighting --dataset openwebtext --seed 19 --max-steps 500000 --eval-every 1000 --lambada-eval-every 5000 --owt-eval-every 5000`, mirroring the original seed42 protocol exactly (default `--ema-blend 1.0`, fixed schedule). Confirmed healthy at launch: correct config in the log header, step 0 building normally.
 
+### Cumulative blend=0.75 seed7 DONE (2026-09-02) — completes the three-seed set, and it doesn't fully confirm the earlier "clearly below 1.0" read
+
+Finished all 500,000 steps on `io` (final val_ppl 61.48), checkpoint verified genuine (all finite, `token_count` sum 2,046,004,092 across 50,134/50,257 tokens). Benchmarked (`lm_eval_gpt2_cumulative_blend75_scratch_seed7.json`, `eval_owt_gpt2_cumulative_blend75_scratch_seed7.stdout`): OWT held-out ppl **29.45** (loss 3.3825).
+
+| Metric | seed42 | seed19 | seed7 | **avg (3 seeds)** |
+|---|---|---|---|---|
+| OWT held-out ppl | 29.35 | 28.57 | 29.45 | 29.12 |
+| LAMBADA acc | 0.249 | 0.245 | **0.266** | 0.253 |
+| HellaSwag acc_norm | 0.269 | 0.271 | 0.272 | 0.271 |
+| PIQA acc_norm | 0.573 | 0.583 | 0.573 | 0.577 |
+| Winogrande acc | 0.525 | 0.525 | 0.514 | 0.521 |
+
+**Seed7 breaks the pattern the first two seeds seemed to establish.** The earlier read ("both blend=0.75 seeds land in the same 0.245–0.249 band, clearly below blend=1.0's 0.268") doesn't hold up with a third seed: seed7's LAMBADA acc (0.266) is close to blend=1.0's single-seed result (0.268), not down near seed42/seed19's 0.245–0.249. The 3-seed average (0.253) sits roughly midway between blend=0.5's 0.244 and blend=1.0's 0.268 — a much more ordinary-looking monotonic point on the curve than the first two seeds implied on their own. **Lesson reinforced**: a 2-seed pattern that looks clean can still be within-family noise — this project's own 3-seed discipline exists for exactly this reason, and it just caught a real case of it.
+
 **`paper_blt.md` updated to match the data (2026-08-23).** Added a new Section 4.8 writing up the `num_uv_groups=4` vs `layers-per-m=4` head-axis/layer-axis result in full — previously this lived only in this file, despite being arguably the paper's most decisive finding. Also fixed three places where the paper still described the third UV256 seed as "in progress" (it finished 12 days prior); updated Section 6's synthesis bullet, Section 7.2's future-work framing, and Section 7.3's closing sentence to match. See the paper itself for the full text — not duplicated here.
 
 ### Other future directions
