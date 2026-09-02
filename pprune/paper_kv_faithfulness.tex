@@ -1697,6 +1697,24 @@ including PyramidKV, snapkv\_press, and streaming\_rerotated; at 35\%
 retention, all compressed methods reach \textasciitilde44--48 ms/tok
 (\textasciitilde29--35\% faster).
 
+\textbf{Total inference time.} TTFT captures only prefill latency;
+complete end-to-end time includes generation: total time \(=\) TTFT
+\(+\;n_{\text{out}} \times\) TPT. The TTFT overhead of post-prefill
+eviction is recovered after a small number of output tokens. At 35\%
+retention, the 409\,ms overhead is offset by the TPT savings of
+21.5\,ms/tok after roughly 19 output tokens. On the base model,
+93.6\% of LongBench outputs exceed this threshold (median 71 tokens),
+so post-prefill eviction is faster than full-context generation for
+virtually all examples. Macro total time across all 16 tasks:
+SnapKV+rot is 12\% faster than full context at 65\% retention
+(15.5\,s vs.\ 17.7\,s) and 19\% faster at 35\% (14.4\,s
+vs.\ 17.7\,s). The deployment picture therefore differs from the TTFT
+table: for long-form base-model generation, post-prefill eviction
+provides a meaningful end-to-end speedup despite the prefill overhead.
+This does not hold for instruction-tuned models generating short
+answers (§9), where typical outputs are 7--14 tokens and TTFT
+dominates total cost; the TTFT overhead is not recovered.
+
 \hypertarget{why-post-prefill-kv-eviction-without-re-rotation-leads-f_textout-but-trails-kl-faithfulness}{%
 \section{\texorpdfstring{8. Why Post-Prefill KV Eviction Without
 Re-rotation Leads \(F_{\text{out}}\) but Trails KL
@@ -2296,7 +2314,10 @@ short answer from the compressed cache. But TTFT dominates generation cost at
 these lengths: averaged over the 762 short examples, selection methods take
 9.6\,s per example at budget~=~256, the same as the uncompressed model (9.7\,s;
 9.1\,s vs.\ 9.1\,s at budget~=~1024). The quality advantage exists precisely
-where compression provides no speedup.
+where compression provides no speedup. This contrasts with the base-model
+setting (§7.4), where 93.6\% of outputs exceed the \textasciitilde19-token
+threshold at which TPT savings recover the TTFT overhead; the instruct model's
+terse output style inverts that picture for roughly half of examples.
 
 On long-form outputs ($>$10~words), selection methods score 42--55\%
 \(F_{\text{out}}\) versus Naive's 26\%, a 16--29 percentage point gap that
