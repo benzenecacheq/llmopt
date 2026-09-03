@@ -2346,6 +2346,60 @@ Long/Short = ratio of Long KL to Short KL; values below 1$\times$ indicate
 \\lower KL (better faithfulness) on long-form outputs than on short ones.
 \end{table}
 
+Table~\ref{tab:instruct-timing} gives mean wall-clock time per example at each
+budget, split by output-length category.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Mean wall-clock time per example by output-length category (Llama-3.1-8B-Instruct, V100)}
+\label{tab:instruct-timing}
+\begin{minipage}[t]{0.47\textwidth}
+\centering
+\textbf{Budget = 256}\\[4pt]
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Method & Short (ms) & Long (ms)\\
+\midrule
+SnapKV     &  9372 & 11132\\
+SnapKV+rot &  9593 & 11689\\
+PyramidKV  &  9430 & 11355\\
+Pyr+rot    &  9694 & 11754\\
+Streaming  &  9543 & 10996\\
+Strm+rot   &  9772 & 11265\\
+Naive      &   725 &  4121\\
+Full       &  9666 & 16057\\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.47\textwidth}
+\centering
+\textbf{Budget = 1024}\\[4pt]
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Method & Short (ms) & Long (ms)\\
+\midrule
+SnapKV     &  8855 & 11549\\
+SnapKV+rot &  9092 & 12077\\
+PyramidKV  &  8920 & 11880\\
+Pyr+rot    &  9172 & 12146\\
+Streaming  &  9043 & 11602\\
+Strm+rot   &  9269 & 11829\\
+Naive      &  1046 &  6258\\
+Full       &  9122 & 15918\\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+\medskip
+Short = 762 examples where the full-model reference output is $\leq$10 words;
+Long = 838 examples where it exceeds 10 words. Each example is timed
+independently and assigned to its bucket. Total time includes prefill and
+generation; for short outputs generation is 7--14 tokens so total
+time approximates TTFT.
+\end{table}
+
 Table~\ref{tab:instruct-fout-shortlong} shows selection methods outperforming
 Naive on both output-length categories, but neither category offers a clean
 deployment win. On short outputs ($\leq$10~words), selection methods score
@@ -2353,18 +2407,19 @@ deployment win. On short outputs ($\leq$10~words), selection methods score
 gap driven by first-token advantage and the ability to retrieve the correct
 short answer from the compressed cache. But TTFT dominates generation cost at
 these lengths: averaged over the 762 short examples, selection methods take
-9.6\,s per example at budget~=~256, the same as the uncompressed model (9.7\,s;
-9.1\,s vs.\ 9.1\,s at budget~=~1024). The quality advantage exists precisely
-where compression provides no speedup. This contrasts with the base-model
-setting (§7.4), where 93.6\% of outputs exceed the \textasciitilde19-token
-threshold at which TPT savings recover the TTFT overhead; the instruct model's
-terse output style inverts that picture for roughly half of examples.
+9.6\,s per example at budget~=~256 (Table~\ref{tab:instruct-timing}), the same
+as the uncompressed model (9.7\,s; 9.1\,s vs.\ 9.1\,s at budget~=~1024). The
+quality advantage exists precisely where compression provides no speedup. This
+contrasts with the base-model setting (§7.4), where 93.6\% of outputs exceed
+the \textasciitilde19-token threshold at which TPT savings recover the TTFT
+overhead; the instruct model's terse output style inverts that picture for
+roughly half of examples.
 
 On long-form outputs ($>$10~words), selection methods score 42--55\%
 \(F_{\text{out}}\) versus Naive's 26\%, a 16--29 percentage point gap that
 persists across both budgets. Here Naive does offer a genuine throughput gain:
-4.1\,s versus 11.4\,s per example at budget~=~256 (6.3\,s vs.\ 11.8\,s at
-budget~=~1024). Naive's Gap is slightly negative (long $F_{\text{out}}$ exceeds
+4.1\,s versus 11.4\,s per example at budget~=~256 (Table~\ref{tab:instruct-timing};
+6.3\,s vs.\ 11.8\,s at budget~=~1024). Naive's Gap is slightly negative (long $F_{\text{out}}$ exceeds
 short) because partial summaries always share vocabulary with the full model's
 output, whereas a wrong single-fact answer scores zero. Across both output
 categories, \(F_{\text{out}}\) cannot distinguish rotated from unrotated
@@ -3755,57 +3810,6 @@ RepoBench-P & \textbf{31.5} & 22.0 & 21.6 & 28.8 & 27.8 & 26.6 &
 52.6\\
 \bottomrule
 \end{tabular}
-\end{table}
-
-\begin{table}[H]
-\centering
-\small
-\caption{Mean wall-clock time per example by output-length category (Llama-3.1-8B-Instruct, V100)}
-\label{tab:instruct-timing}
-\begin{minipage}[t]{0.47\textwidth}
-\centering
-\textbf{Budget = 256}\\[4pt]
-\begin{tabular}{@{}lrr@{}}
-\toprule
-Method & Short (ms) & Long (ms)\\
-\midrule
-SnapKV     &  9372 & 11132\\
-SnapKV+rot &  9593 & 11689\\
-PyramidKV  &  9430 & 11355\\
-Pyr+rot    &  9694 & 11754\\
-Streaming  &  9543 & 10996\\
-Strm+rot   &  9772 & 11265\\
-Naive      &   725 &  4121\\
-Full       &  9666 & 16057\\
-\bottomrule
-\end{tabular}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.47\textwidth}
-\centering
-\textbf{Budget = 1024}\\[4pt]
-\begin{tabular}{@{}lrr@{}}
-\toprule
-Method & Short (ms) & Long (ms)\\
-\midrule
-SnapKV     &  8855 & 11549\\
-SnapKV+rot &  9092 & 12077\\
-PyramidKV  &  8920 & 11880\\
-Pyr+rot    &  9172 & 12146\\
-Streaming  &  9043 & 11602\\
-Strm+rot   &  9269 & 11829\\
-Naive      &  1046 &  6258\\
-Full       &  9122 & 15918\\
-\bottomrule
-\end{tabular}
-\end{minipage}
-
-\medskip
-Short = 762 examples where the full-model reference output is $\leq$10 words;
-Long = 838 examples where it exceeds 10 words. Each example is timed
-independently and assigned to its bucket. Total time includes prefill and
-generation; for short outputs generation is 7--14 tokens so total
-time approximates TTFT.
 \end{table}
 
 \end{document}
