@@ -731,18 +731,17 @@ complete context.
 \subsection{4.2 Ground-Truth Results}\label{gt-evaluation}}
 
 Ground-truth accuracy measures whether a compressed model produces outputs
-that match human-written reference answers. Table~\ref{tab:gt-allrates} shows macro-averaged scores
-across all rates on both models. Scores are compressed across methods at every retention rate: all KV
-eviction methods cluster within 2 points of each other and within 2 points of the
-full model. This clustering is the key limitation of GT as a compression metric---it
-cannot separate faithful methods from unfaithful ones (§3). Per-task results at 65\% retention appear in Appendix~C.
+that match human-written reference answers. Tables~\ref{tab:gt-allrates} 
+and~\ref{tab:instruct-gt} show macro-averaged scores
+across all rates on both models. 
+Per-task results at 65\% retention appear in Appendices~C and~D.
 
 
 \begin{table}[H]
 \centering
 \small
 \captionsetup{justification=centering}
-\caption{Mean ground-truth accuracy by method and retention rate (higher is better; per-task breakdown in Appendix~C)}
+\caption{Mean ground-truth accuracy by method and retention rate (higher is better)}
 \label{tab:gt-allrates}
 \begin{minipage}[t]{0.49\textwidth}
 \centering
@@ -782,9 +781,14 @@ Full       & 23.6 & 23.6 & 23.6\\
 \end{tabular}
 \end{minipage}
 \par\smallskip
-\textbf{Bold} = best compressed method per column. Full context is the reference (rate-independent): Llama~25.0, Mistral~23.6.
+\textbf{Bold} = best compressed method per column. Full context is the reference (rate-independent).
 \end{table}
 
+
+\textbf{General models at moderate compression ratios}.  Scores are compressed across methods at 
+every retention rate: all KV eviction methods cluster within 2 points of each other and 
+within 2 points of the full model. This clustering is the key limitation of GT as a 
+compression metric---it cannot separate faithful methods from unfaithful ones (§3). 
 
 \begin{table}[H]
 \centering
@@ -832,15 +836,15 @@ Full       & 32.8 & 28.9\\
 \end{tabular}
 \end{minipage}
 \par\smallskip
-\textbf{Bold} = best compressed method per column. Full context is the reference;
-at Mistral $b$=1024, compressed selection methods exceed the full-model average
-(focused-context effect on classification tasks). Per-task results in Appendix~D.
+\textbf{Bold} = best compressed method per column. Full context is the reference.
 \end{table}
 
-\textbf{Instruct models at extreme budgets.} At absolute token budgets of 256 and 1024, all four selection methods approach
-full-model GT scores, making the metric nearly non-discriminating
-(Table~\ref{tab:instruct-gt}). On Llama at budget~=~1024, the best compressed method (Pyr, 31.6\%) is within
-0.1 points of the full model (31.7\%). Naive is far below (16.9\% at budget~=~256), confirming that prompt truncation
+\textbf{Instruct models at extreme budgets.} At absolute token budgets of 256 and 1024, 
+all four intelligent selection methods approach
+full-model GT scores, making the metric nearly non-discriminating. On Llama at budget~=~1024, 
+the best compressed method (Pyr, 31.6\%) is within
+0.1 points of the full model (31.7\%). Naive is far below (16.9\% at budget~=~256), 
+confirming that prompt truncation
 destroys retrieval accuracy, but GT cannot distinguish among the four selection
 methods that all score above 30\%.
 
@@ -957,6 +961,47 @@ positions. The remaining gap between Streaming (0.141) and SnapKV+rot
 streaming's recency tail attended to the large evicted middle section
 during prefill, and those value representations persist regardless of
 key position reassignment.  This also confirms the prediction made in §5.3.
+
+Ground-truth accuracy shows the same pattern (Table~\ref{tab:streaming-gt}): unrotated
+streaming collapses to $\sim$11\% on the six-task mechanism subset --- the model cannot
+retrieve answers from the evicted middle --- while re-rotation recovers roughly $+$12--13
+percentage points on Llama and $+$10--12 points on Mistral.
+
+\begin{table}[H]
+\centering
+\small
+\captionsetup{justification=centering}
+\caption{Streaming ground-truth accuracy (\%) before and after key re-rotation\\
+(6-task mechanism subset; higher is better)}
+\label{tab:streaming-gt}
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\textbf{Llama-3.1-8B}\\[0.4em]
+\begin{tabular}{@{}llll@{}}
+\toprule
+Method & 65\% & 50\% & 35\%\\
+\midrule
+Streaming (unrotated) & 11.0 & 10.8 & 10.7\\
+Streaming+rot         & 23.7 & 23.6 & 23.1\\
+Improvement (pp)      & +12.8 & +12.7 & +12.4\\
+\bottomrule
+\end{tabular}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\textbf{Mistral-7B-v0.3}\\[0.4em]
+\begin{tabular}{@{}llll@{}}
+\toprule
+Method & 65\% & 50\% & 35\%\\
+\midrule
+Streaming (unrotated) & 10.7 & 10.6 & 11.1\\
+Streaming+rot         & 22.9 & 22.1 & 21.2\\
+Improvement (pp)      & +12.1 & +11.5 & +10.2\\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\end{table}
 
 \textbf{Instruct models at extreme budgets.} Table~\ref{tab:instruct-kl} extends the comparison to instruction-tuned models at absolute token budgets of 256 and 1024 tokens. SnapKV+rot remains the best method at every budget on both models. Re-rotation reduces KL by 2.2$\times$ on Llama at budget~=~256 (0.769 $\to$ 0.352) and 6.0$\times$ on Mistral (1.912 $\to$ 0.614). At budget~=~1024 the improvement grows further: 4.4$\times$ on Llama (0.648 $\to$ 0.146) and 6.0$\times$ on Mistral (1.766 $\to$ 0.294).
 
