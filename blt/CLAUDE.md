@@ -1096,6 +1096,28 @@ Finished all 500,000 steps on `io` (final val_ppl 61.48), checkpoint verified ge
 
 **`paper_blt.md` updated to match the data (2026-08-23).** Added a new Section 4.8 writing up the `num_uv_groups=4` vs `layers-per-m=4` head-axis/layer-axis result in full — previously this lived only in this file, despite being arguably the paper's most decisive finding. Also fixed three places where the paper still described the third UV256 seed as "in progress" (it finished 12 days prior); updated Section 6's synthesis bullet, Section 7.2's future-work framing, and Section 7.3's closing sentence to match. See the paper itself for the full text — not duplicated here.
 
+### Cumulative blend=1.0 seed19 DONE (2026-09-04) — completes the three-seed set, tight cluster confirmed
+
+Finished all 500,000 steps on `venus` (final val_ppl 69.59), checkpoint verified genuine (all finite, `token_count` sum 2,046,000,000 across 50,134/50,257 tokens). Benchmarked: OWT held-out ppl **30.48** (loss 3.4171), LAMBADA acc **0.264** — landing right inside the tight band the first two seeds (0.268, 0.262) predicted, exactly as expected from the pre-registered check ("would need to land well outside 0.262–0.268 to change anything").
+
+| Metric | seed42 | seed7 | seed19 | **avg (3 seeds)** |
+|---|---|---|---|---|
+| OWT held-out ppl | 30.37 | 29.42 | 30.48 | 30.09 |
+| LAMBADA acc | 0.268 | 0.262 | 0.264 | 0.265 |
+| HellaSwag acc_norm | 0.271 | 0.272 | 0.270 | 0.271 |
+| PIQA acc_norm | 0.566 | 0.581 | 0.576 | 0.574 |
+| Winogrande acc | 0.507 | 0.502 | **0.534** | 0.514 |
+
+**Cumulative blend=1.0 is now a genuine, tightly-clustered 3-seed result** (LAMBADA acc range 0.262–0.268, the tightest spread of any blend point in the cumulative family) — unlike blend=0.75, which needed a third seed to reveal it wasn't as tight as it first looked. This closes out the medium-scale-run decision this whole sweep was built to inform: with blend=0.75's 3-seed average (0.253) landing below both fixed-decay (0.259) and sine-annealed (0.259) EMA at the same blend, and blend=1.0's edge (0.265) undercut by its worst-in-family BLiMP cost (-2.1pts), there's no small-scale evidence that a 3-week medium-scale cumulative-mode run would beat what the already-completed sine-annealed medium run achieved (LAMBADA acc 0.373) — **decision: not launching a medium-scale cumulative run**, per direct discussion with the user.
+
+**Third seed launched for fixed EMA blend=1.0 (pure) on `venus`** (freed up immediately after) — `run_gpt2_ema_seed7.pt`, matching the standard 42/19/7 sequence (seed42 done: OWT 30.06/LAMBADA 0.253; seed19 in progress on `titan`). Confirmed healthy at launch.
+
+**Status snapshot (2026-09-04):**
+- `bender`: real medium `num_uv_groups=8` run — long-running 3-week job, still in progress.
+- `titan`: fixed EMA blend=1.0 (pure) seed19 — second seed for that point.
+- `io`: busy with an unrelated `pprune/` job (KV-cache-pruning work, not BLT) — not available.
+- `venus`: fixed EMA blend=1.0 (pure) seed7 — third seed, just launched.
+
 ### Other future directions
 - **Grouped Wv**: share Wv across groups of heads (GQA-style) to reduce value cache bandwidth.
 - **Token weighting loss**: upweight tokens requiring long-range context using a short-context reference model (arXiv 2503.09202). Most promising fix for LAMBADA/benchmark mismatch.
