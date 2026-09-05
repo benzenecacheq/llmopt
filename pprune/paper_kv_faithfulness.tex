@@ -1525,54 +1525,33 @@ positional disparity under right-aligned re-rotation:
 the target range \([T - n_{\text{kept}}, T)\) varies widely across
 layers.
 
-\textbf{Re-rotation improvement for Streaming.} 
+\textbf{Re-rotation improvement for Streaming.}
 
-Streaming's KL faithfulness is similar to Naive --- slightly better than Naive on Llama, 
-and slightly worse on Mistral.  Table~\ref{tab:t3} shows
-streaming\_rerotated which is the method recommended in the KVPress documentation. 
-For comparison --- and to test the prediction made in §6.3 --- we implemented a version without re-rotation using the 
-StreamingLLMPress baseline.
-Table~\ref{tab:streaming-imp} shows the results for Llama-3.1-8B.
+Streaming's KL faithfulness is similar to Naive --- slightly better than Naive on Llama,
+and slightly worse on Mistral. Table~\ref{tab:t3} includes results for both unrotated
+Streaming and Str+rot (the method recommended in the KVPress documentation).
+Re-rotation reduces Streaming's KL by 11.6×/5.6×/3.7× at 65/50/35\% for Llama,
+substantially below SnapKV's 27×/13×/6.7×. The smaller gain is consistent with
+streaming's single-large-gap geometry producing less positional displacement than
+SnapKV's scattered positions. The remaining gap between Str+rot (0.141) and SnapKV+rot
+(0.043) reflects structural value corruption that re-rotation cannot address:
+streaming's recency tail attended to the evicted middle section during prefill, and
+those value representations persist regardless of key position reassignment.
+This confirms the prediction made in §6.3.
 
-\begin{table}[H]
-\centering
-\small
-\caption{Streaming KL faithfulness before and after key re-rotation, with improvement ratio}
-\label{tab:streaming-imp}
-\begin{tabular}{@{}llll@{}}
-\toprule
-Method & 65\% & 50\% & 35\%\\
-\midrule
-Streaming (unrotated) & 1.639 & 1.122 & 0.953\\
-Streaming+rot         & 0.141 & 0.199 & 0.261\\
-Improvement           & 11.7× & 5.6×  & 3.7×\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The improvement ratio decreases at tighter budgets for the same reason
-as SnapKV --- the unrotated baseline improves (fewer misaligned
-positions) while the rerotated method worsens (information loss). The
-improvement at every rate is substantially below SnapKV's
-(27×/13×/6.7×), consistent with streaming's single-large-gap geometry
-producing less positional displacement than SnapKV's scattered
-positions. The remaining gap between Streaming (0.141) and SnapKV+rot
-(0.043) reflects structural corruption that re-rotation cannot address:
-streaming's recency tail attended to the large evicted middle section
-during prefill, and those value representations persist regardless of
-key position reassignment.  This also confirms the prediction made in §6.3.
-
-Ground-truth accuracy shows the same pattern (Table~\ref{tab:streaming-gt}): unrotated
-streaming collapses to $\sim$11\% on the six-task mechanism subset --- the model cannot
-retrieve answers from the evicted middle --- while re-rotation recovers roughly $+$12--13
-percentage points on Llama and $+$10--12 points on Mistral.
+Ground-truth accuracy tells a different story (Table~\ref{tab:streaming-gt}): across all
+16 tasks and both models, unrotated Streaming and Str+rot score within $\pm$0.2 percentage
+points of each other at every retention rate. GT is insensitive to the 11.6× KL
+improvement from re-rotation, because the dominant determinant of accuracy on
+long-document benchmarks is context access --- Streaming evicts the middle regardless
+of key positions.
 
 \begin{table}[H]
 \centering
 \small
 \captionsetup{justification=centering}
 \caption{Streaming ground-truth accuracy (\%) before and after key re-rotation\\
-(6-task mechanism subset; higher is better)}
+(16 tasks; higher is better)}
 \label{tab:streaming-gt}
 \begin{minipage}[t]{0.49\textwidth}
 \centering
@@ -1581,9 +1560,9 @@ percentage points on Llama and $+$10--12 points on Mistral.
 \toprule
 Method & 65\% & 50\% & 35\%\\
 \midrule
-Streaming (unrotated) & 11.0 & 10.8 & 10.7\\
+Streaming (unrotated) & 23.8 & 23.5 & 23.1\\
 Streaming+rot         & 23.7 & 23.6 & 23.1\\
-Improvement (pp)      & +12.8 & +12.7 & +12.4\\
+Improvement (pp)      & $-$0.1 & $+$0.1 & 0.0\\
 \bottomrule
 \end{tabular}
 \end{minipage}%
@@ -1595,9 +1574,9 @@ Improvement (pp)      & +12.8 & +12.7 & +12.4\\
 \toprule
 Method & 65\% & 50\% & 35\%\\
 \midrule
-Streaming (unrotated) & 10.7 & 10.6 & 11.1\\
+Streaming (unrotated) & 22.7 & 22.1 & 21.3\\
 Streaming+rot         & 22.9 & 22.1 & 21.2\\
-Improvement (pp)      & +12.1 & +11.5 & +10.2\\
+Improvement (pp)      & $+$0.2 & 0.0 & $-$0.1\\
 \bottomrule
 \end{tabular}
 \end{minipage}
