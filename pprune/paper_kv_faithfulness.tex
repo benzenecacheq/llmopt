@@ -291,23 +291,26 @@ and a 90\% recency tail, concatenated to form a new prompt at 65\% of
 the original length.
 
 \item
-\textbf{Streaming} - The KV Cache is pruned reserving the first 4 attention sink tokens plus a recency 
-window to fill the remaining budget, following StreamingLLM’s selection rule [Xiao et al., 2023].
+\textbf{Str+rot} - The KV Cache is pruned reserving the first 4 attention sink tokens plus a
+recency window to fill the remaining budget (following StreamingLLM’s selection rule
+[Xiao et al., 2023]), with \texttt{KeyRerotationPress} applied after eviction to compact
+retained key positions. This is the configuration explicitly recommended by the kvpress
+documentation.
 
-\item 
+\item
 \textbf{SnapKV} - Prunes the KV cache based on the attention weights pooled over the last 128-token
   observation window {[}Li et al., 2024{]}.
 
-\item 
-\textbf{PyramidKV} - Follows the same SnapKV-style attention scoring, but with a layer-adaptive 
-budget that allocates more KV slots to lower layers and fewer to higher layers [Cai et al., 2024]. 
-The per-layer budget follows a linear decay controlled by beta=20; budgets are clamped to 
+\item
+\textbf{PyramidKV} - Follows the same SnapKV-style attention scoring, but with a layer-adaptive
+budget that allocates more KV slots to lower layers and fewer to higher layers [Cai et al., 2024].
+The per-layer budget follows a linear decay controlled by beta=20; budgets are clamped to
 \texttt{[window\_size, sequence\_length]}.
 
 \end{enumerate}
 
-The benchmarked KV pruning methods (Streaming, SnapKV, PyramidKV) are implemented via 
-\texttt{kvpress} v0.5.4. They process the full prompt, score each token's KV entry using
+The benchmarked KV pruning methods (Str+rot, SnapKV, PyramidKV) are implemented via
+\texttt{kvpress} v0.5.4. They process the full prompt, score each token’s KV entry using
 post-prefill attention weights, and evict lower-scoring entries after the prefill
 pass. The last \texttt{window\_size} tokens (the observation window) are
 always retained by being assigned high scores; we use
@@ -315,22 +318,14 @@ always retained by being assigned high scores; we use
 GQA models such as Llama-3.1-8B (32 Q-heads, 8 KV-heads), kvpress
 aggregates scores via mean-pooling across query heads sharing a KV head.
 
-Note that our Streaming implementation uses kvpress‘s \texttt{StreamingLLMPress}
-wrapped in \texttt{KeyRerotationPress}. The kvpress documentation for
-\texttt{StreamingLLMPress} explicitly recommends this wrapper ``to
-fully match the implementation described in the paper.'' In the
-original online design, HuggingFace's \texttt{SinkCache} re-rotates
-keys as the recency window slides forward during generation to keep
-positions consistent. In kvpress's post-prefill adaptation,
-\texttt{KeyRerotationPress} serves the same function after eviction.
-Unlike the original StreamingLLM paper's online design --- where the
-cache is bounded continuously and a full-length KV cache is never
-built --- our kvpress implementation performs a full prefill before
-trimming (post-prefill cache eviction, §6.1). This departs from the
-original design's TTFT advantage but puts Streaming on equal footing
-with SnapKV and PyramidKV, which are inherently post-prefill methods,
-so retained tokens' hidden states are computed with access to the
-complete context.
+Unlike the original StreamingLLM paper’s online design --- where the cache is bounded
+continuously and a full-length KV cache is never built --- our kvpress implementation
+performs a full prefill before trimming (post-prefill cache eviction, §6.1). This
+departs from the original design’s TTFT advantage but puts Str+rot on equal footing
+with SnapKV and PyramidKV, which are inherently post-prefill methods, so retained
+tokens’ hidden states are computed with access to the complete context. §7 also
+benchmarks bare \texttt{StreamingLLMPress} without re-rotation (labelled Streaming) to
+isolate the effect of key re-rotation.
 
 \hypertarget{ground-truth-evaluation}{%
 \section{4. Ground-Truth Evaluation}\label{ground-truth-evaluation}}
@@ -340,8 +335,8 @@ standard evaluation paradigm reveals. We run Llama-3.1-8B {[}Dubey et
 al., 2024{]} and Mistral-7B-v0.3 {[}Jiang et al., 2023{]} (both base,
 fp16 on a single V100 32GB GPU) on LongBench v1 {[}Bai et al., 2023{]}
 (16 English tasks, 100 examples per task) at 65\% retention, comparing
-naive proportional truncation, StreamingLLM (Streaming), SnapKV, and
-PyramidKV against the full uncompressed model. LongBench is the primary
+naive proportional truncation, Str+rot (StreamingLLM with key re-rotation),
+SnapKV, and PyramidKV against the full uncompressed model. LongBench is the primary
 evaluation benchmark used by SnapKV {[}Li et al., 2024{]}, PyramidKV
 {[}Cai et al., 2024{]}, and most directly comparable KV compression
 work, making it the natural choice for comparability.
@@ -362,7 +357,7 @@ completion.
 \textbf{Llama-3.1-8B}\\[0.4em]
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Full & Naive & \makecell{Stream-\\ing} & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
+Task & Full & Naive & Str+rot & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
 \midrule
 NarrativeQA† & 5.5 & 4.9 & \textbf{5.8} & 5.6 & 5.5\\
 Qasper† & 11.1 & 10.2 & 9.5 & 11.3 & \textbf{11.8}\\
@@ -391,7 +386,7 @@ RepoBench-P & 55.6 & 53.9 & 53.2 & 55.4 & \textbf{56.0}\\
 \textbf{Mistral-7B-v0.3}\\[0.4em]
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Full & Naive & \makecell{Stream-\\ing} & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
+Task & Full & Naive & Str+rot & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
 \midrule
 NarrativeQA† & 5.1 & 2.7 & \textbf{5.4} & 5.1 & 4.1\\
 Qasper† & 5.3 & 4.3 & 5.0 & \textbf{5.1} & 4.8\\
@@ -421,7 +416,7 @@ RepoBench-P & 53.9 & \textbf{54.4} & 54.1 & 54.1 & 54.0\\
 Table~\ref{tab:gt} shows per-task results for both models. The overall pattern is the same across both architectures: ground-truth
 scores are compressed across methods. On both Llama and Mistral, SnapKV
 ties PyramidKV (Llama: 25.0 vs 25.1; Mistral: 23.5 vs 23.5), both
-exceeding naive. Streaming (23.7 Llama, 22.9 Mistral) exceeds naive on
+exceeding naive. Str+rot (23.7 Llama, 22.9 Mistral) exceeds naive on
 both models and is competitive across most tasks, but trails SnapKV and
 PyramidKV in average. PyramidKV leads or ties all compressed methods on
 both models.
@@ -872,7 +867,7 @@ metrics of the various compression regimes at 65\% retention.
 \textbf{Llama-3.1-8B}\\[0.4em]
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & \makecell{Streaming} & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
+Task & Naive & Str+rot & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
 \midrule
 NarrativeQA† & \textbf{0.022} & 0.045 & 0.787 & 1.338\\
 Qasper† & 0.281 & \textbf{0.237} & 0.881 & 1.229\\
@@ -901,7 +896,7 @@ RepoBench-P & \textbf{0.048} & 0.050 & 0.702 & 1.052\\
 \textbf{Mistral-7B-v0.3}\\[0.4em]
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & \makecell{Streaming} & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
+Task & Naive & Str+rot & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
 \midrule
 NarrativeQA† & \textbf{0.003} & 0.125 & 0.445 & 0.780\\
 Qasper† & 0.071 & \textbf{0.067} & 0.274 & 0.472\\
@@ -939,7 +934,7 @@ RepoBench-P & \textbf{0.076} & 0.087 & 0.914 & 0.940\\
 \textbf{Llama-3.1-8B}\\[0.4em]
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & \makecell{Streaming} & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
+Task & Naive & Str+rot & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
 \midrule
 NarrativeQA† & \textbf{88.1} & 59.9 & 63.1 & 61.7\\
 Qasper† & 46.4 & 56.9 & 71.4 & \textbf{72.6}\\
@@ -968,7 +963,7 @@ RepoBench-P & 77.3 & 65.6 & 90.5 & \textbf{90.6}\\
 \textbf{Mistral-7B-v0.3}\\[0.4em]
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & \makecell{Streaming} & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
+Task & Naive & Str+rot & \makecell{Snap\\KV} & \makecell{Pyr\\KV}\\
 \midrule
 NarrativeQA† & 40.5 & 38.2 & \textbf{57.4} & 55.4\\
 Qasper† & 69.0 & 69.4 & \textbf{87.1} & 86.1\\
@@ -996,13 +991,13 @@ RepoBench-P & 62.8 & 66.1 & \textbf{93.0} & 90.1\\
 \end{table}
 
 The two metrics sharply disagree on SnapKV and PyramidKV.
-On Llama, Streaming edges Naive on KL faithfulness (0.141 vs.\ 0.175),
+On Llama, Str+rot edges Naive on KL faithfulness (0.141 vs.\ 0.175),
 while SnapKV and PyramidKV are an order of magnitude worse. On Mistral
-the Streaming/Naive ranking reverses (Naive 0.133 vs.\ Streaming 0.161),
+the Str+rot/Naive ranking reverses (Naive 0.133 vs.\ Str+rot 0.161),
 but SnapKV and PyramidKV remain far worse on both models at roughly half
 the absolute KL magnitude. \(F_{\text{out}}\) reverses the picture for
 the KV-pruning methods: PyramidKV and SnapKV lead on both models while
-Streaming falls near or below Naive. These reversals are not
+Str+rot falls near or below Naive. These reversals are not
 contradictory: §8 explains the mechanism that decouples
 \(F_{\text{out}}\) from KL for post-prefill eviction methods.
 
@@ -1029,7 +1024,7 @@ Pruning}\label{structural-corruption-in-kv-cache-pruning}}
 \subsection{6.1 The Mechanism}\label{the-mechanism}}
 
 All three KV-pruning methods benchmarked in this paper --- SnapKV,
-PyramidKV, and Streaming-rerotated --- use \emph{post-prefill cache
+PyramidKV, and Str+rot --- use \emph{post-prefill cache
 eviction}: the model performs one normal, unrestricted prefill pass over
 the complete prompt, attending to the full context at every layer, and
 only after that pass completes is the KV cache trimmed before the first
@@ -1562,7 +1557,7 @@ of key positions.
 Method & 65\% & 50\% & 35\%\\
 \midrule
 Streaming (unrotated) & 23.8 & 23.5 & 23.1\\
-Streaming+rot         & 23.7 & 23.6 & 23.1\\
+Str+rot               & 23.7 & 23.6 & 23.1\\
 Improvement (pp)      & $-$0.1 & $+$0.1 & 0.0\\
 \bottomrule
 \end{tabular}
@@ -1576,7 +1571,7 @@ Improvement (pp)      & $-$0.1 & $+$0.1 & 0.0\\
 Method & 65\% & 50\% & 35\%\\
 \midrule
 Streaming (unrotated) & 22.7 & 22.1 & 21.3\\
-Streaming+rot         & 22.9 & 22.1 & 21.2\\
+Str+rot               & 22.9 & 22.1 & 21.2\\
 Improvement (pp)      & $+$0.2 & 0.0 & $-$0.1\\
 \bottomrule
 \end{tabular}
@@ -1684,7 +1679,7 @@ Method & 65\% & 50\% & 35\%\\
 \midrule
 Naive     & 2400\,ms & 2082\,ms & 1632\,ms\\
 SnapKV    & 6621\,ms & 6872\,ms & 6834\,ms\\
-Streaming & 6796\,ms & 6750\,ms & 6861\,ms\\
+Str+rot   & 6796\,ms & 6750\,ms & 6861\,ms\\
 Pyr       & 6973\,ms & 7245\,ms & 7276\,ms\\
 \bottomrule
 \end{tabular}
@@ -1698,7 +1693,7 @@ prompt. All post-prefill eviction methods incur overhead above the
 full-context baseline: performing a full prefill over the uncompressed
 prompt before pruning, each is consistently slower than the uncompressed
 model at every retention rate. PyramidKV's layer-wise budget computation
-adds 9--13\% overhead. SnapKV and Streaming-rerotated use simpler
+adds 9--13\% overhead. SnapKV and Str+rot use simpler
 post-prefill eviction steps and add less overhead (+3--7\%), but both
 are consistently above full-context TTFT. No KV-pruning method using
 post-prefill eviction can provide prefill savings: the full prompt must
@@ -1750,7 +1745,7 @@ PyramidKV and SnapKV have the best \(F_{\text{out}}\) of any method
 (79.1\% and 78.5\% at Llama 65\%) while simultaneously having the worst
 KL faithfulness (1.394 and 1.157 nats) --- worse than every other method
 including naive truncation (0.175). This section explains the mechanism
-that produces this inversion, and where SnapKV+rot and Streaming fit
+that produces this inversion, and where SnapKV+rot and Str+rot fit
 within it. Throughout this section, \emph{short-answer} tasks are those
 where the full-model reference output is ≤\,90 words; \emph{long-form}
 tasks are those where it exceeds 90 words (§8.1 elaborates).
@@ -1806,7 +1801,7 @@ Method & Short-answer \(F_{\text{out}}\) & Long-form \(F_{\text{out}}\) & Gap\\
 \midrule
 Recompute-over-gaps & 56.1 & 50.2 & 6.0\\
 SnapKV              & 87.7 & 54.7 & 33.0\\
-Streaming           & 66.7 & 47.0 & 19.7\\
+Str+rot             & 66.7 & 47.0 & 19.7\\
 \bottomrule
 \end{tabular}
 
@@ -1820,10 +1815,10 @@ exactly identical to the full model's because it is generated at the end
 of the prefill from full, unrestricted attention, and before re-rotation
 takes effect.
 
-\textbf{Streaming and the limits of the first-token advantage.}
-Streaming-rerotated uses the same post-prefill eviction timing, so the
+\textbf{Str+rot and the limits of the first-token advantage.}
+Str+rot uses the same post-prefill eviction timing, so the
 first output token is also identical to the full model's. Table~\ref{tab:rog}
-shows that this is not enough: the first-token advantage lifts Streaming's
+shows that this is not enough: the first-token advantage lifts Str+rot's
 short-answer \(F_{\text{out}}\) above recompute-over-gaps (66.7\% vs
 56.1\%), but block\_end geometry (§6.3) limits how far re-rotation can
 recover --- short-answer \(F_{\text{out}}\) remains below Naive (72.8\%)
@@ -1856,7 +1851,7 @@ SnapKV & 87.7 & 54.7 & 33.0\\
 Pyr+rot & 79.9 & 50.1 & 29.8\\
 SnapKV+rot & 79.3 & 50.0 & 29.3\\
 Naive & 72.8 & \textbf{57.6} & 15.2\\
-Streaming & 66.7 & 47.0 & 19.7\\
+Str+rot & 66.7 & 47.0 & 19.7\\
 \bottomrule
 \end{tabular}
 
@@ -1911,7 +1906,7 @@ Method & Short \(F_{\text{KL}}\) & Long \(F_{\text{KL}}\)\\
 \midrule
 SnapKV+rot & \textbf{0.012} & \textbf{0.124}\\
 Pyr+rot & \textbf{0.012} & 0.135\\
-Streaming & 0.080 & 0.297\\
+Str+rot & 0.080 & 0.297\\
 Naive & 0.143 & 0.256\\
 SnapKV & 1.335 & 0.697\\
 PyramidKV & 1.658 & 0.711\\
@@ -2086,10 +2081,10 @@ Rate & Unrot. & +rot & Gap & Unrot. & +rot & Gap\\
 Llama-3.1-8B, Gap = unrotated − re-rotated.
 \end{table}
 
-Streaming-rerotated's profile is distinct. It is the worst-performing
+Str+rot's profile is distinct. It is the worst-performing
 method on both Short \(F_{\text{out}}\) (66.7\%) and Long
 \(F_{\text{out}}\) (47.0\%), below every other method in Table~\ref{tab:t5}. Both
-follow from the block\_end geometry established in §6.3. Streaming's
+follow from the block\_end geometry established in §6.3. Str+rot's
 single large evicted region causes structural damage that re-rotation
 cannot repair: as Table~\ref{tab:t2} shows, re-rotated block\_end remains severely
 degraded relative to gapless (15.9×). This corruption takes effect from
@@ -2143,19 +2138,19 @@ was the right methodological choice.
 The re-rotation optimization itself would
 have been much harder to discover starting from extreme compression with the 
 instruct model. The
-initial signal came from Streaming with re-rotation --- the
+initial signal came from Str+rot --- the
 configuration prescribed in the kvpress documentation --- which at 65\%
 retention on the base model achieves mean KL of 0.141 nats, nearly 10×
 better than unrotated PyramidKV (1.394) and 8× better than unrotated
 SnapKV (1.157). That gap made it clear that re-rotation was doing
-substantial work, motivating us to apply it to the other selection methods. 
+substantial work, motivating us to apply it to the other selection methods.
 
-At budget = 256 using the instruct model, the same comparison shows 
-streaming+rot (0.735) in the same ballpark as unrotated SnapKV (0.769) 
-and PyramidKV (0.882) --- a difference more likely to be attributed to 
-algorithmic differences between streaming-based and selection-based 
-methods than to re-rotation specifically. Starting from extreme compression, 
-we would probably have concluded that Streaming was simply a better algorithm.
+At budget = 256 using the instruct model, the same comparison shows
+Str+rot (0.735) in the same ballpark as unrotated SnapKV (0.769)
+and PyramidKV (0.882) --- a difference more likely to be attributed to
+algorithmic differences between streaming-based and selection-based
+methods than to re-rotation specifically. Starting from extreme compression,
+we would probably have concluded that Str+rot was simply a better algorithm.
 
 At high compression rates, KL faithfulness remains informative, but the dynamic range shrinks with the budget. 
 At budget = 256, SnapKV+rot (0.352 nats) outperforms unrotated SnapKV (0.769) by 2.2×: 

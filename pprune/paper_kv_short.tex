@@ -947,7 +947,7 @@ of key positions.
 Method & 65\% & 50\% & 35\%\\
 \midrule
 Streaming (unrotated) & 23.8 & 23.5 & 23.1\\
-Streaming+rot         & 23.7 & 23.6 & 23.1\\
+Str+rot               & 23.7 & 23.6 & 23.1\\
 Improvement (pp)      & $-$0.1 & $+$0.1 & 0.0\\
 \bottomrule
 \end{tabular}
@@ -961,7 +961,7 @@ Improvement (pp)      & $-$0.1 & $+$0.1 & 0.0\\
 Method & 65\% & 50\% & 35\%\\
 \midrule
 Streaming (unrotated) & 22.7 & 22.1 & 21.3\\
-Streaming+rot         & 22.9 & 22.1 & 21.2\\
+Str+rot               & 22.9 & 22.1 & 21.2\\
 Improvement (pp)      & $+$0.2 & 0.0 & $-$0.1\\
 \bottomrule
 \end{tabular}
@@ -1357,7 +1357,7 @@ Method & 65\% & 50\% & 35\%\\
 \midrule
 Naive     & 2400\,ms & 2082\,ms & 1632\,ms\\
 SnapKV    & 6621\,ms & 6872\,ms & 6834\,ms\\
-Streaming & 6796\,ms & 6750\,ms & 6861\,ms\\
+Str+rot   & 6796\,ms & 6750\,ms & 6861\,ms\\
 Pyr       & 6973\,ms & 7245\,ms & 7276\,ms\\
 \bottomrule
 \end{tabular}
@@ -1371,7 +1371,7 @@ prompt. All post-prefill eviction methods incur overhead above the
 full-context baseline: performing a full prefill over the uncompressed
 prompt before pruning, each is consistently slower than the uncompressed
 model at every retention rate. PyramidKV's layer-wise budget computation
-adds 9--13\% overhead. SnapKV and Streaming-rerotated use simpler
+adds 9--13\% overhead. SnapKV and Str+rot use simpler
 post-prefill eviction steps and add less overhead (+3--7\%), but both
 are consistently above full-context TTFT. No KV-pruning method using
 post-prefill eviction can provide prefill savings: the full prompt must
@@ -1404,7 +1404,7 @@ Pruning}\label{structural-corruption-in-kv-cache-pruning}}
 \subsection{5.1 The Mechanism}\label{the-mechanism}}
 
 All three KV-pruning methods benchmarked in this paper --- SnapKV,
-PyramidKV, and Streaming-rerotated --- use \emph{post-prefill cache
+PyramidKV, and Str+rot --- use \emph{post-prefill cache
 eviction}: the model performs one normal, unrestricted prefill pass over
 the complete prompt, attending to the full context at every layer, and
 only after that pass completes is the KV cache trimmed before the first
@@ -1795,7 +1795,7 @@ PyramidKV and SnapKV have the best \(F_{\text{out}}\) of any method
 (79.1\% and 78.5\% at Llama 65\%) while simultaneously having the worst
 KL faithfulness (1.394 and 1.157 nats) --- worse than every other method
 including naive truncation (0.175). This section explains the mechanism
-that produces this inversion, and where SnapKV+rot and Streaming fit
+that produces this inversion, and where SnapKV+rot and Str+rot fit
 within it. Throughout this section, \emph{short-answer} tasks are those
 where the full-model reference output is ≤\,90 words; \emph{long-form}
 tasks are those where it exceeds 90 words (§6.1 elaborates).
@@ -1851,7 +1851,7 @@ Method & Short-answer \(F_{\text{out}}\) & Long-form \(F_{\text{out}}\) & Gap\\
 \midrule
 Recompute-over-gaps & 56.1 & 50.2 & 6.0\\
 SnapKV              & 87.7 & 54.7 & 33.0\\
-Streaming           & 66.7 & 47.0 & 19.7\\
+Str+rot             & 66.7 & 47.0 & 19.7\\
 \bottomrule
 \end{tabular}
 
@@ -1865,10 +1865,10 @@ exactly identical to the full model's because it is generated at the end
 of the prefill from full, unrestricted attention, and before re-rotation
 takes effect.
 
-\textbf{Streaming and the limits of the first-token advantage.}
-Streaming-rerotated uses the same post-prefill eviction timing, so the
+\textbf{Str+rot and the limits of the first-token advantage.}
+Str+rot uses the same post-prefill eviction timing, so the
 first output token is also identical to the full model's. Table~\ref{tab:rog}
-shows that this is not enough: the first-token advantage lifts Streaming's
+shows that this is not enough: the first-token advantage lifts Str+rot's
 short-answer \(F_{\text{out}}\) above recompute-over-gaps (66.7\% vs
 56.1\%), but block\_end geometry (§5.3) limits how far re-rotation can
 recover --- short-answer \(F_{\text{out}}\) remains below Naive (72.8\%)
@@ -1901,7 +1901,7 @@ SnapKV & 87.7 & 54.7 & 33.0\\
 Pyr+rot & 79.9 & 50.1 & 29.8\\
 SnapKV+rot & 79.3 & 50.0 & 29.3\\
 Naive & 72.8 & \textbf{57.6} & 15.2\\
-Streaming & 66.7 & 47.0 & 19.7\\
+Str+rot & 66.7 & 47.0 & 19.7\\
 \bottomrule
 \end{tabular}
 
@@ -1956,7 +1956,7 @@ Method & Short \(F_{\text{KL}}\) & Long \(F_{\text{KL}}\)\\
 \midrule
 SnapKV+rot & \textbf{0.012} & \textbf{0.124}\\
 Pyr+rot & \textbf{0.012} & 0.135\\
-Streaming & 0.080 & 0.297\\
+Str+rot & 0.080 & 0.297\\
 Naive & 0.143 & 0.256\\
 SnapKV & 1.335 & 0.697\\
 PyramidKV & 1.658 & 0.711\\
@@ -2131,10 +2131,10 @@ Rate & Unrot. & +rot & Gap & Unrot. & +rot & Gap\\
 Llama-3.1-8B, Gap = unrotated − re-rotated.
 \end{table}
 
-Streaming-rerotated's profile is distinct. It is the worst-performing
+Str+rot's profile is distinct. It is the worst-performing
 method on both Short \(F_{\text{out}}\) (66.7\%) and Long
 \(F_{\text{out}}\) (47.0\%), below every other method in Table~\ref{tab:t5}. Both
-follow from the block\_end geometry established in §5.3. Streaming's
+follow from the block\_end geometry established in §5.3. Str+rot's
 single large evicted region causes structural damage that re-rotation
 cannot repair: as Table~\ref{tab:t2} shows, re-rotated block\_end remains severely
 degraded relative to gapless (15.9×). This corruption takes effect from
