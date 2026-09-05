@@ -1439,7 +1439,8 @@ Full context & Reference        & Uncompressed model\\
 Naive        & Prompt construction & Last 65\% of tokens, 10\% head / 90\% tail split\\
 SnapKV       & KV pruning       & Pooled attention weights over observation window\\
 SnapKV+rot   & KV pruning       & SnapKV + key re-rotation to compact positions after eviction\\
-Streaming    & KV pruning       & Attention sinks + recency window with key re-rotation\\
+Streaming    & KV pruning       & Attention sinks + recency window (StreamingLLMPress baseline)\\
+Str+rot      & KV pruning       & Streaming + key re-rotation to compact positions after eviction\\
 PyramidKV    & KV pruning       & Layer-adaptive pyramid budget allocation\\
 Pyr+rot      & KV pruning       & PyramidKV + key re-rotation to compact positions after eviction\\
 \bottomrule
