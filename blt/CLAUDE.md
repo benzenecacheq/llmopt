@@ -1118,6 +1118,8 @@ Finished all 500,000 steps on `venus` (final val_ppl 69.59), checkpoint verified
 - `io`: busy with an unrelated `pprune/` job (KV-cache-pruning work, not BLT) — not available.
 - `venus`: fixed EMA blend=1.0 (pure) seed7 — third seed, just launched.
 
+**Migrated to `io` (2026-09-05)** once io's unrelated `pprune/` job finished — same protocol as every prior migration: `SIGTERM` (PID-matched first), checkpoint verified genuine (step 76,500/500,000, all finite, `token_loss` buffer std 2.08 confirming real EMA activity), copied to io (relayed through local scratchpad, md5sum-verified byte-identical), resumed there (`Resumed at step 76500`, confirmed healthy). io's `llmopt.blt/blt` checkout was significantly behind (`d22dc8f`, an old pre-cross-machine-merge commit) — pulled clean to current with no conflicts, only harmless untracked scratch files from old runs. `venus` is now free.
+
 ### Other future directions
 - **Grouped Wv**: share Wv across groups of heads (GQA-style) to reduce value cache bandwidth.
 - **Token weighting loss**: upweight tokens requiring long-range context using a short-context reference model (arXiv 2503.09202). Most promising fix for LAMBADA/benchmark mismatch.
