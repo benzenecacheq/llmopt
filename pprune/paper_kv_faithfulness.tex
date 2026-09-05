@@ -1475,7 +1475,8 @@ predictions from §6.3.
 Method & 65\% & 50\% & 35\%\\
 \midrule
 Naive      & 0.175 & 0.217 & 0.281\\
-Streaming  & 0.141 & 0.199 & 0.261\\
+Streaming  & 1.639 & 1.122 & 0.953\\
+Str+rot    & 0.141 & 0.199 & 0.261\\
 SnapKV     & 1.157 & 0.981 & 0.836\\
 SnapKV+rot & \textbf{0.043} & \textbf{0.077} & \textbf{0.124}\\
 Pyr        & 1.394 & 1.451 & 0.837\\
@@ -1492,7 +1493,8 @@ Pyr+rot    & 0.047 & 0.096 & \textbf{0.124}\\
 Method & 65\% & 50\% & 35\%\\
 \midrule
 Naive      & 0.133 & 0.158 & 0.188\\
-Streaming  & 0.161 & 0.201 & 0.244\\
+Streaming  & 1.168 & 1.234 & 0.688\\
+Str+rot    & 0.161 & 0.201 & 0.244\\
 SnapKV     & 0.733 & 0.619 & 0.588\\
 SnapKV+rot & \textbf{0.030} & \textbf{0.058} & \textbf{0.096}\\
 Pyr        & 0.734 & 0.796 & 0.586\\
@@ -1501,7 +1503,7 @@ Pyr+rot    & 0.034 & 0.079 & \textbf{0.096}\\
 \end{tabular}
 \end{minipage}
 \center Lower is better. \textbf{Bold} = best per retention rate.
-Streaming = StreamingLLM with key re-rotation;\\SnapKV+rot = SnapKV with key
+Streaming = StreamingLLM (no re-rotation); Str+rot = StreamingLLM with key re-rotation;\\SnapKV+rot = SnapKV with key
 re-rotation; Pyr+rot = PyramidKV with key re-rotation.
 \end{table}
 
@@ -1623,7 +1625,8 @@ shows the results across the tested compression rates with the new re-rotated Sn
 Method & 65\% & 50\% & 35\%\\
 \midrule
 Naive      & 68.6 & 52.1 & 46.9\\
-Streaming  & 61.2 & 56.4 & 51.8\\
+Streaming  & 52.0 & 47.8 & 44.2\\
+Str+rot    & 61.2 & 56.4 & 51.8\\
 SnapKV     & 78.5 & \textbf{73.2} & 66.8\\
 SnapKV+rot & 71.1 & 67.8 & 63.0\\
 Pyr        & \textbf{79.1} & 64.2 & \textbf{66.9}\\
@@ -1640,7 +1643,8 @@ Pyr+rot    & 71.6 & 61.3 & 63.0\\
 Method & 65\% & 50\% & 35\%\\
 \midrule
 Naive      & 60.0 & 56.9 & 53.5\\
-Streaming  & 61.0 & 57.4 & 53.9\\
+Streaming  & 54.2 & 50.8 & 47.4\\
+Str+rot    & 61.0 & 57.4 & 53.9\\
 SnapKV     & \textbf{83.7} & \textbf{79.0} & 74.0\\
 SnapKV+rot & 78.2 & 74.3 & 70.1\\
 Pyr        & 83.5 & 68.8 & \textbf{74.8}\\
