@@ -673,13 +673,22 @@ compact positions after eviction, consistent with the kvpress recommended config
 
 \item
 \textbf{SnapKV} - Prunes the KV cache based on the attention weights pooled over the last 128-token
-  observation window {[}Li et al., 2024{]}.
+observation window {[}Li et al., 2024{]}. No position adjustment after eviction.
 
-\item 
-\textbf{PyramidKV} - Follows the same SnapKV-style attention scoring, but with a layer-adaptive 
-budget that allocates more KV slots to lower layers and fewer to higher layers [Cai et al., 2024]. 
-The per-layer budget follows a linear decay controlled by beta=20; budgets are clamped to 
-\texttt{[window\_size, sequence\_length]}.
+\item
+\textbf{SnapKV+rot} - SnapKV with \texttt{KeyRerotationPress}: retained keys are re-rotated to
+compact positions after eviction.
+
+\item
+\textbf{PyramidKV} - Follows the same SnapKV-style attention scoring, but with a layer-adaptive
+budget that allocates more KV slots to lower layers and fewer to higher layers [Cai et al., 2024].
+The per-layer budget follows a linear decay controlled by beta=20; budgets are clamped to
+\texttt{[window\_size, sequence\_length]}. No position adjustment after eviction.
+
+\item
+\textbf{Pyr+rot} - PyramidKV with \texttt{PyramidKVRerotationPress}: per-layer budgets are
+preserved and retained keys are right-aligned to positions \([T-n_{\text{kept}}, T)\) after
+eviction, so all layers share endpoint \(T-1\) and decode begins at \(T\).
 
 \end{enumerate}
 
