@@ -715,8 +715,13 @@ original StreamingLLM online design’s TTFT advantage but puts Streaming
 on equal footing with SnapKV and PyramidKV. We include both variants to
 isolate the effect of key re-rotation on Streaming (§4.3).
 
-
-
+Applying re-rotation to PyramidKV requires care: the naive adaptation
+targets \texttt{[0,\ n\_kept)} per layer, but because \texttt{n\_kept}
+differs across layers under the pyramid budget, no single decode
+position is consistent for all layers, producing catastrophic degenerate
+output on long-form tasks. Right-aligned re-rotation targets
+\texttt{[T\ −\ n\_kept,\ T)} instead, so all layers share endpoint T−1
+and the decode query arrives at position T for every layer.
 
 \hypertarget{gt-evaluation}{%
 \subsection{4.2 Ground-Truth Results}\label{gt-evaluation}}
@@ -726,7 +731,6 @@ that match human-written reference answers. Tables~\ref{tab:gt-allrates}
 and~\ref{tab:instruct-gt} show macro-averaged scores
 across all rates on both models. 
 Per-task results at 65\% retention appear in Appendices~C and~D.
-
 
 \begin{table}[H]
 \centering
@@ -778,8 +782,9 @@ Full       & 23.6 & 23.6 & 23.6\\
 \end{table}
 
 
-\textbf{General models at moderate compression ratios}.  Scores are compressed across methods at 
-every retention rate: all KV eviction methods cluster within 2 points of each other and 
+Scores are compressed across all methods at 
+moderate retention rates.
+All KV eviction methods cluster within 2 points of each other and 
 within 2 points of the full model. This clustering is the key limitation of GT as a 
 compression metric---it cannot separate faithful methods from unfaithful ones (§3). 
 
@@ -832,7 +837,7 @@ Full       & 32.8 & 28.9\\
 \textbf{Bold} = best compressed method per column. Full context is the reference.
 \end{table}
 
-\textbf{Instruct models at extreme budgets.} At absolute token budgets of 256 and 1024, 
+At absolute token budgets of 256 and 1024, 
 all four intelligent selection methods approach
 full-model GT scores, making the metric nearly non-discriminating. On Llama at budget~=~1024, 
 the best compressed method (Pyr, 31.6\%) is within
@@ -854,7 +859,11 @@ opposite directions: unrotated SnapKV KL falls as compression increases
 while SnapKV+rot KL rises as information loss from tighter eviction
 accumulates. Even at its best (35\%), unrotated SnapKV remains 6.7×
 worse than SnapKV+rot at the same budget. These results confirm the
-predictions from §5.3.
+predictions from §5.3. Re-rotation also improves Str+rot's KL by
+11.6× at 65\% (Llama), but the absolute level (0.141) remains well
+above SnapKV+rot (0.043): Streaming's single large evicted block
+causes structural value corruption that position compaction cannot
+repair.
 
 \begin{table}[H]
 \centering
@@ -902,14 +911,6 @@ Streaming = StreamingLLM (no re-rotation); Str+rot = StreamingLLM with key re-ro
 re-rotation; Pyr+rot = PyramidKV with key re-rotation.
 \end{table}
 
-Applying re-rotation to PyramidKV requires care: the naive adaptation
-targets \texttt{[0,\ n\_kept)} per layer, but because \texttt{n\_kept}
-differs across layers under the pyramid budget, no single decode
-position is consistent for all layers, producing catastrophic degenerate
-output on long-form tasks. Right-aligned re-rotation targets
-\texttt{[T\ −\ n\_kept,\ T)} instead, so all layers share endpoint T−1
-and the decode query arrives at position T for every layer.
-
 Pyr+rot tracks SnapKV+rot closely at 65\% and ties at 35\%. A gap opens
 at 50\% --- Pyr+rot is 25\% above SnapKV+rot on both models --- because
 the pyramid formula reaches its \texttt{window\_size=64} floor at the
@@ -919,66 +920,6 @@ positional disparity under right-aligned re-rotation:
 \(n_{\text{kept}}\) spans from ≈0.66T at layer 0 to 64 at layer 31, so
 the target range \([T - n_{\text{kept}}, T)\) varies widely across
 layers.
-
-\textbf{Re-rotation improvement for Streaming.}
-
-Streaming's KL faithfulness is similar to Naive --- slightly better than Naive on Llama,
-and slightly worse on Mistral. Table~\ref{tab:t3} includes results for both unrotated
-Streaming and Str+rot (the method recommended in the KVPress documentation).
-Re-rotation reduces Streaming's KL by 11.6×/5.6×/3.7× at 65/50/35\% for Llama,
-substantially below SnapKV's 27×/13×/6.7×. The smaller gain is consistent with
-streaming's single-large-gap geometry producing less positional displacement than
-SnapKV's scattered positions. The remaining gap between Str+rot (0.141) and SnapKV+rot
-(0.043) reflects structural value corruption that re-rotation cannot address:
-streaming's recency tail attended to the evicted middle section during prefill, and
-those value representations persist regardless of key position reassignment.
-This confirms the prediction made in §5.3.
-
-Ground-truth accuracy tells a different story (Table~\ref{tab:streaming-gt}): across all
-16 tasks and both models, unrotated Streaming and Str+rot score within $\pm$0.2 percentage
-points of each other at every retention rate. GT is insensitive to the 11.6× KL
-improvement from re-rotation, because the dominant determinant of accuracy on
-long-document benchmarks is context access --- Streaming evicts the middle regardless
-of key positions.
-
-\begin{table}[H]
-\centering
-\small
-\captionsetup{justification=centering}
-\caption{Streaming ground-truth accuracy (\%) before and after key re-rotation\\
-(16 tasks; higher is better)}
-\label{tab:streaming-gt}
-\begin{minipage}[t]{0.49\textwidth}
-\centering
-\textbf{Llama-3.1-8B}\\[0.4em]
-\begin{tabular}{@{}llll@{}}
-\toprule
-Method & 65\% & 50\% & 35\%\\
-\midrule
-Streaming (unrotated) & 23.8 & 23.5 & 23.1\\
-Str+rot               & 23.7 & 23.6 & 23.1\\
-Improvement (pp)      & $-$0.1 & $+$0.1 & 0.0\\
-\bottomrule
-\end{tabular}
-\end{minipage}%
-\hfill
-\begin{minipage}[t]{0.49\textwidth}
-\centering
-\textbf{Mistral-7B-v0.3}\\[0.4em]
-\begin{tabular}{@{}llll@{}}
-\toprule
-Method & 65\% & 50\% & 35\%\\
-\midrule
-Streaming (unrotated) & 22.7 & 22.1 & 21.3\\
-Str+rot               & 22.9 & 22.1 & 21.2\\
-Improvement (pp)      & $+$0.2 & 0.0 & $-$0.1\\
-\bottomrule
-\end{tabular}
-\end{minipage}
-\end{table}
-
-\textbf{Instruct models at extreme budgets.} Table~\ref{tab:instruct-kl} extends the comparison to instruction-tuned models at absolute token budgets of 256 and 1024 tokens. SnapKV+rot remains the best method at every budget on both models. Re-rotation reduces KL by 2.2$\times$ on Llama at budget~=~256 (0.769 $\to$ 0.352) and 6.0$\times$ on Mistral (1.912 $\to$ 0.614). At budget~=~1024 the improvement grows further: 4.4$\times$ on Llama (0.648 $\to$ 0.146) and 6.0$\times$ on Mistral (1.766 $\to$ 0.294).
-
 
 \begin{table}[H]
 \centering
@@ -1027,6 +968,9 @@ Lower is better. \textbf{Bold} = best per budget. Both models evaluated on 16 Lo
 $n$=100 examples per task.
 \end{table}
 
+SnapKV+rot remains the best method at every budget on both models. Re-rotation reduces KL by 2.2$\times$ on Llama at budget~=~256 (0.769 $\to$ 0.352) and 6.0$\times$ on Mistral (1.912 $\to$ 0.614). At budget~=~1024 the improvement grows further: 4.4$\times$ on Llama (0.648 $\to$ 0.146) and 6.0$\times$ on Mistral (1.766 $\to$ 0.294).
+
+
 \subsection*{SnapKV+rot is the best method at every budget}
 
 Across all metrics and budgets on both models tested, SnapKV+rot is
@@ -1043,11 +987,7 @@ more clearly. PyramidKV's pyramid allocation begins to show its intended
 benefit at budget = 1024 --- where the pyramid is functional rather than
 collapsed --- on multi-hop QA tasks (e.g., Llama HotpotQA pyr = 0.520 vs.\
 snap = 0.578 unrotated), but this advantage disappears entirely after
-re-rotation. A practical note: our budget = 256 runs used
-\texttt{window\_size = 8} for SnapKV and PyramidKV. The default
-\texttt{window\_size = 32} exceeds the 8-token average per-layer budget
-and would collapse every layer to uniform SnapKV behavior, eliminating
-the pyramid allocation entirely.
+re-rotation. 
 
 \begin{table}[H]
 \centering
