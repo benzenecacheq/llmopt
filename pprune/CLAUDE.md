@@ -161,6 +161,46 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 | Streaming (corrected) | 61.2 | 56.4 | 51.8 |
 | phr128 | 54.5 | 52.8 | 48.6 |
 
+## Paper structure notes (paper_kv_short.tex)
+
+Restructured Sep 2026. Edited directly — do NOT regenerate from `build_short_paper.py`.
+
+**Method naming in short paper**: "Streaming" = bare StreamingLLMPress (no re-rotation, added as explicit
+unrotated baseline). "Str+rot" = StreamingLLMPress + KeyRerotationPress (kvpress-prescribed config).
+All rotated variants labelled *+rot throughout. No "Strm+rot" — normalized to "Str+rot".
+
+**Section structure (Sep 2026):**
+- §1 Introduction
+- §2 Background and Related Work
+- §3 Faithfulness Metrics (§3.1 Why GT Falls Short, §3.2 KL Faithfulness, §3.3 Output Faithfulness)
+- §4 Experiments:
+  - §4.1 Setup (models, benchmark, methods table)
+  - §4.2 Ground-Truth Results: base model (tab:gt-allrates, all rates) + instruct (tab:instruct-gt, b=256/1024)
+  - §4.3 KL Faithfulness: base model (tab:t3) + instruct (tab:instruct-kl, b=256/1024); includes
+    "SnapKV+rot is the best method at every budget" unnumbered subsection
+  - §4.4 Output Faithfulness: base model (tab:t4) + instruct summary (tab:instruct-fout, NEW — macro
+    averages from C3a/C3b/C4a/C4b) + instruct short/long (tab:instruct-fout-shortlong)
+- §5 Inference Performance (own major section, Sep 2026):
+  - §5.1 Base Model Timing: TTFT (tab:ttft) + TPT discussion
+  - §5.2 Instruct Model Timing at Extreme Budgets: tab:instruct-timing + tab:instruct-kl-shortlong +
+    tab:instruct-fout-shortlong
+  - §5.3 Deployment Implications: general TTFT-vs-TPT argument (applies to all models); selection
+    methods buy quality not latency on short-answer tasks; Naive is the only latency-reducing option
+- §6 Structural Corruption in KV Cache Pruning (merged from old §5 + old §6, Sep 2026):
+  - §6.1 The Mechanism
+  - §6.2 Empirical Evidence
+  - §6.3 Synthetic Gap-Structure Analysis
+  - §6.4 What F_out Reveals (tab:t5: F_out by output-length category, base model Llama 65%)
+- §7 Conclusion
+- Appendix A: KL per task; Appendix B: GT per task; Appendix C: F_out per task
+  (C3a/b = Llama-Instruct b=256/1024; C4a/b = Mistral-Instruct b=256/1024)
+
+**tab:instruct-fout** (§4.4): NEW table added Sep 2026 from appendix averages.
+Llama b=256: Naive=24.9, Streaming=56.0, Str+rot=56.1, SnapKV=72.0, SnapKV+rot=69.4, Pyr=71.1, Pyr+rot=68.9
+Llama b=1024: Naive=37.0, Streaming=62.2, Str+rot=62.0, SnapKV=81.9, SnapKV+rot=79.5, Pyr=81.8, Pyr+rot=79.0
+Mistral b=256: Naive=25.7, SnapKV=63.9, SnapKV+rot=61.3, Pyr=63.0, Pyr+rot=60.9
+Mistral b=1024: Naive=36.8, SnapKV=55.2, SnapKV+rot=53.5, Pyr=54.9, Pyr+rot=52.6
+
 ## Paper structure notes (paper_kv_faithfulness.tex)
 
 Paper split complete as of Jul 2026. `paper_kv_faithfulness.tex` is the active submission.
