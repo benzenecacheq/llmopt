@@ -1126,6 +1126,18 @@ Finished all 500,000 steps on `venus` (final val_ppl 69.59), checkpoint verified
 - `io`: fixed EMA blend=1.0 seed7, step 488,590/500,000 (97.7%) — expected to finish within minutes.
 - `venus`: idle.
 
+**Fixed EMA blend=1.0 seed7 DONE (2026-09-07).** All 500,000 steps finished on `io` (final val_ppl 64.04), checkpoint verified genuine (all finite, `ema_loss` buffer std 2.09 confirming real activity). Benchmarked (`lm_eval_gpt2_ema_seed7.json`, `eval_owt_gpt2_ema_seed7.stdout`): OWT held-out ppl **30.56** (loss 3.4197), LAMBADA acc **0.268** — a bit higher than seed42's 0.253, within normal seed-to-seed variance.
+
+| Metric | seed42 | seed7 | **avg (2 seeds so far)** |
+|---|---|---|---|
+| OWT held-out ppl | 30.06 | 30.56 | 30.31 |
+| LAMBADA acc | 0.253 | 0.268 | 0.261 |
+| HellaSwag acc_norm | 0.272 | 0.269 | 0.271 |
+| PIQA acc_norm | 0.569 | 0.571 | 0.570 |
+| Winogrande acc | 0.511 | 0.513 | 0.512 |
+
+Fixed EMA blend=1.0's two seeds so far (0.253, 0.268) show a real but not huge spread — consistent with, though slightly wider than, cumulative blend=1.0's tight 0.262–0.268 three-seed cluster. Still waiting on titan's seed19 (87% through) to complete the standard three-seed set for this point too.
+
 ### Other future directions
 - **Grouped Wv**: share Wv across groups of heads (GQA-style) to reduce value cache bandwidth.
 - **Token weighting loss**: upweight tokens requiring long-range context using a short-context reference model (arXiv 2503.09202). Most promising fix for LAMBADA/benchmark mismatch.
