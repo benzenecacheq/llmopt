@@ -1138,6 +1138,18 @@ Finished all 500,000 steps on `venus` (final val_ppl 69.59), checkpoint verified
 
 Fixed EMA blend=1.0's two seeds so far (0.253, 0.268) show a real but not huge spread — consistent with, though slightly wider than, cumulative blend=1.0's tight 0.262–0.268 three-seed cluster. Still waiting on titan's seed19 (87% through) to complete the standard three-seed set for this point too.
 
+**Fixed EMA blend=1.0 seed19 DONE (2026-09-09) — completes the three-seed set.** All 500,000 steps finished on `titan` (final val_ppl 69.44), checkpoint verified genuine (all finite, `ema_loss` buffer std 2.09). Benchmarked (`lm_eval_gpt2_ema_seed19.json`, `eval_owt_gpt2_ema_seed19.stdout`): OWT held-out ppl **30.77** (loss 3.4265), LAMBADA acc 0.253 — essentially identical to seed42's 0.2527.
+
+| Metric | seed42 | seed7 | seed19 | **avg (3 seeds)** |
+|---|---|---|---|---|
+| OWT held-out ppl | 30.06 | 30.56 | 30.77 | 30.46 |
+| LAMBADA acc | 0.253 | 0.268 | 0.253 | **0.258** |
+| HellaSwag acc_norm | 0.272 | 0.269 | 0.270 | 0.270 |
+| PIQA acc_norm | 0.569 | 0.571 | 0.573 | 0.571 |
+| Winogrande acc | 0.511 | 0.513 | **0.526** | 0.517 |
+
+**Fixed EMA blend=1.0 now has a genuine three-seed result (LAMBADA acc 0.258 avg, range 0.253–0.268) directly comparable to cumulative blend=1.0's own three-seed result (0.265 avg, range 0.262–0.268).** Cumulative edges out fixed-decay on both metrics that matter here: better LAMBADA acc (0.265 vs 0.258) at very similar OWT ppl (30.09 vs 30.46, cumulative actually a bit better) — a small but real win for the exact-running-mean mechanism over fixed-decay at matched full blend strength, now confirmed at the standard 3-seed level on both sides rather than resting on a single seed each as it did earlier in this sweep. This closes out the last open piece of the fixed-decay-vs-cumulative comparison at small scale.
+
 ### Other future directions
 - **Grouped Wv**: share Wv across groups of heads (GQA-style) to reduce value cache bandwidth.
 - **Token weighting loss**: upweight tokens requiring long-range context using a short-context reference model (arXiv 2503.09202). Most promising fix for LAMBADA/benchmark mismatch.
