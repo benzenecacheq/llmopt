@@ -1150,6 +1150,15 @@ Fixed EMA blend=1.0's two seeds so far (0.253, 0.268) show a real but not huge s
 
 **Fixed EMA blend=1.0 now has a genuine three-seed result (LAMBADA acc 0.258 avg, range 0.253–0.268) directly comparable to cumulative blend=1.0's own three-seed result (0.265 avg, range 0.262–0.268).** Cumulative edges out fixed-decay on both metrics that matter here: better LAMBADA acc (0.265 vs 0.258) at very similar OWT ppl (30.09 vs 30.46, cumulative actually a bit better) — a small but real win for the exact-running-mean mechanism over fixed-decay at matched full blend strength, now confirmed at the standard 3-seed level on both sides rather than resting on a single seed each as it did earlier in this sweep. This closes out the last open piece of the fixed-decay-vs-cumulative comparison at small scale.
 
+**BLiMP extended to all three fixed-EMA-blend=1.0 seeds (2026-09-09).** Previously only seed42 (0.760) had a BLiMP number. Ran the same 67-subtask suite on seed7 and seed19 (both `--tasks blimp`, no source-checkpoint transfer needed since both checkpoints already lived on their respective machines).
+
+| | Baseline | seed42 | seed7 | seed19 | **avg (3 seeds)** |
+|---|---|---|---|---|---|
+| BLiMP mean acc | **0.767** | 0.760 | 0.753 | 0.747 | 0.754 |
+| better / worse / tie vs. baseline (>2pt) | — | 15/24/28 | 17/30/20 | 10/27/30 | — |
+
+**All three seeds lose to baseline, confirming the direction is robust** (matches the pattern already established for fixed-EMA-0.75 and cumulative-1.0 — every reweighted-loss checkpoint tested so far loses to baseline on BLiMP, none has ever beaten it). The 3-seed average (-1.4pt vs. baseline) sits between fixed-EMA-0.75's average cost (-1.6pt, single seed) and the single-seed fixed-EMA-1.0 reading that started this thread (-0.7pt) — the single-seed number was on the low end of a real spread (seeds range from -0.7pt to -2.0pt), another instance of this project's recurring lesson that a single seed's BLiMP reading isn't representative until confirmed. The ARC-Easy/BoolQ/OpenBookQA supplementary suite has never been run on this blend point (only on fixed-EMA-0.75) — a remaining coverage gap if a full match to that family's benchmark set is wanted later.
+
 ### Other future directions
 - **Grouped Wv**: share Wv across groups of heads (GQA-style) to reduce value cache bandwidth.
 - **Token weighting loss**: upweight tokens requiring long-range context using a short-context reference model (arXiv 2503.09202). Most promising fix for LAMBADA/benchmark mismatch.

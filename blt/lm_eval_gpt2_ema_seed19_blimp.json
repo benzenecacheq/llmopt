@@ -1,0 +1,481 @@
+{
+  "blimp_adjunct_island": {
+    "name": "blimp_adjunct_island",
+    "alias": "blimp_adjunct_island",
+    "sample_len": 1000,
+    "acc,none": 0.763,
+    "acc_stderr,none": 0.013454070462577935
+  },
+  "blimp_anaphor_gender_agreement": {
+    "name": "blimp_anaphor_gender_agreement",
+    "alias": "blimp_anaphor_gender_agreement",
+    "sample_len": 1000,
+    "acc,none": 0.914,
+    "acc_stderr,none": 0.008870325962594761
+  },
+  "blimp_anaphor_number_agreement": {
+    "name": "blimp_anaphor_number_agreement",
+    "alias": "blimp_anaphor_number_agreement",
+    "sample_len": 1000,
+    "acc,none": 0.979,
+    "acc_stderr,none": 0.0045364721513065165
+  },
+  "blimp_animate_subject_passive": {
+    "name": "blimp_animate_subject_passive",
+    "alias": "blimp_animate_subject_passive",
+    "sample_len": 1000,
+    "acc,none": 0.743,
+    "acc_stderr,none": 0.013825416526895026
+  },
+  "blimp_animate_subject_trans": {
+    "name": "blimp_animate_subject_trans",
+    "alias": "blimp_animate_subject_trans",
+    "sample_len": 1000,
+    "acc,none": 0.738,
+    "acc_stderr,none": 0.013912208651021217
+  },
+  "blimp_causative": {
+    "name": "blimp_causative",
+    "alias": "blimp_causative",
+    "sample_len": 1000,
+    "acc,none": 0.751,
+    "acc_stderr,none": 0.013681600278702275
+  },
+  "blimp_complex_NP_island": {
+    "name": "blimp_complex_NP_island",
+    "alias": "blimp_complex_NP_island",
+    "sample_len": 1000,
+    "acc,none": 0.56,
+    "acc_stderr,none": 0.015704987954361718
+  },
+  "blimp_coordinate_structure_constraint_complex_left_branch": {
+    "name": "blimp_coordinate_structure_constraint_complex_left_branch",
+    "alias": "blimp_coordinate_structure_constraint_complex_left_branch",
+    "sample_len": 1000,
+    "acc,none": 0.307,
+    "acc_stderr,none": 0.014593284892852741
+  },
+  "blimp_coordinate_structure_constraint_object_extraction": {
+    "name": "blimp_coordinate_structure_constraint_object_extraction",
+    "alias": "blimp_coordinate_structure_constraint_object_extraction",
+    "sample_len": 1000,
+    "acc,none": 0.818,
+    "acc_stderr,none": 0.0122075806376622
+  },
+  "blimp_determiner_noun_agreement_1": {
+    "name": "blimp_determiner_noun_agreement_1",
+    "alias": "blimp_determiner_noun_agreement_1",
+    "sample_len": 1000,
+    "acc,none": 0.96,
+    "acc_stderr,none": 0.006199874066337028
+  },
+  "blimp_determiner_noun_agreement_2": {
+    "name": "blimp_determiner_noun_agreement_2",
+    "alias": "blimp_determiner_noun_agreement_2",
+    "sample_len": 1000,
+    "acc,none": 0.981,
+    "acc_stderr,none": 0.004319451082910613
+  },
+  "blimp_determiner_noun_agreement_irregular_1": {
+    "name": "blimp_determiner_noun_agreement_irregular_1",
+    "alias": "blimp_determiner_noun_agreement_irregular_1",
+    "sample_len": 1000,
+    "acc,none": 0.835,
+    "acc_stderr,none": 0.011743632866916136
+  },
+  "blimp_determiner_noun_agreement_irregular_2": {
+    "name": "blimp_determiner_noun_agreement_irregular_2",
+    "alias": "blimp_determiner_noun_agreement_irregular_2",
+    "sample_len": 1000,
+    "acc,none": 0.946,
+    "acc_stderr,none": 0.007150883521295473
+  },
+  "blimp_determiner_noun_agreement_with_adj_2": {
+    "name": "blimp_determiner_noun_agreement_with_adj_2",
+    "alias": "blimp_determiner_noun_agreement_with_adj_2",
+    "sample_len": 1000,
+    "acc,none": 0.941,
+    "acc_stderr,none": 0.007454835650406693
+  },
+  "blimp_determiner_noun_agreement_with_adj_irregular_1": {
+    "name": "blimp_determiner_noun_agreement_with_adj_irregular_1",
+    "alias": "blimp_determiner_noun_agreement_with_adj_irregular_1",
+    "sample_len": 1000,
+    "acc,none": 0.841,
+    "acc_stderr,none": 0.011569479368271195
+  },
+  "blimp_determiner_noun_agreement_with_adj_irregular_2": {
+    "name": "blimp_determiner_noun_agreement_with_adj_irregular_2",
+    "alias": "blimp_determiner_noun_agreement_with_adj_irregular_2",
+    "sample_len": 1000,
+    "acc,none": 0.916,
+    "acc_stderr,none": 0.008776162089491113
+  },
+  "blimp_determiner_noun_agreement_with_adjective_1": {
+    "name": "blimp_determiner_noun_agreement_with_adjective_1",
+    "alias": "blimp_determiner_noun_agreement_with_adjective_1",
+    "sample_len": 1000,
+    "acc,none": 0.921,
+    "acc_stderr,none": 0.00853415677333337
+  },
+  "blimp_distractor_agreement_relational_noun": {
+    "name": "blimp_distractor_agreement_relational_noun",
+    "alias": "blimp_distractor_agreement_relational_noun",
+    "sample_len": 1000,
+    "acc,none": 0.821,
+    "acc_stderr,none": 0.012128730605719056
+  },
+  "blimp_distractor_agreement_relative_clause": {
+    "name": "blimp_distractor_agreement_relative_clause",
+    "alias": "blimp_distractor_agreement_relative_clause",
+    "sample_len": 1000,
+    "acc,none": 0.629,
+    "acc_stderr,none": 0.015283736211823096
+  },
+  "blimp_drop_argument": {
+    "name": "blimp_drop_argument",
+    "alias": "blimp_drop_argument",
+    "sample_len": 1000,
+    "acc,none": 0.652,
+    "acc_stderr,none": 0.015070604603768328
+  },
+  "blimp_ellipsis_n_bar_1": {
+    "name": "blimp_ellipsis_n_bar_1",
+    "alias": "blimp_ellipsis_n_bar_1",
+    "sample_len": 1000,
+    "acc,none": 0.764,
+    "acc_stderr,none": 0.013434451402438602
+  },
+  "blimp_ellipsis_n_bar_2": {
+    "name": "blimp_ellipsis_n_bar_2",
+    "alias": "blimp_ellipsis_n_bar_2",
+    "sample_len": 1000,
+    "acc,none": 0.861,
+    "acc_stderr,none": 0.010945263761042892
+  },
+  "blimp_existential_there_object_raising": {
+    "name": "blimp_existential_there_object_raising",
+    "alias": "blimp_existential_there_object_raising",
+    "sample_len": 1000,
+    "acc,none": 0.757,
+    "acc_stderr,none": 0.013569640199177543
+  },
+  "blimp_existential_there_quantifiers_1": {
+    "name": "blimp_existential_there_quantifiers_1",
+    "alias": "blimp_existential_there_quantifiers_1",
+    "sample_len": 1000,
+    "acc,none": 0.971,
+    "acc_stderr,none": 0.005309160685756948
+  },
+  "blimp_existential_there_quantifiers_2": {
+    "name": "blimp_existential_there_quantifiers_2",
+    "alias": "blimp_existential_there_quantifiers_2",
+    "sample_len": 1000,
+    "acc,none": 0.409,
+    "acc_stderr,none": 0.015555094373257944
+  },
+  "blimp_existential_there_subject_raising": {
+    "name": "blimp_existential_there_subject_raising",
+    "alias": "blimp_existential_there_subject_raising",
+    "sample_len": 1000,
+    "acc,none": 0.836,
+    "acc_stderr,none": 0.011715000693181425
+  },
+  "blimp_expletive_it_object_raising": {
+    "name": "blimp_expletive_it_object_raising",
+    "alias": "blimp_expletive_it_object_raising",
+    "sample_len": 1000,
+    "acc,none": 0.775,
+    "acc_stderr,none": 0.013211720158614833
+  },
+  "blimp_inchoative": {
+    "name": "blimp_inchoative",
+    "alias": "blimp_inchoative",
+    "sample_len": 1000,
+    "acc,none": 0.702,
+    "acc_stderr,none": 0.014470846741134585
+  },
+  "blimp_intransitive": {
+    "name": "blimp_intransitive",
+    "alias": "blimp_intransitive",
+    "sample_len": 1000,
+    "acc,none": 0.678,
+    "acc_stderr,none": 0.014782913600996745
+  },
+  "blimp_irregular_past_participle_adjectives": {
+    "name": "blimp_irregular_past_participle_adjectives",
+    "alias": "blimp_irregular_past_participle_adjectives",
+    "sample_len": 1000,
+    "acc,none": 0.965,
+    "acc_stderr,none": 0.005814534272734903
+  },
+  "blimp_irregular_past_participle_verbs": {
+    "name": "blimp_irregular_past_participle_verbs",
+    "alias": "blimp_irregular_past_participle_verbs",
+    "sample_len": 1000,
+    "acc,none": 0.854,
+    "acc_stderr,none": 0.011171786285496551
+  },
+  "blimp_irregular_plural_subject_verb_agreement_1": {
+    "name": "blimp_irregular_plural_subject_verb_agreement_1",
+    "alias": "blimp_irregular_plural_subject_verb_agreement_1",
+    "sample_len": 1000,
+    "acc,none": 0.852,
+    "acc_stderr,none": 0.011234866364235145
+  },
+  "blimp_irregular_plural_subject_verb_agreement_2": {
+    "name": "blimp_irregular_plural_subject_verb_agreement_2",
+    "alias": "blimp_irregular_plural_subject_verb_agreement_2",
+    "sample_len": 1000,
+    "acc,none": 0.864,
+    "acc_stderr,none": 0.01084535023047304
+  },
+  "blimp_left_branch_island_echo_question": {
+    "name": "blimp_left_branch_island_echo_question",
+    "alias": "blimp_left_branch_island_echo_question",
+    "sample_len": 1000,
+    "acc,none": 0.462,
+    "acc_stderr,none": 0.015773547629015002
+  },
+  "blimp_left_branch_island_simple_question": {
+    "name": "blimp_left_branch_island_simple_question",
+    "alias": "blimp_left_branch_island_simple_question",
+    "sample_len": 1000,
+    "acc,none": 0.394,
+    "acc_stderr,none": 0.015459721957493382
+  },
+  "blimp_matrix_question_npi_licensor_present": {
+    "name": "blimp_matrix_question_npi_licensor_present",
+    "alias": "blimp_matrix_question_npi_licensor_present",
+    "sample_len": 1000,
+    "acc,none": 0.304,
+    "acc_stderr,none": 0.014553205687950533
+  },
+  "blimp_npi_present_1": {
+    "name": "blimp_npi_present_1",
+    "alias": "blimp_npi_present_1",
+    "sample_len": 1000,
+    "acc,none": 0.509,
+    "acc_stderr,none": 0.0158167369950053
+  },
+  "blimp_npi_present_2": {
+    "name": "blimp_npi_present_2",
+    "alias": "blimp_npi_present_2",
+    "sample_len": 1000,
+    "acc,none": 0.531,
+    "acc_stderr,none": 0.015788865959538965
+  },
+  "blimp_only_npi_licensor_present": {
+    "name": "blimp_only_npi_licensor_present",
+    "alias": "blimp_only_npi_licensor_present",
+    "sample_len": 1000,
+    "acc,none": 0.535,
+    "acc_stderr,none": 0.015780495050030086
+  },
+  "blimp_only_npi_scope": {
+    "name": "blimp_only_npi_scope",
+    "alias": "blimp_only_npi_scope",
+    "sample_len": 1000,
+    "acc,none": 0.466,
+    "acc_stderr,none": 0.015782683329937694
+  },
+  "blimp_passive_1": {
+    "name": "blimp_passive_1",
+    "alias": "blimp_passive_1",
+    "sample_len": 1000,
+    "acc,none": 0.823,
+    "acc_stderr,none": 0.012075463420375087
+  },
+  "blimp_passive_2": {
+    "name": "blimp_passive_2",
+    "alias": "blimp_passive_2",
+    "sample_len": 1000,
+    "acc,none": 0.799,
+    "acc_stderr,none": 0.012679107214617274
+  },
+  "blimp_principle_A_c_command": {
+    "name": "blimp_principle_A_c_command",
+    "alias": "blimp_principle_A_c_command",
+    "sample_len": 1000,
+    "acc,none": 0.608,
+    "acc_stderr,none": 0.015445859463771338
+  },
+  "blimp_principle_A_case_1": {
+    "name": "blimp_principle_A_case_1",
+    "alias": "blimp_principle_A_case_1",
+    "sample_len": 1000,
+    "acc,none": 1.0,
+    "acc_stderr,none": 0.0
+  },
+  "blimp_principle_A_case_2": {
+    "name": "blimp_principle_A_case_2",
+    "alias": "blimp_principle_A_case_2",
+    "sample_len": 1000,
+    "acc,none": 0.945,
+    "acc_stderr,none": 0.0072129762946392
+  },
+  "blimp_principle_A_domain_1": {
+    "name": "blimp_principle_A_domain_1",
+    "alias": "blimp_principle_A_domain_1",
+    "sample_len": 1000,
+    "acc,none": 0.943,
+    "acc_stderr,none": 0.007335175853706905
+  },
+  "blimp_principle_A_domain_2": {
+    "name": "blimp_principle_A_domain_2",
+    "alias": "blimp_principle_A_domain_2",
+    "sample_len": 1000,
+    "acc,none": 0.847,
+    "acc_stderr,none": 0.011389500459665504
+  },
+  "blimp_principle_A_domain_3": {
+    "name": "blimp_principle_A_domain_3",
+    "alias": "blimp_principle_A_domain_3",
+    "sample_len": 1000,
+    "acc,none": 0.651,
+    "acc_stderr,none": 0.015080663991563052
+  },
+  "blimp_principle_A_reconstruction": {
+    "name": "blimp_principle_A_reconstruction",
+    "alias": "blimp_principle_A_reconstruction",
+    "sample_len": 1000,
+    "acc,none": 0.443,
+    "acc_stderr,none": 0.015716169953204184
+  },
+  "blimp_regular_plural_subject_verb_agreement_1": {
+    "name": "blimp_regular_plural_subject_verb_agreement_1",
+    "alias": "blimp_regular_plural_subject_verb_agreement_1",
+    "sample_len": 1000,
+    "acc,none": 0.879,
+    "acc_stderr,none": 0.010318210380946179
+  },
+  "blimp_regular_plural_subject_verb_agreement_2": {
+    "name": "blimp_regular_plural_subject_verb_agreement_2",
+    "alias": "blimp_regular_plural_subject_verb_agreement_2",
+    "sample_len": 1000,
+    "acc,none": 0.926,
+    "acc_stderr,none": 0.0082820645127041
+  },
+  "blimp_sentential_negation_npi_licensor_present": {
+    "name": "blimp_sentential_negation_npi_licensor_present",
+    "alias": "blimp_sentential_negation_npi_licensor_present",
+    "sample_len": 1000,
+    "acc,none": 0.985,
+    "acc_stderr,none": 0.003845749574502972
+  },
+  "blimp_sentential_negation_npi_scope": {
+    "name": "blimp_sentential_negation_npi_scope",
+    "alias": "blimp_sentential_negation_npi_scope",
+    "sample_len": 1000,
+    "acc,none": 0.573,
+    "acc_stderr,none": 0.015649789644462186
+  },
+  "blimp_sentential_subject_island": {
+    "name": "blimp_sentential_subject_island",
+    "alias": "blimp_sentential_subject_island",
+    "sample_len": 1000,
+    "acc,none": 0.446,
+    "acc_stderr,none": 0.01572677116675039
+  },
+  "blimp_superlative_quantifiers_1": {
+    "name": "blimp_superlative_quantifiers_1",
+    "alias": "blimp_superlative_quantifiers_1",
+    "sample_len": 1000,
+    "acc,none": 0.71,
+    "acc_stderr,none": 0.014356395999905621
+  },
+  "blimp_superlative_quantifiers_2": {
+    "name": "blimp_superlative_quantifiers_2",
+    "alias": "blimp_superlative_quantifiers_2",
+    "sample_len": 1000,
+    "acc,none": 0.774,
+    "acc_stderr,none": 0.013232501619085452
+  },
+  "blimp_tough_vs_raising_1": {
+    "name": "blimp_tough_vs_raising_1",
+    "alias": "blimp_tough_vs_raising_1",
+    "sample_len": 1000,
+    "acc,none": 0.641,
+    "acc_stderr,none": 0.01517726422479853
+  },
+  "blimp_tough_vs_raising_2": {
+    "name": "blimp_tough_vs_raising_2",
+    "alias": "blimp_tough_vs_raising_2",
+    "sample_len": 1000,
+    "acc,none": 0.845,
+    "acc_stderr,none": 0.011450157470799522
+  },
+  "blimp_transitive": {
+    "name": "blimp_transitive",
+    "alias": "blimp_transitive",
+    "sample_len": 1000,
+    "acc,none": 0.836,
+    "acc_stderr,none": 0.011715000693181425
+  },
+  "blimp_wh_island": {
+    "name": "blimp_wh_island",
+    "alias": "blimp_wh_island",
+    "sample_len": 1000,
+    "acc,none": 0.766,
+    "acc_stderr,none": 0.01339490288966006
+  },
+  "blimp_wh_questions_object_gap": {
+    "name": "blimp_wh_questions_object_gap",
+    "alias": "blimp_wh_questions_object_gap",
+    "sample_len": 1000,
+    "acc,none": 0.651,
+    "acc_stderr,none": 0.015080663991563052
+  },
+  "blimp_wh_questions_subject_gap": {
+    "name": "blimp_wh_questions_subject_gap",
+    "alias": "blimp_wh_questions_subject_gap",
+    "sample_len": 1000,
+    "acc,none": 0.862,
+    "acc_stderr,none": 0.010912152632504508
+  },
+  "blimp_wh_questions_subject_gap_long_distance": {
+    "name": "blimp_wh_questions_subject_gap_long_distance",
+    "alias": "blimp_wh_questions_subject_gap_long_distance",
+    "sample_len": 1000,
+    "acc,none": 0.836,
+    "acc_stderr,none": 0.011715000693181425
+  },
+  "blimp_wh_vs_that_no_gap": {
+    "name": "blimp_wh_vs_that_no_gap",
+    "alias": "blimp_wh_vs_that_no_gap",
+    "sample_len": 1000,
+    "acc,none": 0.943,
+    "acc_stderr,none": 0.007335175853706905
+  },
+  "blimp_wh_vs_that_no_gap_long_distance": {
+    "name": "blimp_wh_vs_that_no_gap_long_distance",
+    "alias": "blimp_wh_vs_that_no_gap_long_distance",
+    "sample_len": 1000,
+    "acc,none": 0.956,
+    "acc_stderr,none": 0.006488921798427387
+  },
+  "blimp_wh_vs_that_with_gap": {
+    "name": "blimp_wh_vs_that_with_gap",
+    "alias": "blimp_wh_vs_that_with_gap",
+    "sample_len": 1000,
+    "acc,none": 0.584,
+    "acc_stderr,none": 0.015594460144140522
+  },
+  "blimp_wh_vs_that_with_gap_long_distance": {
+    "name": "blimp_wh_vs_that_with_gap_long_distance",
+    "alias": "blimp_wh_vs_that_with_gap_long_distance",
+    "sample_len": 1000,
+    "acc,none": 0.274,
+    "acc_stderr,none": 0.01411109928825969
+  },
+  "blimp": {
+    "alias": "blimp",
+    "name": "blimp",
+    "sample_len": 67000,
+    "acc,none": 0.7470298507462687,
+    "acc_stderr,none": 0.0015122933892108695,
+    "sample_count": {
+      "acc,none": 67000
+    }
+  }
+}
