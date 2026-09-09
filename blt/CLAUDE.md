@@ -1157,7 +1157,17 @@ Fixed EMA blend=1.0's two seeds so far (0.253, 0.268) show a real but not huge s
 | BLiMP mean acc | **0.767** | 0.760 | 0.753 | 0.747 | 0.754 |
 | better / worse / tie vs. baseline (>2pt) | — | 15/24/28 | 17/30/20 | 10/27/30 | — |
 
-**All three seeds lose to baseline, confirming the direction is robust** (matches the pattern already established for fixed-EMA-0.75 and cumulative-1.0 — every reweighted-loss checkpoint tested so far loses to baseline on BLiMP, none has ever beaten it). The 3-seed average (-1.4pt vs. baseline) sits between fixed-EMA-0.75's average cost (-1.6pt, single seed) and the single-seed fixed-EMA-1.0 reading that started this thread (-0.7pt) — the single-seed number was on the low end of a real spread (seeds range from -0.7pt to -2.0pt), another instance of this project's recurring lesson that a single seed's BLiMP reading isn't representative until confirmed. The ARC-Easy/BoolQ/OpenBookQA supplementary suite has never been run on this blend point (only on fixed-EMA-0.75) — a remaining coverage gap if a full match to that family's benchmark set is wanted later.
+**All three seeds lose to baseline, confirming the direction is robust** (matches the pattern already established for fixed-EMA-0.75 and cumulative-1.0 — every reweighted-loss checkpoint tested so far loses to baseline on BLiMP, none has ever beaten it). The 3-seed average (-1.4pt vs. baseline) sits between fixed-EMA-0.75's average cost (-1.6pt, single seed) and the single-seed fixed-EMA-1.0 reading that started this thread (-0.7pt) — the single-seed number was on the low end of a real spread (seeds range from -0.7pt to -2.0pt), another instance of this project's recurring lesson that a single seed's BLiMP reading isn't representative until confirmed.
+
+**Supplementary suite (ARC-Easy/BoolQ/OpenBookQA) also filled in for all three fixed-EMA-blend=1.0 seeds (2026-09-09).** Ran on `titan` (seed42 — transferred there since bender's medium job left too little free VRAM to risk running anything else on it, and titan/io were both idle; seed19) and `io` (seed7).
+
+| | seed42 | seed7 | seed19 | **avg (3 seeds)** |
+|---|---|---|---|---|
+| ARC-Easy acc | 0.365 | 0.370 | 0.378 | 0.371 |
+| BoolQ acc | 0.589 | 0.618 | 0.619 | 0.609 |
+| OpenBookQA acc | 0.148 | 0.140 | 0.140 | 0.143 |
+
+No non-EMA baseline supplementary result exists at small scale to compare against directly (same gap noted earlier in this file) — this now matches fixed-EMA-0.75's coverage (both blend points have full 3-seed primary + BLiMP + supplementary suites), just without a baseline reference point for the supplementary numbers specifically.
 
 ### Other future directions
 - **Grouped Wv**: share Wv across groups of heads (GQA-style) to reduce value cache bandwidth.
