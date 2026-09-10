@@ -1180,6 +1180,19 @@ No non-EMA baseline supplementary result exists at small scale to compare agains
 | BoolQ acc | 0.543 | 0.598 | 0.581 | 0.574 |
 | OpenBookQA acc / acc_norm | 0.126 / 0.240 | 0.152 / 0.250 | 0.132 / 0.258 | 0.137 / 0.249 |
 
+### BLiMP/supplementary filled in for baseline, fixed EMA 0.75, and cumulative 1.0 — full 5-way small-model comparison now possible (2026-09-10)
+
+Ran the remaining missing seeds so that baseline, fixed EMA 0.75, fixed EMA 1.0, cumulative 0.75, and cumulative 1.0 all have genuine 3-seed BLiMP + ARC-Easy/BoolQ/OpenBookQA coverage (previously only fixed EMA 1.0 and cumulative 0.75 had all three seeds; baseline had zero supplementary and only a single BLiMP seed, fixed EMA 0.75 and cumulative 1.0 each had only one seed on both suites). All checkpoints verified `step: 500000` with `val_ppl` matching CLAUDE.md's documented completion value before running anything, per the lesson from the venus stale-checkpoint incident above — no anomalies this time.
+
+| | Baseline | Fixed EMA 0.75 | Fixed EMA 1.0 | Cumulative 0.75 | Cumulative 1.0 |
+|---|---|---|---|---|---|
+| BLiMP mean acc (3 seeds) | **0.763** | 0.752 | 0.754 | 0.749 | 0.752 |
+| ARC-Easy acc (3 seeds) | **0.379** | 0.378 | 0.371 | 0.371 | 0.372 |
+| BoolQ acc (3 seeds) | 0.567 | 0.591 | **0.609** | 0.574 | 0.607 |
+| OpenBookQA acc (3 seeds) | 0.131 | 0.141 | **0.143** | 0.137 | **0.143** |
+
+**All four reweighted-loss variants now sit in a tight 0.749–0.754 BLiMP band, all below baseline's 0.763** — confirms with full seed coverage what the earlier partial data suggested: the BLiMP cost is a real, consistent, small penalty of this whole loss-reweighting family, not sensitive to which specific blend/mechanism is used. ARC-Easy shows the same pattern (baseline highest, all four reweighted variants clustered just below). BoolQ and OpenBookQA break that pattern, though — both blend=1.0 variants (fixed and cumulative) now *beat* baseline, while both blend=0.75 variants sit either at or below it. This lines up with the primary-suite finding that blend=1.0 (either mechanism) is the stronger operating point on LAMBADA too — on BoolQ/OpenBookQA specifically, more reweighting looks associated with *better* performance, the opposite direction from BLiMP/ARC-Easy. Given BoolQ and OpenBookQA are much smaller/noisier benchmarks than BLiMP's 67-subtask aggregate, this asymmetry is plausible but shouldn't be over-read without more seeds specifically on those two tasks.
+
 **This completes the "full complement" for cumulative blend=0.75** — full 3-seed primary suite (already done) + BLiMP + ARC-Easy/BoolQ/OpenBookQA supplementary, matching the coverage level of fixed-EMA-0.75 and both blend=1.0 variants (fixed and cumulative). BLiMP's 3-seed average (0.749) costs slightly more than fixed-EMA-0.75's single-seed reading (0.751) and fixed-EMA-1.0's 3-seed average (0.754), and slightly less than cumulative-1.0's single-seed reading (0.746) — all four reweighted-loss points now sit within a tight 0.746–0.754 band, all below the 0.767 non-EMA baseline. No new evidence here changes the standing recommendation on a medium-scale run: blend=0.75's primary-suite LAMBADA edge (0.253 avg) was already below both EMA variants at blend=1.0 (0.258 fixed, 0.265 cumulative), and this BLiMP/supplementary pass doesn't do anything to reopen that comparison in blend=0.75's favor.
 
 ### Other future directions
