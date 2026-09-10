@@ -1195,6 +1195,25 @@ Ran the remaining missing seeds so that baseline, fixed EMA 0.75, fixed EMA 1.0,
 
 **This completes the "full complement" for cumulative blend=0.75** — full 3-seed primary suite (already done) + BLiMP + ARC-Easy/BoolQ/OpenBookQA supplementary, matching the coverage level of fixed-EMA-0.75 and both blend=1.0 variants (fixed and cumulative). BLiMP's 3-seed average (0.749) costs slightly more than fixed-EMA-0.75's single-seed reading (0.751) and fixed-EMA-1.0's 3-seed average (0.754), and slightly less than cumulative-1.0's single-seed reading (0.746) — all four reweighted-loss points now sit within a tight 0.746–0.754 band, all below the 0.767 non-EMA baseline. No new evidence here changes the standing recommendation on a medium-scale run: blend=0.75's primary-suite LAMBADA edge (0.253 avg) was already below both EMA variants at blend=1.0 (0.258 fixed, 0.265 cumulative), and this BLiMP/supplementary pass doesn't do anything to reopen that comparison in blend=0.75's favor.
 
+**Filled in the remaining single-seed BLiMP/supplementary gaps (baseline, fixed EMA 0.75, cumulative 1.0) for a complete 5-way small-model comparison (2026-09-10).** All checkpoints verified `step=500000` with matching `val_ppl` before running anything. Full table:
+
+| | Baseline | Fixed EMA 0.75 | Fixed EMA 1.0 | Cumulative 0.75 | Cumulative 1.0 |
+|---|---|---|---|---|---|
+| OWT held-out ppl (3 seeds) | **27.79** | 29.55 | 30.46 | 29.12 | 30.09 |
+| LAMBADA acc (3 seeds) | 0.216 | 0.259 | 0.258 | 0.253 | **0.265** |
+| BLiMP mean acc (3 seeds) | **0.763** | 0.752 | 0.754 | 0.749 | 0.752 |
+| ARC-Easy acc (3 seeds) | **0.379** | 0.378 | 0.371 | 0.371 | 0.372 |
+| BoolQ acc (3 seeds) | 0.567 | 0.591 | **0.609** | 0.574 | 0.607 |
+| OpenBookQA acc (3 seeds) | 0.131 | 0.141 | **0.143** | 0.137 | **0.143** |
+
+Cross-checked cumulative-1.0 vs. fixed-EMA-0.75 (the two closest competitors) at the seed level, not just the family average: cumulative-1.0's LAMBADA edge (0.006) is small in absolute terms but backed by unusually tight within-family seed clustering (0.262–0.268 vs. fixed-0.75's 0.253–0.269) and LAMBADA's large sample size (5153 examples) — the most credible per-benchmark difference in the table. By contrast, cumulative-1.0's ARC-Easy "loss" (0.006) and BoolQ "win" (0.016) are both *smaller* than either family's own seed-to-seed spread (ARC-Easy: 0.016–0.017; BoolQ: up to 0.065) — both are noise, not real signal, in either direction.
+
+**Decision reversed: medium-scale cumulative-1.0 run launched (2026-09-10).** The earlier "not launching" call above was driven by single-seed data where cumulative-1.0 looked like it had the worst BLiMP cost in the family (-2.1pt). With full 3-seed coverage, that's no longer true — all four reweighted variants cluster tightly on BLiMP (0.749–0.754), cumulative-1.0 isn't an outlier. Combined with cumulative-1.0 being the strongest cumulative operating point on LAMBADA at small scale, and `io` being idle, decided to get a medium-scale data point after all.
+
+Smoke-tested first (100 steps, since cumulative mode had never been exercised at medium scale before): correct param count (354,823,168, exact match to the standard medium build), `effective_blend=1.0000` on every logged step confirming correct flag wiring, loss declining smoothly (11.04→8.70) with zero NaN/Inf, and the `ema_loss`/`token_count` buffers showed real per-token differentiation (std 0.496, 28,958/50,257 tokens touched) after just 100 steps — mirrors the original small-scale cumulative smoke test's own verification discipline. Cleaned up smoke artifacts before launching the real run.
+
+**Launched**: `run_gpt2_medium_cumulative_seed42.pt` on `io` — `train.py --baseline --from-scratch --pretrained gpt2-medium --ema-loss-weighting --loss-weighting-mode cumulative --ema-blend 1.0 --dataset openwebtext_large --seed 42 --batch-size 2 --grad-accum-steps 2 --max-steps 1500000 --eval-every 1000 --lambada-eval-every 5000 --owt-eval-every 5000`, mirroring the exact protocol of the existing medium baseline (OWT ppl 18.09, LAMBADA 0.311) and medium EMA sine-blend75 (OWT ppl 18.79, LAMBADA 0.373) runs — reused io's existing `openwebtext_large` 75-file tokenized cache, no re-tokenization wait. Confirmed genuinely running via `ps aux` (correct flags in argv). This will be the third point in the medium-scale EMA-family comparison once it finishes, expected in ~2-3 weeks per this project's established medium-scale timing.
+
 ### Other future directions
 - **Grouped Wv**: share Wv across groups of heads (GQA-style) to reduce value cache bandwidth.
 - **Token weighting loss**: upweight tokens requiring long-range context using a short-context reference model (arXiv 2503.09202). Most promising fix for LAMBADA/benchmark mismatch.
