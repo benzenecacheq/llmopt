@@ -10,6 +10,17 @@ from transformers import GPT2Tokenizer, GPT2LMHeadModel
 
 from model import build_blt_model, build_gqa_model, build_hybrid_model, build_blt_lowrank_model
 
+# Tokens whose contribution to a summed log-likelihood score can be downweighted for
+# "low-impact token" scoring experiments (articles a/an/the, the partitive/possessive
+# preposition "of", and the additive conjunction "and" -- see project discussion on
+# reweighting benchmark scoring to match the training-time EMA/cumulative philosophy).
+# Restricted to leading-space GPT-2 BPE variants only (token ids below): the no-space
+# bare variants (e.g. "the" without a leading space) get reused as sub-word fragments
+# inside unrelated content words (e.g. "the"+"ater" -> "theater"), which would incorrectly
+# downweight those words too. Leading-space tokens don't have this problem, since a BPE
+# merge including a literal space character only ever occurs at a genuine word boundary.
+LOWIMPACT_TOKEN_IDS = frozenset([257, 262, 281, 286, 290, 317, 383, 843, 1052, 3226])
+
 
 def load_model(checkpoint_path, baseline=False, gqa=False, hybrid=False,
                device='cuda', num_m_groups=1, layers_per_m=0, n_mha_layers=6, pretrained='gpt2',
@@ -61,7 +72,7 @@ class BLTModel(LM):
     def __init__(self, checkpoint, baseline=False, gqa=False, hybrid=False,
                  device='cuda', batch_size=8, num_m_groups=1, layers_per_m=0,
                  n_mha_layers=6, pretrained='gpt2', gqa_groups=2, per_layer_m=False,
-                 uv_rank=0, num_uv_groups=1):
+                 uv_rank=0, num_uv_groups=1, lowimpact_weight=1.0):
         super().__init__()
         self._device = torch.device(device)
         self.model, self.tokenizer = load_model(
@@ -78,6 +89,7 @@ class BLTModel(LM):
         )
         self._batch_size = int(batch_size)
         self._max_length = 1024
+        self._lowimpact_weight = float(lowimpact_weight)
 
     @property
     def eot_token_id(self):
@@ -142,7 +154,8 @@ class BLTModel(LM):
                 is_greedy = True
                 for k, tok in enumerate(cont_ids):
                     pos = cont_start - 1 + k  # logit at pos predicts token at pos+1
-                    nll -= log_probs[j, pos, tok].item()
+                    w = self._lowimpact_weight if tok in LOWIMPACT_TOKEN_IDS else 1.0
+                    nll -= w * log_probs[j, pos, tok].item()
                     if log_probs[j, pos].argmax().item() != tok:
                         is_greedy = False
 
@@ -218,6 +231,10 @@ if __name__ == '__main__':
     parser.add_argument('--tasks', type=str, default='lambada_openai,hellaswag,piqa,winogrande')
     parser.add_argument('--output', type=str, default=None)
     parser.add_argument('--batch-size', type=int, default=8)
+    parser.add_argument('--lowimpact-weight', type=float, default=1.0,
+                        help='Weight applied to low-impact tokens (articles/of/and) when '
+                             'accumulating log-likelihood scores. 1.0 = no reweighting '
+                             '(default, exact prior behavior).')
     args = parser.parse_args()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -236,6 +253,7 @@ if __name__ == '__main__':
         per_layer_m=args.per_layer_m,
         uv_rank=args.uv_rank,
         num_uv_groups=args.num_uv_groups,
+        lowimpact_weight=args.lowimpact_weight,
     )
 
     results = evaluator.simple_evaluate(
