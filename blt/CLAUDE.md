@@ -1169,6 +1169,19 @@ Fixed EMA blend=1.0's two seeds so far (0.253, 0.268) show a real but not huge s
 
 No non-EMA baseline supplementary result exists at small scale to compare against directly (same gap noted earlier in this file) — this now matches fixed-EMA-0.75's coverage (both blend points have full 3-seed primary + BLiMP + supplementary suites), just without a baseline reference point for the supplementary numbers specifically.
 
+### Cumulative blend=0.75 — BLiMP and supplementary suite filled in, completing the small-model "full complement" (2026-09-10)
+
+**A real bug caught along the way, worth documenting.** `run_gpt2_cumulative_blend75_scratch_seed19.pt` exists on two machines — a stale copy on `venus` left over from the abandoned early attempt ("Venus's blend=0.75 seed19 attempt died early (step 990/500,000)... relaunched on `io`" — see above), and the real, completed step-500,000 checkpoint on `io`. The first BLiMP run was launched against venus's stale copy by mistake and came back at 0.530 (near chance) — a massive, obviously-wrong outlier against every other checkpoint in this project (all land 0.746–0.801). Confirmed it wasn't noise (reproduced bit-for-bit on a second run against the same file) before digging further; the actual root cause showed up directly in the eval log: `Loaded baseline checkpoint: step=500, val_ppl=59105.97` — an essentially-untrained model, exactly matching the abandoned venus run's own early death at step 990. Reran against `io`'s real checkpoint (verified `step: 500000, val_ppl: 61.02` beforehand, matching the documented completion) and got a normal result. The earlier-committed primary-suite result for this seed (`lm_eval_gpt2_cumulative_blend75_scratch_seed19.json`, OWT ppl 28.57/LAMBADA acc 0.245) was unaffected — it was already generated from the correct `io` checkpoint at the time. **Lesson**: when a checkpoint with the same filename exists on more than one machine, don't assume they're interchangeable — check `step`/`val_ppl` in the file itself before trusting which one is the real result, especially for a seed known to have had an aborted early attempt.
+
+| | seed42 | seed19 | seed7 | **avg (3 seeds)** |
+|---|---|---|---|---|
+| BLiMP mean acc | 0.736 | 0.755 | 0.756 | **0.749** |
+| ARC-Easy acc / acc_norm | 0.353 / 0.334 | 0.381 / 0.347 | 0.380 / 0.347 | 0.371 / 0.343 |
+| BoolQ acc | 0.543 | 0.598 | 0.581 | 0.574 |
+| OpenBookQA acc / acc_norm | 0.126 / 0.240 | 0.152 / 0.250 | 0.132 / 0.258 | 0.137 / 0.249 |
+
+**This completes the "full complement" for cumulative blend=0.75** — full 3-seed primary suite (already done) + BLiMP + ARC-Easy/BoolQ/OpenBookQA supplementary, matching the coverage level of fixed-EMA-0.75 and both blend=1.0 variants (fixed and cumulative). BLiMP's 3-seed average (0.749) costs slightly more than fixed-EMA-0.75's single-seed reading (0.751) and fixed-EMA-1.0's 3-seed average (0.754), and slightly less than cumulative-1.0's single-seed reading (0.746) — all four reweighted-loss points now sit within a tight 0.746–0.754 band, all below the 0.767 non-EMA baseline. No new evidence here changes the standing recommendation on a medium-scale run: blend=0.75's primary-suite LAMBADA edge (0.253 avg) was already below both EMA variants at blend=1.0 (0.258 fixed, 0.265 cumulative), and this BLiMP/supplementary pass doesn't do anything to reopen that comparison in blend=0.75's favor.
+
 ### Other future directions
 - **Grouped Wv**: share Wv across groups of heads (GQA-style) to reduce value cache bandwidth.
 - **Token weighting loss**: upweight tokens requiring long-range context using a short-context reference model (arXiv 2503.09202). Most promising fix for LAMBADA/benchmark mismatch.
