@@ -931,6 +931,15 @@ With the rank probe settled (r=256), launched the actual from-scratch medium UV 
 
 This is the first of the two planned 3-week medium runs. The second (cumulative-mode EMA at medium scale) is still blocked on the small-scale blend sweep resolving — see above.
 
+**Confirmed slower than standard MHA at this scale (2026-09-10), and it's the predicted crossover, not a bug.** User noticed the UV run looked slower than bender's own medium baseline; checked both logs directly (same hardware, 10 samples spread across each run's full history):
+
+| | ms/step range | Average |
+|---|---|---|
+| Standard MHA baseline | 1255–1385 | ~1320 |
+| `num_uv_groups=8` | 1515–1710 | ~1550 |
+
+**A real, consistent ~17-20% slowdown, not noise.** This is the exact crossover flagged as a risk before launching (see "Decided: start with G=4, not G=2" above): per-step QK-score compute scales roughly with `G × r` (groups × rank) for the UV variant, vs. a fixed `D` for standard MHA regardless of head count. At medium scale, `D=1024` and this run uses `G=8, r=256`, so `G × r = 2048` — already double `D`. The small-model `num_uv_groups=4` measurement that showed UV still slightly ahead of MHA (902ms/step vs 1052ms/step) was at `D=768`, where `4×256=1024` was still under `D`; medium's larger `D` combined with doubling `G` to 8 crosses well past that point. Training correctness is unaffected (loss curve healthy, no NaN) — this is a wall-clock/compute-cost fact only, but worth weighing against whatever NVLink/TP benefit motivated choosing `G=8` once this run's quality results are in, since the practical deployment case traded away UV's speed advantage to get there.
+
 ### Second blend=1.0 seed launched on venus (2026-08-26)
 
 `venus` was idle — launched `run_gpt2_cumulative_scratch_seed19.pt` (cumulative mode, default blend=1.0, seed 19, otherwise identical to the original seed42 run) to get a confirming second seed for the pure-cumulative endpoint. Confirmed healthy at launch (correct config in the log header, step 0 building normally). No urgency here since blend=1.0 already has one complete result (OWT ppl 30.37, LAMBADA acc 0.268) — this just extends it to the standard multi-seed practice.
