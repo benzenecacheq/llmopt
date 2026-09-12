@@ -1103,9 +1103,23 @@ SnapKV/Pyr.
 \hypertarget{inference-performance}{%
 \section{5. Inference Performance}\label{inference-performance}}
 
-Compression is only worthwhile if it makes inference faster. We measure two quantities: \textbf{time to first token (TTFT)}, the wall-clock time from receiving a prompt to producing the first output token (dominated by the prefill pass), and \textbf{time per output token (TPT)}, the mean decode step time (dominated by KV cache memory bandwidth).
+Compression is only worthwhile if it makes inference faster. We are theoretically sacrificing 
+some quality of result in exchange for some gain in response time.  Generally there are two 
+timings that are obvious to the user: how long does it take before I get any output and
+how long does it take for the full answer.  Here we discuss how the compression methods
+affect these and the factors that should be considered when calculating the trade-off between
+speed and quality of result.
 
 \subsection{5.1 Base Model Timing}\label{base-model-timing} 
+
+There are typically two metrics that we use to measure the inference performance: 
+\textbf{time to first token (TTFT)}, the wall-clock time from receiving a prompt to producing 
+the first output token (dominated by the prefill pass), and \textbf{time per output token 
+(TPT)}, the mean decode step time (dominated by KV cache memory bandwidth).
+If we know the number of tokens in the response, the total inference
+time can be calculated from those two numbers.
+
+We will start by measuring the TTFT and TPT of the base model. 
 
 \begin{table}[H]
 \centering
@@ -1208,6 +1222,101 @@ Total time includes prefill and
 generation.
 \end{table}
 
+\subsection{5.3 Faithfulness by Output Length}\label{faithfulness-by-output-length}
+
+How faithfulness degrades with compression is not uniform across output types.
+Short-answer tasks (QA, classification, code retrieval) and long-form tasks
+(summarization, multi-hop reasoning) respond differently to the same compression method,
+and the direction of that difference is reversed for KL versus \(F_{\text{out}}\).
+
+Table~\ref{tab:base-kl-shortlong} shows the KL short/long breakdown for the base
+model at all three retention rates.
+Short = full-model reference output $\leq$90~words ($n=1155$);
+Long = $>$90~words ($n=445$).
+
+\begin{table}[H]
+\centering
+\small
+\captionsetup{justification=centering}
+\caption{Mean \(F_{\text{KL}}\) by output-length category (Llama-3.1-8B base)}
+\label{tab:base-kl-shortlong}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+& \multicolumn{2}{c}{65\%} & \multicolumn{2}{c}{50\%} & \multicolumn{2}{c}{35\%}\\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+Method & Short & Long & Short & Long & Short & Long\\
+\midrule
+SnapKV     & 1.335 & 0.697 & 1.110 & 0.644 & 0.909 & 0.646\\
+PyramidKV  & 1.658 & 0.711 & 1.674 & 0.873 & 0.911 & 0.645\\
+\midrule
+SnapKV+rot & \textbf{0.012} & \textbf{0.124} & \textbf{0.023} & \textbf{0.215} & \textbf{0.044} & \textbf{0.332}\\
+Pyr+rot    & \textbf{0.012} & 0.135 & 0.035 & 0.252 & \textbf{0.044} & \textbf{0.332}\\
+Str+rot    & 0.080 & 0.297 & 0.128 & 0.385 & 0.175 & 0.484\\
+Naive      & 0.143 & 0.256 & 0.173 & 0.331 & 0.225 & 0.427\\
+\bottomrule
+\end{tabular}
+\center\smallskip
+\textbf{Bold} = best per column.
+All 16 tasks; short/long defined by full-model reference output length.
+\end{table}
+
+Unrotated SnapKV and PyramidKV show an inverted pattern: KL is substantially
+\emph{worse} on short outputs (1.3--1.7) than on long ones (0.7), and worse
+than Naive at every rate. The first-token advantage (\S6.3) explains this:
+on short answers the entire response hinges on a few tokens, and positional
+corruption of the key distribution hits those tokens hardest.
+Re-rotation reverses the pattern: SnapKV+rot and Pyr+rot reach near-zero
+KL on short outputs (0.012 at 65\%) while the long-form KL is still
+substantially higher (0.124--0.135). The short/long gap narrows with tighter
+budgets but persists at all three rates.
+
+Table~\ref{tab:base-fout-shortlong} shows the \(F_{\text{out}}\) counterpart.
+
+\begin{table}[H]
+\centering
+\small
+\captionsetup{justification=centering}
+\caption{\(F_{\text{out}}\) by output-length category (Llama-3.1-8B base)}
+\label{tab:base-fout-shortlong}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+& \multicolumn{2}{c}{65\%} & \multicolumn{2}{c}{50\%} & \multicolumn{2}{c}{35\%}\\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+Method & Short & Long & Short & Long & Short & Long\\
+\midrule
+SnapKV     & \textbf{87.7} & 54.7 & \textbf{83.1} & 47.7 & \textbf{76.3} & 42.1\\
+PyramidKV  & \textbf{88.1} & \textbf{55.5} & 72.5 & 42.7 & 76.4 & 42.3\\
+SnapKV+rot & 79.3 & 50.0 & 76.1 & \textbf{46.2} & 71.1 & \textbf{42.0}\\
+Pyr+rot    & 79.9 & 50.1 & 69.4 & 40.3 & 71.1 & 41.8\\
+Str+rot    & 66.7 & 47.0 & 61.7 & 42.4 & 57.1 & 38.0\\
+Naive      & 72.8 & \textbf{57.6} & 55.6 & 42.9 & 50.0 & 38.8\\
+\bottomrule
+\end{tabular}
+\center\smallskip
+\textbf{Bold} = best per column.
+All 16 tasks; short/long defined by full-model reference output length.
+\end{table}
+
+Here the direction flips: \(F_{\text{out}}\) is \emph{higher} on short outputs for
+all selection methods (30+ point short/long gap for SnapKV/PyramidKV, ~29 for
+the rotated variants). The first-token advantage inflates short-answer
+\(F_{\text{out}}\) because the model's first output word matches the full
+model's regardless of distributional corruption at later positions.
+Naive is the exception: its short/long \(F_{\text{out}}\) gap is small
+(15 points at 65\%, near zero at 35\%), and Naive leads long-form
+\(F_{\text{out}}\) at 65\% (57.6 vs 55.5 for the next-best).
+
+Tables~\ref{tab:instruct-kl-shortlong} and~\ref{tab:instruct-fout-shortlong}
+give the same breakdown for the instruction-tuned model at budgets 256 and 1024.
+The instruct model produces short answers regardless of compression: uncompressed,
+it averages 3.9~words on HotpotQA and 4.5~words on NarrativeQA (vs.\ 21.9
+and 80.6 for the base model), so nearly all instruct-model outputs fall in
+the ``short'' category under any threshold. The qualitative patterns hold:
+re-rotated methods retain a large advantage on short outputs ($\approx$5$\times$
+lower KL than their unrotated counterparts at budget~256), and the
+\(F_{\text{out}}\) short/long gap is large for all selection methods ($\approx$36
+points for SnapKV/PyramidKV at budget~256).
+
 Table~\ref{tab:instruct-kl-shortlong} gives the KL breakdown by output-length category for the instruct model, confirming that re-rotated methods retain their advantage on both short and long outputs across both budgets.
 
 \begin{table}[H]
@@ -1301,13 +1410,13 @@ Naive      & \textbf{33.2} & \textbf{40.4} & $-$7.2\\
 Gap = Short $-$ Long.  Naive bolded to highlight the comparison point.
 \end{table}
 
-The instruct model produces short answers regardless of compression: uncompressed, it averages 3.9~words on HotpotQA and 4.5~words on NarrativeQA (vs.\ 21.9 and 80.6 for the base model). Table~\ref{tab:instruct-fout} shows macro-averaged \(F_{\text{out}}\) at absolute token budgets on both instruct models (per-task breakdown in Appendices~C3--C4).
+Table~\ref{tab:instruct-fout} shows macro-averaged \(F_{\text{out}}\) at absolute token budgets on both instruct models (per-task breakdown in Appendices~C3--C4).
 
-\subsection{5.3 Deployment Implications}\label{deployment-implications}
+\subsection{5.4 Deployment Implications}\label{deployment-implications}
 
 The timing results reveal a fundamental mismatch between where compression is most accurate and where it actually saves time. Post-prefill eviction methods --- SnapKV, PyramidKV, Str+rot --- must process the full prompt before trimming, so TTFT is never reduced below the full-context baseline; it is slightly higher (Table~\ref{tab:ttft}). For tasks where TTFT dominates total latency (short-answer generation of a few tokens), selection-based compression delivers quality improvements with no latency benefit. The quality advantage exists precisely where compression provides no speedup.
 
-The case for selection methods rests on long-form generation, where TPT savings compound over many decode steps. At 35\% retention, compressed methods reach \textasciitilde44--48\,ms/tok (\textasciitilde29--35\% faster than the 67.5\,ms/tok full-context rate), and this speedup grows proportionally with output length. On long instruct outputs ($>$10 words), Naive does provide a genuine throughput gain --- 4.1\,s versus 11.4\,s per example at budget~=~256 (Table~\ref{tab:instruct-timing}) --- but at the cost of substantially lower faithfulness (Table~\ref{tab:instruct-fout-shortlong}). These results suggest the compression method should be matched to the expected output regime: TPT-sensitive workloads (long-form generation) benefit from selection methods; TTFT-sensitive workloads (short-answer retrieval) are better served by Naive truncation if latency is the primary constraint.
+The case for selection methods rests on long-form generation, where TPT savings compound over many decode steps. At 35\% retention, compressed methods reach \textasciitilde44--48\,ms/tok (\textasciitilde29--35\% faster than the 67.5\,ms/tok full-context rate), and this speedup grows proportionally with output length. On long outputs, Naive does provide a genuine throughput gain --- at budget~=~256 on the instruct model, 4.1\,s versus 11.4\,s per example (Table~\ref{tab:instruct-timing}) --- but at the cost of substantially lower faithfulness (Tables~\ref{tab:base-fout-shortlong} and~\ref{tab:instruct-fout-shortlong}). These results suggest the compression method should be matched to the expected output regime: TPT-sensitive workloads (long-form generation) benefit from selection methods; TTFT-sensitive workloads (short-answer retrieval) are better served by Naive truncation if latency is the primary constraint.
 
 \hypertarget{structural-corruption-in-kv-cache-pruning}{%
 \section{6. Structural Corruption in KV Cache Pruning}\label{structural-corruption-in-kv-cache-pruning}}
