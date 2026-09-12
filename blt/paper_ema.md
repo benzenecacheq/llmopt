@@ -157,6 +157,25 @@ We trained GPT-2 from scratch with `--ema-loss-weighting --ema-blend 0.75 --ema-
 
 **Caveat: single seed.** This is one data point against three fixed-blend seeds, not yet a controlled multi-seed comparison — the same evidentiary gap Section 4.4's finding had before its second and third seeds landed. A second sine-schedule seed (seed 19, `run_gpt2_ema_blend75_sine_scratch_seed19.pt`) is in progress on `venus` as of this writing, to confirm the effect generalizes rather than reflecting favorable seed variance.
 
+### 4.6 BLiMP: A Real Cost, Concentrated in Long-Range Structural Tracking
+
+Every configuration in this paper trades some BLiMP grammaticality-judgment accuracy (67 minimal-pair subtasks; see Section 3) for LAMBADA gain. Sections 4.1–4.5 report this cost only as a single aggregate number. This section decomposes it at the individual-item level for one configuration — **cumulative loss weighting** (an exact running per-token-ID mean rather than Section 4.1's fixed-decay EMA; see `project_loss_function_ideas` memory for the full mechanism) at full blend strength (α=1.0) — to test whether the cost is a diffuse, uniform tax or concentrated in specific grammatical phenomena.
+
+**Method.** Both the non-EMA baseline and the cumulative-α1.0 checkpoint (seed 42 each) were scored on every individual BLiMP item (67,000 minimal pairs total: 67 subtasks × 1,000 pairs), not just the per-subtask aggregate accuracy the harness normally reports. This required reproducing the harness's own request-construction exactly — in particular, `lm-evaluation-harness` prepends a `target_delimiter` (a single leading space, by default) between an empty context and each candidate sentence for BLiMP's `output_type: multiple_choice` task format; omitting it (an error caught and fixed during this analysis) causes GPT-2's byte-level BPE tokenizer to encode each sentence's first word as a different, incorrect token than the one actually scored by the standard benchmark, corrupting every per-item result. The correction was verified by reproducing the harness's own official per-subtask accuracy exactly (0.384 vs. 0.384) before trusting any downstream analysis.
+
+**Pooled result.** Baseline: 0.7806 aggregate accuracy; cumulative-α1.0: 0.7644. A McNemar test on the paired per-item disagreements (4,809 baseline-only-correct vs. 3,728 cumulative-only-correct) gives χ²=136.9, p≈0 — a real, highly significant effect, unlike the corresponding decomposition run on ARC-Easy (a benchmark where an apparent ~1-point gap turned out to be statistically indistinguishable from chance, χ²=1.04, p=0.31, once decomposed the same way).
+
+**Per-subtask breakdown.** 41 of 67 subtasks show an individually significant (p<0.05) difference, and the direction is lopsided rather than balanced: 28 significantly worse for cumulative vs. only 13 significantly better. The two categories dominating the losses are linguistically coherent and both involve tracking a dependency across a long span of the sentence:
+
+- **Anaphor binding (Principle A)**: `principle_A_reconstruction` (−12.3 pts), `principle_A_c_command` (−11.2 pts), `principle_A_domain_1` (−6.6 pts) — does a reflexive pronoun ("himself") correctly resolve to the antecedent permitted by the sentence's syntactic structure.
+- **Long-distance movement / islands**: `wh_questions_object_gap` (−12.0 pts), `wh_questions_subject_gap_long_distance` (−9.5 pts), `sentential_subject_island` (−9.8 pts), `left_branch_island_simple_question` (−8.0 pts) — does a moved wh-phrase correctly reconnect with its gap across an intervening clause boundary.
+
+The gains cluster in a different, more local phenomenon — **negative polarity item (NPI) licensing**: `only_npi_scope` (+11.1 pts), `npi_present_2` (+6.0 pts), `npi_present_1` (+4.2 pts), `matrix_question_npi_licensor_present` (+3.8 pts) — whether a word like "any" appears in a context licensed by a nearby negation or question.
+
+**Interpretation.** The net BLiMP cost is not a uniform, diffuse tax on grammaticality judgment — it is concentrated in phenomena that require holding a specific token or position in working memory across a long span (binding domains, wh-movement across clause boundaries), while a phenomenon that is comparatively local (NPI licensing typically resolves within a clause) actually improves. This is a specific, falsifiable hypothesis for *why* cumulative weighting costs BLiMP accuracy — plausibly the same per-token gradient reallocation that produces the LAMBADA benefit (Section 4.1) comes at the expense of maintaining precise long-range structural state — rather than a generic "the model got worse at grammar" story.
+
+**Open**: this decomposition has been run for cumulative-α1.0 only, one seed. Whether Section 4.1's fixed-decay EMA shows the same concentrated-in-long-range-dependencies pattern, whether it holds at other blend values, and whether it replicates across seeds, are all untested.
+
 ---
 
 ## 5. Discussion
@@ -176,6 +195,7 @@ We trained GPT-2 from scratch with `--ema-loss-weighting --ema-blend 0.75 --ema-
 - *(Open, in progress)* Does the base EMA effect (Section 4.1) generalize across **model scale**, not just architecture? A GPT-2-medium (355M, ~3× the parameter count of every other experiment in this paper) comparison of baseline vs. fixed-75/25-blend vs. sine-blend is currently running on separate hardware (see `CLAUDE.md`, "GPT-2 medium" section, for status); no results yet.
 - *(Open, not yet started)* Option 2 from the original brainstorm — a short-context vs. long-context self-comparison, upweighting tokens where the loss gap between truncated and full context is large — was never implemented. It targets long-range dependence more directly than the per-vocabulary-ID EMA used throughout this paper (see the Token Weighting comparison, Section 6) but costs 2× forward-pass compute per step.
 - *(Open, not yet started)* Cycling between structurally different loss functions during training (not just blending two, but rotating among 3+, e.g. standard CE → EMA-weighted → focal loss → back) was proposed as a way to avoid any single loss function's minima, but not implemented or tested.
+- *(Answered, single configuration)* Is the BLiMP cost a uniform tax or concentrated in specific phenomena? — **Concentrated** (Section 4.6): for cumulative-α1.0, losses cluster in anaphor binding and long-distance wh-movement, while a more local phenomenon (NPI licensing) actually improves. Untested: whether Section 4.1's fixed-decay EMA shows the same pattern, whether it holds at other blend values, and whether it replicates across seeds.
 
 ---
 
