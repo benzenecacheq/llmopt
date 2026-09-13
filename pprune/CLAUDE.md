@@ -180,20 +180,31 @@ All rotated variants labelled *+rot throughout. No "Strm+rot" — normalized to 
     "SnapKV+rot is the best method at every budget" unnumbered subsection
   - §4.4 Output Faithfulness: base model (tab:t4) + instruct summary (tab:instruct-fout, NEW — macro
     averages from C3a/C3b/C4a/C4b) + instruct short/long (tab:instruct-fout-shortlong)
-- §5 Inference Performance (own major section, Sep 2026):
-  - §5.1 Base Model Timing: TTFT (tab:ttft) + TPT discussion
-  - §5.2 Instruct Model Timing at Extreme Budgets: tab:instruct-timing + tab:instruct-kl-shortlong +
-    tab:instruct-fout-shortlong
-  - §5.3 Deployment Implications: general TTFT-vs-TPT argument (applies to all models); selection
-    methods buy quality not latency on short-answer tasks; Naive is the only latency-reducing option
-- §6 Structural Corruption in KV Cache Pruning (merged from old §5 + old §6, Sep 2026):
-  - §6.1 The Mechanism
-  - §6.2 Empirical Evidence
-  - §6.3 Synthetic Gap-Structure Analysis
-  - §6.4 What F_out Reveals (tab:t5: F_out by output-length category, base model Llama 65%)
+- §5 Structural Corruption in KV Cache Pruning (swapped with §6, Sep 2026):
+  - §5.1 The Mechanism
+  - §5.2 Empirical Evidence
+  - §5.3 Synthetic Gap-Structure Analysis
+  - §5.4 What F_out Reveals (tab:t5: F_out by output-length category at 65%; tab:t6: KL short/long at 65%)
+- §6 Inference Performance (swapped with §5, Sep 2026):
+  - §6.1 Base Model Timing: TTFT (tab:ttft) + TPT discussion
+  - §6.2 Instruct Model Timing at Extreme Budgets: tab:instruct-timing (now with Avg column) only
+  - §6.3 Faithfulness by Output Length (NEW, Sep 2026): base model KL short/long at all 3 rates
+    (tab:base-kl-shortlong) + base model F_out short/long at all 3 rates (tab:base-fout-shortlong) +
+    instruct KL short/long (tab:instruct-kl-shortlong) + instruct F_out short/long
+    (tab:instruct-fout-shortlong). §5.4 provides the 65%-only baseline; §6.3 extends to 50%/35%.
+  - §6.4 Deployment Implications: general TTFT-vs-TPT argument; selection methods buy quality not
+    latency on short-answer tasks; Naive is the only latency-reducing option
 - §7 Conclusion
 - Appendix A: KL per task; Appendix B: GT per task; Appendix C: F_out per task
   (C3a/b = Llama-Instruct b=256/1024; C4a/b = Mistral-Instruct b=256/1024)
+
+**tab:base-kl-shortlong** (§6.3): Base model KL short/long at 65%/50%/35% (all 6 methods).
+Key: SnapKV short=1.335/long=0.697 at 65% (worse on short); SnapKV+rot short=0.012/long=0.124 (near-zero on short).
+
+**tab:base-fout-shortlong** (§6.3): Base model F_out short/long at 65%/50%/35% (all 6 methods).
+Key: SnapKV short=87.7/long=54.7 at 65% (30-pt gap); Naive short=72.8/long=57.6 (15-pt gap).
+
+**tab:instruct-timing** (§6.2): Now includes Avg (ms) column = weighted mean over n_short=762, n_long=838.
 
 **tab:instruct-fout** (§4.4): NEW table added Sep 2026 from appendix averages.
 Llama b=256: Naive=24.9, Streaming=56.0, Str+rot=56.1, SnapKV=72.0, SnapKV+rot=69.4, Pyr=71.1, Pyr+rot=68.9
