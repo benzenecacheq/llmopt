@@ -1,0 +1,11 @@
+{
+  "hellaswag": {
+    "name": "hellaswag",
+    "alias": "hellaswag",
+    "sample_len": 10042,
+    "acc,none": 0.26618203545110536,
+    "acc_stderr,none": 0.004410573431837509,
+    "acc_norm,none": 0.2731527584146584,
+    "acc_norm_stderr,none": 0.004446680081493255
+  }
+}

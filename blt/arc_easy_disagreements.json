@@ -1,0 +1,4577 @@
+[
+  {
+    "idx": 7,
+    "question": "Students are investigating the effects of different fertilizers on plant growth. Which units would be best to measure the mass of the fertilizer used?",
+    "choices": [
+      "meters",
+      "centimeters",
+      "grams",
+      "milligrams"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -13.892977714538574,
+      -14.851874351501465,
+      -12.425118446350098,
+      -14.571952536702156
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -14.904327392578125,
+      -14.162742614746094,
+      -14.248261451721191,
+      -16.997034028172493
+    ]
+  },
+  {
+    "idx": 29,
+    "question": "What causes sound?",
+    "choices": [
+      "sunlight",
+      "vibrations",
+      "x-rays",
+      "pitch"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -14.451839447021484,
+      -8.53854751586914,
+      -14.793859720230103,
+      -8.573371887207031
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -14.323038101196289,
+      -11.976877212524414,
+      -17.955199480056763,
+      -11.668647766113281
+    ]
+  },
+  {
+    "idx": 47,
+    "question": "A group of fish was released into a local lake. This species of fish had never lived in the lake before. Scientists want to collect data on how the lake's ecosystem is affected by the new fish. Which method of data collection will give the most accurate results?",
+    "choices": [
+      "Measuring oxygen levels in the lake for two months",
+      "Checking the lake water for nutrient levels on one day",
+      "Sampling fish populations in the lake over several years",
+      "Observing the surface of the lake for signs of the new fish after one week"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -35.84110391139984,
+      -47.12000870704651,
+      -33.72994935512543,
+      -57.35423880815506
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -35.680420964956284,
+      -47.86952781677246,
+      -36.11428689956665,
+      -56.0004720762372
+    ]
+  },
+  {
+    "idx": 71,
+    "question": "Most plants begin their life cycle as ___.",
+    "choices": [
+      "leaves",
+      "flowers",
+      "roots",
+      "seeds"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -10.431357383728027,
+      -10.500527381896973,
+      -12.026289939880371,
+      -9.956531524658203
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -10.114614486694336,
+      -11.156105041503906,
+      -11.60130786895752,
+      -11.034512519836426
+    ]
+  },
+  {
+    "idx": 72,
+    "question": "Erin wants to make a strong, light chair. Which natural material should she use?",
+    "choices": [
+      "iron",
+      "granite",
+      "clay",
+      "wood"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -12.157215118408203,
+      -12.594110488891602,
+      -12.293428421020508,
+      -11.578274726867676
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -12.781510353088379,
+      -13.91840934753418,
+      -13.769554138183594,
+      -13.45358943939209
+    ]
+  },
+  {
+    "idx": 108,
+    "question": "Over time, dried lava from an old volcano is worn down and broken into small pieces. When these pieces pile up and are cemented together to form new rock, how would this new rock be classified?",
+    "choices": [
+      "magma",
+      "igneous",
+      "sedimentary",
+      "metamorphic"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -13.009166359901428,
+      -13.996758580207825,
+      -11.535592436790466,
+      -16.657126903533936
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -13.412804365158081,
+      -14.229737281799316,
+      -13.765896320343018,
+      -18.802263259887695
+    ]
+  },
+  {
+    "idx": 112,
+    "question": "Animals give off carbon dioxide that plants take in through leaves. What do plants give off as a result of photosynthesis that animals need to breathe?",
+    "choices": [
+      "heat",
+      "oxygen",
+      "protein",
+      "water"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -10.713643074035645,
+      -8.31905460357666,
+      -9.98051643371582,
+      -8.60828971862793
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -11.942693710327148,
+      -12.020066261291504,
+      -13.110774993896484,
+      -9.307987213134766
+    ]
+  },
+  {
+    "idx": 121,
+    "question": "What are the three common states of matter?",
+    "choices": [
+      "liquid, gas, vapor",
+      "gas, liquid, fluid",
+      "solid, gas, liquid",
+      "solid, vapor, liquid"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -27.32901518046856,
+      -27.789585828781128,
+      -26.72143203020096,
+      -27.250541627407074
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -32.04956793785095,
+      -32.6446236371994,
+      -33.038989186286926,
+      -33.434301137924194
+    ]
+  },
+  {
+    "idx": 126,
+    "question": "Which is an example of a renewable energy resource?",
+    "choices": [
+      "biomass",
+      "coal",
+      "gas",
+      "oil"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -8.28683853149414,
+      -10.247323036193848,
+      -10.524436950683594,
+      -10.157486915588379
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -11.095352172851562,
+      -11.070100784301758,
+      -12.36581039428711,
+      -12.230939865112305
+    ]
+  },
+  {
+    "idx": 138,
+    "question": "Kurt drinks frozen fruit juice from a small cup. He measures the amount of fruit juice in the cup. Which property is Kurt measuring?",
+    "choices": [
+      "density",
+      "height",
+      "temperature",
+      "volume"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -11.638657569885254,
+      -13.25869369506836,
+      -11.042165756225586,
+      -10.28486442565918
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -14.685539245605469,
+      -12.705984115600586,
+      -11.170463562011719,
+      -12.04050064086914
+    ]
+  },
+  {
+    "idx": 157,
+    "question": "Pollutants, such as motor oil and gasoline, are sometimes leaked onto roads by vehicles. How do these pollutants most likely affect the environment?",
+    "choices": [
+      "Storms wash the pollutants into lakes and rivers.",
+      "Animals become sick from licking the pollutants on the road.",
+      "Animals get stuck in the pollutants when they cross the road.",
+      "Winds blow the pollutants to the side of the road and harm the soil."
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -45.42308485507965,
+      -56.605966687202454,
+      -45.79591408371925,
+      -60.27055633068085
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -46.97761535644531,
+      -58.111483335494995,
+      -44.61269170045853,
+      -57.87621019780636
+    ]
+  },
+  {
+    "idx": 161,
+    "question": "Which of these systems functions to protect and support vital organs?",
+    "choices": [
+      "digestive",
+      "skeletal",
+      "nervous",
+      "excretory"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -12.379837989807129,
+      -11.401259422302246,
+      -11.50633716583252,
+      -22.554343938827515
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -13.377431869506836,
+      -14.284936904907227,
+      -13.900566101074219,
+      -22.025611996650696
+    ]
+  },
+  {
+    "idx": 165,
+    "question": "The egg stage in the life cycle of a bird is most like which phase in the life cycle of certain types of flowers?",
+    "choices": [
+      "seed",
+      "spore",
+      "pollen",
+      "immature flower"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -9.511906623840332,
+      -15.2496337890625,
+      -9.697983741760254,
+      -15.442746639251709
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -12.473971366882324,
+      -16.902594089508057,
+      -12.47061538696289,
+      -18.747570991516113
+    ]
+  },
+  {
+    "idx": 200,
+    "question": "In what form do plants store the energy produced from sunlight?",
+    "choices": [
+      "radiant",
+      "thermal",
+      "chemical",
+      "mechanical"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -12.195592880249023,
+      -10.826239585876465,
+      -10.243339538574219,
+      -12.349367141723633
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -13.575177192687988,
+      -11.642465591430664,
+      -11.973407745361328,
+      -12.923062324523926
+    ]
+  },
+  {
+    "idx": 203,
+    "question": "Xylem cells have very thick walls. They make up most of a tree trunk and its branches. What system in vertebrates provides the same function as the xylem cells in a tree?",
+    "choices": [
+      "the skeletal system",
+      "the endocrine system",
+      "the respiratory system",
+      "the integumentary system"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -15.6660897731781,
+      -16.484338611364365,
+      -16.56199598312378,
+      -21.32360541820526
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -17.562839031219482,
+      -18.824679493904114,
+      -17.425411820411682,
+      -20.775878489017487
+    ]
+  },
+  {
+    "idx": 233,
+    "question": "A hammer and a screwdriver are next to each other in the sunlight. After one hour, the hammer is hotter than the screwdriver. The shape and mass of each object may affect the amount of heat each object gains. Another explanation for the difference in temperature may be that the hammer and screwdriver are",
+    "choices": [
+      "moving at different rates.",
+      "made of different materials.",
+      "used for different purposes.",
+      "picked up in different ways."
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -27.88911509513855,
+      -19.100366055965424,
+      -20.871045291423798,
+      -27.509171307086945
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -30.53464984893799,
+      -24.159189999103546,
+      -23.36372184753418,
+      -26.95942848920822
+    ]
+  },
+  {
+    "idx": 248,
+    "question": "Photosynthesis and respiration are both parts of which cycle?",
+    "choices": [
+      "carbon cycle",
+      "nitrogen cycle",
+      "phosphorous cycle",
+      "rock cycle"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -13.365479469299316,
+      -14.562207698822021,
+      -21.003373384475708,
+      -19.453699588775635
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -14.518541097640991,
+      -14.209961891174316,
+      -20.154495358467102,
+      -20.25157070159912
+    ]
+  },
+  {
+    "idx": 259,
+    "question": "Which of these best describes the function of the skeletal system?",
+    "choices": [
+      "transports oxygen and nutrients throughout the body",
+      "supports and protects tissues and organs",
+      "removes harmful wastes from the cells of the body",
+      "breaks down food into a form that cells can use"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -36.12188784778118,
+      -34.45913553237915,
+      -48.24171370267868,
+      -52.09816241264343
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -35.522330433130264,
+      -38.6336088180542,
+      -49.467705488204956,
+      -56.35697531700134
+    ]
+  },
+  {
+    "idx": 278,
+    "question": "The finest-grained soils are richest in",
+    "choices": [
+      "sand.",
+      "humus.",
+      "clay.",
+      "iron."
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -12.690356492996216,
+      -17.10004734992981,
+      -11.2521333694458,
+      -12.582984447479248
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -14.819710731506348,
+      -17.565064668655396,
+      -14.393614768981934,
+      -14.360524654388428
+    ]
+  },
+  {
+    "idx": 285,
+    "question": "Which of these natural disasters is least likely to cause major damage to a prairie ecosystem?",
+    "choices": [
+      "a flood",
+      "a tornado",
+      "a hurricane",
+      "an earthquake"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -12.535631656646729,
+      -12.391027927398682,
+      -13.050747394561768,
+      -11.831169366836548
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -13.457999229431152,
+      -14.392632007598877,
+      -15.688994884490967,
+      -13.891810417175293
+    ]
+  },
+  {
+    "idx": 331,
+    "question": "A stone arch bridge relies primarily on which of the following for its load strength?",
+    "choices": [
+      "bending",
+      "compression",
+      "tension",
+      "torsion"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -13.133064270019531,
+      -13.039024353027344,
+      -13.358842849731445,
+      -16.669936418533325
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -13.545812606811523,
+      -13.574481964111328,
+      -13.559405326843262,
+      -17.616488575935364
+    ]
+  },
+  {
+    "idx": 335,
+    "question": "Every organism in an ecosystem receives energy from another source. Which of these organisms receives its energy directly from the Sun?",
+    "choices": [
+      "deer",
+      "fungus",
+      "grass",
+      "hawk"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -16.00882339477539,
+      -13.350207328796387,
+      -13.299601554870605,
+      -16.310260772705078
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -16.20830726623535,
+      -14.35056209564209,
+      -14.405707359313965,
+      -18.086820602416992
+    ]
+  },
+  {
+    "idx": 345,
+    "question": "Which of the following metals will be attracted to a magnet?",
+    "choices": [
+      "copper",
+      "gold",
+      "iron",
+      "silver"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -7.992089748382568,
+      -8.634987831115723,
+      -7.845910549163818,
+      -8.457657814025879
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -9.0692720413208,
+      -9.890665054321289,
+      -10.158021926879883,
+      -11.014572143554688
+    ]
+  },
+  {
+    "idx": 384,
+    "question": "Which reflects light?",
+    "choices": [
+      "mirror",
+      "camera",
+      "telescope",
+      "eyeglasses"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -11.470314025878906,
+      -12.817770004272461,
+      -11.478479385375977,
+      -14.339650452136993
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -11.83689022064209,
+      -12.696592330932617,
+      -11.379372596740723,
+      -13.491731643676758
+    ]
+  },
+  {
+    "idx": 389,
+    "question": "After a person eats, the food is converted into energy by",
+    "choices": [
+      "muscles.",
+      "tissues.",
+      "bones.",
+      "cells."
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -16.479867935180664,
+      -17.256471633911133,
+      -17.259952306747437,
+      -14.487174034118652
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -17.32555103302002,
+      -16.94216799736023,
+      -15.11451244354248,
+      -17.71329617500305
+    ]
+  },
+  {
+    "idx": 393,
+    "question": "Which organisms break down dead matter and recycle nutrients back into the ecosystem?",
+    "choices": [
+      "grasses and trees",
+      "rabbits and deer",
+      "lions and alligators",
+      "mushrooms and bacteria"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -18.43581211566925,
+      -20.249651432037354,
+      -23.74823385477066,
+      -17.47484540939331
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -20.475387930870056,
+      -19.843591690063477,
+      -26.65667200088501,
+      -19.939327239990234
+    ]
+  },
+  {
+    "idx": 409,
+    "question": "Which of these is the main source of the electromagnetic energy we use?",
+    "choices": [
+      "battery",
+      "wind",
+      "sun",
+      "coal"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -11.589729309082031,
+      -11.449459075927734,
+      -11.067181587219238,
+      -14.325550079345703
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -14.554680824279785,
+      -12.622411727905273,
+      -12.890665054321289,
+      -13.875080108642578
+    ]
+  },
+  {
+    "idx": 421,
+    "question": "In the 18th century, smallpox was a common and deadly disease. A country doctor, Edward Jenner, observed that patients working with cattle who contracted a mild disease called cowpox, never came down with the more serious smallpox. When Jenner obtained liquid from cowpox sores and injected it into healthy patients, they became immune to smallpox. What term best describes Jenner's treatment for smallpox?",
+    "choices": [
+      "vaccination",
+      "gene therapy",
+      "chemotherapy",
+      "genetic engineering"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -9.113746643066406,
+      -11.908801436424255,
+      -10.254029273986816,
+      -11.328269004821777
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -12.160245895385742,
+      -13.075094282627106,
+      -11.693522453308105,
+      -13.775398015975952
+    ]
+  },
+  {
+    "idx": 437,
+    "question": "Which term is an example of a life process?",
+    "choices": [
+      "coloration",
+      "camouflage",
+      "migration",
+      "reproduction"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -18.768875122070312,
+      -16.890750885009766,
+      -14.503937721252441,
+      -14.01880168914795
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -20.148057460784912,
+      -16.58898162841797,
+      -15.323493003845215,
+      -15.36872386932373
+    ]
+  },
+  {
+    "idx": 440,
+    "question": "How do word processors on computers benefit most students?",
+    "choices": [
+      "It makes them understand how to write a good story.",
+      "It helps them gather historical information.",
+      "It exposes them to data that is hard to find.",
+      "It allows them to edit papers quickly."
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -35.97260242700577,
+      -31.332786917686462,
+      -32.45009998977184,
+      -30.342650450766087
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -39.924118876457214,
+      -32.19088315963745,
+      -38.82468169927597,
+      -35.249366477131844
+    ]
+  },
+  {
+    "idx": 444,
+    "question": "Which two are functions of flowers?",
+    "choices": [
+      "attract pollinators and make seeds",
+      "make seeds and store food",
+      "store food and take in water",
+      "take in water and attract pollinators"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -34.33406114578247,
+      -34.407455921173096,
+      -38.43432974815369,
+      -42.84298259019852
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -35.70480477809906,
+      -35.41434288024902,
+      -40.27406096458435,
+      -42.456338584423065
+    ]
+  },
+  {
+    "idx": 457,
+    "question": "Why is it not a safe practice to place a fuel depot over an aquifer?",
+    "choices": [
+      "Aquifers are too high up in the mountains.",
+      "The weight of the depot is too great over the aquifer.",
+      "The fumes escaping from the fuel depot are explosive.",
+      "If the fuel leaks, the water in the aquifer will become contaminated."
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -38.222509890794754,
+      -45.27097608568147,
+      -37.758804619312286,
+      -37.60606306232512
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -40.86085748672485,
+      -41.58040226623416,
+      -39.05994439125061,
+      -44.49430571310222
+    ]
+  },
+  {
+    "idx": 466,
+    "question": "Which of these materials transfers heat energy quickest?",
+    "choices": [
+      "metal",
+      "glass",
+      "plastic",
+      "wood"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -10.554740905761719,
+      -11.766575813293457,
+      -11.329943656921387,
+      -11.124456405639648
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -12.944607734680176,
+      -12.045722007751465,
+      -13.365071296691895,
+      -12.456524848937988
+    ]
+  },
+  {
+    "idx": 532,
+    "question": "After which event will primary succession most likely occur?",
+    "choices": [
+      "thunderstorm",
+      "crop harvest",
+      "volcanic eruption",
+      "urban development"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -15.704290866851807,
+      -22.124500274658203,
+      -15.031314849853516,
+      -18.845906734466553
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -14.966327905654907,
+      -19.674808025360107,
+      -17.38814401626587,
+      -19.3521785736084
+    ]
+  },
+  {
+    "idx": 535,
+    "question": "Scientists found trilobite and brachiopod index fossils in cliffs a great distance apart from each other. What can scientists infer about the rocks in which these fossils were found?",
+    "choices": [
+      "the age of the rock",
+      "the slope of the rock",
+      "the density of the rock",
+      "the weathering of the rock"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -16.488848567008972,
+      -17.090330064296722,
+      -17.815513253211975,
+      -25.658267557621002
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -22.09745329618454,
+      -22.471672296524048,
+      -21.7947735786438,
+      -29.57351279258728
+    ]
+  },
+  {
+    "idx": 538,
+    "question": "Which form of energy is required for a television set to work?",
+    "choices": [
+      "electrical",
+      "heat",
+      "light",
+      "solar"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -9.340944290161133,
+      -11.328392028808594,
+      -9.839122772216797,
+      -9.655234336853027
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -10.961668968200684,
+      -11.778002738952637,
+      -12.149065971374512,
+      -10.404666900634766
+    ]
+  },
+  {
+    "idx": 558,
+    "question": "Which technology enables doctors to monitor the function of the heart?",
+    "choices": [
+      "dialysis machine",
+      "electrocardiogram",
+      "electroencephalogram",
+      "automatic external defibrillator"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -18.276059970259666,
+      -12.298178344964981,
+      -13.146656215190887,
+      -34.695087015628815
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -21.897140979766846,
+      -16.746060729026794,
+      -16.346994630992413,
+      -33.941435128450394
+    ]
+  },
+  {
+    "idx": 576,
+    "question": "Scientists think that the rise in global temperature during the last one hundred years is due to an increase of carbon dioxide in the atmosphere. Which question would best help scientists assess the claim that humans are responsible for the rising global temperature?",
+    "choices": [
+      "What is the mechanism by which carbon dioxide heats Earth?",
+      "What is the source of most of the carbon dioxide in the atmosphere?",
+      "What is the source of the increase of carbon dioxide in the atmosphere?",
+      "What is the increase in the concentration of carbon dioxide in the atmosphere?"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -32.51670671545435,
+      -25.83707955852151,
+      -21.76148839481175,
+      -24.400626339018345
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -36.23295455239713,
+      -29.15188592299819,
+      -25.15032389201224,
+      -24.59099018573761
+    ]
+  },
+  {
+    "idx": 577,
+    "question": "Which structure controls what enters both plant cells and animal cells?",
+    "choices": [
+      "nucleus",
+      "cell wall",
+      "chloroplast",
+      "cell membrane"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -13.524084091186523,
+      -13.023187637329102,
+      -15.239948511123657,
+      -11.611807346343994
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -15.821636199951172,
+      -18.376619815826416,
+      -16.40393042564392,
+      -17.48612070083618
+    ]
+  },
+  {
+    "idx": 581,
+    "question": "The need for farmland in Brazil has led to the cutting of the rain forests in the Amazon. Cutting trees in the Amazon rain forest might have a global effect by",
+    "choices": [
+      "decreasing the amount of fresh water",
+      "increasing the number of animal species",
+      "decreasing the average yearly temperatures",
+      "increasing carbon dioxide levels in the atmosphere"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -23.300238955765963,
+      -23.080967697314918,
+      -34.328418254852295,
+      -22.50522044301033
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -23.4117486551404,
+      -26.925817308947444,
+      -33.82552933692932,
+      -25.30301606655121
+    ]
+  },
+  {
+    "idx": 582,
+    "question": "Which two body systems maintain the level of glucose in the blood?",
+    "choices": [
+      "nervous and respiratory systems",
+      "digestive and endocrine systems",
+      "muscular and immune systems",
+      "skeletal and cardiac systems"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -25.009782314300537,
+      -22.56542644649744,
+      -23.08616876602173,
+      -22.74707055091858
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -27.314579606056213,
+      -27.685194075107574,
+      -26.216463148593903,
+      -26.102840662002563
+    ]
+  },
+  {
+    "idx": 594,
+    "question": "What is the smallest particle of an element that still exhibits all the properties of that element?",
+    "choices": [
+      "an electron",
+      "an atom",
+      "a molecule",
+      "a proton"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -10.268104314804077,
+      -9.489727020263672,
+      -10.453654289245605,
+      -13.61734363809228
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -12.970484256744385,
+      -14.212281227111816,
+      -16.25815486907959,
+      -17.81266012787819
+    ]
+  },
+  {
+    "idx": 603,
+    "question": "Some plants rely on hummingbirds for pollination. If a deadly disease infected the hummingbird population, what would most likely happen to the plants?",
+    "choices": [
+      "They would die within hours.",
+      "They would become endangered.",
+      "They would need to migrate.",
+      "They would grow at a slower rate."
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -18.779868125915527,
+      -17.9221214056015,
+      -19.7020024061203,
+      -23.089006930589676
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -20.148280382156372,
+      -20.49698758125305,
+      -22.85589838027954,
+      -25.54828491806984
+    ]
+  },
+  {
+    "idx": 609,
+    "question": "Which material is a good conductor of heat?",
+    "choices": [
+      "plastic",
+      "rubber",
+      "glass",
+      "copper"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -12.398004531860352,
+      -12.647058486938477,
+      -12.12656307220459,
+      -11.00793170928955
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -14.422322273254395,
+      -13.888225555419922,
+      -11.438321113586426,
+      -12.29730224609375
+    ]
+  },
+  {
+    "idx": 610,
+    "question": "All living organisms have certain needs in order to stay alive. Which is most necessary for both plants and animals?",
+    "choices": [
+      "food",
+      "water",
+      "chlorophyll",
+      "carbon dioxide"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -9.67275333404541,
+      -9.175703048706055,
+      -13.703769475221634,
+      -11.071316123008728
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -10.305328369140625,
+      -10.63511848449707,
+      -14.249511897563934,
+      -13.558038353919983
+    ]
+  },
+  {
+    "idx": 615,
+    "question": "Aerogels are compounds formed by the drying of certain gels. Although the aerogel hardens into a solid material, the particles in the gel are much farther apart than those of most solids and particles are held together by strong bridges of covalently bonded atoms. Which of the following is a likely property of aerogels?",
+    "choices": [
+      "very low density",
+      "high electrical conductivity",
+      "very low melting point",
+      "very flexible"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -15.256861209869385,
+      -19.321922659873962,
+      -19.135133028030396,
+      -15.374719142913818
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -17.121865272521973,
+      -17.756235003471375,
+      -21.823814868927002,
+      -15.688851356506348
+    ]
+  },
+  {
+    "idx": 624,
+    "question": "Calcium is a mineral that helps make your bones and teeth strong. Which of these foods is the best source of calcium?",
+    "choices": [
+      "candy",
+      "rice",
+      "cheese",
+      "meat"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -13.068509101867676,
+      -10.885773658752441,
+      -10.166594505310059,
+      -10.47830581665039
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -14.33236312866211,
+      -9.924026489257812,
+      -11.176925659179688,
+      -10.142078399658203
+    ]
+  },
+  {
+    "idx": 661,
+    "question": "A teacher uses an instrument that records decibel levels. What is the teacher measuring?",
+    "choices": [
+      "noise levels",
+      "intensity of light",
+      "relative humidity",
+      "types of thermal energy"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -13.756959438323975,
+      -20.860424041748047,
+      -16.92939567565918,
+      -29.655187129974365
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -17.489466905593872,
+      -24.61814785003662,
+      -17.42807626724243,
+      -30.1464581489563
+    ]
+  },
+  {
+    "idx": 671,
+    "question": "Tooth decay is an infection that causes deterioration of the protective enamel on teeth, resulting in damage. Tooth decay is most likely caused by",
+    "choices": [
+      "bacteria.",
+      "acidic food.",
+      "allergies.",
+      "genetic defects."
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -11.948779344558716,
+      -20.813366174697876,
+      -13.148624897003174,
+      -16.76716136932373
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -15.956222534179688,
+      -22.638378143310547,
+      -13.700563430786133,
+      -21.17682647705078
+    ]
+  },
+  {
+    "idx": 676,
+    "question": "As wood in a campfire burns, it releases heat and becomes ash. What kind of change occurs in the wood when it burns and releases heat?",
+    "choices": [
+      "nuclear",
+      "magnetic",
+      "chemical",
+      "mechanical"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -11.5442476272583,
+      -12.917866706848145,
+      -11.256797790527344,
+      -11.310334205627441
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -14.029964447021484,
+      -14.789937973022461,
+      -12.824089050292969,
+      -11.956104278564453
+    ]
+  },
+  {
+    "idx": 678,
+    "question": "Which process moves water from the oceans to the atmosphere?",
+    "choices": [
+      "condensation",
+      "transpiration",
+      "evaporation",
+      "precipitation"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -13.022780954837799,
+      -16.547603845596313,
+      -12.152295481413603,
+      -12.168834686279297
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -14.473188042640686,
+      -18.3814799785614,
+      -13.486832737922668,
+      -13.4796781539917
+    ]
+  },
+  {
+    "idx": 732,
+    "question": "Coal is used for generating about 53% of the electrical energy in the United States. Which of these environmental issues is directly contributed to by the burning of coal?",
+    "choices": [
+      "beach erosion",
+      "ozone depletion",
+      "overfishing",
+      "air pollution"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -21.577950954437256,
+      -14.718828439712524,
+      -15.737490445375443,
+      -11.090249449014664
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -21.5688157081604,
+      -13.44851553440094,
+      -16.94601619243622,
+      -13.470253765583038
+    ]
+  },
+  {
+    "idx": 736,
+    "question": "As Bobby entered a dark room, he pushed the switch on the wall to turn on the light. What makes the light turn on when Bobby pushes the switch?",
+    "choices": [
+      "electricity",
+      "friction",
+      "gravity",
+      "magnetism"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -10.148722648620605,
+      -13.700652122497559,
+      -11.084261894226074,
+      -14.98785150051117
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -13.474732398986816,
+      -14.635433197021484,
+      -13.304774284362793,
+      -18.53380823135376
+    ]
+  },
+  {
+    "idx": 743,
+    "question": "Which statement best describes how energy transfer within Earth's atmosphere can affect a weather condition?",
+    "choices": [
+      "During radiation, objects directly transfer heat to each other which affects the air temperature.",
+      "During radiation, electromagnetic waves transfer heat and light energy which affects the air temperature.",
+      "During convection, objects directly transfer heat to each other which affects the amount of precipitation.",
+      "During convection, electromagnetic waves transfer heat and light energy which affects the amount of precipitation."
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -71.51417868770659,
+      -70.72764104604721,
+      -74.05119821988046,
+      -75.65713288635015
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -71.34140022937208,
+      -72.41237580776215,
+      -73.22654979489744,
+      -77.5875758305192
+    ]
+  },
+  {
+    "idx": 761,
+    "question": "Which of these is the fundamental unit of life?",
+    "choices": [
+      "system",
+      "organ",
+      "tissue",
+      "cell"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -11.895368576049805,
+      -12.681411743164062,
+      -14.49051284790039,
+      -10.89676284790039
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -13.813498497009277,
+      -14.608235359191895,
+      -16.226768493652344,
+      -14.506014823913574
+    ]
+  },
+  {
+    "idx": 768,
+    "question": "Joyce put 200 milliliters of water in a beaker, put a thermometer in it, and heated it until it started to boil. She recorded a temperature of 100\u00b0C when it started to boil. She repeated the process with 400 milliliters of water. What would be the temperature when the second sample started to boil?",
+    "choices": [
+      "twice as high as the first sample's",
+      "slightly higher than the first sample's",
+      "half as high as the first sample's",
+      "the same as the first sample's"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -28.829663142561913,
+      -24.56889820098877,
+      -31.482094295322895,
+      -23.98898220062256
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -27.998910039663315,
+      -26.009802222251892,
+      -30.687845289707184,
+      -26.69434094429016
+    ]
+  },
+  {
+    "idx": 773,
+    "question": "In which of the following are nutrients directly absorbed from the bloodstream?",
+    "choices": [
+      "cell",
+      "organ",
+      "organisms",
+      "tissue"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -9.90601634979248,
+      -10.353431701660156,
+      -11.194881439208984,
+      -11.90640640258789
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -12.581562042236328,
+      -11.876842498779297,
+      -11.583467483520508,
+      -11.576412200927734
+    ]
+  },
+  {
+    "idx": 785,
+    "question": "Which of the following is NOT a mixture?",
+    "choices": [
+      "Smoke",
+      "Sugar",
+      "Milk",
+      "Paint"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -11.332743644714355,
+      -9.315658569335938,
+      -10.29642105102539,
+      -11.586702346801758
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -10.302799224853516,
+      -10.452652931213379,
+      -10.241965293884277,
+      -10.56743335723877
+    ]
+  },
+  {
+    "idx": 850,
+    "question": "All living things contain which element?",
+    "choices": [
+      "helium.",
+      "sodium.",
+      "copper.",
+      "carbon."
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -15.104627847671509,
+      -15.651698589324951,
+      -15.562671303749084,
+      -14.328258991241455
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -17.15380358695984,
+      -17.749536514282227,
+      -18.32260012626648,
+      -17.579455375671387
+    ]
+  },
+  {
+    "idx": 851,
+    "question": "A student performed an experiment to see how long it would take for a cup of water to freeze. Which information would another student most likely need in order to perform the same experiment?",
+    "choices": [
+      "the time to begin",
+      "the volume of the cup",
+      "the temperature of the ice",
+      "the type of thermometer to use"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -20.134832620620728,
+      -17.875817358493805,
+      -21.18074256181717,
+      -32.66239209473133
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -23.77835726737976,
+      -23.78061532974243,
+      -23.593172907829285,
+      -33.53180283308029
+    ]
+  },
+  {
+    "idx": 866,
+    "question": "How is the mass of an atom calculated?",
+    "choices": [
+      "add the number of protons to the number of electrons",
+      "add the number of protons to the number of neutrons",
+      "subtract the number of protons from the number of neutrons",
+      "subtract the number of electrons from the sum of protons and neutrons"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -35.40322330035269,
+      -34.939431266859174,
+      -35.13438157737255,
+      -45.31815620698035
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -36.592323549091816,
+      -35.335059590637684,
+      -31.62752030044794,
+      -44.551973666995764
+    ]
+  },
+  {
+    "idx": 870,
+    "question": "Which of the following is an inherited human trait?",
+    "choices": [
+      "eye color",
+      "sleep patterns",
+      "sense of balance",
+      "sense of humor"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -15.508301734924316,
+      -20.134597778320312,
+      -19.94014084339142,
+      -18.509536385536194
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -16.428954124450684,
+      -18.975025177001953,
+      -19.535484313964844,
+      -15.78443169593811
+    ]
+  },
+  {
+    "idx": 881,
+    "question": "Scientists have observed that, even within the same nest, some young birds call louder than others. Which describes how a louder cry helps to ensure survival?",
+    "choices": [
+      "Lung capacity is increased.",
+      "Exposure to bacteria is increased.",
+      "Parents are able to identify the nest.",
+      "Parents respond by giving more food."
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -29.800353288650513,
+      -35.720689445734024,
+      -30.87068989686668,
+      -29.526245594024658
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -30.588396668434143,
+      -34.97628864645958,
+      -31.523733395151794,
+      -32.58558106422424
+    ]
+  },
+  {
+    "idx": 891,
+    "question": "An electric motor is designed to turn electrical energy into ___.",
+    "choices": [
+      "solar energy",
+      "potential energy",
+      "static electricity",
+      "mechanical energy"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -12.14591908454895,
+      -14.602493047714233,
+      -13.487683773040771,
+      -9.82128131389618
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -11.268900394439697,
+      -14.659905910491943,
+      -13.68040132522583,
+      -13.89587140083313
+    ]
+  },
+  {
+    "idx": 936,
+    "question": "Which list describes the particles that make up an atom?",
+    "choices": [
+      "nucleus, electrons, and quarks",
+      "protons, neutron, and electrons",
+      "ionic bonds, covalent bonds, and ions",
+      "nucleus, electron cloud, and energy levels"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -28.604014605283737,
+      -24.420022055506706,
+      -40.13390360027552,
+      -45.699919164180756
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -31.16237449645996,
+      -31.78207963705063,
+      -45.05766710639,
+      -45.53059709072113
+    ]
+  },
+  {
+    "idx": 950,
+    "question": "Use the information below to answer the question. In solid fuel rockets, a fuel mixture is burned and once the mixture starts burning it cannot be stopped. In liquid fuel rockets, there is a tank of fuel and a tank of oxygen. The burning of the fuel can be stopped by preventing the flow of fuel and oxygen into the combustion chamber. Based on this information, which system is more highly developed in liquid fuel rockets than in solid fuel rockets?",
+    "choices": [
+      "propulsion",
+      "suspension",
+      "control",
+      "structure"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -12.911601066589355,
+      -14.067975997924805,
+      -11.953712463378906,
+      -13.571722984313965
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -12.386102676391602,
+      -14.931811332702637,
+      -12.78120231628418,
+      -13.413448333740234
+    ]
+  },
+  {
+    "idx": 974,
+    "question": "Which of the following correctly lists the organizational hierarchy of organisms from simplest to most complex?",
+    "choices": [
+      "cells, organs, tissues, organ systems, organisms",
+      "cells, tissues, organs, organ systems, organisms",
+      "tissues, cells, organs, organ systems, organisms",
+      "tissues, organs, cells, organ systems, organisms"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -36.460121512413025,
+      -34.62094484269619,
+      -36.99916312098503,
+      -37.35280980169773
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -39.664860144257545,
+      -38.03584070503712,
+      -38.012900069355965,
+      -38.46752281486988
+    ]
+  },
+  {
+    "idx": 975,
+    "question": "The carrion flower smells like rotting meat. What kind of pollinator is most likely attracted to the carrion flower?",
+    "choices": [
+      "moth",
+      "butterfly",
+      "wasp",
+      "fly"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -13.729315757751465,
+      -13.295644760131836,
+      -15.517477989196777,
+      -12.207600593566895
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -13.807313919067383,
+      -15.106941223144531,
+      -18.13040065765381,
+      -14.910600662231445
+    ]
+  },
+  {
+    "idx": 981,
+    "question": "Some campers are sitting around a campfire outside their tent. Which product of the fire is in the form of electromagnetic waves?",
+    "choices": [
+      "light",
+      "smoke",
+      "sound",
+      "water vapor"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -9.673402786254883,
+      -10.775141716003418,
+      -10.510663032531738,
+      -13.512680053710938
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -12.758699417114258,
+      -12.297353744506836,
+      -11.0184326171875,
+      -13.576487064361572
+    ]
+  },
+  {
+    "idx": 991,
+    "question": "During a demonstration, a teacher pours CO_{2} gas over a candle, putting out the flame. Which physical property allows the teacher to pour the CO_{2} gas?",
+    "choices": [
+      "The gas is more dense than the air.",
+      "The gas is more visible than the air.",
+      "The gas smells different from the air.",
+      "The gas evaporates faster than the air."
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -26.776888847351074,
+      -27.35218060016632,
+      -28.76376974582672,
+      -27.88270222954452
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -30.498921871185303,
+      -30.937125325202942,
+      -30.30948579311371,
+      -28.59933542087674
+    ]
+  },
+  {
+    "idx": 995,
+    "question": "Gravity is a measurable force of attraction which acts upon objects. Which characteristic determines the gravity of an object?",
+    "choices": [
+      "friction",
+      "mass",
+      "tension",
+      "weight"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -10.335061073303223,
+      -10.148277282714844,
+      -13.162665367126465,
+      -11.190574645996094
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -12.364745140075684,
+      -12.339214324951172,
+      -13.24266529083252,
+      -11.796704292297363
+    ]
+  },
+  {
+    "idx": 996,
+    "question": "Which is NOT an example of a chemical change?",
+    "choices": [
+      "Melting ice",
+      "corroding silver",
+      "Burning match",
+      "Rotting vegetation"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -19.957178592681885,
+      -25.333431601524353,
+      -23.49996566772461,
+      -23.745710849761963
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -21.118837356567383,
+      -25.34340763092041,
+      -18.967543601989746,
+      -24.434693336486816
+    ]
+  },
+  {
+    "idx": 1005,
+    "question": "Which of these correctly lists Earth's layers in order from the center to the surface?",
+    "choices": [
+      "outer core, inner core, asthenosphere, lithosphere",
+      "asthenosphere, lithosphere, outer core, inner core",
+      "inner core, asthenosphere, lithosphere, outer core",
+      "inner core, outer core, asthenosphere, lithosphere"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -52.1999406889081,
+      -52.18865032494068,
+      -53.69323845766485,
+      -50.48285814747214
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -51.54070610925555,
+      -53.86024849116802,
+      -55.32123776525259,
+      -52.00106651335955
+    ]
+  },
+  {
+    "idx": 1009,
+    "question": "A delta at the mouth of a river is the direct result of",
+    "choices": [
+      "runoff from sewage.",
+      "deposition of sediment.",
+      "an ancient glacier that passed through.",
+      "an underground river flowing to the ocean."
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -25.72731924057007,
+      -22.324592292308807,
+      -35.87598466873169,
+      -29.133656203746796
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -26.012911081314087,
+      -27.19657826423645,
+      -40.14928650856018,
+      -31.625302016735077
+    ]
+  },
+  {
+    "idx": 1028,
+    "question": "Which of the following is best classified as a nonrenewable resource?",
+    "choices": [
+      "Grass",
+      "Aluminum",
+      "Sunlight",
+      "Oxygen"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -12.052218437194824,
+      -10.620662689208984,
+      -12.650646924972534,
+      -12.015328407287598
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -10.675485610961914,
+      -11.664876937866211,
+      -12.80066204071045,
+      -12.156068198382854
+    ]
+  },
+  {
+    "idx": 1029,
+    "question": "Which of these are the deepest parts of the ocean?",
+    "choices": [
+      "Continental shelves",
+      "Continental slopes",
+      "Ocean trenches",
+      "Abyssal plains"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -19.443034172058105,
+      -21.43193244934082,
+      -18.799602508544922,
+      -22.351574897766113
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -19.280564308166504,
+      -23.175817489624023,
+      -19.58690643310547,
+      -23.42487335205078
+    ]
+  },
+  {
+    "idx": 1048,
+    "question": "Which must be present in order for something to be classified as an organism?",
+    "choices": [
+      "nucleus",
+      "organ",
+      "cell",
+      "organelle"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -15.550024032592773,
+      -12.613504409790039,
+      -10.707828521728516,
+      -19.13142490386963
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -16.589393615722656,
+      -13.23410415649414,
+      -14.39704704284668,
+      -21.5434627532959
+    ]
+  },
+  {
+    "idx": 1054,
+    "question": "Stars appear to be blue, white, yellow, and red, even without the aid of a telescope. What causes the different colors of the stars?",
+    "choices": [
+      "the surface temperature",
+      "the distance from Earth",
+      "the distance from the Sun",
+      "the gases that compose the star"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -14.898488998413086,
+      -15.586273670196533,
+      -17.674292981624603,
+      -25.834003269672394
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -19.81317710876465,
+      -18.293127059936523,
+      -19.00235480070114,
+      -28.638699889183044
+    ]
+  },
+  {
+    "idx": 1085,
+    "question": "Which trait does a cactus seedling inherit from its parents?",
+    "choices": [
+      "the amount of water it absorbs",
+      "the length of its spines",
+      "the type of organism that pollinates its flowers",
+      "the number of organisms that consume its fruit"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -26.00665433704853,
+      -25.981700107455254,
+      -43.56588804721832,
+      -37.248015373945236
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -29.37924638390541,
+      -30.95812575519085,
+      -46.77706158161163,
+      -39.980104088783264
+    ]
+  },
+  {
+    "idx": 1098,
+    "question": "Which safety gear are most important to wear when working near an open flame?",
+    "choices": [
+      "lab apron and goggles",
+      "sunglasses and thermal gloves",
+      "rubber shoes and sunglasses",
+      "thermal gloves and goggles"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -38.35354995727539,
+      -27.354291439056396,
+      -27.420015811920166,
+      -25.38199257850647
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -37.43500280380249,
+      -27.646831512451172,
+      -24.783075094223022,
+      -25.33258295059204
+    ]
+  },
+  {
+    "idx": 1109,
+    "question": "What are two of Earth's natural resources?",
+    "choices": [
+      "nuclear power plants and batteries",
+      "forests and nuclear power plants",
+      "batteries and waterfalls",
+      "forests and waterfalls"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -22.59847390651703,
+      -21.593056797981262,
+      -26.237356185913086,
+      -19.833144664764404
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -25.7394802570343,
+      -25.774317920207977,
+      -30.45104479789734,
+      -27.285682797431946
+    ]
+  },
+  {
+    "idx": 1110,
+    "question": "In New England, there are noticeable patterns of seasonal change. Which information could you collect to BEST illustrate this change?",
+    "choices": [
+      "air temperature",
+      "wind speed",
+      "amount of precipitation",
+      "number of cloudy days"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -13.810424327850342,
+      -15.399533033370972,
+      -18.33101636171341,
+      -21.830473959445953
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -17.08051061630249,
+      -16.82966637611389,
+      -18.947296679019928,
+      -23.425244688987732
+    ]
+  },
+  {
+    "idx": 1132,
+    "question": "There are different kinds of muscles in the human body. Each muscle is formed from a group of cells that works together. The main function of a group of muscle cells is to",
+    "choices": [
+      "make oxygen.",
+      "release energy.",
+      "digest nutrients.",
+      "cause movement."
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -20.814839839935303,
+      -18.70846450328827,
+      -19.217524886131287,
+      -17.311442971229553
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -23.416491508483887,
+      -20.704755544662476,
+      -21.42267370223999,
+      -20.705904722213745
+    ]
+  },
+  {
+    "idx": 1149,
+    "question": "Substances enter any plant or animal cell by passing through which of the following structures?",
+    "choices": [
+      "nucleus",
+      "cell membrane",
+      "vacuole",
+      "chloroplast"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -15.35092544555664,
+      -13.446775436401367,
+      -17.586957454681396,
+      -15.57973837852478
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -15.342636108398438,
+      -17.48857355117798,
+      -19.168622732162476,
+      -17.27244532108307
+    ]
+  },
+  {
+    "idx": 1173,
+    "question": "All of the populations of species in an area make up a",
+    "choices": [
+      "region",
+      "niche",
+      "family",
+      "community"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -11.575479507446289,
+      -12.371585845947266,
+      -11.928962707519531,
+      -11.050899505615234
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -12.04721450805664,
+      -14.320174217224121,
+      -13.577361106872559,
+      -13.55122184753418
+    ]
+  },
+  {
+    "idx": 1177,
+    "question": "A student organizes a list of the distances that five students ran in 10 minutes. Another way to best organize this data is by using a",
+    "choices": [
+      "pie graph.",
+      "bar graph.",
+      "line graph.",
+      "pictograph."
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -21.558297157287598,
+      -18.416022062301636,
+      -20.17024266719818,
+      -18.918806791305542
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -24.623289108276367,
+      -20.5698744058609,
+      -22.392050981521606,
+      -20.073161840438843
+    ]
+  },
+  {
+    "idx": 1182,
+    "question": "The class puts the planters by the window so that the plants can get more sunlight. How do the tomato plants use sunlight?",
+    "choices": [
+      "to make sugar in the leaves",
+      "to use starch from the stems",
+      "to move water to the flowers",
+      "to get nutrients through the roots"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -29.027548015117645,
+      -32.08055353164673,
+      -29.58915400505066,
+      -29.180520951747894
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -34.12148714065552,
+      -36.58555626869202,
+      -33.03801345825195,
+      -31.03683376312256
+    ]
+  },
+  {
+    "idx": 1184,
+    "question": "Gravity is responsible for the ___.",
+    "choices": [
+      "orbits of the planets around the Sun",
+      "rotation of a planet on its axis",
+      "tilt of Earth's axis",
+      "phases of the Moon"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -25.37568551301956,
+      -31.813730716705322,
+      -28.242947578430176,
+      -27.186353087425232
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -28.148300886154175,
+      -33.7125643491745,
+      -28.558440685272217,
+      -27.98551845550537
+    ]
+  },
+  {
+    "idx": 1189,
+    "question": "Water puddles on a sidewalk evaporate when the Sun heats the water. Which of these best describes what is happening as the water evaporates?",
+    "choices": [
+      "Water changes phase as it releases heat to the environment.",
+      "Water boils as it absorbs energy from the sidewalk.",
+      "Water becomes a gas as it absorbs energy from the Sun.",
+      "Water evaporates as its thermal energy is transferred to the air."
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -41.35993930697441,
+      -35.02570506930351,
+      -34.150423020124435,
+      -37.09663011599332
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -45.31929957866669,
+      -36.32068872451782,
+      -37.60014188289642,
+      -38.45081419311464
+    ]
+  },
+  {
+    "idx": 1191,
+    "question": "What process is most responsible for the extinction of most species of plants and animals that have lived on Earth?",
+    "choices": [
+      "gene mutation",
+      "environmental changes",
+      "selective breeding",
+      "decrease in reproduction"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -14.822112083435059,
+      -11.950895071029663,
+      -12.587635099887848,
+      -22.997965097427368
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -19.1716890335083,
+      -15.409090995788574,
+      -14.854989290237427,
+      -23.051886081695557
+    ]
+  },
+  {
+    "idx": 1193,
+    "question": "Trevor turns on a lamp. When the lamp is on, electrical energy changes into which other form of energy?",
+    "choices": [
+      "chemical",
+      "light",
+      "mechanical",
+      "potential"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -11.66136646270752,
+      -6.351019859313965,
+      -10.113248825073242,
+      -12.190157890319824
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -12.69489860534668,
+      -10.774474143981934,
+      -10.559453964233398,
+      -11.467151641845703
+    ]
+  },
+  {
+    "idx": 1201,
+    "question": "Which material is the best conductor of electricity?",
+    "choices": [
+      "metal",
+      "glass",
+      "wood",
+      "plastic"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -10.958600997924805,
+      -12.551328659057617,
+      -11.295035362243652,
+      -12.834036827087402
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -12.995474815368652,
+      -12.281852722167969,
+      -13.339391708374023,
+      -14.389059066772461
+    ]
+  },
+  {
+    "idx": 1204,
+    "question": "Rock that is made of material that has settled to the bottom of lakes and oceans and been compressed and hardened is",
+    "choices": [
+      "conglomerate rock",
+      "volcanic rock",
+      "sedimentary rock",
+      "metamorphic rock"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -18.091692447662354,
+      -13.318490743637085,
+      -13.264373660087585,
+      -19.844197988510132
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -16.95395064353943,
+      -13.20853304862976,
+      -14.697129726409912,
+      -20.068377256393433
+    ]
+  },
+  {
+    "idx": 1216,
+    "question": "Which of the following fasteners are best to use to fasten the sides of a wooden birdhouse?",
+    "choices": [
+      "bolts",
+      "hooks",
+      "nails",
+      "pins"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -13.428744316101074,
+      -15.370048522949219,
+      -13.07003402709961,
+      -13.377836227416992
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -12.590482711791992,
+      -14.242900848388672,
+      -13.579618453979492,
+      -13.4161958694458
+    ]
+  },
+  {
+    "idx": 1229,
+    "question": "Which is a basic structure found in all living organisms?",
+    "choices": [
+      "cell",
+      "organ",
+      "compound",
+      "element"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -10.395029067993164,
+      -11.601663589477539,
+      -12.915691375732422,
+      -12.52889633178711
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -13.743390083312988,
+      -13.521310806274414,
+      -12.254815101623535,
+      -12.485177993774414
+    ]
+  },
+  {
+    "idx": 1237,
+    "question": "Which measurement is the most accurate way to describe the distance between the Sun and its nearest neighboring star?",
+    "choices": [
+      "4 light-years",
+      "400 light-years",
+      "4 billion kilometers",
+      "400 billion kilometers"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -15.375684469938278,
+      -16.469456404447556,
+      -15.932993412017822,
+      -19.506969451904297
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -19.89206302165985,
+      -17.03668186068535,
+      -18.098174333572388,
+      -20.365618228912354
+    ]
+  },
+  {
+    "idx": 1256,
+    "question": "Earthquakes and volcanic eruptions occur both on land and in water. Earthquakes and volcanic eruptions most often occur",
+    "choices": [
+      "near plate boundaries",
+      "on large pieces of land",
+      "in large bodies of water",
+      "in regions near the equator"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -21.661483764648438,
+      -25.341534048318863,
+      -22.20271661877632,
+      -23.044034905731678
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -24.837708950042725,
+      -25.71543452143669,
+      -25.686474084854126,
+      -21.840597607195377
+    ]
+  },
+  {
+    "idx": 1269,
+    "question": "Use the information below to answer the question. Many people are concerned that the reduction in the number of acres of forested area on Earth will lead to a large reduction in the amount of oxygen in Earth's atmosphere. If this happens, an organism's ability to breathe would be affected. The effect would be similar to moving the organism from",
+    "choices": [
+      "sea level to a mountaintop.",
+      "sea level to a valley below sea level.",
+      "a mountaintop to sea level.",
+      "a beach at sea level to a valley at sea level."
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -31.727941248565912,
+      -37.343829716322944,
+      -33.85778695344925,
+      -45.39805097877979
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -39.583535542711616,
+      -37.695998318493366,
+      -38.52437732182443,
+      -42.9336199562531
+    ]
+  },
+  {
+    "idx": 1318,
+    "question": "As temperatures increase, which process is responsible for increasing the amount of water vapor in the atmosphere?",
+    "choices": [
+      "ionization",
+      "evaporation",
+      "respiration",
+      "condensation"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -14.966548919677734,
+      -12.293242387473583,
+      -12.970224909484386,
+      -12.326601386070251
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -15.631774663925171,
+      -12.99117573350668,
+      -14.63472929596901,
+      -12.962617367506027
+    ]
+  },
+  {
+    "idx": 1325,
+    "question": "Ducks live near ponds and lakes. The shape of a duck's foot helps it swim and walk on muddy ground. Which factor is most important in determining the shape of a baby duck's foot?",
+    "choices": [
+      "the shape of the parent ducks' feet",
+      "the temperature of the pond water",
+      "the amount of mud in the bottom of the pond",
+      "the amount of rain that fell before the duck was born"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -25.202725782990456,
+      -26.73639166355133,
+      -28.396489050239325,
+      -40.2184065207839
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -29.533406674861908,
+      -25.469837307929993,
+      -30.54687474295497,
+      -40.663762640208006
+    ]
+  },
+  {
+    "idx": 1328,
+    "question": "What causes ocean water to evaporate in the water cycle?",
+    "choices": [
+      "energy from the Sun",
+      "energy from ocean waves",
+      "energy from Earth's rotation",
+      "energy from Earth's moon"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -20.428526520729065,
+      -21.182036876678467,
+      -26.665953397750854,
+      -27.30702829360962
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -24.839239954948425,
+      -24.624209880828857,
+      -30.478996992111206,
+      -32.23919081687927
+    ]
+  },
+  {
+    "idx": 1330,
+    "question": "A student finds that an unidentified mineral sample can scratch gypsum but is unable to scratch quartz. The student has made an observation about which property of the sample?",
+    "choices": [
+      "luster",
+      "hardness",
+      "density",
+      "reactivity"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -17.617701530456543,
+      -11.544068336486816,
+      -11.877758979797363,
+      -17.10375738143921
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -22.14303207397461,
+      -13.635396003723145,
+      -13.50784969329834,
+      -18.352124214172363
+    ]
+  },
+  {
+    "idx": 1340,
+    "question": "At which location are oceans the deepest?",
+    "choices": [
+      "Mid-ocean ridge",
+      "Abyssal plain",
+      "Ocean trench",
+      "Volcanic island"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -23.949866065755486,
+      -23.75877094268799,
+      -15.638226509094238,
+      -16.848759710788727
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -23.64828859269619,
+      -38.36669158935547,
+      -16.94695472717285,
+      -15.633106663823128
+    ]
+  },
+  {
+    "idx": 1376,
+    "question": "Which device directly converts chemical energy into electrical energy?",
+    "choices": [
+      "solar-powered calculator",
+      "wood-burning stove",
+      "battery-powered flashlight",
+      "wind-powered sailboat"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -23.617391109466553,
+      -24.56099009513855,
+      -20.176641285419464,
+      -27.291422247886658
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -23.340715289115906,
+      -22.693562030792236,
+      -23.806243181228638,
+      -30.851115703582764
+    ]
+  },
+  {
+    "idx": 1381,
+    "question": "The Great Miami Aquifer is a large underground water supply that lies under much of southwest Ohio. The water level of the aquifer could be reduced over time by too much",
+    "choices": [
+      "rainfall.",
+      "pollution.",
+      "irrigation.",
+      "evaporation."
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -15.054665327072144,
+      -14.648837089538574,
+      -14.451229333877563,
+      -16.615855392999947
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -15.75301456451416,
+      -15.89724326133728,
+      -17.854385375976562,
+      -18.07576014660299
+    ]
+  },
+  {
+    "idx": 1401,
+    "question": "Joyce put 200 milliliters of water in a beaker, put a thermometer in it, and heated it until it started to boil. She recorded a temperature of 100\u00b0C when it started to boil. She repeated the process with 400 milliliters of water. What would be the temperature when this second sample started to boil?",
+    "choices": [
+      "twice as high as the first sample's",
+      "slightly higher than the first sample's",
+      "half as high as the first sample's",
+      "the same as the first sample's"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -30.110420495271683,
+      -25.830637753009796,
+      -32.84236501902342,
+      -24.421452045440674
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -29.63623946905136,
+      -27.59498530626297,
+      -32.45242927968502,
+      -27.60978090763092
+    ]
+  },
+  {
+    "idx": 1415,
+    "question": "Many sports stadiums use grass, but some use fake grass called artificial turf. Artificial turf is made of fibers that look like real grass. In which way is this technology most likely beneficial?",
+    "choices": [
+      "It uses less water.",
+      "It produces more heat.",
+      "It releases less moisture.",
+      "It absorbs more carbon dioxide."
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -19.1478590965271,
+      -19.937424182891846,
+      -28.10204267501831,
+      -22.825604110956192
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -22.342119693756104,
+      -21.715076208114624,
+      -28.908225774765015,
+      -26.579345524311066
+    ]
+  },
+  {
+    "idx": 1446,
+    "question": "Sunlight is able to penetrate the top several meters of marine water, where most plant and animal life exists. Which of these systems are interacting in this description?",
+    "choices": [
+      "solar energy and ocean systems",
+      "solar energy and weather systems",
+      "weather systems and ocean systems",
+      "solar energy, ocean systems, and weather systems"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -24.200968503952026,
+      -24.67735981941223,
+      -27.5106041431427,
+      -35.01398849487305
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -25.693915367126465,
+      -24.968617916107178,
+      -24.13269579410553,
+      -36.992403507232666
+    ]
+  },
+  {
+    "idx": 1448,
+    "question": "Fossil fuels were made from specific kinds of ancient organisms. The fossilized remains of tiny ocean organisms formed",
+    "choices": [
+      "only coal.",
+      "only natural gas.",
+      "oil and coal.",
+      "oil and natural gas."
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -20.992406129837036,
+      -22.914525270462036,
+      -19.373144388198853,
+      -17.557789757847786
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -23.843329429626465,
+      -24.028672695159912,
+      -22.48487162590027,
+      -22.863878078758717
+    ]
+  },
+  {
+    "idx": 1455,
+    "question": "The parts of plants that make seeds are the",
+    "choices": [
+      "roots.",
+      "stems.",
+      "flowers.",
+      "leaves."
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -10.726842641830444,
+      -11.648643016815186,
+      -10.543665885925293,
+      -10.599521160125732
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -15.069491386413574,
+      -14.485341548919678,
+      -13.557604312896729,
+      -13.134625434875488
+    ]
+  },
+  {
+    "idx": 1458,
+    "question": "When a bottle of strong perfume is opened at the front of a classroom, the smell gradually spreads throughout the entire room. Which process explains this occurrence?",
+    "choices": [
+      "osmosis",
+      "diffusion",
+      "cell activity",
+      "cell transport"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -13.94662457704544,
+      -12.53487491607666,
+      -20.443952560424805,
+      -22.680103302001953
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -13.418253168463707,
+      -15.320053100585938,
+      -24.71817970275879,
+      -25.53402805328369
+    ]
+  },
+  {
+    "idx": 1477,
+    "question": "Which natural process is responsible for the formation of the Mississippi Delta?",
+    "choices": [
+      "snow",
+      "drought",
+      "deposition",
+      "weathering"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -12.569404602050781,
+      -11.351346015930176,
+      -10.687408447265625,
+      -15.295932531356812
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -15.654115676879883,
+      -12.61429214477539,
+      -14.419206619262695,
+      -19.329124927520752
+    ]
+  },
+  {
+    "idx": 1489,
+    "question": "Which of these occurs when the North Pole is tilted toward the Sun and the United States has the most daylight hours of the year?",
+    "choices": [
+      "summer solstice",
+      "winter solstice",
+      "spring equinox",
+      "fall equinox"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -17.15499833226204,
+      -17.4796943962574,
+      -20.436559304594994,
+      -26.174092337489128
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -17.093207828700542,
+      -16.670827463269234,
+      -19.37347313389182,
+      -24.510206814855337
+    ]
+  },
+  {
+    "idx": 1499,
+    "question": "Over a two-week period, several students complain of feeling sick. Their symptoms include a cough, fever, and a sore throat. What describes the most likely cause of these symptoms?",
+    "choices": [
+      "exposure to hot weather",
+      "decrease in physical exercise",
+      "consumption of bad food",
+      "infection by a virus"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -22.421434938907623,
+      -26.041415691375732,
+      -24.36286947131157,
+      -21.750819444656372
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -21.957417219877243,
+      -27.404390573501587,
+      -26.436551928520203,
+      -25.60789465904236
+    ]
+  },
+  {
+    "idx": 1503,
+    "question": "Joann repeatedly overfed the fish in the pond behind her house. The nitrates from the excess food contributed to an overgrowth of algae. To correct the problem, Joann added more plants to the pond. How will adding more plants help?",
+    "choices": [
+      "The plants make the pond look beautiful.",
+      "The plants will camouflage the green algae.",
+      "The plants will compete with algae for nutrients.",
+      "The plants will provide all the food for the fish."
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -33.08209079504013,
+      -33.533417105674744,
+      -29.904801964759827,
+      -33.78627151250839
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -31.580690503120422,
+      -38.80728197097778,
+      -35.16731786727905,
+      -35.67065751552582
+    ]
+  },
+  {
+    "idx": 1516,
+    "question": "Which tool is the best to use when studying small organisms not visible to the eye?",
+    "choices": [
+      "telescope",
+      "hand lens",
+      "microscope",
+      "magnifying glass"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -12.299421310424805,
+      -20.288545608520508,
+      -10.794978141784668,
+      -15.149014711380005
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -11.816343307495117,
+      -23.715944290161133,
+      -12.480661392211914,
+      -16.04797613620758
+    ]
+  },
+  {
+    "idx": 1541,
+    "question": "Which of these has been controlled in an attempt to reduce the depletion of ozone in Earth's atmosphere?",
+    "choices": [
+      "methods of filtering gasoline",
+      "use of chlorofluorocarbons (CFCs)",
+      "methods of radioactive waste storage",
+      "use of mercury (Hg) compounds"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -33.07767343521118,
+      -32.27201062068343,
+      -34.485568046569824,
+      -40.09746426343918
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -32.67030739784241,
+      -36.23649097979069,
+      -34.94852685928345,
+      -44.13803994655609
+    ]
+  },
+  {
+    "idx": 1553,
+    "question": "What is the primary function of white blood cells in humans?",
+    "choices": [
+      "carry oxygen",
+      "fight disease",
+      "grow tissues",
+      "remove waste"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -18.306564331054688,
+      -18.299893379211426,
+      -18.489468574523926,
+      -22.55269432067871
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -19.595876693725586,
+      -21.642789363861084,
+      -22.199766159057617,
+      -23.071666717529297
+    ]
+  },
+  {
+    "idx": 1566,
+    "question": "What would a model of the Sun, Earth, and Moon best help students visualize?",
+    "choices": [
+      "the phases of the Moon",
+      "the effects of gravitation",
+      "the effects of volcanic eruptions",
+      "the consequences of earthquakes"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -19.779824376106262,
+      -23.64555825665593,
+      -21.985975687624887,
+      -23.96379178762436
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -24.462785601615906,
+      -26.517542965710163,
+      -23.857853500638157,
+      -26.713698863983154
+    ]
+  },
+  {
+    "idx": 1567,
+    "question": "How are bacterial cells and human cells alike?",
+    "choices": [
+      "They allow oxygen through the cell wall.",
+      "They allow carbon dioxide through the cell wall.",
+      "They allow nutrients through the cell membrane.",
+      "They allow nutrients through the nuclear membrane."
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -33.7255482673645,
+      -37.48267388343811,
+      -33.50114440917969,
+      -42.61063098907471
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -34.73413681983948,
+      -38.86836397647858,
+      -35.5570307970047,
+      -42.711787700653076
+    ]
+  },
+  {
+    "idx": 1572,
+    "question": "A sea anemone uses poisonous darts to",
+    "choices": [
+      "absorb food.",
+      "defend itself.",
+      "attract a mate.",
+      "protect its young."
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -22.014760494232178,
+      -20.246803522109985,
+      -20.677128076553345,
+      -26.38237738609314
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -23.28224515914917,
+      -22.89239525794983,
+      -22.238280773162842,
+      -29.107412338256836
+    ]
+  },
+  {
+    "idx": 1573,
+    "question": "Rivers and streams can carry sediments long distances before they are deposited. What is formed when sediments are deposited at the mouth of a river?",
+    "choices": [
+      "a levee",
+      "a gully",
+      "a delta",
+      "a rift"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -18.39775323867798,
+      -18.14040517807007,
+      -14.69262170791626,
+      -16.44814157485962
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -17.46631732583046,
+      -19.79618787765503,
+      -16.79230308532715,
+      -16.568385124206543
+    ]
+  },
+  {
+    "idx": 1575,
+    "question": "In which layer of the atmosphere does most of Earth's weather occur?",
+    "choices": [
+      "the exosphere, which is the outermost layer",
+      "the troposphere, which is the lowest layer",
+      "the thermosphere, which has the highest temperature",
+      "the stratosphere, which contains a sub-layer of ozone"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -30.64095640182495,
+      -28.573880672454834,
+      -30.44605302810669,
+      -42.602095022797585
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -36.735085010528564,
+      -34.18747824430466,
+      -33.57868303358555,
+      -47.510584592819214
+    ]
+  },
+  {
+    "idx": 1581,
+    "question": "Plants store energy in what form?",
+    "choices": [
+      "heat",
+      "light",
+      "chemical",
+      "mechanical"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -12.166059494018555,
+      -11.858778953552246,
+      -10.94871711730957,
+      -14.064075469970703
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -11.219310760498047,
+      -12.127337455749512,
+      -11.837380409240723,
+      -13.233613967895508
+    ]
+  },
+  {
+    "idx": 1586,
+    "question": "A train travels at a rate of 13 meters per second (m/s). Over the next 60 seconds, the speed of the train increases to speed to 22 m/s. What is the average rate of acceleration of the train?",
+    "choices": [
+      "0.15 m/s^2",
+      "0.21 m/s^2",
+      "0.36 m/s^2",
+      "0.58 m/s^2"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -25.77783432416618,
+      -27.303115780465305,
+      -26.757203679997474,
+      -28.520097475033253
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -27.40249007754028,
+      -27.6543977111578,
+      -27.355446323752403,
+      -29.47086900472641
+    ]
+  },
+  {
+    "idx": 1594,
+    "question": "Similar types of cells form tissues. What is the next level of complexity formed from the grouping of tissues?",
+    "choices": [
+      "organs",
+      "organelles",
+      "organisms",
+      "organ systems"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -9.27210521697998,
+      -13.581078231334686,
+      -10.16429615020752,
+      -14.206618309020996
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -12.795042037963867,
+      -20.385090827941895,
+      -10.921415328979492,
+      -16.88999605178833
+    ]
+  },
+  {
+    "idx": 1601,
+    "question": "In a northern state, a room used for growing plants is not allowing enough light to enter for healthy plant growth. Adding windows in walls facing which direction would best solve this problem?",
+    "choices": [
+      "north",
+      "south",
+      "east",
+      "west"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -12.708486557006836,
+      -12.186737060546875,
+      -12.201818466186523,
+      -13.058563232421875
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -12.078659057617188,
+      -12.347633361816406,
+      -13.01213264465332,
+      -13.47576904296875
+    ]
+  },
+  {
+    "idx": 1610,
+    "question": "Which population would be harmed first by a long period of drought?",
+    "choices": [
+      "seaweed in an ocean",
+      "fish in a lake",
+      "plants in a pond",
+      "fish in a bay"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -26.28516149520874,
+      -23.02376103401184,
+      -22.631641149520874,
+      -25.40847611427307
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -26.959355354309082,
+      -26.38302707672119,
+      -30.02513027191162,
+      -29.00036334991455
+    ]
+  },
+  {
+    "idx": 1623,
+    "question": "The transfer of heat in the atmosphere by winds that circulate between the equator and the poles is an example of",
+    "choices": [
+      "radiation.",
+      "insulation.",
+      "convection.",
+      "conduction."
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -13.199766159057617,
+      -15.308449029922485,
+      -12.312096357345581,
+      -16.584203004837036
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -15.260583877563477,
+      -15.81336236000061,
+      -16.099159240722656,
+      -18.062716245651245
+    ]
+  },
+  {
+    "idx": 1630,
+    "question": "What major events cause islands to form in the Pacific Ocean?",
+    "choices": [
+      "tsunamis",
+      "severe storms",
+      "volcanic eruptions",
+      "erosion"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -9.06890865857713,
+      -14.459378242492676,
+      -8.243533933418803,
+      -11.67745590209961
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -10.68699149787426,
+      -15.061977863311768,
+      -10.933554633054882,
+      -14.056936264038086
+    ]
+  },
+  {
+    "idx": 1633,
+    "question": "Which is the best way to generate an electrical current in a coil of wire?",
+    "choices": [
+      "stroking the coil with a piece of silk",
+      "heating the coil uniformly",
+      "laying the coil near a magnet",
+      "rotating the coil in a magnetic field"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -37.90530496276915,
+      -23.980503916740417,
+      -29.027878284454346,
+      -22.634516894817352
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -40.49196761101484,
+      -24.291957020759583,
+      -34.72363352775574,
+      -28.326820850372314
+    ]
+  },
+  {
+    "idx": 1636,
+    "question": "Which of the following is the main reason water at the surface of the ocean is warmer than water at the bottom of the ocean?",
+    "choices": [
+      "Water at the bottom of the ocean contains more dissolved solids.",
+      "Water at the surface of the ocean absorbs more energy from the Sun.",
+      "Friction is created by fast moving currents at the surface of the ocean.",
+      "Wave action transfers heat from the bottom of the ocean to the surface."
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -27.200207378715277,
+      -26.972601432353258,
+      -46.562734074890614,
+      -41.00783707946539
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -28.79018265195191,
+      -31.13884862884879,
+      -44.46207481622696,
+      -44.53116516023874
+    ]
+  },
+  {
+    "idx": 1642,
+    "question": "A tree uses gas A to produce gas B. An animal uses gas B to produce gas A. What is gas B in this cycle?",
+    "choices": [
+      "oxygen",
+      "nitrogen",
+      "carbon dioxide",
+      "carbon monoxide"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -6.946800708770752,
+      -9.365142822265625,
+      -8.481174677610397,
+      -12.211316749453545
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -9.4878511428833,
+      -9.281133651733398,
+      -12.736517429351807,
+      -12.44372933357954
+    ]
+  },
+  {
+    "idx": 1663,
+    "question": "Which of the following are likely to do the most damage to ecosystems along the Rio Grande River?",
+    "choices": [
+      "floods",
+      "tsunamis",
+      "blizzards",
+      "earthquakes"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -10.453083992004395,
+      -12.616033801808953,
+      -16.11946289241314,
+      -11.312150001525879
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -12.546390533447266,
+      -14.83497191593051,
+      -17.120026886463165,
+      -12.541913986206055
+    ]
+  },
+  {
+    "idx": 1665,
+    "question": "Which sequence represents the correct levels of organization for multicellular organisms?",
+    "choices": [
+      "cell -> tissue -> organ -> organ system",
+      "tissue -> organ -> cell -> organ system",
+      "organ system -> organ -> cell -> tissue",
+      "cell -> organ -> tissue -> organ system"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -42.98494952917099,
+      -45.97011202573776,
+      -51.062140583992004,
+      -44.54630434513092
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -48.21080958843231,
+      -48.00939321517944,
+      -52.96993279457092,
+      -50.24105769395828
+    ]
+  },
+  {
+    "idx": 1680,
+    "question": "Tides occur in the oceans at regular times every day because of",
+    "choices": [
+      "upper atmospheric disturbances.",
+      "the tilt of Earth's rotational axis.",
+      "density differences caused by temperature changes.",
+      "the gravitational pull of the Sun and the Moon."
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -30.363224506378174,
+      -33.979477524757385,
+      -32.53868153318763,
+      -30.072048544883728
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -30.00707507133484,
+      -33.09429222345352,
+      -33.34437112510204,
+      -32.72978436946869
+    ]
+  },
+  {
+    "idx": 1715,
+    "question": "Air that travels away from the equator fails to maintain a straight path. The path of the air is deflected to the right in the Northern Hemisphere and to the left in the Southern Hemisphere. The apparent deflection of air to either the right or left is known as the Coriolis Effect. Which factor produces the Coriolis Effect?",
+    "choices": [
+      "the gravity of Earth",
+      "the rotation of Earth",
+      "the axial tilt of Earth",
+      "the revolution of Earth"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -19.267833471298218,
+      -19.202980935573578,
+      -27.26606684923172,
+      -25.280813455581665
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -20.913502097129822,
+      -21.87101185321808,
+      -24.60274302959442,
+      -27.205235958099365
+    ]
+  },
+  {
+    "idx": 1727,
+    "question": "Which layer of the atmosphere contains about 75% of the gasses and almost all of the water vapor?",
+    "choices": [
+      "troposphere",
+      "stratosphere",
+      "mesosphere",
+      "thermosphere"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -12.950139999389648,
+      -13.37244188785553,
+      -17.069838523864746,
+      -17.325976371765137
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -16.591769695281982,
+      -14.444780111312866,
+      -18.02993392944336,
+      -15.625006765127182
+    ]
+  },
+  {
+    "idx": 1729,
+    "question": "Why are many desert animals more active at night?",
+    "choices": [
+      "It is drier at night.",
+      "It is cooler at night.",
+      "There is less danger at night.",
+      "There is less wind at night."
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -23.789115861058235,
+      -19.55343211069703,
+      -20.63042812049389,
+      -22.846545428037643
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -27.201233863830566,
+      -23.29117214679718,
+      -21.296427361667156,
+      -21.850137546658516
+    ]
+  },
+  {
+    "idx": 1737,
+    "question": "The color of a star indicates its",
+    "choices": [
+      "speed.",
+      "volume.",
+      "distance.",
+      "temperature."
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -14.38102388381958,
+      -14.531560063362122,
+      -14.788131713867188,
+      -12.64712142944336
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -16.069236040115356,
+      -15.187420845031738,
+      -14.344096422195435,
+      -14.951158285140991
+    ]
+  },
+  {
+    "idx": 1741,
+    "question": "The smallest particle of matter that can be identified as an element is called",
+    "choices": [
+      "an atom.",
+      "a proton.",
+      "an electron.",
+      "a molecule."
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -12.74027943611145,
+      -15.933367043733597,
+      -13.068344354629517,
+      -13.878828763961792
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -13.525975227355957,
+      -16.926302403211594,
+      -12.90939712524414,
+      -16.422499179840088
+    ]
+  },
+  {
+    "idx": 1747,
+    "question": "When a tree is dormant, the tree is",
+    "choices": [
+      "dying",
+      "inactive",
+      "growing taller",
+      "growing its leaves"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -13.152606010437012,
+      -12.215459823608398,
+      -20.316497802734375,
+      -21.209218502044678
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -13.638413429260254,
+      -14.35384750366211,
+      -21.669986724853516,
+      -19.348313808441162
+    ]
+  },
+  {
+    "idx": 1762,
+    "question": "Dr. Wagner is investigating a newly discovered, disease-causing agent. She determines that one structure in the agent is double-stranded RNA. What kind of agent is Dr. Wagner studying?",
+    "choices": [
+      "a virus",
+      "a protist",
+      "a fungus",
+      "a bacterium"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -11.490290641784668,
+      -20.064037322998047,
+      -15.364325523376465,
+      -12.976075783371925
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -15.291872024536133,
+      -21.164930820465088,
+      -15.859890937805176,
+      -12.528065785765648
+    ]
+  },
+  {
+    "idx": 1772,
+    "question": "Sodium chloride (NaCl) is formed in a chemical reaction between sodium (Na) and chlorine (Cl_{2}). What is sodium chloride?",
+    "choices": [
+      "an element",
+      "a mixture",
+      "a compound",
+      "an atom"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -13.219076156616211,
+      -10.321091651916504,
+      -10.197001457214355,
+      -13.143369674682617
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -11.954368591308594,
+      -9.745555877685547,
+      -10.81228494644165,
+      -12.111586570739746
+    ]
+  },
+  {
+    "idx": 1781,
+    "question": "Acid rain can damage limestone buildings and marble statues. It can also harm organisms living in ponds and other ecosystems. Which pollutant in the atmosphere causes most of the acid rain?",
+    "choices": [
+      "fluorocarbons from aerosol spray cans",
+      "nitrous oxide from volcanic eruptions",
+      "sulfur dioxide from burning fossil fuels",
+      "soil particles from the use of farm equipment"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -46.27416005730629,
+      -23.138656868657563,
+      -22.29319004714489,
+      -42.37007867451757
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -44.178648710250854,
+      -24.50427068443969,
+      -24.558840453624725,
+      -42.994424786418676
+    ]
+  },
+  {
+    "idx": 1793,
+    "question": "Warm air masses that rise over Earth's equator move north or south. This movement is primarily the result of which of the following processes?",
+    "choices": [
+      "conduction",
+      "convection",
+      "insulation",
+      "radiation"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -14.62351369857788,
+      -10.558974415063858,
+      -12.445659637451172,
+      -10.829100608825684
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -14.975751638412476,
+      -12.447436571121216,
+      -12.842403411865234,
+      -12.12929916381836
+    ]
+  },
+  {
+    "idx": 1804,
+    "question": "Computers have devices called heat sinks designed to lower the temperature of a computer by scattering produced heat into the surrounding area. Which type of energy is kept away from a computer by a heat sink?",
+    "choices": [
+      "electrical",
+      "chemical",
+      "thermal",
+      "nuclear"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -8.033731460571289,
+      -9.996917724609375,
+      -7.382673740386963,
+      -8.939050674438477
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -8.659968376159668,
+      -12.514626502990723,
+      -9.031597137451172,
+      -10.77129077911377
+    ]
+  },
+  {
+    "idx": 1809,
+    "question": "What process in the atmosphere protects people from the ultraviolet rays in sunlight?",
+    "choices": [
+      "Ozone absorbs ultraviolet light.",
+      "Nitrogen reflects ultraviolet light.",
+      "Water vapor scatters ultraviolet light.",
+      "Carbon dioxide blocks ultraviolet light."
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -22.193654656410217,
+      -25.71369531750679,
+      -30.76621377468109,
+      -23.145694971084595
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -25.600993156433105,
+      -28.605471312999725,
+      -31.7584046125412,
+      -25.438004970550537
+    ]
+  },
+  {
+    "idx": 1824,
+    "question": "Which trait can children inherit from their parents?",
+    "choices": [
+      "long hair",
+      "favorite color",
+      "brown eyes",
+      "broken arm"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -19.135723114013672,
+      -17.866724967956543,
+      -16.829017639160156,
+      -21.868860244750977
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -17.596423149108887,
+      -20.448469161987305,
+      -19.31371307373047,
+      -22.325175762176514
+    ]
+  },
+  {
+    "idx": 1852,
+    "question": "Which cellular structure in an animal cell helps maintain homeostasis by controlling the transportation of substances into and out of the cell?",
+    "choices": [
+      "vacuole",
+      "cell wall",
+      "mitochondrion",
+      "cell membrane"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -19.535440772771835,
+      -11.302393913269043,
+      -18.765378952026367,
+      -8.930945634841919
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -20.261803030967712,
+      -13.48809289932251,
+      -17.46711301803589,
+      -13.644006729125977
+    ]
+  },
+  {
+    "idx": 1865,
+    "question": "Which of the following symbiotic relationships is considered parasitic?",
+    "choices": [
+      "ticks feeding on a dog",
+      "bees transporting pollen from flowers",
+      "pilotfish swimming under sharks",
+      "birds eating the insects from the back of a hippopotamus"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -34.075236558914185,
+      -35.344844579696655,
+      -40.3779821395874,
+      -53.84784881025553
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -36.4534227848053,
+      -34.66924476623535,
+      -47.46084976196289,
+      -55.234619066119194
+    ]
+  },
+  {
+    "idx": 1918,
+    "question": "If a pond is polluted by soap that has phosphate, this pollutant will cause the algae to quickly reproduce. Which will most likely increase in the pond if this happens to the algae?",
+    "choices": [
+      "sulfur",
+      "oxygen",
+      "nitrogen",
+      "carbon dioxide"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -10.760492324829102,
+      -9.665672302246094,
+      -10.325945854187012,
+      -10.125218093395233
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -13.091612815856934,
+      -11.988286972045898,
+      -10.877595901489258,
+      -12.857345938682556
+    ]
+  },
+  {
+    "idx": 1921,
+    "question": "What is the mass of an asteroid with a speed of 200 m/s and a momentum of 2,000 kg x m/s?",
+    "choices": [
+      "10 kg",
+      "1,800 kg",
+      "2,200 kg",
+      "400,000 kg"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -10.710562705993652,
+      -12.532028198242188,
+      -11.195098638534546,
+      -13.406793303787708
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -13.9984712600708,
+      -14.714689135551453,
+      -12.4587984085083,
+      -14.43069240450859
+    ]
+  },
+  {
+    "idx": 1928,
+    "question": "Animal cells perform functions using energy that is derived from glucose (C6H12O6). Which molecule is required for animal cells to obtain the most energy possible from a molecule of glucose?",
+    "choices": [
+      "water",
+      "oxygen",
+      "lactic acid",
+      "carbon dioxide"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -9.350110054016113,
+      -8.13930892944336,
+      -13.830140985548496,
+      -9.33115804195404
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -10.567336082458496,
+      -11.216530799865723,
+      -14.277905736118555,
+      -12.496177911758423
+    ]
+  },
+  {
+    "idx": 1931,
+    "question": "Which information will best help scientists determine if an object is a comet, an asteroid, or a meteoroid?",
+    "choices": [
+      "the object's diameter",
+      "the object's composition",
+      "the shape of the object's orbit",
+      "the speed at which the object travels"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -17.420255661010742,
+      -16.848843812942505,
+      -23.733132153749466,
+      -22.872624350944534
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -21.689000129699707,
+      -22.01110315322876,
+      -28.019110441207886,
+      -27.07801342057064
+    ]
+  },
+  {
+    "idx": 1944,
+    "question": "A drug company developed a pill to reduce cases of stomach virus. To test the medication, half of the participants got the pill with the new medicine and half got a sugar pill. Which term best identifies the participants who got a sugar pill?",
+    "choices": [
+      "control",
+      "experimental",
+      "dependent variable",
+      "independent variable"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -10.861479759216309,
+      -11.818243980407715,
+      -18.601500511169434,
+      -18.680950164794922
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -14.816909790039062,
+      -14.003835678100586,
+      -18.75179624557495,
+      -18.946011543273926
+    ]
+  },
+  {
+    "idx": 1951,
+    "question": "On Mount Everest the temperature decreases as the altitude increases. The summit of this mountain is in which atmospheric layer?",
+    "choices": [
+      "mesosphere",
+      "stratosphere",
+      "thermosphere",
+      "troposphere"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -15.904351711273193,
+      -13.099361896514893,
+      -16.606544494628906,
+      -11.801069974899292
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -20.480304718017578,
+      -15.450778722763062,
+      -16.66373884677887,
+      -16.885058641433716
+    ]
+  },
+  {
+    "idx": 1970,
+    "question": "Capillary walls are only one layer of cells thick. Passage of oxygen into and out of the capillaries is controlled most by which process?",
+    "choices": [
+      "collection of waste material",
+      "breakdown of materials",
+      "diffusion of material",
+      "storage of materials"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -26.053745985031128,
+      -24.22553825378418,
+      -19.939289212226868,
+      -22.076024055480957
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -24.548600912094116,
+      -22.823192715644836,
+      -23.274068236351013,
+      -22.40023636817932
+    ]
+  },
+  {
+    "idx": 1972,
+    "question": "How long does it take light from the nearest star other than the Sun to reach Earth?",
+    "choices": [
+      "Less than 1 second",
+      "About 1 hour",
+      "About 1 month",
+      "About 4 years"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -15.194882720708847,
+      -13.157849073410034,
+      -14.187154531478882,
+      -12.743160486221313
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -13.719881296157837,
+      -12.270742416381836,
+      -13.907893419265747,
+      -12.832285642623901
+    ]
+  },
+  {
+    "idx": 2001,
+    "question": "In which organism can cell walls be found?",
+    "choices": [
+      "moth",
+      "grass",
+      "snake",
+      "hawk"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -15.360222816467285,
+      -13.052353858947754,
+      -13.594644546508789,
+      -16.517759323120117
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -14.249244689941406,
+      -13.253824234008789,
+      -13.148750305175781,
+      -18.213224411010742
+    ]
+  },
+  {
+    "idx": 2005,
+    "question": "When a guitar string is strummed, it produces sound by making",
+    "choices": [
+      "heat.",
+      "electricity.",
+      "vibrations.",
+      "light."
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -16.217570781707764,
+      -15.057447671890259,
+      -12.310589075088501,
+      -14.165371537208557
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -15.908267736434937,
+      -15.17069125175476,
+      -15.523277759552002,
+      -15.483953952789307
+    ]
+  },
+  {
+    "idx": 2028,
+    "question": "Which of the following statements is true about organisms that are producers?",
+    "choices": [
+      "They use energy from the sun to make food.",
+      "They absorb energy from a host animal.",
+      "They get energy from eating living animals.",
+      "They get energy by breaking down dead plants and animals."
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -32.14024221897125,
+      -35.667346119880676,
+      -38.206441164016724,
+      -48.98406159877777
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -35.66219866275787,
+      -34.05172622203827,
+      -40.97837424278259,
+      -52.63293731212616
+    ]
+  },
+  {
+    "idx": 2055,
+    "question": "How does the Sun power the water cycle?",
+    "choices": [
+      "Energy from the Sun evaporates water.",
+      "Energy from the Sun condenses water.",
+      "Energy from the Sun precipitates water.",
+      "Energy from the Sun collects water."
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -28.001301631331444,
+      -28.707682490348816,
+      -32.049109131097794,
+      -29.219032883644104
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -30.42067375779152,
+      -29.194506227970123,
+      -31.012650817632675,
+      -29.27447235584259
+    ]
+  },
+  {
+    "idx": 2081,
+    "question": "Which of these technologies helps a power company use renewable energy for the production of electricity?",
+    "choices": [
+      "hydroelectric power",
+      "nuclear power plants",
+      "natural gas generators",
+      "coal-fired power plants"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -10.685544967651367,
+      -11.549899935722351,
+      -16.72364105284214,
+      -14.79058761894703
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -14.44474709033966,
+      -14.322265207767487,
+      -16.564379259943962,
+      -16.725136429071426
+    ]
+  },
+  {
+    "idx": 2083,
+    "question": "Which of these is an example of a new substance being formed?",
+    "choices": [
+      "a nail rusting",
+      "a wall being painted",
+      "water changing to steam",
+      "paper being folded"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -28.645041704177856,
+      -31.592390537261963,
+      -33.34995460510254,
+      -29.652634620666504
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -32.94390678405762,
+      -32.4007682800293,
+      -32.868693351745605,
+      -30.60241937637329
+    ]
+  },
+  {
+    "idx": 2113,
+    "question": "Which of these is a reason that scientists revise theories?",
+    "choices": [
+      "public opinion in favor of a revised theory",
+      "corporate sponsorship of a revised theory",
+      "government policy based on a revised theory",
+      "experimental results that support a revised theory"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -34.640096981078386,
+      -40.60491704940796,
+      -39.03370751440525,
+      -33.58061498403549
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -33.84402205888182,
+      -42.12555480003357,
+      -37.339440152049065,
+      -36.790467262268066
+    ]
+  },
+  {
+    "idx": 2118,
+    "question": "Which body system functions by bringing in oxygen and removing carbon dioxide?",
+    "choices": [
+      "endocrine",
+      "respiratory",
+      "digestive",
+      "urinary"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -16.90102481842041,
+      -11.312289237976074,
+      -12.396479606628418,
+      -15.16990852355957
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -17.781530380249023,
+      -12.472297668457031,
+      -12.296234130859375,
+      -12.99798583984375
+    ]
+  },
+  {
+    "idx": 2134,
+    "question": "Which feature is a kitten most likely to inherit from its parents?",
+    "choices": [
+      "diet",
+      "color",
+      "health",
+      "independence"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -13.525093078613281,
+      -12.780893325805664,
+      -14.64013671875,
+      -14.885525703430176
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -13.490267753601074,
+      -15.052555084228516,
+      -14.116207122802734,
+      -15.018475532531738
+    ]
+  },
+  {
+    "idx": 2146,
+    "question": "Scientists found large areas of fossilized wood in a desert in Arizona. The fossilized wood is evidence of the ancient environment. Based on the evidence, what was the ancient environment in this area?",
+    "choices": [
+      "forest",
+      "desert",
+      "glacier",
+      "grasslands"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -9.438448905944824,
+      -10.343003273010254,
+      -13.182302474975586,
+      -12.2436842918396
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -13.014350891113281,
+      -12.23228645324707,
+      -13.181514739990234,
+      -13.622022867202759
+    ]
+  },
+  {
+    "idx": 2149,
+    "question": "Tides on Earth are mostly caused by the gravitational pull of",
+    "choices": [
+      "the Sun.",
+      "stars.",
+      "the Moon.",
+      "asteroids."
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -11.12623906135559,
+      -12.543673515319824,
+      -11.107095718383789,
+      -12.909900188446045
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -18.14399814605713,
+      -17.002527236938477,
+      -16.934377193450928,
+      -16.125627517700195
+    ]
+  },
+  {
+    "idx": 2152,
+    "question": "Which substance can be used to conduct electricity in a circuit?",
+    "choices": [
+      "metal",
+      "wood",
+      "rubber",
+      "plastic"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -10.595220565795898,
+      -11.411687850952148,
+      -12.107650756835938,
+      -11.358217239379883
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -13.788022994995117,
+      -13.755044937133789,
+      -13.553974151611328,
+      -13.73112678527832
+    ]
+  },
+  {
+    "idx": 2167,
+    "question": "Which object helps people understand what makes up white light?",
+    "choices": [
+      "Barometer",
+      "Prism",
+      "Microscope",
+      "Thermometer"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -15.005155563354492,
+      -11.770858764648438,
+      -13.005480766296387,
+      -17.83529770374298
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -14.291573524475098,
+      -12.278084754943848,
+      -11.82909107208252,
+      -19.55691885948181
+    ]
+  },
+  {
+    "idx": 2187,
+    "question": "Which alternative energy resource changes part of a river into a lake?",
+    "choices": [
+      "solar energy",
+      "geothermal energy",
+      "hydropower",
+      "biofuel energy"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -10.35601282119751,
+      -10.540025174617767,
+      -10.316406726837158,
+      -18.584924936294556
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -11.868485808372498,
+      -12.434365510940552,
+      -14.310197830200195,
+      -19.597863912582397
+    ]
+  },
+  {
+    "idx": 2201,
+    "question": "When heated, mercuric oxide decomposes to form liquid mercury and oxygen. A scientist heated 10 grams (g) of mercuric oxide and formed 9.3 grams of liquid mercury. How many grams of oxygen were formed?",
+    "choices": [
+      "0.7 g",
+      "9.3 g",
+      "10.0 g",
+      "19.3 g"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -13.906570494174957,
+      -15.026703655719757,
+      -15.706779479980469,
+      -17.091110467910767
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -13.07321086525917,
+      -12.807860374450684,
+      -16.743589401245117,
+      -15.212800979614258
+    ]
+  },
+  {
+    "idx": 2219,
+    "question": "When two animals live in the same area and depend on the same organism for food, they are",
+    "choices": [
+      "competing",
+      "decomposing",
+      "germinating",
+      "hibernating"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -15.65595817565918,
+      -16.84370708465576,
+      -17.85307914018631,
+      -15.770218938589096
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -14.97669792175293,
+      -15.45767617225647,
+      -16.561954259872437,
+      -14.647090643644333
+    ]
+  },
+  {
+    "idx": 2221,
+    "question": "Which metric units should be used to describe the mass of an object?",
+    "choices": [
+      "centimeters",
+      "liters",
+      "grams",
+      "degrees Celsius"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -12.517614364624023,
+      -16.160504817962646,
+      -11.193231582641602,
+      -15.859019756317139
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -13.067054748535156,
+      -17.042142391204834,
+      -13.26439094543457,
+      -16.781614542007446
+    ]
+  },
+  {
+    "idx": 2229,
+    "question": "Binary stars orbit around the center of mass of the two stars. What causes the stars to remain together?",
+    "choices": [
+      "gravity between the stars",
+      "energy released from the stars",
+      "nuclear reactions in the stars",
+      "magnetic attraction between the stars"
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -21.531212627887726,
+      -22.852908968925476,
+      -22.59529221057892,
+      -24.02337682247162
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -24.091519951820374,
+      -25.48164975643158,
+      -24.013879895210266,
+      -25.530960083007812
+    ]
+  },
+  {
+    "idx": 2264,
+    "question": "Which human response is most likely to occur because the air temperature is 90\u00b0F?",
+    "choices": [
+      "blinking",
+      "salivating",
+      "shivering",
+      "sweating"
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -14.372516632080078,
+      -18.530399322509766,
+      -18.139217853546143,
+      -14.21555233001709
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -15.225262641906738,
+      -19.340585708618164,
+      -18.758145332336426,
+      -15.2494478225708
+    ]
+  },
+  {
+    "idx": 2283,
+    "question": "The pull of gravity from Earth has the greatest effect on",
+    "choices": [
+      "comets.",
+      "the Sun.",
+      "asteroids.",
+      "the Moon."
+    ],
+    "gold_idx": 3,
+    "baseline_pred": 3,
+    "baseline_scores": [
+      -15.42549216747284,
+      -13.65411114692688,
+      -13.222129344940186,
+      -13.138023853302002
+    ],
+    "cumulative_pred": 2,
+    "cumulative_scores": [
+      -16.13499104976654,
+      -19.698562145233154,
+      -15.00141191482544,
+      -18.00947093963623
+    ]
+  },
+  {
+    "idx": 2317,
+    "question": "Which statement best describes the motion of the molecules of a solid object?",
+    "choices": [
+      "They vibrate in place within a fixed volume.",
+      "They move around freely within a fixed volume.",
+      "They vibrate in place and take the shape of a container.",
+      "They move around freely and take the shape of a container."
+    ],
+    "gold_idx": 0,
+    "baseline_pred": 0,
+    "baseline_scores": [
+      -39.937018662691116,
+      -40.355324506759644,
+      -43.83690366148949,
+      -45.021945372223854
+    ],
+    "cumulative_pred": 1,
+    "cumulative_scores": [
+      -40.291994677856565,
+      -37.905378222465515,
+      -48.14977345429361,
+      -44.389160960912704
+    ]
+  },
+  {
+    "idx": 2328,
+    "question": "The symptoms of strep throat infection are a red and swollen throat. What is the most likely cause of strep throat?",
+    "choices": [
+      "eating raw vegetables",
+      "drinking lemonade",
+      "invading bacteria",
+      "running in cold weather"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -19.863102674484253,
+      -20.709174752235413,
+      -16.502397298812866,
+      -26.148393154144287
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -17.662577390670776,
+      -24.150194883346558,
+      -19.578392028808594,
+      -24.927327632904053
+    ]
+  },
+  {
+    "idx": 2352,
+    "question": "Tissue plasminogen activator is a natural blood thinner. The coded sequence for the blood thinner is called PLAT , found on chromosome 8. It is used to treat people who have heart attacks and strokes. Tissue plasminogen activator can be made through genetic engineering. What is tissue plasminogen activator?",
+    "choices": [
+      "a gene",
+      "a protein",
+      "a platelet",
+      "a DNA molecule"
+    ],
+    "gold_idx": 1,
+    "baseline_pred": 1,
+    "baseline_scores": [
+      -9.251302480697632,
+      -8.168812990188599,
+      -13.662082135677338,
+      -12.068892240524292
+    ],
+    "cumulative_pred": 0,
+    "cumulative_scores": [
+      -12.540380477905273,
+      -12.82697868347168,
+      -16.593807339668274,
+      -14.865091562271118
+    ]
+  },
+  {
+    "idx": 2356,
+    "question": "When a volcano erupts, new lava is deposited on the slopes of the volcano. After the lava cools and hardens, which types of organisms will most likely be the first to live on the new material?",
+    "choices": [
+      "large reptiles and amphibians",
+      "small birds and mammals",
+      "mosses and lichens",
+      "bushes and vines"
+    ],
+    "gold_idx": 2,
+    "baseline_pred": 2,
+    "baseline_scores": [
+      -23.87580382451415,
+      -24.143275022506714,
+      -20.74519634246826,
+      -22.292935848236084
+    ],
+    "cumulative_pred": 3,
+    "cumulative_scores": [
+      -24.35084694996476,
+      -26.283931732177734,
+      -22.39455196261406,
+      -22.15753936767578
+    ]
+  }
+]
