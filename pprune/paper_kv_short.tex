@@ -163,7 +163,7 @@ We make the following contributions:
   F1 between the full model's generated output and the compressed
   model's generated output, with no external ground-truth reference.
   Reveals a behavioral inversion: methods that score best on
-  ground-truth benchmarks score worst on KL faithfulness (§3.3, §5.4).
+  ground-truth benchmarks score worst on KL faithfulness (§3.3, §6.2).
 \item
   \textbf{Structural corruption diagnosis}: Positional displacement ---
   retained tokens keeping their original RoPE encodings after eviction
@@ -938,7 +938,10 @@ SnapKV+rot is the best overall: it leads KL faithfulness at every rate and budge
 \hypertarget{structural-corruption-in-kv-cache-pruning}{%
 \section{5. Structural Corruption in KV Cache Pruning}\label{structural-corruption-in-kv-cache-pruning}}
 
-The most striking result in Tables~\ref{tab:t3} and~\ref{tab:t4} is a metric inversion: PyramidKV and SnapKV have the best \(F_{\text{out}}\) of any method while simultaneously having the worst KL faithfulness --- worse than naive truncation. This section explains the mechanism that produces this inversion and how re-rotation addresses it.
+Post-prefill cache eviction introduces two structural problems that together explain the
+faithfulness gap between unrotated and re-rotated methods. This section establishes the
+mechanism, confirms it empirically, and characterizes how gap geometry determines the
+severity of both problems.
 
 \hypertarget{the-mechanism}{%
 \subsection{5.1 The Mechanism}\label{the-mechanism}}
@@ -955,11 +958,11 @@ prefill runs before any eviction, retained KV pairs carry
 representations computed under full-context attention over the
 \emph{entire} original sequence --- they have seen tokens that are
 immediately evicted afterward. We call this property \emph{enrichment}
-throughout §5. Naive prompt construction avoids gaps by building a
+throughout §§5--6. Naive prompt construction avoids gaps by building a
 shorter input before prefill, but it loses enrichment: those tokens
 have never attended to the evicted content.
 
-Key re-rotation addresses the positional problem by re-encoding retained
+Key re-rotation is an attempt to address the positional problem by re-encoding retained
 keys at compact positions \(0 \ldots M-1\) after eviction
 (Figure~\ref{fig:rope-displacement}), restoring uniform positional
 spacing. It does not change the gap structure or the enriched values,
@@ -1022,7 +1025,7 @@ restoring uniform $\Delta\!=\!1$ spacing.
 \subsection{5.2 Empirical Evidence}\label{empirical-evidence}}
 
 To confirm that mechanism rather than token selection drives the
-faithfulness gap, we compare SnapKV with KV pruning to SnapKV-Select ---
+faithfulness gap, we compare the KL faithfulness of SnapKV with KV pruning to SnapKV-Select ---
 identical attention-score-based token selection, presented as a new
 prompt rather than patched into the KV cache (Table~\ref{tab:t1}). The same tokens,
 selected by the same algorithm, behave very differently depending on how
@@ -1262,45 +1265,46 @@ StreamingLLM should see a meaningfully smaller gain.
 §4.3 confirms both predictions.
 
 
-\textbf{The first-token advantage.} All post-prefill eviction methods
+\hypertarget{metric-inversion}{%
+\section{6. Metric Inversion}\label{metric-inversion}}
+
+The most striking result in §4 is that PyramidKV and SnapKV lead
+\(F_{\text{out}}\) while simultaneously scoring worst on KL faithfulness
+--- worse than even naive truncation. This section explains why: post-prefill
+eviction creates a structural first-token advantage that inflates
+\(F_{\text{out}}\) on short-answer tasks, masking severe distributional
+corruption at all subsequent steps.
+
+\hypertarget{first-token-advantage}{%
+\subsection{6.1 First-Token Advantage}\label{first-token-advantage}}
+
+All post-prefill eviction methods
 run a complete, uncompressed prefill before evicting the KV cache. The
 first output token's distribution is therefore always exactly identical
 to the full model's: eviction has not yet occurred at that point, so the
 hidden state at the last prefill position is computed from full,
 unrestricted attention over the entire context. Divergence begins at the
-second decode step, when the compressed cache takes over. For SnapKV and
-PyramidKV, where the retained cache consists of the tokens that received
-the highest attention from the query window, this divergence is small on
-short-answer tasks: evicted tokens are precisely those with low
-attention weight, so the compressed cache closely approximates the full
-model's for the few additional steps a short answer requires. On tasks
-where the answer is determined by the first one or two tokens,
-post-prefill eviction methods therefore replicate the full model's
-output nearly exactly.
+second decode step, when the compressed cache takes over. 
 
 KL faithfulness is measured at every generation step. Post-prefill
 eviction creates gaps in the retained cache that corrupt distributions
 at all subsequent steps, even when the first output is correct. On
 short-answer tasks, \(F_{\text{out}}\) is determined almost entirely by
 the first-token decision and registers no corruption at subsequent
-steps. This is the source of the inversion: both methods produce the
+steps even if the KL divergence is high. This is the source of the 
+inversion: both methods produce the
 same output text as the full model while assigning completely different
 probability mass to alternatives at every subsequent step.
 
-\textbf{Mechanistic confirmation.} That the short-answer advantage comes
+That the short-answer advantage comes
 from the full-prefill hidden state --- not from query-relevant token
-selection --- is confirmed by comparing \texttt{snapkv\_press}
-(post-prefill eviction) to the recompute-over-gaps variant of SnapKV
+selection --- is confirmed by comparing SnapKV
+(post-prefill eviction) to the recompute-over-gaps variant
 introduced in §5.2 (Table~\ref{tab:t1}): both use identical
 attention-score selection at the same retention budget; only the
 eviction point differs. The recompute-over-gaps variant restricts
 attention \emph{during} prefill rather than pruning the cache after it,
-so the full-prefill hidden state never exists. Table~\ref{tab:rog} shows
-the result: recompute-over-gaps is nearly flat across output lengths
-(Gap=6.0) with no short-answer advantage, while \texttt{snapkv\_press}
-shows the same steep gradient as PyramidKV (Gap=33.0). The same token
-selection rule applied at a different point in the forward pass produces
-a completely different behavioral signature.
+so the full-prefill hidden state never exists. 
 
 \begin{table}[H]
 \centering
@@ -1313,32 +1317,21 @@ Method & Short-answer \(F_{\text{out}}\) & Long-form \(F_{\text{out}}\) & Gap\\
 \midrule
 Recompute-over-gaps & 56.1 & 50.2 & 6.0\\
 SnapKV              & 87.7 & 54.7 & 33.0\\
-Str+rot             & 66.7 & 47.0 & 19.7\\
 \bottomrule
 \end{tabular}
 
 \center Llama-3.1-8B, 65\% retention. Short = reference output ≤\,90 words; Long = \textgreater{}90 words.
 \end{table}
 
-\textbf{Key re-rotation and the first-token advantage.} SnapKV+rot
-applies re-rotation after eviction, compacting retained keys to
-positions 0, 1, \ldots, M−1. The first output token \(y^*[0]\) remains
-exactly identical to the full model's because it is generated at the end
-of the prefill from full, unrestricted attention, and before re-rotation
-takes effect.
+Table~\ref{tab:rog} shows
+the result: recompute-over-gaps is nearly flat across output lengths
+(Gap=6.0) with no short-answer advantage, while SnapKV shows a steep
+33.0-point gradient. The same token selection rule applied at a
+different point in the forward pass produces a completely different
+behavioral signature.
 
-\textbf{Str+rot and the limits of the first-token advantage.}
-Str+rot uses the same post-prefill eviction timing, so the
-first output token is also identical to the full model's. Table~\ref{tab:rog}
-shows that this is not enough: the first-token advantage lifts Str+rot's
-short-answer \(F_{\text{out}}\) above recompute-over-gaps (66.7\% vs
-56.1\%), but block\_end geometry (§5.3) limits how far re-rotation can
-recover --- short-answer \(F_{\text{out}}\) remains below Naive (72.8\%)
-and well below SnapKV/Pyr (\textasciitilde88\%).
-
-\hypertarget{what-f_textout-reveals}{%
-\subsection{\texorpdfstring{5.4 What \(F_{\text{out}}\)
-Reveals}{5.4 What F\_\{\textbackslash text\{out\}\} Reveals}}\label{what-f_textout-reveals}}
+\hypertarget{output-length-effects}{%
+\subsection{6.2 Output-Length Effects}\label{output-length-effects}}
 
 Table~\ref{tab:t5} compares all methods by output-length category (Llama, 65\%),
 with Naive as a reference. We set the threshold at 90 words because it
@@ -1363,7 +1356,6 @@ SnapKV & 87.7 & 54.7 & 33.0\\
 Pyr+rot & 79.9 & 50.1 & 29.8\\
 SnapKV+rot & 79.3 & 50.0 & 29.3\\
 Naive & 72.8 & \textbf{57.6} & 15.2\\
-Str+rot & 66.7 & 47.0 & 19.7\\
 \bottomrule
 \end{tabular}
 
@@ -1401,11 +1393,11 @@ near-zero short-output KL (0.012 nats) alongside an 8-point
 
 The two re-rotated methods show nearly identical profiles: SnapKV+rot
 Short=79.3\%, Long=50.0\%, Gap=29.3; Pyr+rot Short=79.9\%, Long=50.1\%,
-Gap=29.8. Since SnapKV+rot decodes from compact position M and Pyr+rot
-decodes from T (matching the full model's positional frame), and both
+Gap=29.8. Their selection policies differ --- SnapKV uses a uniform
+per-layer budget while PyramidKV uses a layer-adaptive one --- yet both
 show the same short- and long-form reduction relative to their unrotated
-counterparts, the decode starting position is not the explanation ---
-the reduction is attributable to key re-rotation itself.
+counterparts. The matching profiles indicate that key re-rotation, not
+the selection policy, drives the \(F_{\text{out}}\) change.
 
 \begin{table}[H]
 \centering
@@ -1418,7 +1410,6 @@ Method & Short \(F_{\text{KL}}\) & Long \(F_{\text{KL}}\)\\
 \midrule
 SnapKV+rot & \textbf{0.012} & \textbf{0.124}\\
 Pyr+rot & \textbf{0.012} & 0.135\\
-Str+rot & 0.080 & 0.297\\
 Naive & 0.143 & 0.256\\
 SnapKV & 1.335 & 0.697\\
 PyramidKV & 1.658 & 0.711\\
@@ -1593,15 +1584,6 @@ Rate & Unrot. & +rot & Gap & Unrot. & +rot & Gap\\
 Llama-3.1-8B, Gap = unrotated − re-rotated.
 \end{table}
 
-Str+rot's profile is distinct. It is the worst-performing
-method on both Short \(F_{\text{out}}\) (66.7\%) and Long
-\(F_{\text{out}}\) (47.0\%), below every other method in Table~\ref{tab:t5}. Both
-follow from the block\_end geometry established in §5.3. Str+rot's
-single large evicted region causes structural damage that re-rotation
-cannot repair: as Table~\ref{tab:t2} shows, re-rotated block\_end remains severely
-degraded relative to gapless (15.9×). This corruption takes effect from
-the second decode step onward, suppressing Short \(F_{\text{out}}\)
-below even Naive and compounding over long responses.
 
 The practical implication is direct. Post-prefill eviction cannot reduce
 TTFT, so SnapKV+rot's quality advantage is concentrated precisely where
@@ -1621,7 +1603,7 @@ prefill latency benefit either way.
 
 
 \hypertarget{inference-performance}{%
-\section{6. Inference Performance}\label{inference-performance}}
+\section{7. Inference Performance}\label{inference-performance}}
 
 Compression is only worthwhile if it makes inference faster. We are theoretically sacrificing 
 some quality of result in exchange for some gain in response time.  Generally there are two 
@@ -1630,7 +1612,7 @@ how long does it take for the full answer.  Here we discuss how the compression 
 affect these and the factors that should be considered when calculating the trade-off between
 speed and quality of result.
 
-\subsection{6.1 Base Model Timing}\label{base-model-timing} 
+\subsection{7.1 Base Model Timing}\label{base-model-timing} 
 
 There are typically two metrics that we use to measure the inference performance: 
 \textbf{time to first token (TTFT)}, the wall-clock time from receiving a prompt to producing 
@@ -1690,7 +1672,7 @@ including PyramidKV, snapkv\_press, and streaming\_rerotated; at 35\%
 retention, all compressed methods reach \textasciitilde44--48 ms/tok
 (\textasciitilde29--35\% faster).
 
-\subsection{6.2 Instruct Model Timing at Extreme Budgets}\label{instruct-model-timing}
+\subsection{7.2 Instruct Model Timing at Extreme Budgets}\label{instruct-model-timing}
 
 Table~\ref{tab:instruct-timing} gives mean wall-clock time per example at budgets~256 and~1024 for Llama-3.1-8B-Instruct, split by output-length category (short: full-model reference $\leq$10 words, $n=762$; long: $>$10 words, $n=838$).
 
@@ -1742,7 +1724,7 @@ Avg = weighted mean over all examples ($n_{\text{short}}=762$, $n_{\text{long}}=
 Total time includes prefill and generation.
 \end{table}
 
-\subsection{6.3 Faithfulness by Output Length}\label{faithfulness-by-output-length}
+\subsection{7.3 Faithfulness by Output Length}\label{faithfulness-by-output-length}
 
 How faithfulness degrades with compression is not uniform across output types.
 Short-answer tasks (QA, classification, code retrieval) and long-form tasks
@@ -1932,19 +1914,19 @@ Gap = Short $-$ Long.  Naive bolded to highlight the comparison point.
 
 Table~\ref{tab:t4} (Instruct columns) shows macro-averaged \(F_{\text{out}}\) at absolute token budgets on both instruct models (per-task breakdown in Appendices~C3--C4).
 
-\subsection{6.4 Deployment Implications}\label{deployment-implications}
+\subsection{7.4 Deployment Implications}\label{deployment-implications}
 
 The timing results reveal a fundamental mismatch between where compression is most accurate and where it actually saves time. Post-prefill eviction methods --- SnapKV, PyramidKV, Str+rot --- must process the full prompt before trimming, so TTFT is never reduced below the full-context baseline; it is slightly higher (Table~\ref{tab:ttft}). For tasks where TTFT dominates total latency (short-answer generation of a few tokens), selection-based compression delivers quality improvements with no latency benefit. The quality advantage exists precisely where compression provides no speedup.
 
 The case for selection methods rests on long-form generation, where TPT savings compound over many decode steps. At 35\% retention, compressed methods reach \textasciitilde44--48\,ms/tok (\textasciitilde29--35\% faster than the 67.5\,ms/tok full-context rate), and this speedup grows proportionally with output length. On long outputs, Naive does provide a genuine throughput gain --- at budget~=~256 on the instruct model, 4.1\,s versus 11.4\,s per example (Table~\ref{tab:instruct-timing}) --- but at the cost of substantially lower faithfulness (Tables~\ref{tab:base-fout-shortlong} and~\ref{tab:instruct-fout-shortlong}). These results suggest the compression method should be matched to the expected output regime: TPT-sensitive workloads (long-form generation) benefit from selection methods; TTFT-sensitive workloads (short-answer retrieval) are better served by Naive truncation if latency is the primary constraint.
 
 \hypertarget{conclusion}{%
-\section{7. Conclusion}\label{conclusion}}
+\section{8. Conclusion}\label{conclusion}}
 
 We introduced two faithfulness metrics that reveal complementary failure
 modes. KL faithfulness measures distributional agreement at every
 generation step; output faithfulness measures text-level similarity to
-the full model's generated output. §5.4 exposes a striking inversion:
+the full model's generated output. §6.1 exposes a striking inversion:
 PyramidKV (79.1\% \(F_{\text{out}}\)) and SnapKV (78.5\%) are the top
 two methods on output faithfulness while simultaneously being the worst
 on KL (1.394 and 1.157 nats). A full, uncompressed prefill makes the

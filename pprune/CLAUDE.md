@@ -182,34 +182,37 @@ All rotated variants labelled *+rot throughout. No "Strm+rot" — normalized to 
     Pyr+rot 35%/50% story + narrowing-advantage trend. No specific ratios or per-model breakdowns.
   - §4.4 Output Faithfulness: tab:t4 (base+instruct merged). Prose: SnapKV/Pyr lead pattern +
     35% convergence + re-rotated ordering + Naive failure at extreme budgets + KL/F_out inversion closing.
-- §5 Structural Corruption in KV Cache Pruning:
-  - §5.1 The Mechanism: 3 paragraphs — name two problems (gaps + positional scatter), explain
+- §5 Structural Corruption in KV Cache Pruning (mechanistic only — §5.1–§5.3):
+  - §5.1 The Mechanism: 3 paragraphs — name two problems (gaps + positional scatter), define
     enrichment + prompt-construction tradeoff, re-rotation fixing positional problem + tension.
-    Figure fig:rope-displacement retained. "enrichment" defined on first use.
-  - §5.2 Empirical Evidence: recompute-over-gaps intro rewritten using like/unlike contrast with
-    SnapKV-Select; results paragraph tightened to 3 sentences.
-  - §5.3 Synthetic Gap-Structure Analysis
-  - §5.4 What F_out Reveals (tab:t5: F_out by output-length category at 65%; tab:t6: KL short/long at 65%)
-- §6 Inference Performance (swapped with §5, Sep 2026):
-  - §6.1 Base Model Timing: TTFT (tab:ttft) + TPT discussion
-  - §6.2 Instruct Model Timing at Extreme Budgets: tab:instruct-timing (now with Avg column) only
-  - §6.3 Faithfulness by Output Length (NEW, Sep 2026): base model KL short/long at all 3 rates
-    (tab:base-kl-shortlong) + base model F_out short/long at all 3 rates (tab:base-fout-shortlong) +
-    instruct KL short/long (tab:instruct-kl-shortlong) + instruct F_out short/long
-    (tab:instruct-fout-shortlong). §5.4 provides the 65%-only baseline; §6.3 extends to 50%/35%.
-  - §6.4 Deployment Implications: general TTFT-vs-TPT argument; selection methods buy quality not
-    latency on short-answer tasks; Naive is the only latency-reducing option
-- §7 Conclusion
+    Figure fig:rope-displacement retained. "enrichment" defined on first use, scoped to §§5–6.
+  - §5.2 Empirical Evidence: ROG vs SnapKV vs SnapKV-Select (tab:t1). ROG paragraph uses
+    like/unlike contrast with SnapKV-Select. Results paragraph 3 sentences.
+  - §5.3 Synthetic Gap-Structure Analysis: 4 geometries × 3 presentations (gapless/evicted/rerotated),
+    tab:t2. Ends with prediction paragraph (§4.3 confirms).
+- §6 Metric Inversion (NEW Sep 2026 — explains F_out/KL inversion; was §5.4–§5.5):
+  - §6.1 First-Token Advantage: explains why all post-prefill methods produce identical first token;
+    mechanistic confirmation via tab:rog (ROG vs SnapKV, 2 rows). Str+rot removed from table and prose.
+  - §6.2 Output-Length Effects: tab:t5 (F_out short/long, 5 rows — no Str+rot), tab:t6 (KL
+    short/long, 4 rows — no Str+rot), tab:t7 (long-form F_out by rate, SnapKV+PyramidKV only),
+    per-step KL figure. Str+rot paragraph removed. Decode-position argument replaced with
+    selection-policy argument (SnapKV+rot and Pyr+rot identical profiles → re-rotation drives change).
+- §7 Inference Performance (was §6):
+  - §7.1 Base Model Timing: TTFT (tab:ttft) + TPT discussion
+  - §7.2 Instruct Model Timing at Extreme Budgets: tab:instruct-timing (with Avg column)
+  - §7.3 Faithfulness by Output Length: tab:base-kl-shortlong, tab:base-fout-shortlong,
+    tab:instruct-kl-shortlong, tab:instruct-fout-shortlong. §6.2 provides 65%-only baseline; §7.3 extends to 50%/35%.
+  - §7.4 Deployment Implications
+- §8 Conclusion (was §7)
 - Appendix A: KL per task; Appendix B: GT per task; Appendix C: F_out per task
-  (C3a/b = Llama-Instruct b=256/1024; C4a/b = Mistral-Instruct b=256/1024)
 
-**tab:base-kl-shortlong** (§6.3): Base model KL short/long at 65%/50%/35% (all 6 methods).
+**tab:base-kl-shortlong** (§7.3): Base model KL short/long at 65%/50%/35% (all 6 methods).
 Key: SnapKV short=1.335/long=0.697 at 65% (worse on short); SnapKV+rot short=0.012/long=0.124 (near-zero on short).
 
-**tab:base-fout-shortlong** (§6.3): Base model F_out short/long at 65%/50%/35% (all 6 methods).
+**tab:base-fout-shortlong** (§7.3): Base model F_out short/long at 65%/50%/35% (all 6 methods).
 Key: SnapKV short=87.7/long=54.7 at 65% (30-pt gap); Naive short=72.8/long=57.6 (15-pt gap).
 
-**tab:instruct-timing** (§6.2): Now includes Avg (ms) column = weighted mean over n_short=762, n_long=838.
+**tab:instruct-timing** (§7.2): Includes Avg (ms) column = weighted mean over n_short=762, n_long=838.
 
 **tab:instruct-fout** (§4.4): NEW table added Sep 2026 from appendix averages.
 Llama b=256: Naive=24.9, Streaming=56.0, Str+rot=56.1, SnapKV=72.0, SnapKV+rot=69.4, Pyr=71.1, Pyr+rot=68.9
