@@ -169,20 +169,25 @@ Restructured Sep 2026. Edited directly — do NOT regenerate from `build_short_p
 unrotated baseline). "Str+rot" = StreamingLLMPress + KeyRerotationPress (kvpress-prescribed config).
 All rotated variants labelled *+rot throughout. No "Strm+rot" — normalized to "Str+rot".
 
-**Section structure (Sep 2026):**
+**Section structure (Sep 2026, updated Sep 2026):**
 - §1 Introduction
 - §2 Background and Related Work
 - §3 Faithfulness Metrics (§3.1 Why GT Falls Short, §3.2 KL Faithfulness, §3.3 Output Faithfulness)
 - §4 Experiments:
-  - §4.1 Setup (models, benchmark, methods table)
-  - §4.2 Ground-Truth Results: base model (tab:gt-allrates, all rates) + instruct (tab:instruct-gt, b=256/1024)
-  - §4.3 KL Faithfulness: base model (tab:t3) + instruct (tab:instruct-kl, b=256/1024); includes
-    "SnapKV+rot is the best method at every budget" unnumbered subsection
-  - §4.4 Output Faithfulness: base model (tab:t4) + instruct summary (tab:instruct-fout, NEW — macro
-    averages from C3a/C3b/C4a/C4b) + instruct short/long (tab:instruct-fout-shortlong)
-- §5 Structural Corruption in KV Cache Pruning (swapped with §6, Sep 2026):
-  - §5.1 The Mechanism
-  - §5.2 Empirical Evidence
+  - §4.1 Setup: opens with 4 paragraphs on kvpress v0.5.4, re-rotation (doc quote), Streaming
+    post-prefill departure, PyramidKV right-aligned re-rotation; then Benchmark/Models/Hyperparameters/
+    Methods table. tab:instruct-gt removed — merged into tab:gt-allrates.
+  - §4.2 Ground-Truth Results: tab:gt-allrates (base+instruct merged, all rates/budgets both models)
+  - §4.3 KL Faithfulness: tab:t3 (base+instruct merged). Prose: universal SnapKV+rot finding +
+    Pyr+rot 35%/50% story + narrowing-advantage trend. No specific ratios or per-model breakdowns.
+  - §4.4 Output Faithfulness: tab:t4 (base+instruct merged). Prose: SnapKV/Pyr lead pattern +
+    35% convergence + re-rotated ordering + Naive failure at extreme budgets + KL/F_out inversion closing.
+- §5 Structural Corruption in KV Cache Pruning:
+  - §5.1 The Mechanism: 3 paragraphs — name two problems (gaps + positional scatter), explain
+    enrichment + prompt-construction tradeoff, re-rotation fixing positional problem + tension.
+    Figure fig:rope-displacement retained. "enrichment" defined on first use.
+  - §5.2 Empirical Evidence: recompute-over-gaps intro rewritten using like/unlike contrast with
+    SnapKV-Select; results paragraph tightened to 3 sentences.
   - §5.3 Synthetic Gap-Structure Analysis
   - §5.4 What F_out Reveals (tab:t5: F_out by output-length category at 65%; tab:t6: KL short/long at 65%)
 - §6 Inference Performance (swapped with §5, Sep 2026):
