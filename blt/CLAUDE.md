@@ -1291,6 +1291,35 @@ Following on from the sweep above, the user asked to look at specific ARC-Easy e
 
 **Published as an interactive artifact** for exploring all 67 subtasks (sortable table, tornado chart, category filters, click-through to example minimal pairs): "Long-Range Tax" (small-scale cumulative-α1.0 data). Result files: `blimp_full_results.json` (small scale), `blimp_full_results_medium.json` (medium scale), `arc_easy_disagreements.json`/`arc_easy_full_results.json`/`arc_easy_full_results_medium.json`.
 
+### Sine-annealed cumulative mode — DONE (2026-09-16), and it's the best LAMBADA result in the whole cumulative family
+
+`run_gpt2_cumulative_sine_scratch_seed42.pt` (launched 2026-09-10 on `titan`, see above) finished all 500,000 steps, final val_ppl 65.50. Checkpoint verified genuine before benchmarking (all finite, `token_count` sum 2,046,000,000 across 50,134/50,257 tokens, `ema_loss`/token_loss std 2.23 — fully populated, matching every other completed cumulative checkpoint's population level). The run had finished without a watcher armed (launched interactively, not via a chained watcher), so it sat unbenchmarked until this state-save pass caught it — benchmarked by hand before writing this up. Results (`lm_eval_gpt2_cumulative_sine_scratch_seed42.json`, `eval_owt_gpt2_cumulative_sine_scratch_seed42.stdout`): OWT held-out ppl **30.52** (loss 3.4183), LAMBADA acc **0.2818**, LAMBADA ppl **114.0**, HellaSwag acc_norm 0.270, PIQA acc_norm 0.573, Winogrande acc 0.504.
+
+| Metric | Sine+cumulative (seed42) | Cumulative blend=1.0 avg (3 seeds) | Fixed-decay EMA sine blend=0.75 (seed42) |
+|---|---|---|---|
+| OWT held-out ppl | 30.52 | 30.09 | 29.44 |
+| LAMBADA acc | **0.2818** | 0.265 | 0.281 |
+| LAMBADA ppl | **114.0** | 119.3 (seed42 only) | 117.7 |
+| HellaSwag acc_norm | 0.270 | 0.271 | 0.267 |
+| PIQA acc_norm | 0.573 | 0.574 | 0.571 |
+| Winogrande acc | 0.504 | 0.514 | 0.511 |
+
+**Sine annealing helps cumulative mode too, and by a similar amount to how it helped fixed-decay EMA.** LAMBADA acc (0.2818) beats every individual seed and the 3-seed average (0.265) of plain cumulative blend=1.0, at a modest additional OWT-ppl cost (30.52 vs. 30.09 avg, +1.4%) — and lands almost exactly on fixed-decay EMA's own sine result (0.281, `run_gpt2_ema_blend75_sine_scratch_seed42.pt`), despite the user's original reasoning for testing this combination being that cumulative mode's variance-decay mechanism is fundamentally different from fixed-decay EMA's (see "Sine-annealed cumulative mode" write-up above) and shouldn't be assumed to respond the same way. It responded anyway, at least on this one metric and this one seed. **One seed — this needs a second/third before it's a confirmed finding**, same discipline as every other result in this project; the fixed-decay sine result itself needed two seeds before the headline 0.281 number was trusted as more than favorable variance (the confirmed 3-seed average there was 0.259, notably lower than the single-seed 0.281 that started that thread — worth remembering as a concrete precedent for not over-reading this one seed either).
+
+### `io` medium cumulative run — unexpected kill outside our control, currently paused (2026-09-14/17)
+
+**Deliberate pause and clean resume (2026-09-14).** User asked to pause the run; confirmed the worker PID (172763) matched the expected command, sent `SIGTERM`, verified the resulting checkpoint (step 372,000, all finite, `token_count` sum 1,522,228,092 across 50,135/50,257 tokens) before reporting it safe. Resumed cleanly shortly after via the standard `--resume` command — confirmed `Resumed at step 372000` exactly (no data replay), `effective_blend=1.0000` correct, GPU settled back at 21.6GB/32.75GB, 97% util.
+
+**Died again on its own, unprompted, sometime after that (discovered 2026-09-16).** When asked to "suspend the job on io again," found no training process running at all — it had already stopped. The resume's own stdout log shows the shell's `Killed` message (the signature of an external SIGKILL, most commonly OOM, though not confirmed) rather than a Python traceback or graceful exit. **No permission to check `dmesg`/`journalctl` on `io`** to confirm the actual cause. The run had progressed substantially before dying — from the 372,000 resume point to step ~414,530 (another ~42,500 steps) — so whatever killed it wasn't immediate; current `free -h` on `io` shows 60GB available, unhelpful for diagnosing memory pressure after the fact. Checkpoint verified safe regardless: step 414,500 (only ~30 steps lost since the last periodic save), all finite, `token_count` sum 1,696,142,184 across 50,139/50,257 tokens.
+
+**Currently sitting paused, not resumed** — the user's own explicit request was to suspend it, and it turned out to already be suspended by something else; no instruction yet to resume again. If/when resumed, use the standard command (see the medium cumulative launch entry above) — nothing about the checkpoint or protocol has changed, only the reason for the current pause is externally-caused rather than deliberate this time.
+
+### Status snapshot (2026-09-17)
+- `bender`: real medium `num_uv_groups=8` run, step 1,177,290/1,500,000 (78.5%). Long-running, healthy throughout.
+- `titan`: free. Sine+cumulative small-model run finished and benchmarked (see above).
+- `io`: **paused** at step 414,500/1,500,000 (27.6%) — died on its own (see above), not yet resumed.
+- `venus`: free.
+
 ### Other future directions
 - **Grouped Wv**: share Wv across groups of heads (GQA-style) to reduce value cache bandwidth.
 - **Token weighting loss**: upweight tokens requiring long-range context using a short-context reference model (arXiv 2503.09202). Most promising fix for LAMBADA/benchmark mismatch.
