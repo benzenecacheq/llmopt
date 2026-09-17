@@ -1259,10 +1259,17 @@ def run_eval(
                 # kvpress methods process the full context internally; use max_seq_full
                 effective_max = max_seq_full if press is not None else max_seq_comp
 
+                # Clip to max_seq_full before compression so all methods work from the
+                # same token pool as generate_ystar (which truncates to max_seq_full).
+                # Without this, naive/chunk head tokens can fall outside the full model's
+                # context window on long prompts, making the KL comparison unfair.
+                full_ids_for_comp = (full_ids[:, -max_seq_full:]
+                                     if full_ids.shape[1] > max_seq_full else full_ids)
+
                 if do_timing:
                     torch.cuda.synchronize()
                 t_sel    = time.perf_counter()
-                comp_ids = make_comp_ids(full_ids, method, tokenizer, question_text, effective_max,
+                comp_ids = make_comp_ids(full_ids_for_comp, method, tokenizer, question_text, effective_max,
                                          model=model, device=device,
                                          salience_table=salience_table)
                 if do_timing:

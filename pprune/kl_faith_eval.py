@@ -692,22 +692,26 @@ def kl_for_example(
     """
     full_ids = tokenizer.encode(prompt, add_special_tokens=True, return_tensors="pt")
 
+    # Clip to max_seq_full before compression so comp context matches the full model's
+    # context window (which also truncates to max_seq_full on long prompts).
+    full_ids_for_comp = full_ids[:, -max_seq_full:] if full_ids.shape[1] > max_seq_full else full_ids
+
     # Prompt for the compressed model
     if method == "naive_65pct":
-        comp_ids = naive_truncate(full_ids, head_frac=0.10)
+        comp_ids = naive_truncate(full_ids_for_comp, head_frac=0.10)
     elif method.startswith("naive_") and method.endswith("pct") and method != "naive_tail":
         _frac = int(method[6:-3]) / 100.0
-        comp_ids = naive_truncate(full_ids, fraction=_frac, head_frac=0.10)
+        comp_ids = naive_truncate(full_ids_for_comp, fraction=_frac, head_frac=0.10)
     elif method == "naive_tail":
-        comp_ids = naive_truncate(full_ids, head_frac=0.0)
+        comp_ids = naive_truncate(full_ids_for_comp, head_frac=0.0)
     elif method == "chunk_sent":
         q_ids    = tokenizer.encode(question_text, add_special_tokens=False, return_tensors="pt") if question_text else None
-        comp_ids = sent_truncate(full_ids, q_ids, tokenizer=tokenizer)
+        comp_ids = sent_truncate(full_ids_for_comp, q_ids, tokenizer=tokenizer)
     elif method in CHUNK_CONFIGS:
         q_ids    = tokenizer.encode(question_text, add_special_tokens=False, return_tensors="pt") if question_text else None
-        comp_ids = chunk_truncate(full_ids, q_ids, tokenizer=tokenizer, **CHUNK_CONFIGS[method])
+        comp_ids = chunk_truncate(full_ids_for_comp, q_ids, tokenizer=tokenizer, **CHUNK_CONFIGS[method])
     else:
-        comp_ids = full_ids.clone()
+        comp_ids = full_ids_for_comp.clone()
 
     # Cap compressed model input to avoid OOM in manual attention matmul
     if comp_ids.shape[1] > max_seq_comp:
