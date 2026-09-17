@@ -891,13 +891,19 @@ def get_comp_log_probs(
             logits_list = [out.logits[0, -1, :].float()]
             del out
 
-            # Right-aligned Pyr+rot keys end at T-1; decode must start at T.
+            # Set decode cache_position explicitly for all presses except KeyRerotationPress.
+            # - KeyRerotationPress: re-rotates keys to [0, n_kept), so n_kept (inferred
+            #   from kv.get_seq_length()) is correct as the first decode position.
+            # - Unrotated presses (SnapKV, Pyr, Streaming, RADAR bare): keys keep their
+            #   original positions; model.generate() inherits cache_position=T from the
+            #   prefill, so TF must use the same T to match deployment behaviour.
+            # - PyramidKVRerotationPress: right-aligned keys end at T-1, decode at T.
             _T = comp_ids.shape[1]
-            _use_explicit_pos = isinstance(press, PyramidKVRerotationPress)
+            _needs_T_position = not isinstance(press, _KeyRerotationPress)
             for t in range(n_gen - 1):
                 tok = ystar[t : t + 1].unsqueeze(0).to(device)
                 extra = {}
-                if _use_explicit_pos:
+                if _needs_T_position:
                     extra['cache_position'] = torch.tensor(
                         [_T + t], dtype=torch.long, device=device
                     )

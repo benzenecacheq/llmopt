@@ -4,12 +4,11 @@
 
 Two papers split from a single codebase:
 
-**`paper_kv_faithfulness.tex`** — Primary paper (LaTeX source). KV cache compression faithfulness:
-positional displacement is the dominant failure mode for SnapKV and PyramidKV. Key re-rotation
-(SnapKV+rot) fixes this: 27× KL improvement at 65%, best method overall. Pyr+rot matches
-SnapKV+rot at 65% (0.047 vs 0.043) and ties exactly at 35% (budget collapse to uniform); a gap
-opens only at 50% where the pyramid reaches its window_size floor at layer 31. No phrase
-compression content. Compile with XeLaTeX (requires fontspec + unicode-math).
+**`paper_kv_faithfulness.tex`** — Primary paper (LaTeX source). KV cache compression faithfulness.
+**NOTE (Sep 2026): KL numbers for unrotated methods are under revision** — see "Position-ID bug in
+get_comp_log_probs" below. The "27× KL improvement" finding was an artifact of wrong decode
+positions in TF eval. Corrected 65% reruns are in progress; paper conclusions may change
+significantly. Compile with XeLaTeX (requires fontspec + unicode-math).
 
 **`paper_kv_short.tex`** — Standalone short-paper version (LaTeX source). As of Aug 2026,
 this is edited directly — do NOT regenerate from `build_short_paper.py`. The generator
@@ -61,6 +60,14 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
   results for Pyr+rot with right-aligned implementation are valid.
 - `kl_faith_eval_ystar.py` — KL faithfulness using y* shared prefix (teacher-forced). All
   `_KVPRESS_METHODS` defined here including rerotated variants.
+  **IMPORTANT (Sep 2026 fix)**: `get_comp_log_probs` previously let Llama infer
+  `cache_position = kv.get_seq_length() = n_kept` for unrotated presses during TF decode.
+  `model.generate()` (used by FG eval) instead inherits `cache_position = T` from the prefill.
+  The mismatch inflated TF KL for unrotated methods (window keys at positions > n_kept get wrong
+  negative relative distances). Fixed: all presses except `KeyRerotationPress` now receive
+  `cache_position = [T + t]` explicitly. `KeyRerotationPress` is correct at `n_kept` because
+  re-rotation maps all keys to `[0, n_kept)`. KL data for unrotated methods (SnapKV, Pyr,
+  Streaming) at all rates is invalid and must be recomputed.
 - `kl_faith_eval.py` — Core configs (METHOD_CONFIGS, CHUNK_CONFIGS). Imported by both above.
 - `longbench_eval.py` — Scoring functions. `qa_f1_score()` used for F_out computation.
 - `queue_runner.sh` — File-based job queue. Reads `lb_results_base/queue.txt`, runs first
@@ -77,13 +84,15 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 | `lb_results_base/gt_pyramidkv_comp/checkpoint.json` | pyramidkv at f50/f40/f35, all 16 tasks, n=100 |
 | `lb_results_base/gt_mistral_table/checkpoint.json` | Mistral: old pcfg snapkv/streaming, pyramidkv, 65%, n=100 |
 | `lb_results_base/kl_ystar_tables_v3.json` | KL for prompt-construction + old snapkv/streaming, all 16 tasks, n=100 |
-| `lb_results_base/kl_ystar_pyramidkv_all_v2.json` | KL for pyramidkv at all rates, all 16 tasks, n=100 |
+| `lb_results_base/kl_ystar_pyramidkv_all_v2.json` | KL for pyramidkv at all rates, all 16 tasks, n=100 — ⚠ ALL RATES INVALID (pos-ID bug) |
 | `lb_results_base/ystar_cache_v3.pt` | Cached y* tokens + log_p_full for all 16 tasks, n=100 (Llama) |
 | `lb_results_base/ystar_cache_mistral.pt` | Same for Mistral |
-| `lb_results_base/kl_mechanism_llama_f65.json` | KL: snapkv_press + streaming_rerotated, Llama 65% ✓ |
-| `lb_results_base/kl_mechanism_llama_f50.json` | Same at 50% ✓ |
-| `lb_results_base/kl_mechanism_llama_f35.json` | Same at 35% ✓ |
-| `lb_results_base/kl_mechanism_mistral_f*.json` | Same for Mistral, all 3 rates ✓ |
+| `lb_results_base/kl_mechanism_llama_f65.json` | KL: snapkv_press (⚠ INVALID — pos-ID bug) + streaming_rerotated ✓, Llama 65% |
+| `lb_results_base/kl_mechanism_llama_f50.json` | Same at 50% — snapkv_press ⚠ INVALID |
+| `lb_results_base/kl_mechanism_llama_f35.json` | Same at 35% — snapkv_press ⚠ INVALID |
+| `lb_results_base/kl_mechanism_mistral_f*.json` | Same for Mistral — snapkv_press ⚠ INVALID at all rates |
+| `lb_results_base/kl_unrotated_corrected_llama_f65.json` | Corrected KL: snapkv_press + pyramidkv + streaming_press, Llama 65% (in progress) |
+| `lb_results_base/kl_unrotated_corrected_mistral_f65.json` | Same for Mistral (queued) |
 | `lb_results_base/gt_mechanism_llama_f65/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
 | `lb_results_base/gt_mechanism_llama_f50/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
 | `lb_results_base/gt_mechanism_llama_f35/checkpoint.json` | GT: snapkv_press ✓, streaming_rerotated ✓ |
@@ -136,6 +145,11 @@ Rate suffix convention: no suffix = 65%, `_f50` = 50%, `_f35` = 35%. **f40 dropp
 - `gt_pyramidkv_rerotated_mistral_f35/` — 35% ✓ (1600/1600; avg F_out=70.0, avg GT=22.3)
 
 ## Currently running
+
+**Corrected KL reruns (65%, unrotated methods — pos-ID bug fix):**
+- `kl_unrotated_corrected_llama_f65.json` — snapkv_press + pyramidkv + streaming_press, Llama, 16 tasks n=100 (running)
+- `kl_unrotated_corrected_mistral_f65.json` — same for Mistral (queued after Llama)
+- Once complete: evaluate new Tab:t3 numbers before deciding whether to rerun 50%/35% and instruct evals
 
 **Llama-3.1-8B-Instruct — all complete (all 16 tasks):**
 - `kl_instruct_llama_b256.json` ✓ (6 tasks, original; numbers cited in §9)
@@ -260,7 +274,33 @@ Section numbering: §1–§6 unchanged, §7 Main Experiments, §8 Why Post-Prefi
 
 ## Data validity note
 
-All **KL** data is valid — teacher-forced, unaffected by position-ID bug.
+**Position-ID bug in get_comp_log_probs (discovered Sep 2026):**
+`model.generate()` inherits `cache_position = T` (original prompt length) for decode step 0 from
+the prefill. Manual TF decode in `get_comp_log_probs` did NOT pass explicit `cache_position`,
+causing Llama to infer `n_kept` (compressed cache size) instead. For unrotated methods (SnapKV,
+PyramidKV, Streaming), many retained keys sit at original positions > n_kept (especially the
+window tokens near position T-1), giving them wrong negative relative positions under RoPE.
+This inflated TF KL by ~100× for unrotated methods. Fixed in `get_comp_log_probs`: all presses
+except `KeyRerotationPress` now receive `cache_position = [T + t]` explicitly.
+
+**Affected (KL data INVALID, must recompute):**
+- `kl_mechanism_llama/mistral_f*.json` — snapkv_press columns at all 3 rates
+- `kl_ystar_pyramidkv_all_v2.json` — all rates
+- `kl_streaming_press_f65/f50f35.json` + Mistral equivalents
+- `kl_instruct_pilot.json` — snapkv_press row
+- `kl_instruct_llama_b256.json`, `kl_instruct_mistral_b256.json` — snapkv/pyr/streaming rows
+- `kl_instruct_llama_b1024.json`, `kl_instruct_mistral_b1024.json` — same
+- `kl_ystar_mistral.json` — pyramidkv column
+
+**Unaffected (KL data valid):**
+- All `*_rerotated*` files (KeyRerotationPress: n_kept is correct after re-rotation)
+- `kl_snapkv_rerotated*.json`, `kl_pyramidkv_rerotated*.json` — valid ✓
+- `kl_mechanism_*/streaming_rerotated` columns — valid ✓
+- All pcfg-based methods (naive, old snapkv/streaming in kl_ystar_tables_v3.json) — use
+  single-pass path, unaffected ✓
+- All **GT** data — `model.generate()` uses correct positions, unaffected ✓
+
+All **GT** data is valid — `model.generate()` uses correct positions, unaffected by this bug.
 
 **GT data**: `generate_rerotated()` fix applied Jul 2026. All KeyRerotationPress GT checkpoints
 created before the fix are invalid. Affected checkpoints have been purged and re-run:
