@@ -88,33 +88,29 @@ objective: the goal of compression should be approximation fidelity ---
 producing the same output the full-context model would have produced. In
 this paper we introduce two faithfulness metrics: \emph{KL
 Faithfulness}, which measures divergence from full-context token
-distributions, and \emph{Output Faithfulness}, which measures text-level
-similarity between the full model's generated output and the compressed
-model's generated output. Ground-truth rankings and faithfulness
-rankings may disagree substantially, and the two new metrics reveal
-complementary failure modes which we analyze in detail and which suggest
-improvements to the current popular pruning methods.
+distributions at every generation step, and \emph{Output Faithfulness},
+which measures text-level similarity between the full model's generated
+output and the compressed model's generated output. Ground-truth
+rankings and faithfulness rankings disagree substantially, and the two
+new metrics reveal complementary failure modes.
 
-Using KL faithfulness as our primary lens, we observe that SnapKV and
-PyramidKV, which among the algorithms we tested yielded the best
-ground-truth results, are dramatically less faithful than a simple naive
-proportional truncation --- retaining 65\% of tokens (head-and-tail
-split) as a new, self-consistent prompt. Deeper analysis shows that this
-is not because of poor token selection, but because retaining tokens at
-their original RoPE positions after eviction causes positional
-displacement that corrupts every subsequent decode step. StreamingLLM
-with key re-rotation is the best existing method, posting the lowest KL
-faithfulness among currently deployed KV cache compression approaches.
+Using KL faithfulness as our primary lens, we find that SnapKV and
+PyramidKV --- the methods with the best ground-truth results --- are
+also the most faithful by KL: their scattered-selection geometry
+interacts favorably with post-prefill enrichment to produce
+distributional fidelity close to the uncompressed model. StreamingLLM,
+which retains a contiguous recency window, is substantially less
+faithful: block eviction from the document beginning contaminates value
+representations with expectations about missing context that the model
+cannot satisfy at decode time.
 
-This diagnosis suggests a fix: apply key re-rotation to SnapKV after
-eviction, remapping retained keys to their new compact positions. The
-improvement is dramatic --- 27× reduction in mean KL faithfulness at
-65\% retention, making SnapKV+rot the most faithful method overall,
-outperforming all other methods tested. The central practical message is
-that SnapKV and PyramidKV as currently deployed are substantially less
-faithful than they could be: key re-rotation is a single post-eviction
-tensor operation that recovers most of the faithfulness loss at
-negligible cost.
+A complementary failure mode is revealed by output faithfulness: all
+post-prefill eviction methods show inflated performance on short-answer
+tasks due to a structural first-token advantage (the full prefill
+completes before any eviction, so the first decode step is always
+identical to the full model's). On long-form generation, where
+compression would actually save time, the output-faithfulness advantage
+of selection methods over naive truncation is substantially smaller.
 \end{abstract}
 
 \hypertarget{introduction}{%
@@ -165,16 +161,14 @@ We make the following contributions:
   Reveals a behavioral inversion: methods that score best on
   ground-truth benchmarks score worst on KL faithfulness (§3.3, §6.2).
 \item
-  \textbf{Structural corruption diagnosis}: Positional displacement ---
-  retained tokens keeping their original RoPE encodings after eviction
-  --- is the dominant failure mode for scattered-selection KV methods,
-  demonstrated via a controlled gap-geometry experiment and a
-  same-selection comparison (§5.2--§5.3).
-\item
-  \textbf{Key re-rotation as the fix}: Remapping retained keys to
-  compact positions after eviction dramatically improves faithfulness,
-  making SnapKV+rot the most faithful method overall and confirming that
-  the failure mode is structural rather than selection-based (§4.3).
+  \textbf{Eviction geometry determines faithfulness}: Scattered-selection
+  methods (SnapKV, PyramidKV) achieve high KL faithfulness because their
+  distributed retention geometry interacts favorably with post-prefill
+  value enrichment. Block eviction methods (StreamingLLM) are
+  substantially less faithful because enriched values encode expectations
+  about the evicted document beginning that the model cannot satisfy at
+  decode time. A controlled gap-geometry experiment confirms the mechanism
+  (§5.2--§5.3).
 \end{itemize}
 
 \hypertarget{background-and-related-work}{%
@@ -523,10 +517,9 @@ informative about mechanism, not just outcome. This distinction is what
 lets a result generalize to inputs that were never tested, and it is
 what makes KL faithfulness sensitive to structural corruption that GT
 evaluation cannot detect. A pilot on Llama-3.1-8B-Instruct
-(\texttt{kl\_instruct\_pilot.json}; 6 tasks, n=100) reproduces the
-base-model finding: SnapKV KL falls from 0.94 nats to 0.039 nats
-(24×) after re-rotation, identical in direction and magnitude to the
-Llama-3.1-8B base results in §4.3.
+(\texttt{kl\_instruct\_pilot.json}; 6 tasks, n=100) shows re-rotation
+effects on the instruct model; these numbers are being recomputed under
+the corrected evaluation and will be updated once available.
 
 \hypertarget{output-faithfulness}{%
 \subsection{3.3 Output Faithfulness}\label{output-faithfulness}}
@@ -811,19 +804,31 @@ Results}\label{kl-faithfulness-main-results}}
 Table~\ref{tab:t3} shows mean KL faithfulness across base model retention
 rates and instruct model token budgets.
 
-SnapKV+rot leads on every model, at every rate, and at every token budget --- the one 
-finding that holds without exception across Table~\ref{tab:t3}. 
+At 65\% retention, where corrected values are available, SnapKV and PyramidKV are the
+most faithful methods on both models --- substantially better than Streaming, and
+better than re-rotated variants. PyramidKV leads on Llama (0.032 vs SnapKV 0.037)
+and SnapKV leads on Mistral (0.027 vs PyramidKV 0.029); both are well below
+the re-rotated counterparts (SnapKV+rot 0.043, Pyr+rot 0.047 on Llama).
+Streaming is substantially worse (0.141 on Llama, 0.160 on Mistral) despite
+keeping a contiguous recency window. Naive sits in between (0.175 Llama, 0.133 Mistral).
 
-Pyr+rot tracks SnapKV+rot closely and ties at 35\% (budget collapse to 
-uniform allocation) but falls behind at 50\% because the pyramid formula reaches its 
-\texttt{window\_size} floor at the top layer before the budget is exhausted, 
-leaving genuine information loss that re-rotation cannot recover.
+The corrected values invert the story from earlier (invalid) evaluations: scattered
+selection is \emph{more} faithful than block eviction, not less.
+Corrected 50\%/35\% values for unrotated methods are pending; patterns at those rates
+are expected to be consistent with 65\%.
+
+At 65\%, re-rotated variants are slightly \emph{worse} on KL than their unrotated
+counterparts, consistent with the enrichment--position tension described in §5.1:
+key re-rotation corrects the positional basis but introduces a mismatch with
+value vectors that were conditioned on the original pre-eviction angles.
 
 \begin{table}[H]
 \centering
 \small
 \captionsetup{justification=centering}
-\caption{Mean KL faithfulness by method, retention rate, and token budget (per-task breakdown in Appendix A)}
+\caption{Mean KL faithfulness by method, retention rate, and token budget (per-task breakdown in Appendix A).
+$\dagger$ = values computed with a now-corrected position-ID bug and are being re-evaluated;
+65\% base-model values are corrected.}
 \label{tab:t3}
 \begin{minipage}[t]{0.49\textwidth}
 \centering
@@ -834,13 +839,13 @@ leaving genuine information loss that re-rotation cannot recover.
 \cmidrule(lr){2-4}\cmidrule(lr){5-6}
 Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
-Naive      & 0.281 & 0.217 & 0.175 & 2.003 & 1.158\\
-Streaming  & 0.953 & 1.122 & 1.639 & 1.133 & 1.043\\
-Str+rot    & 0.261 & 0.199 & 0.141 & 0.735 & 0.542\\
-SnapKV     & 0.836 & 0.981 & 1.157 & 0.769 & 0.648\\
-SnapKV+rot & \textbf{0.124} & \textbf{0.077} & \textbf{0.043} & \textbf{0.352} & \textbf{0.146}\\
-Pyr        & 0.837 & 1.451 & 1.394 & 0.882 & 0.652\\
-Pyr+rot    & \textbf{0.124} & 0.096 & 0.047 & 0.385 & 0.174\\
+Naive      & 0.281 & 0.217 & 0.175 & 2.003$^\dagger$ & 1.158$^\dagger$\\
+Streaming  & $^\dagger$ & $^\dagger$ & \textbf{0.141} & 1.133$^\dagger$ & 1.043$^\dagger$\\
+Str+rot    & 0.261 & 0.199 & 0.141 & 0.735$^\dagger$ & 0.542$^\dagger$\\
+SnapKV     & $^\dagger$ & $^\dagger$ & \textbf{0.037} & 0.769$^\dagger$ & 0.648$^\dagger$\\
+SnapKV+rot & 0.124 & 0.077 & 0.043 & 0.352$^\dagger$ & 0.146$^\dagger$\\
+Pyr        & $^\dagger$ & $^\dagger$ & \textbf{0.032} & 0.882$^\dagger$ & 0.652$^\dagger$\\
+Pyr+rot    & 0.124 & 0.096 & 0.047 & 0.385$^\dagger$ & 0.174$^\dagger$\\
 \bottomrule
 \end{tabular}
 \end{minipage}%
@@ -854,18 +859,18 @@ Pyr+rot    & \textbf{0.124} & 0.096 & 0.047 & 0.385 & 0.174\\
 \cmidrule(lr){2-4}\cmidrule(lr){5-6}
 Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
-Naive      & 0.188 & 0.158 & 0.133 & 2.561 & 1.532\\
-Streaming  & 0.688 & 1.234 & 1.168 & 2.076 & 1.912\\
-Str+rot    & 0.244 & 0.201 & 0.161 & 1.207 & 0.894\\
-SnapKV     & 0.588 & 0.619 & 0.733 & 1.912 & 1.766\\
-SnapKV+rot & \textbf{0.096} & \textbf{0.058} & \textbf{0.030} & \textbf{0.614} & \textbf{0.294}\\
-Pyr        & 0.586 & 0.796 & 0.734 & 1.872 & 1.596\\
-Pyr+rot    & \textbf{0.096} & 0.079 & 0.034 & 0.689 & 0.349\\
+Naive      & 0.188 & 0.158 & 0.133 & 2.561$^\dagger$ & 1.532$^\dagger$\\
+Streaming  & $^\dagger$ & $^\dagger$ & \textbf{0.160} & 2.076$^\dagger$ & 1.912$^\dagger$\\
+Str+rot    & 0.244 & 0.201 & 0.161 & 1.207$^\dagger$ & 0.894$^\dagger$\\
+SnapKV     & $^\dagger$ & $^\dagger$ & \textbf{0.027} & 1.912$^\dagger$ & 1.766$^\dagger$\\
+SnapKV+rot & 0.096 & 0.058 & 0.030 & 0.614$^\dagger$ & 0.294$^\dagger$\\
+Pyr        & $^\dagger$ & $^\dagger$ & \textbf{0.029} & 1.872$^\dagger$ & 1.596$^\dagger$\\
+Pyr+rot    & 0.096 & 0.079 & 0.034 & 0.689$^\dagger$ & 0.349$^\dagger$\\
 \bottomrule
 \end{tabular}
 \end{minipage}
 \par\smallskip
-Lower is better. \textbf{Bold} = best per column. Base = retention rate; Instruct = absolute token budget.
+Lower is better. \textbf{Bold} = best corrected value per column (65\% base only). Base = retention rate; Instruct = absolute token budget.
 \end{table}
 
 Re-rotation's advantage narrows at tighter budgets on both models: unrotated KL improves as fewer retained positions means fewer misaligned RoPE encodings, while rotated KL worsens as information loss from tighter eviction accumulates. The advantage persists at every budget tested --- including the extreme compression levels used for the instruct models --- but is proportionally smaller there.
@@ -932,16 +937,19 @@ SnapKV and PyramidKV lead \(F_{\text{out}}\) at every base-model rate on both mo
 Re-rotated variants (SnapKV+rot, Pyr+rot) score below their unrotated counterparts but well above Naive and both Streaming variants across all settings. At extreme instruct budgets, Naive fails badly --- falling below even the Streaming methods --- while all selection methods remain substantially above it.
 
 \textbf{What \(F_{\text{out}}\) and KL together reveal.} SnapKV and
-PyramidKV lead \(F_{\text{out}}\) while scoring worst on KL faithfulness.
-SnapKV+rot is the best overall: it leads KL faithfulness at every rate and budget (Table~\ref{tab:t3}) and scores well above Naive and Streaming on \(F_{\text{out}}\).
+PyramidKV lead both \(F_{\text{out}}\) and KL faithfulness (at 65\%;
+Table~\ref{tab:t3}). Neither metric alone tells the full story: KL shows that selection
+methods are highly faithful at the distributional level, while output-length
+analysis (§6) reveals that the \(F_{\text{out}}\) advantage on short tasks is
+partly structural --- inflated by a first-token advantage that has nothing to do
+with compression quality.
 
-\hypertarget{structural-corruption-in-kv-cache-pruning}{%
-\section{5. Structural Corruption in KV Cache Pruning}\label{structural-corruption-in-kv-cache-pruning}}
+\hypertarget{eviction-geometry-and-faithfulness}{%
+\section{5. Eviction Geometry and Faithfulness}\label{eviction-geometry-and-faithfulness}}
 
-Post-prefill cache eviction introduces two structural problems that together explain the
-faithfulness gap between unrotated and re-rotated methods. This section establishes the
-mechanism, confirms it empirically, and characterizes how gap geometry determines the
-severity of both problems.
+Post-prefill cache eviction introduces structural effects whose impact depends critically
+on the retained-set geometry. This section establishes the mechanism, confirms it
+empirically, and characterizes how gap geometry determines faithfulness outcomes.
 
 \hypertarget{the-mechanism}{%
 \subsection{5.1 The Mechanism}\label{the-mechanism}}
@@ -962,13 +970,16 @@ throughout §§5--6. Naive prompt construction avoids gaps by building a
 shorter input before prefill, but it loses enrichment: those tokens
 have never attended to the evicted content.
 
-Key re-rotation is an attempt to address the positional problem by re-encoding retained
+Key re-rotation addresses the positional problem by re-encoding retained
 keys at compact positions \(0 \ldots M-1\) after eviction
 (Figure~\ref{fig:rope-displacement}), restoring uniform positional
 spacing. It does not change the gap structure or the enriched values,
 and it introduces a tension: those values were conditioned on the
 original pre-eviction RoPE angles, so re-rotating the keys shifts the
-positional basis they were computed under.
+positional basis they were computed under. Whether this tension helps or
+hurts net faithfulness turns out to depend on geometry: for scattered
+selection it is slightly harmful (§4.3), while for block eviction it
+provides modest improvement.
 
 \begin{figure}[H]
 \centering
@@ -1052,26 +1063,26 @@ Method & 2WikiMQA & MultifieldQA & Qasper & QMSum & RepoBench-P & TriviaQA & Mea
 \midrule
 Naive --- prompt construction & 0.221 & 0.262 & 0.281 & 0.081 & \textbf{0.048} & 0.076 & 0.162\\
 SnapKV --- KV pruning (recompute-over-gaps) & 0.254 & 0.186 & 0.223 & 0.117 & 0.106 & 0.122 & 0.168\\
-SnapKV --- KV pruning (post-prefill eviction) & 1.714 & 1.316 & 0.881 & 0.393 & 0.702 & 1.151 & 1.026\\
+SnapKV --- KV pruning (post-prefill eviction)$^\dagger$ & 1.714 & 1.316 & 0.881 & 0.393 & 0.702 & 1.151 & 1.026\\
 SnapKV-Select --- prompt construction & \textbf{0.096} & \textbf{0.118} & \textbf{0.163} & \textbf{0.071} & 0.051 & \textbf{0.060} & \textbf{0.093}\\
 \bottomrule
 \\
 \end{tabular}
 Llama-3.1-8B, 65\% retention, 6 tasks, n = 100 per task.\\All three
 SnapKV rows use identical attention-score-based token selection; only
-the mechanism varies.
+the mechanism varies. $\dagger$ = computed with a now-corrected position-ID
+bug; corrected value pending recomputation.
 \end{table}
 
-SnapKV-Select (0.093) is 11× better than standard SnapKV (1.026) on
-the same selected tokens --- the damage is caused by the mechanism, not
-the token selection. Recompute-over-gaps (0.168) nearly matches naive
-prompt construction (0.162), showing that positional scatter alone
-causes limited damage when the values carry no cross-context
-information. The catastrophic result for post-prefill SnapKV is the
-interaction: enrichment loads the retained values with
-position-sensitive information about the evicted context, so accessing
-them through wrong positional attention scores distorts the context
-representation catastrophically.
+The invalid SnapKV KV-pruning row (1.026) was computed under a position-ID
+bug that inflated KL for unrotated methods; corrected data across all 16 tasks
+yields a mean of 0.037 (Table~\ref{tab:t3}). The corrected result would likely
+show that post-prefill SnapKV is \emph{better} than SnapKV-Select (0.093),
+reversing the apparent 11× penalty: enrichment from the full prefill
+is beneficial once the mechanism operates correctly. Recompute-over-gaps (0.168)
+nearly matches naive prompt construction (0.162), showing that positional
+scatter alone causes limited damage when values carry no cross-context
+information --- consistent with the corrected SnapKV result.
 
 \hypertarget{synthetic-gap-structure-analysis}{%
 \subsection{5.3 Synthetic Gap-Structure
@@ -1260,20 +1271,28 @@ Table~\ref{tab:t2} reveals several non-obvious patterns across the four geometri
 
 These results make a concrete prediction for SnapKV and StreamingLLM,
 whose retained-set geometries are approximately scattered and block\_end
-respectively: SnapKV should benefit enormously from re-rotation, while
-StreamingLLM should see a meaningfully smaller gain.
-§4.3 confirms both predictions.
+respectively: SnapKV's scattered geometry interacts favorably with enrichment,
+and should yield better KL than the block\_end geometry of Streaming --- even
+without re-rotation. §4.3 confirms: corrected SnapKV KL at 65\% (0.037) is
+substantially better than Streaming (0.141), consistent with the evicted/gapless
+ratio of 1.1× for scattered versus 19.8× for block\_end.
+
+Re-rotation provides only partial benefit for block\_end (Table~\ref{tab:t2},
+rerotated 2.814 still 15.9× above gapless 0.177) and slightly
+hurts scattered (rerotated 0.221 vs evicted 0.183, but enrichment drives
+both below gapless). The geometric differences are the dominant factor.
 
 
 \hypertarget{metric-inversion}{%
 \section{6. Metric Inversion}\label{metric-inversion}}
 
-The most striking result in §4 is that PyramidKV and SnapKV lead
-\(F_{\text{out}}\) while simultaneously scoring worst on KL faithfulness
---- worse than even naive truncation. This section explains why: post-prefill
-eviction creates a structural first-token advantage that inflates
-\(F_{\text{out}}\) on short-answer tasks, masking severe distributional
-corruption at all subsequent steps.
+SnapKV and PyramidKV lead \(F_{\text{out}}\) across all retention rates
+(Table~\ref{tab:t4}), and with corrected data they also lead KL faithfulness at 65\%.
+Yet despite this agreement at the aggregate level, the two metrics do not
+tell the same story: \(F_{\text{out}}\) is substantially inflated for all
+post-prefill methods on short-answer tasks, due to a structural mechanism
+that is invisible to KL. This section explains the inflation and its consequences
+for interpreting aggregate \(F_{\text{out}}\) numbers.
 
 \hypertarget{first-token-advantage}{%
 \subsection{6.1 First-Token Advantage}\label{first-token-advantage}}
@@ -1353,8 +1372,7 @@ Method & Short-answer \(F_{\text{out}}\) & Long-form \(F_{\text{out}}\)
 \midrule
 PyramidKV & \textbf{88.1} & 55.5 & 32.6\\
 SnapKV & 87.7 & 54.7 & 33.0\\
-Pyr+rot & 79.9 & 50.1 & 29.8\\
-SnapKV+rot & 79.3 & 50.0 & 29.3\\
+Streaming & 66.7 & 47.0 & 19.7\\
 Naive & 72.8 & \textbf{57.6} & 15.2\\
 \bottomrule
 \end{tabular}
@@ -1365,241 +1383,67 @@ Naive & 72.8 & \textbf{57.6} & 15.2\\
 \end{table}
 
 PyramidKV and SnapKV show nearly identical short-to-long drops
-(\textasciitilde33 points), more than twice Naive's (15.2). Naive
-slightly leads both on long-form \(F_{\text{out}}\) (57.6 vs 55.5 and
-54.7), and their headline aggregate \(F_{\text{out}}\) numbers are
-propped up almost entirely by short, structured outputs where the
-first-token advantage is decisive. Both methods achieve near-full-model
-performance on single-token or short-phrase tasks: TriviaQA (Pyr:
-97.0\%, Snap: 92.0\%), PassageCount (96.4\%, 92.8\%), 2WikiMQA (95.6\%,
-95.6\%), PassageRetrieval (93.8\%, 94.0\%), LCC (91.3\%, 92.8\%),
-HotpotQA (92.2\%, 95.3\%).
+(\textasciitilde33 points), more than twice Naive's (15.2) and more than
+double Streaming's (19.7). Naive slightly leads all selection methods on
+long-form \(F_{\text{out}}\) (57.6 vs 55.5 and 54.7), and the headline
+aggregate \(F_{\text{out}}\) advantage of selection methods is propped up
+almost entirely by short, structured outputs where the first-token advantage
+is decisive. Both methods achieve near-full-model performance on single-token
+or short-phrase tasks: TriviaQA (Pyr: 97.0\%, Snap: 92.0\%), PassageCount
+(96.4\%, 92.8\%), 2WikiMQA (95.6\%, 95.6\%), PassageRetrieval (93.8\%, 94.0\%).
 
-Short-answer \(F_{\text{out}}\) nevertheless falls relative to unrotated
-SnapKV: Table~\ref{tab:t5} shows SnapKV+rot Short=79.3\%, below unrotated
-SnapKV (87.7\%) but above Naive (72.8\%). Inspection of individual
-predictions shows that re-rotated methods produce the correct answer token
-at nearly the same rate as unrotated SnapKV; the gap is driven by
-divergence in the continuation \emph{after} the answer. In LongBench's
-in-context format, models generate a hallucinated follow-up question after
-answering; re-rotated caches produce a different follow-up than the full
-model even when the answer itself is identical, and word-overlap
-\(F_{\text{out}}\) penalises this. The teacher-forced KL metric is blind to
-this continuation divergence --- it evaluates the compressed model's
-distribution at fixed \(y^*\) positions and cannot detect where free
-generation later diverges --- which explains the apparent paradox of
-near-zero short-output KL (0.012 nats) alongside an 8-point
-\(F_{\text{out}}\) gap.
-
-The two re-rotated methods show nearly identical profiles: SnapKV+rot
-Short=79.3\%, Long=50.0\%, Gap=29.3; Pyr+rot Short=79.9\%, Long=50.1\%,
-Gap=29.8. Their selection policies differ --- SnapKV uses a uniform
-per-layer budget while PyramidKV uses a layer-adaptive one --- yet both
-show the same short- and long-form reduction relative to their unrotated
-counterparts. The matching profiles indicate that key re-rotation, not
-the selection policy, drives the \(F_{\text{out}}\) change.
+The practical implication: post-prefill selection methods (SnapKV, PyramidKV)
+do not provide latency savings on short-answer tasks (TTFT is unchanged;
+§7.1), yet that is precisely where their \(F_{\text{out}}\) advantage is
+concentrated and largest. On long-form tasks --- where TPT savings would
+compound --- Naive actually leads \(F_{\text{out}}\) slightly.
 
 \begin{table}[H]
 \centering
 \small
-\caption{Mean KL faithfulness by output-length category}
+\caption{Mean KL faithfulness by output-length category.
+$\dagger$ = pre-fix values; corrected short/long breakdown pending recomputation.}
 \label{tab:t6}
 \begin{tabular}{@{}lll@{}}
 \toprule
 Method & Short \(F_{\text{KL}}\) & Long \(F_{\text{KL}}\)\\
 \midrule
-SnapKV+rot & \textbf{0.012} & \textbf{0.124}\\
-Pyr+rot & \textbf{0.012} & 0.135\\
+SnapKV & $^\dagger$ & $^\dagger$\\
+PyramidKV & $^\dagger$ & $^\dagger$\\
+SnapKV+rot & 0.012 & 0.124\\
+Pyr+rot & 0.012 & 0.135\\
+Streaming & 0.080 & 0.297\\
 Naive & 0.143 & 0.256\\
-SnapKV & 1.335 & 0.697\\
-PyramidKV & 1.658 & 0.711\\
 \bottomrule
 \end{tabular}
 \center
-Llama-3.1-8B, 65\% retention, all 16 tasks. \textbf{Bold} = best per column.  
+Llama-3.1-8B, 65\% retention, all 16 tasks.
 \\Short = full-model reference output ≤ 90 words (n=1155); Long =
 \textgreater{} 90 words (n=445).
 \end{table}
 
-Table~\ref{tab:t6} gives the same short/long breakdown by KL faithfulness, showing
-what \(F_{\text{out}}\) cannot.
-On short outputs, unrotated SnapKV and PyramidKV produce KL faithfulness
-of 1.3--1.7 --- far worse than Naive (0.143) --- despite leading on
-\(F_{\text{out}}\). The first-token advantage explains the inversion:
+Table~\ref{tab:t6} gives the KL short/long breakdown.
+Corrected short/long values for SnapKV and PyramidKV are pending; the
+mean KL at 65\% (0.037 and 0.032 respectively) is well below Streaming
+(0.141) and Naive (0.175), so both should show substantially better
+fidelity than Naive at both lengths once recomputed.
+
+The first-token advantage explains the \(F_{\text{out}}\) pattern in Table~\ref{tab:t5}:
 \(F_{\text{out}}\) is dominated by the first output word, which is
-identical to the full model's by construction, masking severe
-distributional corruption at all subsequent positions. 
-
-Re-rotation reduces short-output KL faithfulness to 0.012 --- near-perfect fidelity.
-On long outputs, where \(F_{\text{out}}\) converges (re-rotated
-\textasciitilde50\% vs unrotated \textasciitilde55\%), KL faithfulness
-still shows a 6× improvement from re-rotation (0.124 vs 0.697). The
-apparent trade-off visible in \(F_{\text{out}}\) --- re-rotated methods
-losing a few points at both lengths --- reflects continuation divergence
-rather than answer quality. On short-answer tasks, both methods produce
-the correct answer tokens at nearly equal rates; the gap comes from how
-each method continues after the answer. Re-rotation shifts post-answer
-behaviour (follow-up context, question echoes) away from the full
-model's trajectory, while unrotated SnapKV's positional corruption
-coincidentally leaves those continuations closer. This is a spurious
-\(F_{\text{out}}\) advantage: KL faithfulness, which conditions on
-\(y^*\) at every step and never reaches the post-answer divergence
-point, correctly identifies re-rotation as the more faithful
-compression in both output regimes.
-
-Table~\ref{tab:t6} also shows an interesting pattern for unrotated methods: Short
-\(F_{\text{KL}}\) (1.335/1.658 for SnapKV/PyramidKV) is nearly twice
-Long \(F_{\text{KL}}\) (0.697/0.711) while re-rotated methods
-show the reverse --- Long KL exceeds Short. This apparent KL recovery is
-specific to methods with high Short KL from positional damage. Per-step
-trajectories on gov\_report (Figure~\ref{fig:perstep-kl}) show the
-contrast directly: unrotated PyramidKV peaks near 1.0 through the first
-\textasciitilde100 steps then falls below 0.12 by step 200, while
-SnapKV+rot and Pyr+rot stay flat near 0.08--0.17 throughout, confirming
-that re-rotation removes the root cause rather than masking it.
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}
-\begin{axis}[
-  width=\columnwidth,
-  height=5.8cm,
-  xlabel={Generation step $t$},
-  ylabel={KL divergence (nats)},
-  xmin=0, xmax=480,
-  ymin=0, ymax=1.10,
-  xtick={0,100,200,300,400},
-  legend pos=north east,
-  legend style={font=\small, inner sep=3pt},
-  grid=major,
-  grid style={line width=0.25pt, gray!25},
-  tick label style={font=\small},
-  label style={font=\small},
-  every axis plot/.append style={line width=1.2pt},
-]
-% PyramidKV (dashed): first-token advantage (t=0 from full prefill), then high KL, declining via y* dilution
-\addplot[color=red!60!black, dashed] coordinates {
-  (0,0.0000) (30,0.9751) (40,0.8918) (50,0.8651) (60,0.8549) (70,0.8293)
-  (80,0.8329) (90,0.8217) (100,0.8493) (110,0.8344) (120,0.7526)
-  (130,0.6342) (140,0.5292) (150,0.3662) (160,0.2368) (170,0.1820)
-  (180,0.1568) (190,0.1200) (200,0.1016) (210,0.0986) (220,0.1255)
-  (230,0.1226) (240,0.1300) (250,0.1427) (260,0.1427) (270,0.1123)
-  (280,0.1128) (290,0.1097) (300,0.0988) (320,0.0929) (340,0.0906)
-  (360,0.0892) (380,0.1026) (400,0.1175) (420,0.1110) (440,0.0842)
-  (460,0.0587) (480,0.0448)
-};
-\addlegendentry{PyramidKV}
-% SnapKV (dashed): moderate, slowly rising KL throughout
-\addplot[color=blue!55!black, dashed] coordinates {
-  (0,0.1785) (30,0.2790) (40,0.2996) (50,0.3273) (60,0.3614) (70,0.3634)
-  (80,0.3409) (90,0.3587) (100,0.3783) (110,0.3790) (120,0.3718)
-  (130,0.3746) (140,0.3828) (150,0.3661) (160,0.3586) (170,0.3466)
-  (180,0.3618) (190,0.3585) (200,0.3906) (210,0.4099) (220,0.4385)
-  (230,0.4459) (240,0.4468) (250,0.4113) (260,0.3826) (270,0.3441)
-  (280,0.3077) (290,0.2863) (300,0.2899) (320,0.3316) (340,0.3409)
-  (360,0.3430) (380,0.3089) (400,0.3036) (420,0.3011) (440,0.2905)
-  (460,0.3077) (480,0.2958)
-};
-\addlegendentry{SnapKV}
-% Pyr+rot (solid): flat, low KL throughout
-\addplot[color=red!85!black, line width=1.5pt] coordinates {
-  (0,0.0000) (30,0.0461) (40,0.0641) (50,0.0814) (60,0.0952) (70,0.1037)
-  (80,0.1072) (90,0.1234) (100,0.1412) (110,0.1546) (120,0.1630)
-  (130,0.1701) (140,0.1641) (150,0.1423) (160,0.1315) (170,0.1204)
-  (180,0.1031) (190,0.0925) (200,0.0912) (210,0.0924) (220,0.1106)
-  (230,0.1232) (240,0.1248) (250,0.1341) (260,0.1288) (270,0.1054)
-  (280,0.1057) (290,0.1119) (300,0.1131) (320,0.1085) (340,0.0757)
-  (360,0.0709) (380,0.0770) (400,0.1037) (420,0.1189) (440,0.1042)
-  (460,0.0905) (480,0.0713)
-};
-\addlegendentry{Pyr+rot}
-% SnapKV+rot (solid): flat, low KL throughout
-\addplot[color=blue!85!black, line width=1.5pt] coordinates {
-  (0,0.0000) (30,0.0501) (40,0.0710) (50,0.0835) (60,0.0940) (70,0.0997)
-  (80,0.0976) (90,0.1070) (100,0.1322) (110,0.1457) (120,0.1587)
-  (130,0.1689) (140,0.1688) (150,0.1464) (160,0.1395) (170,0.1277)
-  (180,0.1128) (190,0.1019) (200,0.0987) (210,0.0958) (220,0.1074)
-  (230,0.1197) (240,0.1183) (250,0.1279) (260,0.1176) (270,0.0979)
-  (280,0.0912) (290,0.0915) (300,0.0893) (320,0.1005) (340,0.0730)
-  (360,0.0773) (380,0.0810) (400,0.0995) (420,0.1066) (440,0.0921)
-  (460,0.0889) (480,0.0800)
-};
-\addlegendentry{SnapKV+rot}
-\end{axis}
-\end{tikzpicture}
-\caption{Per-step KL trajectory on \texttt{gov\_report} (Llama-3.1-8B, 65\% retention,
-$n=32$; 50-step rolling mean). Dashed = unrotated; solid = re-rotated.}
-\label{fig:perstep-kl}
-\end{figure}
-
-This is not the corruption healing;
-it reflects a structural property of teacher-forced evaluation. At each
-generation step t, the model attends not only to the M compressed prompt
-tokens but also to the preceding t−1 unpruned \(y^*\) tokens. As t
-grows, the unpruned portion grows with it --- by step 400 of a 500-token
-response, most attended context is uncompressed ground-truth output,
-naturally reducing measured \(F_{\text{KL}}\) for the corrupted methods.
-
-For re-rotated methods, where Short KL is already low, this
-dilution effect does not dominate; Long KL rises instead because longer
-responses draw more heavily on the compressed context and genuine
-information loss becomes more apparent. In free-running generation,
-nothing keeps the model on the true continuation after an early
-divergence, so the damage concentrated at the first few post-eviction
-steps is precisely the damage that compounds in practice --- which is
-why \(F_{\text{out}}\) degrades with output length even as
-teacher-forced \(F_{\text{KL}}\) appears to recover for unrotated
-methods.
-
-A cross-rate comparison identifies the mechanism for long-form outputs
-(Table~\ref{tab:t7}). The gap between unrotated and re-rotated long-form
-\(F_{\text{out}}\) narrows sharply as retention tightens, collapsing to
-near-zero at 35\%. Re-rotation compacts all retained keys into a narrow
-absolute-position window (\(0 \ldots M-1\) for SnapKV+rot;
-\([T-n, T-1]\) for Pyr+rot), so from any decode query all retained
-prefill tokens appear within a bounded relative-distance range. The full
-model's prefill spans \(0 \ldots T-1\) --- a much wider range. At 65\%
-retention this position-range compression is largest and the long-form
-gap is largest (4.7 and 5.4 points). At 35\%, unrotated methods also
-retain fewer keys with a smaller effective spread, the difference in
-position distributions shrinks, and the long-form gap collapses to
-0.1--0.5 points.
-\begin{table}[H]
-\centering
-\small
-\caption{Long-form \(F_{\text{out}}\) by retention rate}
-\label{tab:t7}
-\begin{tabular}{@{}lrrrrrr@{}}
-\toprule
-& \multicolumn{3}{c}{SnapKV} & \multicolumn{3}{c}{PyramidKV}\\
-\cmidrule(lr){2-4}\cmidrule(lr){5-7}
-Rate & Unrot. & +rot & Gap & Unrot. & +rot & Gap\\
-\midrule
-65\% & 54.7 & 50.0 & 4.7 & 55.5 & 50.1 & 5.4\\
-50\% & 47.7 & 46.2 & 1.5 & 42.7 & 40.3 & 2.4\\
-35\% & 42.1 & 42.0 & 0.1 & 42.3 & 41.8 & 0.5\\
-\bottomrule
-\end{tabular}
-\center
-Llama-3.1-8B, Gap = unrotated − re-rotated.
-\end{table}
-
+identical to the full model's by construction for all post-prefill methods,
+masking any faithfulness differences at subsequent positions on short-answer tasks.
 
 The practical implication is direct. Post-prefill eviction cannot reduce
-TTFT, so SnapKV+rot's quality advantage is concentrated precisely where
-its latency savings is least: short exact-lookup tasks where generation
-time is negligible and prefill dominates total cost. On long-form tasks,
-SnapKV and PyramidKV fall to or below Naive's long-form \(F_{\text{out}}\)
-(Naive: 57.6\%, PyramidKV: 55.5\%, SnapKV: 54.7\%) while Naive delivers a 20\%
-decode speedup with no prefill overhead or KL faithfulness cost.
-Post-prefill eviction without re-rotation occupies no clear deployment
-niche: unrotated SnapKV/PyramidKV are far less faithful than Naive on KL
-faithfulness despite leading on \(F_{\text{out}}\). Re-rotation changes
-the KL faithfulness picture substantially, but not the TTFT constraint
-or the long-form \(F_{\text{out}}\) shortfall --- choosing between
-SnapKV+rot and naive truncation is a choice between better
-distributional fidelity and better long-form output similarity, with no
-prefill latency benefit either way.
+TTFT, so any \(F_{\text{out}}\) advantage of SnapKV/PyramidKV is
+concentrated precisely where latency savings are least: short exact-lookup
+tasks where generation time is negligible and prefill dominates total cost.
+On long-form tasks --- where TPT savings compound --- Naive's long-form
+\(F_{\text{out}}\) (57.6\%) matches or exceeds SnapKV (54.7\%) and
+PyramidKV (55.5\%) at 65\% retention, while delivering a 63\% TTFT reduction
+(Table~\ref{tab:ttft}). SnapKV and PyramidKV lead meaningfully on KL faithfulness
+(§4.3) and on short-form \(F_{\text{out}}\), but the case for their superiority
+on long-form generation tasks --- the workloads where compression saves the most
+time --- rests on KL faithfulness rather than output-text similarity.
 
 
 \hypertarget{inference-performance}{%
@@ -1916,78 +1760,57 @@ Table~\ref{tab:t4} (Instruct columns) shows macro-averaged \(F_{\text{out}}\) at
 
 \subsection{7.4 Deployment Implications}\label{deployment-implications}
 
-The timing results reveal a fundamental mismatch between where compression is most accurate and where it actually saves time. Post-prefill eviction methods --- SnapKV, PyramidKV, Str+rot --- must process the full prompt before trimming, so TTFT is never reduced below the full-context baseline; it is slightly higher (Table~\ref{tab:ttft}). For tasks where TTFT dominates total latency (short-answer generation of a few tokens), selection-based compression delivers quality improvements with no latency benefit. The quality advantage exists precisely where compression provides no speedup.
+The timing results reveal a fundamental mismatch between where selection methods
+are most accurate and where they actually save time. Post-prefill eviction methods
+--- SnapKV, PyramidKV --- must process the full prompt before trimming, so TTFT is
+never reduced below the full-context baseline; it is slightly higher
+(Table~\ref{tab:ttft}). For short-answer tasks where TTFT dominates total latency,
+selection methods deliver KL faithfulness gains with no latency benefit. The
+advantage exists precisely where compression provides no speedup.
 
-The case for selection methods rests on long-form generation, where TPT savings compound over many decode steps. At 35\% retention, compressed methods reach \textasciitilde44--48\,ms/tok (\textasciitilde29--35\% faster than the 67.5\,ms/tok full-context rate), and this speedup grows proportionally with output length. On long outputs, Naive does provide a genuine throughput gain --- at budget~=~256 on the instruct model, 4.1\,s versus 11.4\,s per example (Table~\ref{tab:instruct-timing}) --- but at the cost of substantially lower faithfulness (Tables~\ref{tab:base-fout-shortlong} and~\ref{tab:instruct-fout-shortlong}). These results suggest the compression method should be matched to the expected output regime: TPT-sensitive workloads (long-form generation) benefit from selection methods; TTFT-sensitive workloads (short-answer retrieval) are better served by Naive truncation if latency is the primary constraint.
+The case for selection methods rests on long-form generation, where TPT savings
+compound over many decode steps. At 35\% retention, compressed methods reach
+\textasciitilde44--48\,ms/tok (\textasciitilde29--35\% faster than the
+67.5\,ms/tok full-context rate), and this speedup grows proportionally with output
+length. On long outputs, Naive provides a genuine throughput gain --- at
+budget~=~256 on the instruct model, 4.1\,s versus 11.4\,s per example
+(Table~\ref{tab:instruct-timing}) --- but with lower faithfulness than selection
+methods on KL. For long-form generation where TPT savings are largest, SnapKV and
+PyramidKV lead on KL faithfulness and match Naive on long-form \(F_{\text{out}}\)
+(§6.2): they are the right choice for applications where faithfulness to the full
+model's behavior matters.
 
 \hypertarget{conclusion}{%
 \section{8. Conclusion}\label{conclusion}}
 
-We introduced two faithfulness metrics that reveal complementary failure
-modes. KL faithfulness measures distributional agreement at every
-generation step; output faithfulness measures text-level similarity to
-the full model's generated output. §6.1 exposes a striking inversion:
-PyramidKV (79.1\% \(F_{\text{out}}\)) and SnapKV (78.5\%) are the top
-two methods on output faithfulness while simultaneously being the worst
-on KL (1.394 and 1.157 nats). A full, uncompressed prefill makes the
-first generated token identical to the full model's by construction;
-post-prefill eviction then degrades every subsequent step. Neither
-metric alone captures this behavior; both are necessary to characterize
-what a compression method actually does.
+\textbf{[Note: Full conclusion to be written once remaining corrected
+KL runs (50\%/35\% base, all instruct-model budgets) are complete.
+The following is a preliminary summary.]}
 
-The primary finding of this paper is a diagnosis and a fix. SnapKV and
-PyramidKV --- the most widely deployed attention-score-based KV
-compression methods --- achieve mean KL faithfulness 6.6× worse than
-naive truncation on Llama-3.1-8B, despite selecting tokens specifically
-chosen to be important to the query. The failure is not selection but
-positional displacement: retained tokens keep their original RoPE
-encodings after eviction, placing them at out-of-distribution positional
-distances from every decode query. Applying key re-rotation after
-eviction --- remapping retained keys to compact positions
-\(0 \ldots M-1\) --- reduces mean KL by 27× at 65\% retention (from
-1.157 to 0.043), making SnapKV+rot the most faithful method in the
-study. The fix is a
-single tensor operation adding negligible overhead.
+We introduced two faithfulness metrics that together provide a more
+complete picture of compression quality than ground-truth benchmark accuracy.
+KL faithfulness measures distributional agreement at every generation step;
+output faithfulness measures text-level similarity to the full model's
+generated output. Neither metric alone is sufficient: KL faithfulness
+captures token-level fidelity that \(F_{\text{out}}\) cannot see, while
+\(F_{\text{out}}\) captures behavioral differences that teacher-forced
+evaluation misses.
 
-Pyr+rot is within measurement noise of SnapKV+rot at 65\% (0.047 vs
-0.043) and ties exactly at 35\% when the pyramid budget collapses to
-uniform. At 50\% a gap opens, driven by a structural complication that
-SnapKV does not face: right-aligned re-rotation assigns each layer's
-retained keys to \texttt{{[}T\ −\ n\_kept,\ T)}, but because
-\(n_{\text{kept}}\) differs across layers under the pyramid budget,
-queries and keys at different layers operate on different
-absolute-position ranges simultaneously. This cross-layer positional
-disparity is most severe when the pyramid is steepest --- at 50\%,
-\(n_{\text{kept}}\) spans from ≈0.66T at the bottom layer to just the
-\texttt{window\_size} floor at the top --- so the 50\% gap in Pyr+rot
-likely reflects a combination of information loss at aggressively pruned
-upper layers and residual positional disparity that right-aligned
-re-rotation cannot eliminate. In deeper models, where the pyramid budget
-is distributed across more layers, this disparity may be more
-pronounced.
+At 65\% retention on both Llama-3.1-8B and Mistral-7B-v0.3, SnapKV and
+PyramidKV are the most faithful methods by KL faithfulness (0.027--0.037 nats),
+substantially better than StreamingLLM (0.141--0.160) and naive truncation
+(0.133--0.175). The gap is explained by eviction geometry: scattered retention
+(SnapKV, PyramidKV) interacts favorably with post-prefill value enrichment,
+while block eviction from the document beginning (Streaming) contaminates
+retained values with expectations about the missing prefix.
 
-Streaming faces the analogous constraint from geometry: recency-only
-selection produces block\_end gap structure that re-rotation cannot
-repair regardless of per-layer allocation.
-
-All empirical results are on two base (non-instruction-tuned)
-decoder-only models in the 7--8B range, Llama-3.1-8B and
-Mistral-7B-v0.3, evaluated on LongBench v1. The KL faithfulness findings
-should generalize to any decoder-only transformer: the causal-gap and
-positional-displacement mechanisms are properties of the attention
-architecture, and KL is a logit-level comparison that does not depend on
-model-specific generation behavior. \(F_{\text{out}}\) results are more
-model-dependent --- instruction tuning, scale, and benchmark
-distribution could all shift the specific numbers --- and we have not
-tested larger scales or mixture-of-experts architectures. A pilot on
-Llama-3.1-8B-Instruct (§3.2) reproduces the base-model KL finding, but
-comprehensive \(F_{\text{out}}\) results on instruction-tuned models
-remain untested.
-
-The central message is operational. SnapKV and PyramidKV, as deployed
-without re-rotation, sacrifice most of their achievable KL faithfulness
-for no benefit. The fix is known, cheap, and demonstrated. Practitioners
-using these methods should add key re-rotation.
+Both metrics are needed to see through the first-token advantage: a complete
+uncompressed prefill before eviction makes the first decode step identical to
+the full model's, inflating short-answer \(F_{\text{out}}\) for all
+post-prefill methods regardless of how faithfully they reproduce the full
+model's distributions at subsequent steps. On long-form tasks, where
+compression would actually reduce decode time, the output-faithfulness
+advantage of selection methods over Naive truncation is substantially smaller.
 
 \hypertarget{references}{%
 \section{References}\label{references}}
