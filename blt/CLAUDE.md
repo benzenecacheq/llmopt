@@ -1332,14 +1332,18 @@ Resumed via `--resume ... --batch-size 2 --grad-accum-steps 2 --resume-batch-siz
 
 **Real cost of running this on a P100**: ~3.4 s/step (10 steps in 34s just after resume) vs. ~1.3 s/step this exact run got on the V100s — at that pace the remaining ~1.09M steps would take roughly 6-7 weeks if left here indefinitely. **Plan: migrate again once `io` or `bender` frees up**, same as every other machine-contention migration in this project — titan is a holding pattern, not the long-term home for this run.
 
+**Migrated to `bender` (2026-09-23)** once `bender` freed up from finishing the medium UV run. Same protocol as every prior migration: worker PID confirmed matching the expected command before `SIGTERM`, checkpoint verified genuine (step 509,500/1,500,000, all finite, `token_count` sum 2,084,886,276 across 50,144/50,257 tokens), copied directly to bender (local, no relay needed this time), md5sum-verified byte-identical (`c09478ee93bab34250b244ba31c55e36`), resumed there (`Resumed at step 509500`, `effective_blend=1.0000` correct). No `--resume-batch-size` needed this time since batch size doesn't change (2/grad-accum-2 on both titan and bender, both 16GB cards) — `train.py` already falls back to `args.batch_size` when that flag is omitted.
+
+**Speedup confirmed real and large**: ~1.1 s/step on bender (10 steps in 11s) vs. titan's ~3.4 s/step — roughly 3x faster. Remaining ~990,500 steps should now take ~12-13 days instead of the 6-7 weeks titan's pace would have needed. `titan` is now free.
+
 ### Sine+cumulative second seed launched on `venus` (2026-09-19)
 
 To move the one-seed sine+cumulative result (LAMBADA acc 0.2818, see above) toward the standard 3-seed discipline, launched `run_gpt2_cumulative_sine_scratch_seed19.pt` on `venus` (idle) — identical protocol to seed42 (`--baseline --from-scratch --ema-loss-weighting --loss-weighting-mode cumulative --ema-blend 1.0 --ema-blend-schedule sine --dataset openwebtext --seed 19 --max-steps 500000`). Venus's repo was 4 commits behind (several byte-identical untracked-file collisions from this session's earlier BLiMP/ARC-Easy/lowimpact-sweep work, all confirmed via `md5sum` before pulling clean). Confirmed healthy: `effective_blend=0.0000` at step 0 and step 10 (correct — sine ramp starts at 0), loss declining normally (10.94 → 10.79).
 
-### Status snapshot (2026-09-23)
-- `bender`: **free** — the medium `num_uv_groups=8` run finished and was benchmarked (see "The real 3-week medium UV run" above). Natural next step: migrate titan's slow medium-cumulative run here.
-- `titan`: medium cumulative blend=1.0 run, migrated from `io` on 2026-09-19, still in progress. Slow (P100, ~3.4s/step) — a holding pattern until `io`/`bender` frees up.
-- `io`: free of the BLT checkpoint (safely migrated to titan, not deleted) but occupied by an unrelated `pprune/` job, no known ETA.
+### Status snapshot (2026-09-23, post-migration)
+- `bender`: medium cumulative blend=1.0 run, migrated from `titan`, step 509,500/1,500,000 (34.0%), ~1.1 s/step. Healthy.
+- `titan`: **free**.
+- `io`: free of the BLT checkpoint but occupied by an unrelated `pprune/` job, no known ETA.
 - `venus`: sine+cumulative seed19 (small model), in progress — second seed toward confirming the seed42 sine+cumulative result.
 
 ### Other future directions
