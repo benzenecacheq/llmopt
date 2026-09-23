@@ -940,6 +940,20 @@ This is the first of the two planned 3-week medium runs. The second (cumulative-
 
 **A real, consistent ~17-20% slowdown, not noise.** This is the exact crossover flagged as a risk before launching (see "Decided: start with G=4, not G=2" above): per-step QK-score compute scales roughly with `G × r` (groups × rank) for the UV variant, vs. a fixed `D` for standard MHA regardless of head count. At medium scale, `D=1024` and this run uses `G=8, r=256`, so `G × r = 2048` — already double `D`. The small-model `num_uv_groups=4` measurement that showed UV still slightly ahead of MHA (902ms/step vs 1052ms/step) was at `D=768`, where `4×256=1024` was still under `D`; medium's larger `D` combined with doubling `G` to 8 crosses well past that point. Training correctness is unaffected (loss curve healthy, no NaN) — this is a wall-clock/compute-cost fact only, but worth weighing against whatever NVLink/TP benefit motivated choosing `G=8` once this run's quality results are in, since the practical deployment case traded away UV's speed advantage to get there.
 
+**DONE (2026-09-23) — the medium-scale UV run essentially matches baseline quality despite the real compute cost above.** All 1,500,000 steps complete, final val_ppl 40.59. Checkpoint verified genuine before benchmarking (step 1,500,000, `val_ppl` matches the log exactly, all finite). No watcher had been armed (launched interactively) so it sat unbenchmarked for a few hours after finishing — caught and benchmarked by hand. Results (`lm_eval_gpt2_medium_uvgroups8_r256_scratch_seed42.json`, `eval_owt_gpt2_medium_uvgroups8_r256_scratch_seed42.stdout`): OWT held-out ppl **18.47** (loss 2.9159), LAMBADA acc **0.3105**, LAMBADA ppl 43.9, HellaSwag acc_norm **0.3042**, PIQA acc_norm 0.599, Winogrande acc 0.504.
+
+| Metric | Medium UV (`num_uv_groups=8`, r=256) | Medium baseline | Medium EMA sine-blend75 |
+|---|---|---|---|
+| OWT held-out ppl | 18.47 | **18.09** | 18.79 |
+| LAMBADA acc | 0.3105 | 0.311 | **0.373** |
+| HellaSwag acc_norm | **0.3042** | 0.297 | 0.302 |
+| PIQA acc_norm | 0.599 | **0.607** | 0.594 |
+| Winogrande acc | 0.504 | **0.522** | 0.515 |
+
+**LAMBADA acc lands essentially exactly on baseline (0.3105 vs 0.311, well inside noise) and HellaSwag acc_norm actually edges baseline out**, at a small OWT-ppl cost (+2.1% relative) — the medium-scale confirmation of what the small-model `num_uv_groups=4` result already showed (near-parity with standard MHA on downstream benchmarks despite collapsing 16 heads down to 8 shared rank-256 groups). This is a genuinely different profile from the medium EMA sine-blend75 run — that one buys a much larger LAMBADA gain (0.373) at a real cost elsewhere (BLiMP, syntax competence); this UV run instead nearly reproduces baseline's LAMBADA/OWT-ppl profile from a smaller, differently-structured attention mechanism. The practical caveat remains the one already documented: this architecture trains ~17-20% slower than standard MHA at this scale, so matching baseline quality here only pays off if the NVLink/TP sharding story that motivated choosing G=8 (rather than a smaller G) holds up in actual deployment.
+
+`bender` is now free.
+
 ### Second blend=1.0 seed launched on venus (2026-08-26)
 
 `venus` was idle — launched `run_gpt2_cumulative_scratch_seed19.pt` (cumulative mode, default blend=1.0, seed 19, otherwise identical to the original seed42 run) to get a confirming second seed for the pure-cumulative endpoint. Confirmed healthy at launch (correct config in the log header, step 0 building normally). No urgency here since blend=1.0 already has one complete result (OWT ppl 30.37, LAMBADA acc 0.268) — this just extends it to the standard multi-seed practice.
@@ -1322,11 +1336,11 @@ Resumed via `--resume ... --batch-size 2 --grad-accum-steps 2 --resume-batch-siz
 
 To move the one-seed sine+cumulative result (LAMBADA acc 0.2818, see above) toward the standard 3-seed discipline, launched `run_gpt2_cumulative_sine_scratch_seed19.pt` on `venus` (idle) — identical protocol to seed42 (`--baseline --from-scratch --ema-loss-weighting --loss-weighting-mode cumulative --ema-blend 1.0 --ema-blend-schedule sine --dataset openwebtext --seed 19 --max-steps 500000`). Venus's repo was 4 commits behind (several byte-identical untracked-file collisions from this session's earlier BLiMP/ARC-Easy/lowimpact-sweep work, all confirmed via `md5sum` before pulling clean). Confirmed healthy: `effective_blend=0.0000` at step 0 and step 10 (correct — sine ramp starts at 0), loss declining normally (10.94 → 10.79).
 
-### Status snapshot (2026-09-19)
-- `bender`: real medium `num_uv_groups=8` run, step 1,294,710/1,500,000 (86.3%). Long-running, healthy throughout.
-- `titan`: medium cumulative blend=1.0 run, migrated from `io`, step ~418,740/1,500,000 (27.9%). Slow (P100, ~3.4s/step) — a holding pattern until `io`/`bender` frees up.
-- `io`: free of the BLT checkpoint (safely migrated to titan, not deleted) but occupied by an unrelated `pprune/` job (`kl_faith_eval_ystar.py`), no known ETA.
-- `venus`: sine+cumulative seed19 (small model), step 14,280/500,000 (2.9%), confirmed healthy — second seed toward confirming the seed42 sine+cumulative result.
+### Status snapshot (2026-09-23)
+- `bender`: **free** — the medium `num_uv_groups=8` run finished and was benchmarked (see "The real 3-week medium UV run" above). Natural next step: migrate titan's slow medium-cumulative run here.
+- `titan`: medium cumulative blend=1.0 run, migrated from `io` on 2026-09-19, still in progress. Slow (P100, ~3.4s/step) — a holding pattern until `io`/`bender` frees up.
+- `io`: free of the BLT checkpoint (safely migrated to titan, not deleted) but occupied by an unrelated `pprune/` job, no known ETA.
+- `venus`: sine+cumulative seed19 (small model), in progress — second seed toward confirming the seed42 sine+cumulative result.
 
 ### Other future directions
 - **Grouped Wv**: share Wv across groups of heads (GQA-style) to reduce value cache bandwidth.
