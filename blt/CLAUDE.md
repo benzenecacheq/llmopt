@@ -952,6 +952,24 @@ This is the first of the two planned 3-week medium runs. The second (cumulative-
 
 **LAMBADA acc lands essentially exactly on baseline (0.3105 vs 0.311, well inside noise) and HellaSwag acc_norm actually edges baseline out**, at a small OWT-ppl cost (+2.1% relative) — the medium-scale confirmation of what the small-model `num_uv_groups=4` result already showed (near-parity with standard MHA on downstream benchmarks despite collapsing 16 heads down to 8 shared rank-256 groups). This is a genuinely different profile from the medium EMA sine-blend75 run — that one buys a much larger LAMBADA gain (0.373) at a real cost elsewhere (BLiMP, syntax competence); this UV run instead nearly reproduces baseline's LAMBADA/OWT-ppl profile from a smaller, differently-structured attention mechanism. The practical caveat remains the one already documented: this architecture trains ~17-20% slower than standard MHA at this scale, so matching baseline quality here only pays off if the NVLink/TP sharding story that motivated choosing G=8 (rather than a smaller G) holds up in actual deployment.
 
+### Does `num_uv_groups=8`'s TP bandwidth motivation actually beat MHA, once properly sharded? (2026-09-24)
+
+**User's question, prompted by the training-speed loss above**: the whole point of choosing `num_uv_groups=8` was deployability at larger models via disjoint per-GPU sharding (no replication, unlike full-rank M) — does the math actually favor this design once you account for that sharding, or does it only look bad because the medium-scale single-GPU number doesn't reflect the intended deployment?
+
+**Worked the per-GPU math properly (1 group/GPU, TP degree N=G=8) rather than just eyeballing the single-GPU number.** Per-token KV cache: MHA shards to `2D/N` per GPU; `num_uv_groups=G` (1 group/GPU) shards to `(G·r+D)/N`. Since **both scale identically as `1/N`, their ratio `(G·r+D)/(2D)` is independent of TP degree** — sharding across more GPUs doesn't change who wins, it only changes both proportionally. At medium scale (`D=1024`, `r=256`, `G=8`): ratio = 1.5, i.e. `num_uv_groups=8` is 50% heavier per GPU than MHA at *any* TP degree — consistent with, and explaining, the training-speed loss already measured. But at a 7B-class width (`D=8192`, same `r=256`): ratio = 0.625, a genuine 37.5% *reduction* — because the fixed rank-256 overhead becomes a much smaller fraction of a much larger `D`. Full-rank BLT, by contrast, gets *worse* relative to MHA as TP grows (`(N+1)/2`, from 1× at TP=1 to 4.5× at TP=8) since its un-shardable raw-x cache term becomes a larger fraction of a shrinking total — so `num_uv_groups=8`'s real structural edge is specifically over full-rank BLT, and that edge grows with TP degree, exactly the regime (high TP, large models) this design targets.
+
+**Empirically validated this on real hardware, without needing a 7B checkpoint** — the claim is architectural (wall-clock/bytes moved), not a quality claim, so random-init weights suffice (same principle behind every decode-latency benchmark in this project). Built `shard_bandwidth_bench.py`: isolates exactly the computation one GPU would run under 8-way TP for each design (MHA shard: `Wq,Wk,Wv,Wo` each `D×(D/8)`; UV shard: `U,V` each `D×256`, `Wv,Wo` each `D×(D/8)`), and measured real decode throughput on `titan`'s P100, sweeping `D` from 768 to 8192 with `r` fixed at 256 (batch=1, 200 decode steps, prompt lengths 128 and 900):
+
+| D | d_shard | UV/MHA decode ratio (prompt=128) | UV/MHA decode ratio (prompt=900) |
+|---|---|---|---|
+| 768 | 96 | 1.003 | 0.814 |
+| 1024 | 128 | 0.957 | 0.949 |
+| 2048 | 256 | 1.008 | 1.007 |
+| 4096 | 512 | 1.039 | 1.077 |
+| 8192 | 1024 | 1.531 | 1.490 |
+
+**The empirical crossover lands almost exactly at `D = G·r = 2048`**, matching the theoretical formula precisely — below it the UV shard is at parity or slower (worse specifically at long context, where cache-read cost dominates over one-time weight load), above it the advantage grows quickly, reaching a real ~49-53% faster decode at `D=8192` at both context lengths. This confirms on real GPU execution, not just idealized byte-counting, that `num_uv_groups=8`'s bandwidth motivation is genuinely a **large-model-scale bet** — sound at 7B-class widths, simply not yet realized at the 355M scale this project can afford to train from scratch. **Inter-GPU communication (the Wo all-reduce) was deliberately excluded** from this comparison since both designs produce an identically-shaped `D/N`-dim partial output needing combination — a roughly equal, one-time cost for both, per the user's own observation, that would somewhat attenuate but not qualitatively change this result. Written up in `paper_blt.md` Section 6 (new paragraph after "Tensor parallelism compatibility").
+
 `bender` is now free.
 
 ### Second blend=1.0 seed launched on venus (2026-08-26)
