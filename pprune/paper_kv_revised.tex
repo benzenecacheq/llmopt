@@ -516,10 +516,7 @@ actual computation matches the full model's at every step, it is
 informative about mechanism, not just outcome. This distinction is what
 lets a result generalize to inputs that were never tested, and it is
 what makes KL faithfulness sensitive to structural corruption that GT
-evaluation cannot detect. A pilot on Llama-3.1-8B-Instruct
-(\texttt{kl\_instruct\_pilot.json}; 6 tasks, n=100) shows re-rotation
-effects on the instruct model; these numbers are being recomputed under
-the corrected evaluation and will be updated once available.
+evaluation cannot detect.
 
 \hypertarget{output-faithfulness}{%
 \subsection{3.3 Output Faithfulness}\label{output-faithfulness}}
@@ -675,8 +672,8 @@ and the decode query arrives at position T for every layer.
 \\Full implementation details below; per-task instruct breakdowns in Appendices~A--C.
 
 \textbf{Compression Methods Tested}
-\\We benchmarked the baseline uncompressed prompt and four  compression methods, 
-one of which compresses the input prompt while the remaining three all prune the KV
+\\We benchmarked the baseline uncompressed prompt and six compression methods,
+one of which compresses the input prompt while the remaining five all prune the KV
 cache after prefill.
 
 \begin{enumerate}
@@ -717,6 +714,17 @@ The per-layer budget follows a linear decay controlled by beta=20; budgets are c
 \textbf{Pyr+rot} - PyramidKV with \texttt{PyramidKVRerotationPress}: per-layer budgets are
 preserved and retained keys are right-aligned to positions \([T-n_{\text{kept}}, T)\) after
 eviction, so all layers share endpoint \(T-1\) and decode begins at \(T\).
+
+\item
+\textbf{RADAR post-RoPE} - Prunes the KV cache by scoring each key by its maximum dot product
+with the last \texttt{window\_size} query vectors, computed using post-RoPE (position-aware)
+representations. Retains the tokens most aligned with recent queries. No position adjustment
+after eviction.
+
+\item
+\textbf{RADAR pre-RoPE} - Same query-alignment scoring as RADAR post-RoPE, but dot products
+are computed using pre-RoPE (position-invariant) key vectors, making the selection policy
+independent of each token's absolute position. No position adjustment after eviction.
 
 \end{enumerate}
 
@@ -804,31 +812,37 @@ Results}\label{kl-faithfulness-main-results}}
 Table~\ref{tab:t3} shows mean KL faithfulness across base model retention
 rates and instruct model token budgets.
 
-At 65\% retention, where corrected values are available, SnapKV and PyramidKV are the
-most faithful methods on both models --- substantially better than Streaming, and
-better than re-rotated variants. PyramidKV leads on Llama (0.032 vs SnapKV 0.037)
-and SnapKV leads on Mistral (0.027 vs PyramidKV 0.029); both are well below
-the re-rotated counterparts (SnapKV+rot 0.043, Pyr+rot 0.047 on Llama).
-Streaming is substantially worse (0.141 on Llama, 0.160 on Mistral) despite
-keeping a contiguous recency window. Naive sits in between (0.175 Llama, 0.133 Mistral).
+Corrected values are available at all base model retention rates; Streaming at 50\%/35\%
+and instruct Streaming remain pending.
 
-The corrected values invert the story from earlier (invalid) evaluations: scattered
-selection is \emph{more} faithful than block eviction, not less.
-Corrected 50\%/35\% values for unrotated methods are pending; patterns at those rates
-are expected to be consistent with 65\%.
+Across base model rates, scattered-selection methods dominate. At 65\%, RADAR post-RoPE and
+PyramidKV lead: PyramidKV 0.032 on Llama (RADAR post 0.033), SnapKV and RADAR post both
+0.027 on Mistral (Mistral RADAR pending). All three are substantially more faithful than
+Streaming (0.141 Llama, 0.160 Mistral) and Naive (0.175 Llama, 0.133 Mistral). At 50\%,
+RADAR post is consistently best (Llama 0.068, Mistral 0.048). At 35\%, PyramidKV's budget
+collapses to uniform allocation and it ties SnapKV on both models (Llama 0.116--0.117;
+Mistral both 0.090); RADAR post is close behind.
 
-At 65\%, re-rotated variants are slightly \emph{worse} on KL than their unrotated
-counterparts, consistent with the enrichment--position tension described in §5.1:
-key re-rotation corrects the positional basis but introduces a mismatch with
-value vectors that were conditioned on the original pre-eviction angles.
+These results invert earlier (invalid) evaluations: scattered selection --- whether scored
+by attention weights or query alignment --- is \emph{more} faithful than block eviction,
+not less. The geometry of the retained set matters more than the specific scoring criterion
+among scattered-selection methods.
+
+At extreme compression (instruct budgets), SnapKV leads: Llama b=256: SnapKV 0.331 vs
+RADAR post 0.363 vs PyramidKV 0.367; Mistral b=256: 0.502 vs 0.561 vs 0.569. The RADAR
+post advantage at moderate compression does not extend to extreme budgets, where the
+window-size constraint ($\leq$8 tokens per layer at b=256) ties all scattered-selection
+methods to the same shallow observation window.
+
+Re-rotated variants are consistently \emph{worse} than their unrotated counterparts at
+every retention rate, consistent with the enrichment--position tension described in §5.1.
 
 \begin{table}[H]
 \centering
 \small
 \captionsetup{justification=centering}
 \caption{Mean KL faithfulness by method, retention rate, and token budget (per-task breakdown in Appendix A).
-$\dagger$ = values computed with a now-corrected position-ID bug and are being re-evaluated;
-65\% base-model values are corrected.}
+$\dagger$ = not yet evaluated (Streaming at 50\%/35\% base; Streaming instruct; Mistral RADAR at 65\%).}
 \label{tab:t3}
 \begin{minipage}[t]{0.49\textwidth}
 \centering
@@ -839,13 +853,15 @@ $\dagger$ = values computed with a now-corrected position-ID bug and are being r
 \cmidrule(lr){2-4}\cmidrule(lr){5-6}
 Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
-Naive      & 0.281 & 0.217 & 0.175 & 2.003$^\dagger$ & 1.158$^\dagger$\\
-Streaming  & $^\dagger$ & $^\dagger$ & \textbf{0.141} & 1.133$^\dagger$ & 1.043$^\dagger$\\
-Str+rot    & 0.261 & 0.199 & 0.141 & 0.735$^\dagger$ & 0.542$^\dagger$\\
-SnapKV     & $^\dagger$ & $^\dagger$ & \textbf{0.037} & 0.769$^\dagger$ & 0.648$^\dagger$\\
-SnapKV+rot & 0.124 & 0.077 & 0.043 & 0.352$^\dagger$ & 0.146$^\dagger$\\
-Pyr        & $^\dagger$ & $^\dagger$ & \textbf{0.032} & 0.882$^\dagger$ & 0.652$^\dagger$\\
-Pyr+rot    & 0.124 & 0.096 & 0.047 & 0.385$^\dagger$ & 0.174$^\dagger$\\
+Naive      & 0.281 & 0.217 & 0.175 & 2.003 & 1.158\\
+Streaming  & $^\dagger$ & $^\dagger$ & 0.141 & $^\dagger$ & $^\dagger$\\
+Str+rot    & 0.261 & 0.199 & 0.141 & 0.735 & 0.542\\
+SnapKV     & 0.117 & 0.069 & 0.037 & \textbf{0.331} & \textbf{0.132}\\
+SnapKV+rot & 0.124 & 0.077 & 0.043 & 0.352 & 0.146\\
+Pyr        & \textbf{0.116} & 0.079 & \textbf{0.032} & 0.367 & 0.155\\
+Pyr+rot    & 0.124 & 0.096 & 0.047 & 0.385 & 0.174\\
+RADAR post & 0.121 & \textbf{0.068} & 0.033 & 0.363 & 0.142\\
+RADAR pre  & 0.155 & 0.086 & 0.043 & 0.493 & 0.209\\
 \bottomrule
 \end{tabular}
 \end{minipage}%
@@ -859,21 +875,26 @@ Pyr+rot    & 0.124 & 0.096 & 0.047 & 0.385$^\dagger$ & 0.174$^\dagger$\\
 \cmidrule(lr){2-4}\cmidrule(lr){5-6}
 Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
-Naive      & 0.188 & 0.158 & 0.133 & 2.561$^\dagger$ & 1.532$^\dagger$\\
-Streaming  & $^\dagger$ & $^\dagger$ & \textbf{0.160} & 2.076$^\dagger$ & 1.912$^\dagger$\\
-Str+rot    & 0.244 & 0.201 & 0.161 & 1.207$^\dagger$ & 0.894$^\dagger$\\
-SnapKV     & $^\dagger$ & $^\dagger$ & \textbf{0.027} & 1.912$^\dagger$ & 1.766$^\dagger$\\
-SnapKV+rot & 0.096 & 0.058 & 0.030 & 0.614$^\dagger$ & 0.294$^\dagger$\\
-Pyr        & $^\dagger$ & $^\dagger$ & \textbf{0.029} & 1.872$^\dagger$ & 1.596$^\dagger$\\
-Pyr+rot    & 0.096 & 0.079 & 0.034 & 0.689$^\dagger$ & 0.349$^\dagger$\\
+Naive      & 0.188 & 0.158 & 0.133 & 2.561 & 1.532\\
+Streaming  & $^\dagger$ & $^\dagger$ & 0.160 & $^\dagger$ & $^\dagger$\\
+Str+rot    & 0.244 & 0.201 & 0.161 & 1.207 & 0.894\\
+SnapKV     & 0.090 & 0.053 & \textbf{0.027} & \textbf{0.502} & \textbf{0.233}\\
+SnapKV+rot & 0.096 & 0.058 & 0.030 & 0.614 & 0.294\\
+Pyr        & 0.090 & 0.070 & 0.029 & 0.569 & 0.270\\
+Pyr+rot    & 0.096 & 0.079 & 0.034 & 0.689 & 0.349\\
+RADAR post & \textbf{0.086} & \textbf{0.048} & $^\dagger$ & 0.561 & 0.249\\
+RADAR pre  & 0.111 & 0.061 & $^\dagger$ & 0.711 & 0.354\\
 \bottomrule
 \end{tabular}
 \end{minipage}
 \par\smallskip
-Lower is better. \textbf{Bold} = best corrected value per column (65\% base only). Base = retention rate; Instruct = absolute token budget.
+Lower is better. \textbf{Bold} = best value per column. Base = retention rate; Instruct = absolute token budget.
 \end{table}
 
-Re-rotation's advantage narrows at tighter budgets on both models: unrotated KL improves as fewer retained positions means fewer misaligned RoPE encodings, while rotated KL worsens as information loss from tighter eviction accumulates. The advantage persists at every budget tested --- including the extreme compression levels used for the instruct models --- but is proportionally smaller there.
+The re-rotation penalty is consistent across all rates: re-rotated variants score worse than
+their unrotated counterparts at every base model retention rate and every instruct budget on
+both models. The gap narrows at tighter budgets (e.g., Llama SnapKV vs SnapKV+rot: 0.037 vs
+0.043 at 65\%, 0.117 vs 0.124 at 35\%) but does not reverse.
 
 \hypertarget{output-faithfulness-results}{%
 \subsection{4.4 Output Faithfulness

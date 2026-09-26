@@ -55,6 +55,7 @@ from kl_faith_eval import (
 )
 from kl_faith_eval_ystar import (
     PyramidKVRerotationPress,
+    _RadarPreRopePress, _RadarPostRopePress,
     generate_ystar, get_comp_log_probs, kl_divergence,
     load_ystar_cache, save_ystar_cache,
     get_from_cache, put_in_cache,
@@ -69,9 +70,9 @@ _INSTRUCT_METHOD_TYPES = frozenset({
     "snapkv", "snapkv_rot",
     "pyramidkv", "pyramidkv_rot",
     "streaming", "streaming_rot",
+    "radar_pre", "radar_post",
     "naive", "full",
 })
-
 
 def make_press(method: str, budget: int, T: int, window_size: int = 32):
     """Return a fresh press retaining exactly `budget` tokens from T.
@@ -95,6 +96,10 @@ def make_press(method: str, budget: int, T: int, window_size: int = 32):
         return _StreamingLLMPress(compression_ratio=cr, n_sink=4)
     elif method == "streaming_rot":
         return _KeyRerotationPress(press=_StreamingLLMPress(compression_ratio=cr, n_sink=4))
+    elif method == "radar_pre":
+        return _RadarPreRopePress(compression_ratio=cr, window_size=window_size)
+    elif method == "radar_post":
+        return _RadarPostRopePress(compression_ratio=cr, window_size=window_size)
     else:
         raise ValueError(f"Unknown method: {method}")
 
