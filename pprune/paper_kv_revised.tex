@@ -693,7 +693,7 @@ The per-layer budget follows a linear decay controlled by beta=20; budgets are c
 \texttt{[window\_size, sequence\_length]}. No position adjustment after eviction.
 
 \item
-\textbf{RADAR post-RoPE} - Prunes the KV cache by scoring each key by its maximum dot product
+\textbf{RADAR} - Prunes the KV cache by scoring each key by its maximum dot product
 with the last \texttt{window\_size} query vectors, computed using post-RoPE (position-aware)
 representations. Retains the tokens most aligned with recent queries. No position adjustment
 after eviction.
@@ -781,13 +781,13 @@ rates and instruct model token budgets.
 Corrected values are available at all base model retention rates; Streaming at 50\%/35\%
 and instruct Streaming remain pending.
 
-Across base model rates, scattered-selection methods dominate. At 65\%, RADAR post-RoPE and
-PyramidKV lead: PyramidKV 0.032 on Llama (RADAR post 0.033), RADAR post 0.024 on Mistral
+Across base model rates, scattered-selection methods dominate. At 65\%, RADAR and
+PyramidKV lead: PyramidKV 0.032 on Llama (RADAR 0.033), RADAR 0.024 on Mistral
 (SnapKV 0.027). All three are substantially more faithful than
 Streaming (0.141 Llama, 0.160 Mistral) and Naive (0.175 Llama, 0.133 Mistral). At 50\%,
-RADAR post is consistently best (Llama 0.068, Mistral 0.048). At 35\%, PyramidKV's budget
+RADAR is consistently best (Llama 0.068, Mistral 0.048). At 35\%, PyramidKV's budget
 collapses to uniform allocation and it ties SnapKV on both models (Llama 0.116--0.117;
-Mistral both 0.090); RADAR post is close behind.
+Mistral both 0.090); RADAR is close behind.
 
 These results invert earlier (invalid) evaluations: scattered selection --- whether scored
 by attention weights or query alignment --- is \emph{more} faithful than block eviction,
@@ -795,8 +795,8 @@ not less. The geometry of the retained set matters more than the specific scorin
 among scattered-selection methods.
 
 At extreme compression (instruct budgets), SnapKV leads: Llama b=256: SnapKV 0.331 vs
-RADAR post 0.363 vs PyramidKV 0.367; Mistral b=256: 0.502 vs 0.561 vs 0.569. The RADAR
-post advantage at moderate compression does not extend to extreme budgets, where the
+RADAR 0.363 vs PyramidKV 0.367; Mistral b=256: 0.502 vs 0.561 vs 0.569. The RADAR
+advantage at moderate compression does not extend to extreme budgets, where the
 window-size constraint ($\leq$8 tokens per layer at b=256) limits the effective observation
 to the same shallow window across all scattered-selection methods.
 
@@ -819,7 +819,7 @@ Naive      & 0.281 & 0.217 & 0.175 & 2.003 & 1.158\\
 Streaming  & 0.261 & 0.199 & 0.141 & 0.735 & 0.542\\
 SnapKV     & 0.117 & 0.069 & 0.037 & \textbf{0.331} & \textbf{0.132}\\
 Pyr        & \textbf{0.116} & 0.079 & \textbf{0.032} & 0.367 & 0.155\\
-RADAR post & 0.121 & \textbf{0.068} & 0.033 & 0.363 & 0.142\\
+RADAR      & 0.121 & \textbf{0.068} & 0.033 & 0.363 & 0.142\\
 \bottomrule
 \end{tabular}
 \end{minipage}%
@@ -837,7 +837,7 @@ Naive      & 0.188 & 0.158 & 0.133 & 2.561 & 1.532\\
 Streaming  & 0.244 & 0.201 & 0.161 & 1.207 & 0.894\\
 SnapKV     & 0.090 & 0.053 & 0.027 & \textbf{0.502} & \textbf{0.233}\\
 Pyr        & 0.090 & 0.070 & 0.029 & 0.569 & 0.270\\
-RADAR post & \textbf{0.086} & \textbf{0.048} & \textbf{0.024} & 0.561 & 0.249\\
+RADAR      & \textbf{0.086} & \textbf{0.048} & \textbf{0.024} & 0.561 & 0.249\\
 \bottomrule
 \end{tabular}
 \end{minipage}
@@ -1257,7 +1257,7 @@ recommends the combined configuration for Streaming, and the empirical
 evidence provides no reason to diverge, we adopt StreamingLLM +
 \texttt{KeyRerotationPress} as the Streaming configuration throughout.
 
-For scattered-selection methods (SnapKV, PyramidKV, RADAR post-RoPE),
+For scattered-selection methods (SnapKV, PyramidKV, RADAR),
 re-rotation consistently \emph{worsens} KL faithfulness at every retention
 rate and every instruct budget on both models. On Llama at 65\%:
 SnapKV 0.037 (no rotation) vs.\ SnapKV+rot 0.043; PyramidKV 0.032 vs.\
