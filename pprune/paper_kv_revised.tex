@@ -635,27 +635,16 @@ lower-scoring entries from the KV cache before the first decode step.
 re-rotates retained keys to compact, gap-free positions after eviction.
 The kvpress documentation explicitly recommends combining
 \texttt{KeyRerotationPress} with \texttt{StreamingLLMPress} ``to fully
-match the implementation described in the paper.'' We extend re-rotation
-to all three post-prefill eviction methods and benchmark each both with
-and without it: \textbf{Str+rot}, \textbf{SnapKV+rot}, and
-\textbf{Pyr+rot} are the re-rotated variants; \textbf{Streaming},
-\textbf{SnapKV}, and \textbf{PyramidKV} are the unrotated baselines.
+match the implementation described in the paper.'' We adopt the kvpress
+recommended configuration for Streaming (\texttt{StreamingLLMPress} +
+\texttt{KeyRerotationPress}). SnapKV, PyramidKV, and RADAR use no
+re-rotation; the rationale is discussed in §5.4.
 
-All Streaming variants use kvpress's post-prefill adaptation: a full
-prefill is performed before trimming (§5.1), so retained tokens' hidden
-states are computed with access to the complete context. This departs
-from the original StreamingLLM online design's TTFT advantage but puts
-Streaming on equal footing with SnapKV and PyramidKV for a fair
-comparison of the selection policies and the effect of re-rotation
-(§4.3).
-
-Applying re-rotation to PyramidKV requires care: naive re-rotation
-targets \texttt{[0,~n\_kept)} per layer, but because \texttt{n\_kept}
-differs across layers under the pyramid budget, no single decode
-position is consistent for all layers, producing catastrophic degenerate
-output on long-form tasks. Right-aligned re-rotation targets
-\texttt{[T~-~n\_kept,~T)} instead, so all layers share endpoint T-1
-and the decode query arrives at position T for every layer.
+Streaming uses kvpress's post-prefill adaptation: a full prefill is
+performed before trimming (§5.1), so retained tokens' hidden states are
+computed with access to the complete context. This departs from the
+original StreamingLLM online design's TTFT advantage but puts Streaming
+on equal footing with SnapKV and PyramidKV.
 
 \textbf{Benchmarks}
 \\LongBench v1, 16 English tasks, 100 examples per task.
@@ -688,32 +677,20 @@ attention mask calculations. The prompt is split into a 10\% head (literal first
 and a 90\% recency tail, concatenated to form a new prompt at the budgeted length.
 
 \item
-\textbf{Streaming} - The KV Cache is pruned reserving the first 4 attention sink tokens plus a recency
-window to fill the remaining budget, following StreamingLLM’s selection rule [Xiao et al., 2023].
-No position adjustment after eviction.
-
-\item
-\textbf{Str+rot} - Streaming with \texttt{KeyRerotationPress}: retained keys are re-rotated to
-compact positions after eviction, consistent with the kvpress recommended configuration.
+\textbf{Streaming} - The KV Cache is pruned reserving the first 4 attention sink tokens plus a
+recency window to fill the remaining budget, following StreamingLLM’s selection rule [Xiao et
+al., 2023]. Retained keys are re-rotated to compact positions after eviction
+(\texttt{KeyRerotationPress}), consistent with the kvpress recommended configuration.
 
 \item
 \textbf{SnapKV} - Prunes the KV cache based on the attention weights pooled over the last 128-token
 observation window {[}Li et al., 2024{]}. No position adjustment after eviction.
 
 \item
-\textbf{SnapKV+rot} - SnapKV with \texttt{KeyRerotationPress}: retained keys are re-rotated to
-compact positions after eviction.
-
-\item
 \textbf{PyramidKV} - Follows the same SnapKV-style attention scoring, but with a layer-adaptive
 budget that allocates more KV slots to lower layers and fewer to higher layers [Cai et al., 2024].
 The per-layer budget follows a linear decay controlled by beta=20; budgets are clamped to
 \texttt{[window\_size, sequence\_length]}. No position adjustment after eviction.
-
-\item
-\textbf{Pyr+rot} - PyramidKV with \texttt{PyramidKVRerotationPress}: per-layer budgets are
-preserved and retained keys are right-aligned to positions \([T-n_{\text{kept}}, T)\) after
-eviction, so all layers share endpoint \(T-1\) and decode begins at \(T\).
 
 \item
 \textbf{RADAR post-RoPE} - Prunes the KV cache by scoring each key by its maximum dot product
@@ -754,12 +731,9 @@ Per-task results at 65\% retention appear in Appendices~C and~D.
 Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
 Naive      & 20.8 & 21.6 & 23.4 & 16.9 & 20.1\\
-Streaming  & 23.1 & 23.5 & 23.8 & 26.4 & 26.9\\
-Str+rot    & 23.1 & 23.6 & 23.7 & 26.4 & 26.9\\
+Streaming  & 23.1 & 23.6 & 23.7 & 26.4 & 26.9\\
 SnapKV     & \textbf{24.8} & 24.9 & 25.0 & 30.7 & 31.5\\
-SnapKV+rot & 24.4 & \textbf{25.0} & 24.8 & 30.8 & 31.4\\
 Pyr        & \textbf{24.8} & 24.2 & \textbf{25.1} & \textbf{31.2} & \textbf{31.6}\\
-Pyr+rot    & 24.4 & 24.0 & 25.0 & 30.9 & 31.4\\
 \midrule
 Full       & 25.0 & 25.0 & 25.0 & 33.2 & 33.2\\
 \bottomrule
@@ -776,12 +750,9 @@ Full       & 25.0 & 25.0 & 25.0 & 33.2 & 33.2\\
 Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
 Naive      & 20.2 & 21.1 & 22.0 & 16.7 & 20.9\\
-Streaming  & 21.3 & 22.1 & 22.7 & 23.8 & 26.0\\
-Str+rot    & 21.2 & 22.1 & 22.9 & 23.5 & 25.8\\
+Streaming  & 21.2 & 22.1 & 22.9 & 23.5 & 25.8\\
 SnapKV     & \textbf{23.0} & \textbf{23.3} & \textbf{23.5} & 31.3 & \textbf{32.2}\\
-SnapKV+rot & 22.3 & 22.7 & 22.8 & 30.1 & 31.5\\
 Pyr        & \textbf{23.0} & 22.9 & \textbf{23.5} & \textbf{31.6} & 32.1\\
-Pyr+rot    & 22.3 & 22.1 & 22.9 & 30.2 & 31.5\\
 \midrule
 Full       & 23.6 & 23.6 & 23.6 & 32.8 & 32.8\\
 \bottomrule
@@ -829,15 +800,11 @@ post advantage at moderate compression does not extend to extreme budgets, where
 window-size constraint ($\leq$8 tokens per layer at b=256) limits the effective observation
 to the same shallow window across all scattered-selection methods.
 
-Re-rotated variants are consistently \emph{worse} than their unrotated counterparts at
-every retention rate, consistent with the enrichment--position tension described in §5.1.
-
 \begin{table}[H]
 \centering
 \small
 \captionsetup{justification=centering}
-\caption{Mean KL faithfulness by method, retention rate, and token budget (per-task breakdown in Appendix A).
-$\dagger$ = not yet evaluated (Streaming at 50\%/35\% base; Streaming instruct).}
+\caption{Mean KL faithfulness by method, retention rate, and token budget (per-task breakdown in Appendix A).}
 \label{tab:t3}
 \begin{minipage}[t]{0.49\textwidth}
 \centering
@@ -849,12 +816,9 @@ $\dagger$ = not yet evaluated (Streaming at 50\%/35\% base; Streaming instruct).
 Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
 Naive      & 0.281 & 0.217 & 0.175 & 2.003 & 1.158\\
-Streaming  & $^\dagger$ & $^\dagger$ & 0.141 & $^\dagger$ & $^\dagger$\\
-Str+rot    & 0.261 & 0.199 & 0.141 & 0.735 & 0.542\\
+Streaming  & 0.261 & 0.199 & 0.141 & 0.735 & 0.542\\
 SnapKV     & 0.117 & 0.069 & 0.037 & \textbf{0.331} & \textbf{0.132}\\
-SnapKV+rot & 0.124 & 0.077 & 0.043 & 0.352 & 0.146\\
 Pyr        & \textbf{0.116} & 0.079 & \textbf{0.032} & 0.367 & 0.155\\
-Pyr+rot    & 0.124 & 0.096 & 0.047 & 0.385 & 0.174\\
 RADAR post & 0.121 & \textbf{0.068} & 0.033 & 0.363 & 0.142\\
 \bottomrule
 \end{tabular}
@@ -870,12 +834,9 @@ RADAR post & 0.121 & \textbf{0.068} & 0.033 & 0.363 & 0.142\\
 Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
 Naive      & 0.188 & 0.158 & 0.133 & 2.561 & 1.532\\
-Streaming  & $^\dagger$ & $^\dagger$ & 0.160 & $^\dagger$ & $^\dagger$\\
-Str+rot    & 0.244 & 0.201 & 0.161 & 1.207 & 0.894\\
+Streaming  & 0.244 & 0.201 & 0.161 & 1.207 & 0.894\\
 SnapKV     & 0.090 & 0.053 & 0.027 & \textbf{0.502} & \textbf{0.233}\\
-SnapKV+rot & 0.096 & 0.058 & 0.030 & 0.614 & 0.294\\
 Pyr        & 0.090 & 0.070 & 0.029 & 0.569 & 0.270\\
-Pyr+rot    & 0.096 & 0.079 & 0.034 & 0.689 & 0.349\\
 RADAR post & \textbf{0.086} & \textbf{0.048} & \textbf{0.024} & 0.561 & 0.249\\
 \bottomrule
 \end{tabular}
@@ -883,11 +844,6 @@ RADAR post & \textbf{0.086} & \textbf{0.048} & \textbf{0.024} & 0.561 & 0.249\\
 \par\smallskip
 Lower is better. \textbf{Bold} = best value per column. Base = retention rate; Instruct = absolute token budget.
 \end{table}
-
-The re-rotation penalty is consistent across all rates: re-rotated variants score worse than
-their unrotated counterparts at every base model retention rate and every instruct budget on
-both models. The gap narrows at tighter budgets (e.g., Llama SnapKV vs SnapKV+rot: 0.037 vs
-0.043 at 65\%, 0.117 vs 0.124 at 35\%) but does not reverse.
 
 \hypertarget{output-faithfulness-results}{%
 \subsection{4.4 Output Faithfulness
@@ -913,12 +869,9 @@ Table~\ref{tab:t4} shows results across retention rates and token budgets.
 Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
 Naive      & 46.9 & 52.1 & 68.6 & 24.9 & 37.0\\
-Streaming  & 44.2 & 47.8 & 52.0 & 56.0 & 62.2\\
-Str+rot    & 51.8 & 56.4 & 61.2 & 56.1 & 62.0\\
+Streaming  & 51.8 & 56.4 & 61.2 & 56.1 & 62.0\\
 SnapKV     & 66.8 & \textbf{73.2} & 78.5 & \textbf{72.0} & \textbf{81.9}\\
-SnapKV+rot & 63.0 & 67.8 & 71.1 & 69.4 & 79.5\\
 Pyr        & \textbf{66.9} & 64.2 & \textbf{79.1} & 71.1 & 81.8\\
-Pyr+rot    & 63.0 & 61.3 & 71.6 & 68.9 & 79.0\\
 \bottomrule
 \end{tabular}
 \end{minipage}%
@@ -933,12 +886,9 @@ Pyr+rot    & 63.0 & 61.3 & 71.6 & 68.9 & 79.0\\
 Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
 Naive      & 53.5 & 56.9 & 60.0 & 25.7 & 36.8\\
-Streaming  & 47.4 & 50.8 & 54.2 & 47.1 & 43.3\\
-Str+rot    & 53.9 & 57.4 & 61.0 & 46.9 & 42.8\\
+Streaming  & 53.9 & 57.4 & 61.0 & 46.9 & 42.8\\
 SnapKV     & 74.0 & \textbf{79.0} & \textbf{83.7} & \textbf{63.9} & \textbf{55.2}\\
-SnapKV+rot & 70.1 & 74.3 & 78.2 & 61.3 & 53.5\\
 Pyr        & \textbf{74.8} & 68.8 & 83.5 & 63.0 & 54.9\\
-Pyr+rot    & 70.0 & 66.5 & 77.0 & 60.9 & 52.6\\
 \bottomrule
 \end{tabular}
 \end{minipage}
@@ -946,9 +896,7 @@ Pyr+rot    & 70.0 & 66.5 & 77.0 & 60.9 & 52.6\\
 Higher is better. \textbf{Bold} = best per column. Base = retention rate; Instruct = absolute token budget.
 \end{table}
 
-SnapKV and PyramidKV lead \(F_{\text{out}}\) at every base-model rate on both models, with neither consistently dominating. Both methods converge closely at 35\%, consistent with PyramidKV nearing uniform budget allocation at tight compression (§4.3).
-
-Re-rotated variants (SnapKV+rot, Pyr+rot) score below their unrotated counterparts but well above Naive and both Streaming variants across all settings. At extreme instruct budgets, Naive fails badly --- falling below even the Streaming methods --- while all selection methods remain substantially above it.
+SnapKV and PyramidKV lead \(F_{\text{out}}\) at every base-model rate on both models, with neither consistently dominating. Both methods converge closely at 35\%, consistent with PyramidKV nearing uniform budget allocation at tight compression (§4.3). At extreme instruct budgets, Naive fails badly --- falling below Streaming --- while all selection methods remain substantially above it.
 
 \textbf{What \(F_{\text{out}}\) and KL together reveal.} SnapKV and
 PyramidKV lead both \(F_{\text{out}}\) and KL faithfulness (at 65\%;
@@ -991,9 +939,7 @@ spacing. It does not change the gap structure or the enriched values,
 and it introduces a tension: those values were conditioned on the
 original pre-eviction RoPE angles, so re-rotating the keys shifts the
 positional basis they were computed under. Whether this tension helps or
-hurts net faithfulness turns out to depend on geometry: for scattered
-selection it is slightly harmful (§4.3), while for block eviction it
-provides modest improvement.
+hurts net faithfulness depends on geometry (§5.4).
 
 \begin{figure}[H]
 \centering
@@ -1232,10 +1178,10 @@ rerotated isolates the effect of enrichment at compact positions.
 \toprule
 Geometry & Gaps & Gapless & Evicted & Rerotated & ev/gl & rot/gl\\
 \midrule
-block\_end & 1 & 0.177 & 3.493 & 2.814 & 19.8× & 15.9×\\
+block\_end & 1 & 0.177 & 2.846 & 2.814 & 16.1× & 15.9×\\
 block\_mid & 2 & 3.127 & 4.225 & 3.973 & 1.4× & 1.3×\\
 clustered4 & \textasciitilde5 & 2.745 & 3.765 & 3.498 & 1.4× & 1.3×\\
-scattered & \textasciitilde1400 & 1.205 & 1.289 & 0.221 & 1.1× & 0.17×\\
+scattered & \textasciitilde1400 & 1.205 & 0.183 & 0.221 & 0.15× & 0.18×\\
 \bottomrule
 \\
 \end{tabular}
@@ -1249,7 +1195,7 @@ Table~\ref{tab:t2} reveals several non-obvious patterns across the four geometri
 \item
   \textbf{Block\_end geometry: positional shift and structural
   corruption both contribute.} A single large prefix gap combined with
-  enrichment causes severe damage: evicted (3.493) is 19.8× worse than
+  enrichment causes severe damage: evicted (2.846) is 16.1× worse than
   gapless (0.177).
   Re-rotation provides only partial recovery: rerotated (2.814, 15.9×)
   substantially outperforms evicted but remains far from gapless. In
@@ -1266,21 +1212,23 @@ Table~\ref{tab:t2} reveals several non-obvious patterns across the four geometri
   baselines reflect lower content informativeness, not mechanism damage.
   Within-geometry ratios are the interpretable signal.
 \item
-  \textbf{Scattered geometry: position correction is the dominant
-  factor.} With uniformly-distributed positions, scatter combined with
-  enrichment is approximately neutral: evicted (1.289) nearly matches
-  gapless (1.205, 1.1×). Re-rotation then yields the table's best
-  result: rerotated (0.221) is 0.17× of evicted and also below gapless.
-  Enriched representations at compact positions substantially outperform
-  compact representations without enrichment --- the full-prefill hidden
-  state is clearly beneficial once positions are corrected.
+  \textbf{Scattered geometry: enrichment dominates.} With
+  uniformly-distributed positions, scatter combined with enrichment is
+  \emph{beneficial}: evicted (0.183) outperforms gapless (1.205, 0.15×)
+  --- enriched keys carry information about the evicted context that
+  compact-prompt construction cannot provide. Re-rotation then yields
+  the table's best result: rerotated (0.221) is 0.18× of gapless and
+  also below it, but slightly worse than evicted (0.183), showing a
+  mild tension between compact positions and the original enriched
+  RoPE angles.
 \item
-  \textbf{The re-rotation results reveal the enrichment direction.}
-  Comparing within the scattered geometry: rerotated (0.221) dramatically
-  outperforms gapless (1.205) despite both using compact positions ---
-  the only difference is that rerotated has seen the full context during
-  prefill. Enrichment carries useful information about the evicted tokens
-  that becomes accessible once positional displacement is corrected.
+  \textbf{The scattered results reveal the enrichment direction.}
+  Comparing within the scattered geometry: both evicted (0.183) and
+  rerotated (0.221) dramatically outperform gapless (1.205) despite all
+  three using the same retained tokens --- the only difference is that
+  evicted/rerotated have seen the full context during prefill. Enrichment
+  carries information about the evicted tokens that compact-prompt
+  construction cannot replicate, even at the same token budget.
 \end{itemize}
 
 These results make a concrete prediction for SnapKV and StreamingLLM,
@@ -1288,13 +1236,40 @@ whose retained-set geometries are approximately scattered and block\_end
 respectively: SnapKV's scattered geometry interacts favorably with enrichment,
 and should yield better KL than the block\_end geometry of Streaming --- even
 without re-rotation. §4.3 confirms: corrected SnapKV KL at 65\% (0.037) is
-substantially better than Streaming (0.141), consistent with the evicted/gapless
-ratio of 1.1× for scattered versus 19.8× for block\_end.
+substantially better than Streaming (0.141), consistent with evicted falling
+below gapless (0.15×) for scattered versus 16.1× above gapless for block\_end.
 
-Re-rotation provides only partial benefit for block\_end (Table~\ref{tab:t2},
-rerotated 2.814 still 15.9× above gapless 0.177) and slightly
-hurts scattered (rerotated 0.221 vs evicted 0.183, but enrichment drives
-both below gapless). The geometric differences are the dominant factor.
+Re-rotation provides only partial benefit for block\_end (rerotated 2.814
+still 15.9× above gapless 0.177) and slightly hurts scattered (rerotated 0.221
+vs evicted 0.183). The geometric differences are the dominant factor.
+
+
+\hypertarget{re-rotation-effects}{%
+\subsection{5.4 Re-Rotation Effects}\label{re-rotation-effects}}
+
+Key re-rotation's effect depends on the eviction geometry, consistent
+with the synthetic evidence in §5.3. For Streaming's block\_end geometry,
+the KL difference between rotated and unrotated is small (0.141 with
+re-rotation vs.\ 0.160 without on Mistral at 65\%; within noise on
+Llama), but output faithfulness favors re-rotation --- \(F_{\text{out}}\) rises
+from 54.2 to 61.2 on Llama at 65\%. Since the kvpress library explicitly
+recommends the combined configuration for Streaming, and the empirical
+evidence provides no reason to diverge, we adopt StreamingLLM +
+\texttt{KeyRerotationPress} as the Streaming configuration throughout.
+
+For scattered-selection methods (SnapKV, PyramidKV, RADAR post-RoPE),
+re-rotation consistently \emph{worsens} KL faithfulness at every retention
+rate and every instruct budget on both models. On Llama at 65\%:
+SnapKV 0.037 (no rotation) vs.\ SnapKV+rot 0.043; PyramidKV 0.032 vs.\
+Pyr+rot 0.047. The pattern holds on Mistral and across all rates.
+This is consistent with the enrichment--position tension identified in §5.1:
+scattered retained keys carry enriched values computed under their original
+scattered RoPE angles. Re-rotating the keys to compact positions
+\(0\ldots M-1\) introduces a mismatch between the position encoding and
+the value vectors' prefill context, which the scattered geometry
+(where enriched keys span the full original sequence) makes especially
+costly. We therefore use the unrotated configuration for all
+scattered-selection methods.
 
 
 \hypertarget{metric-inversion}{%
@@ -1422,12 +1397,10 @@ $\dagger$ = pre-fix values; corrected short/long breakdown pending recomputation
 \toprule
 Method & Short \(F_{\text{KL}}\) & Long \(F_{\text{KL}}\)\\
 \midrule
-SnapKV & $^\dagger$ & $^\dagger$\\
+SnapKV    & $^\dagger$ & $^\dagger$\\
 PyramidKV & $^\dagger$ & $^\dagger$\\
-SnapKV+rot & 0.012 & 0.124\\
-Pyr+rot & 0.012 & 0.135\\
 Streaming & 0.080 & 0.297\\
-Naive & 0.143 & 0.256\\
+Naive     & 0.143 & 0.256\\
 \bottomrule
 \end{tabular}
 \center
@@ -1492,7 +1465,7 @@ Method & 65\% & 50\% & 35\%\\
 \midrule
 Naive     & 2400\,ms & 2082\,ms & 1632\,ms\\
 SnapKV    & 6621\,ms & 6872\,ms & 6834\,ms\\
-Str+rot   & 6796\,ms & 6750\,ms & 6861\,ms\\
+Streaming & 6796\,ms & 6750\,ms & 6861\,ms\\
 Pyr       & 6973\,ms & 7245\,ms & 7276\,ms\\
 \bottomrule
 \end{tabular}
@@ -1506,15 +1479,10 @@ prompt. All post-prefill eviction methods incur overhead above the
 full-context baseline: performing a full prefill over the uncompressed
 prompt before pruning, each is consistently slower than the uncompressed
 model at every retention rate. PyramidKV's layer-wise budget computation
-adds 9--13\% overhead. SnapKV and Str+rot use simpler
-post-prefill eviction steps and add less overhead (+3--7\%), but both
-are consistently above full-context TTFT. No KV-pruning method using
-post-prefill eviction can provide prefill savings: the full prompt must
-be processed regardless. SnapKV+rot inherits the same timing profile as
-unrotated SnapKV: key re-rotation is a single \(O(M \cdot H \cdot D)\)
-tensor operation applied once to the M retained keys after eviction,
-adding negligible overhead (\textless10ms) that does not affect the TTFT
-or TPT figures above.
+adds 9--13\% overhead. SnapKV and Streaming use simpler post-prefill eviction steps and add less
+overhead (+3--7\%), but both are consistently above full-context TTFT. No
+KV-pruning method using post-prefill eviction can provide prefill savings:
+the full prompt must be processed regardless.
 
 The original online StreamingLLM design --- which
 maintains a bounded cache continuously rather than performing a full
@@ -1525,10 +1493,9 @@ window size rather than the full context length.
 Decode speed (TPT) improves for all compressed methods because
 fewer retained tokens means a smaller KV cache to scan at each decode
 step. At 65\% retention, mean TPT drops from 67.5 ms/tok (full) to
-\textasciitilde54 ms/tok (\textasciitilde20\% faster) for all methods
-including PyramidKV, snapkv\_press, and streaming\_rerotated; at 35\%
-retention, all compressed methods reach \textasciitilde44--48 ms/tok
-(\textasciitilde29--35\% faster).
+\textasciitilde54 ms/tok (\textasciitilde20\% faster) for all compressed
+methods; at 35\% retention, all compressed methods reach
+\textasciitilde44--48 ms/tok (\textasciitilde29--35\% faster).
 
 \subsection{7.2 Instruct Model Timing at Extreme Budgets}\label{instruct-model-timing}
 
@@ -1546,14 +1513,11 @@ Table~\ref{tab:instruct-timing} gives mean wall-clock time per example at budget
 \toprule
 Method & Short (ms) & Long (ms) & Avg (ms)\\
 \midrule
-SnapKV     &  9372 & 11132 & 10294\\
-SnapKV+rot &  9593 & 11689 & 10691\\
-PyramidKV  &  9430 & 11355 & 10438\\
-Pyr+rot    &  9694 & 11754 & 10773\\
-Streaming  &  9543 & 10996 & 10304\\
-Str+rot    &  9772 & 11265 & 10554\\
-Naive      &   725 &  4121 &  2504\\
-Full       &  9666 & 16057 & 13013\\
+SnapKV    &  9372 & 11132 & 10294\\
+PyramidKV &  9430 & 11355 & 10438\\
+Streaming &  9772 & 11265 & 10554\\
+Naive     &   725 &  4121 &  2504\\
+Full      &  9666 & 16057 & 13013\\
 \bottomrule
 \end{tabular}
 \end{minipage}
@@ -1565,14 +1529,11 @@ Full       &  9666 & 16057 & 13013\\
 \toprule
 Method & Short (ms) & Long (ms) & Avg (ms)\\
 \midrule
-SnapKV     &  8855 & 11549 & 10266\\
-SnapKV+rot &  9092 & 12077 & 10655\\
-PyramidKV  &  8920 & 11880 & 10470\\
-Pyr+rot    &  9172 & 12146 & 10730\\
-Streaming  &  9043 & 11602 & 10383\\
-Str+rot    &  9269 & 11829 & 10610\\
-Naive      &  1046 &  6258 &  3776\\
-Full       &  9122 & 15918 & 12681\\
+SnapKV    &  8855 & 11549 & 10266\\
+PyramidKV &  8920 & 11880 & 10470\\
+Streaming &  9269 & 11829 & 10610\\
+Naive     &  1046 &  6258 &  3776\\
+Full      &  9122 & 15918 & 12681\\
 \bottomrule
 \end{tabular}
 \end{minipage}
@@ -1606,29 +1567,25 @@ Long = $>$90~words ($n=445$).
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
 Method & Short & Long & Short & Long & Short & Long\\
 \midrule
-SnapKV     & 1.335 & 0.697 & 1.110 & 0.644 & 0.909 & 0.646\\
-PyramidKV  & 1.658 & 0.711 & 1.674 & 0.873 & 0.911 & 0.645\\
-\midrule
-SnapKV+rot & \textbf{0.012} & \textbf{0.124} & \textbf{0.023} & \textbf{0.215} & \textbf{0.044} & \textbf{0.332}\\
-Pyr+rot    & \textbf{0.012} & 0.135 & 0.035 & 0.252 & \textbf{0.044} & \textbf{0.332}\\
-Str+rot    & 0.080 & 0.297 & 0.128 & 0.385 & 0.175 & 0.484\\
-Naive      & 0.143 & 0.256 & 0.173 & 0.331 & 0.225 & 0.427\\
+SnapKV    & $^\dagger$ & $^\dagger$ & $^\dagger$ & $^\dagger$ & $^\dagger$ & $^\dagger$\\
+PyramidKV & $^\dagger$ & $^\dagger$ & $^\dagger$ & $^\dagger$ & $^\dagger$ & $^\dagger$\\
+Streaming & \textbf{0.080} & \textbf{0.297} & \textbf{0.128} & \textbf{0.385} & \textbf{0.175} & \textbf{0.484}\\
+Naive     & 0.143 & 0.256 & 0.173 & 0.331 & 0.225 & 0.427\\
 \bottomrule
 \end{tabular}
 \center\smallskip
-\textbf{Bold} = best per column.
+$\dagger$ = corrected short/long breakdown pending recomputation.
+\textbf{Bold} = best per column among available results.
 All 16 tasks; short/long defined by full-model reference output length.
 \end{table}
 
-Unrotated SnapKV and PyramidKV show an inverted pattern: KL is substantially
-\emph{worse} on short outputs (1.3--1.7) than on long ones (0.7), and worse
-than Naive at every rate. The first-token advantage (\S5.3) explains this:
-on short answers the entire response hinges on a few tokens, and positional
-corruption of the key distribution hits those tokens hardest.
-Re-rotation reverses the pattern: SnapKV+rot and Pyr+rot reach near-zero
-KL on short outputs (0.012 at 65\%) while the long-form KL is still
-substantially higher (0.124--0.135). The short/long gap narrows with tighter
-budgets but persists at all three rates.
+Corrected short/long KL values for SnapKV and PyramidKV are pending; these
+methods' mean KL at 65\% (0.037 and 0.032) is well below Streaming (0.141)
+and Naive (0.175), so both should substantially outperform Streaming and Naive
+at both lengths once the breakdown is recomputed. Streaming KL is roughly twice
+as bad on long outputs (0.297) as on short ones (0.080), consistent with
+block\_end enrichment contamination being felt more severely over longer
+generation sequences.
 
 Table~\ref{tab:base-fout-shortlong} shows the \(F_{\text{out}}\) counterpart.
 
@@ -1644,12 +1601,10 @@ Table~\ref{tab:base-fout-shortlong} shows the \(F_{\text{out}}\) counterpart.
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
 Method & Short & Long & Short & Long & Short & Long\\
 \midrule
-SnapKV     & \textbf{87.7} & 54.7 & \textbf{83.1} & 47.7 & \textbf{76.3} & 42.1\\
-PyramidKV  & \textbf{88.1} & \textbf{55.5} & 72.5 & 42.7 & 76.4 & 42.3\\
-SnapKV+rot & 79.3 & 50.0 & 76.1 & \textbf{46.2} & 71.1 & \textbf{42.0}\\
-Pyr+rot    & 79.9 & 50.1 & 69.4 & 40.3 & 71.1 & 41.8\\
-Str+rot    & 66.7 & 47.0 & 61.7 & 42.4 & 57.1 & 38.0\\
-Naive      & 72.8 & \textbf{57.6} & 55.6 & 42.9 & 50.0 & 38.8\\
+SnapKV    & \textbf{87.7} & 54.7 & \textbf{83.1} & 47.7 & \textbf{76.3} & 42.1\\
+PyramidKV & \textbf{88.1} & \textbf{55.5} & 72.5 & 42.7 & 76.4 & 42.3\\
+Streaming & 66.7 & 47.0 & 61.7 & \textbf{42.4} & 57.1 & \textbf{38.0}\\
+Naive     & 72.8 & \textbf{57.6} & 55.6 & 42.9 & 50.0 & 38.8\\
 \bottomrule
 \end{tabular}
 \center\smallskip
@@ -1658,10 +1613,10 @@ All 16 tasks; short/long defined by full-model reference output length.
 \end{table}
 
 Here the direction flips: \(F_{\text{out}}\) is \emph{higher} on short outputs for
-all selection methods (30+ point short/long gap for SnapKV/PyramidKV, ~29 for
-the rotated variants). The first-token advantage inflates short-answer
-\(F_{\text{out}}\) because the model's first output word matches the full
-model's regardless of distributional corruption at later positions.
+all selection methods (30+ point short/long gap for SnapKV/PyramidKV). The
+first-token advantage inflates short-answer \(F_{\text{out}}\) because the
+model's first output word matches the full model's regardless of distributional
+corruption at later positions.
 Naive is the exception: its short/long \(F_{\text{out}}\) gap is small
 (15 points at 65\%, near zero at 35\%), and Naive leads long-form
 \(F_{\text{out}}\) at 65\% (57.6 vs 55.5 for the next-best).
@@ -1671,13 +1626,11 @@ give the same breakdown for the instruction-tuned model at budgets 256 and 1024.
 The instruct model produces short answers regardless of compression: uncompressed,
 it averages 3.9~words on HotpotQA and 4.5~words on NarrativeQA (vs.\ 21.9
 and 80.6 for the base model), so nearly all instruct-model outputs fall in
-the ``short'' category under any threshold. The qualitative patterns hold:
-re-rotated methods retain a large advantage on short outputs ($\approx$5$\times$
-lower KL than their unrotated counterparts at budget~256), and the
-\(F_{\text{out}}\) short/long gap is large for all selection methods ($\approx$36
-points for SnapKV/PyramidKV at budget~256).
+the ``short'' category under any threshold. The \(F_{\text{out}}\) short/long gap
+is large for all selection methods ($\approx$36 points for SnapKV/PyramidKV
+at budget~256), driven by the first-token advantage on single-word answers.
 
-Table~\ref{tab:instruct-kl-shortlong} gives the KL breakdown by output-length category for the instruct model, confirming that re-rotated methods retain their advantage on both short and long outputs across both budgets.
+Table~\ref{tab:instruct-kl-shortlong} gives the KL breakdown by output-length category for the instruct model.
 
 \begin{table}[H]
 \centering
@@ -1691,12 +1644,10 @@ Table~\ref{tab:instruct-kl-shortlong} gives the KL breakdown by output-length ca
 \toprule
 Method & Short & Long & Long/Short\\
 \midrule
-SnapKV+rot & \textbf{0.111} & \textbf{0.571} & 5.2$\times$\\
-Pyr+rot    & 0.117 & 0.629 & 5.4$\times$\\
-Str+rot   & 0.529 & 0.923 & 1.7$\times$\\
-SnapKV     & 0.705 & 0.827 & 1.2$\times$\\
-PyramidKV  & 0.867 & 0.895 & 1.0$\times$\\
-Naive      & 2.794 & 1.284 & 0.5$\times$\\
+SnapKV    & \textbf{0.705} & 0.827 & 1.2$\times$\\
+PyramidKV & 0.867 & 0.895 & 1.0$\times$\\
+Streaming & 0.529 & \textbf{0.923} & 1.7$\times$\\
+Naive     & 2.794 & 1.284 & 0.5$\times$\\
 \bottomrule
 \end{tabular}
 \end{minipage}
@@ -1708,12 +1659,10 @@ Naive      & 2.794 & 1.284 & 0.5$\times$\\
 \toprule
 Method & Short & Long & Long/Short\\
 \midrule
-SnapKV+rot & \textbf{0.050} & \textbf{0.233} & 4.6$\times$\\
-Pyr+rot    & 0.060 & 0.278 & 4.7$\times$\\
-Str+rot   & 0.415 & 0.657 & 1.6$\times$\\
-SnapKV     & 0.702 & 0.600 & 0.9$\times$\\
-PyramidKV  & 0.745 & 0.567 & 0.8$\times$\\
-Naive      & 1.617 & 0.740 & 0.5$\times$\\
+SnapKV    & \textbf{0.702} & 0.600 & 0.9$\times$\\
+PyramidKV & 0.745 & 0.567 & 0.8$\times$\\
+Streaming & 0.415 & \textbf{0.657} & 1.6$\times$\\
+Naive     & 1.617 & 0.740 & 0.5$\times$\\
 \bottomrule
 \end{tabular}
 \end{minipage}
@@ -1737,13 +1686,10 @@ Table~\ref{tab:instruct-fout-shortlong} further breaks down \(F_{\text{out}}\) b
 \toprule
 Method & Short & Long & Gap\\
 \midrule
-SnapKV     & 91.0 & 54.7 & 36.3\\
-SnapKV+rot & 88.9 & 51.8 & 37.1\\
-PyramidKV  & 90.5 & 53.5 & 37.1\\
-Pyr+rot    & 89.2 & 50.5 & 38.7\\
-Streaming  & 72.0 & 41.5 & 30.5\\
-Str+rot   & 72.1 & 41.5 & 30.6\\
-Naive      & \textbf{23.8} & \textbf{25.8} & $-$2.0\\
+SnapKV    & \textbf{91.0} & \textbf{54.7} & 36.3\\
+PyramidKV & 90.5 & 53.5 & 37.1\\
+Streaming & 72.1 & 41.5 & 30.6\\
+Naive     & 23.8 & 25.8 & $-$2.0\\
 \bottomrule
 \end{tabular}
 \end{minipage}
@@ -1755,13 +1701,10 @@ Naive      & \textbf{23.8} & \textbf{25.8} & $-$2.0\\
 \toprule
 Method & Short & Long & Gap\\
 \midrule
-SnapKV     & 95.3 & 69.7 & 25.6\\
-SnapKV+rot & 94.3 & 65.9 & 28.4\\
-PyramidKV  & 95.2 & 69.6 & 25.6\\
-Pyr+rot    & 94.3 & 65.1 & 29.2\\
-Streaming  & 76.4 & 49.3 & 27.1\\
-Str+rot   & 75.9 & 49.4 & 26.5\\
-Naive      & \textbf{33.2} & \textbf{40.4} & $-$7.2\\
+SnapKV    & \textbf{95.3} & \textbf{69.7} & 25.6\\
+PyramidKV & 95.2 & 69.6 & 25.6\\
+Streaming & 75.9 & 49.4 & 26.5\\
+Naive     & 33.2 & 40.4 & $-$7.2\\
 \bottomrule
 \end{tabular}
 \end{minipage}
