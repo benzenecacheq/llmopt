@@ -672,8 +672,8 @@ and the decode query arrives at position T for every layer.
 \\Full implementation details below; per-task instruct breakdowns in Appendices~A--C.
 
 \textbf{Compression Methods Tested}
-\\We benchmarked the baseline uncompressed prompt and six compression methods,
-one of which compresses the input prompt while the remaining five all prune the KV
+\\We benchmarked the baseline uncompressed prompt and five compression methods,
+one of which compresses the input prompt while the remaining four all prune the KV
 cache after prefill.
 
 \begin{enumerate}
@@ -720,11 +720,6 @@ eviction, so all layers share endpoint \(T-1\) and decode begins at \(T\).
 with the last \texttt{window\_size} query vectors, computed using post-RoPE (position-aware)
 representations. Retains the tokens most aligned with recent queries. No position adjustment
 after eviction.
-
-\item
-\textbf{RADAR pre-RoPE} - Same query-alignment scoring as RADAR post-RoPE, but dot products
-are computed using pre-RoPE (position-invariant) key vectors, making the selection policy
-independent of each token's absolute position. No position adjustment after eviction.
 
 \end{enumerate}
 
@@ -831,8 +826,8 @@ among scattered-selection methods.
 At extreme compression (instruct budgets), SnapKV leads: Llama b=256: SnapKV 0.331 vs
 RADAR post 0.363 vs PyramidKV 0.367; Mistral b=256: 0.502 vs 0.561 vs 0.569. The RADAR
 post advantage at moderate compression does not extend to extreme budgets, where the
-window-size constraint ($\leq$8 tokens per layer at b=256) ties all scattered-selection
-methods to the same shallow observation window.
+window-size constraint ($\leq$8 tokens per layer at b=256) limits the effective observation
+to the same shallow window across all scattered-selection methods.
 
 Re-rotated variants are consistently \emph{worse} than their unrotated counterparts at
 every retention rate, consistent with the enrichment--position tension described in §5.1.
@@ -861,7 +856,6 @@ SnapKV+rot & 0.124 & 0.077 & 0.043 & 0.352 & 0.146\\
 Pyr        & \textbf{0.116} & 0.079 & \textbf{0.032} & 0.367 & 0.155\\
 Pyr+rot    & 0.124 & 0.096 & 0.047 & 0.385 & 0.174\\
 RADAR post & 0.121 & \textbf{0.068} & 0.033 & 0.363 & 0.142\\
-RADAR pre  & 0.155 & 0.086 & 0.043 & 0.493 & 0.209\\
 \bottomrule
 \end{tabular}
 \end{minipage}%
@@ -883,7 +877,6 @@ SnapKV+rot & 0.096 & 0.058 & 0.030 & 0.614 & 0.294\\
 Pyr        & 0.090 & 0.070 & 0.029 & 0.569 & 0.270\\
 Pyr+rot    & 0.096 & 0.079 & 0.034 & 0.689 & 0.349\\
 RADAR post & \textbf{0.086} & \textbf{0.048} & $^\dagger$ & 0.561 & 0.249\\
-RADAR pre  & 0.111 & 0.061 & $^\dagger$ & 0.711 & 0.354\\
 \bottomrule
 \end{tabular}
 \end{minipage}
