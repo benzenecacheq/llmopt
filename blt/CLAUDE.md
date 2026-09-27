@@ -1358,11 +1358,24 @@ Resumed via `--resume ... --batch-size 2 --grad-accum-steps 2 --resume-batch-siz
 
 To move the one-seed sine+cumulative result (LAMBADA acc 0.2818, see above) toward the standard 3-seed discipline, launched `run_gpt2_cumulative_sine_scratch_seed19.pt` on `venus` (idle) — identical protocol to seed42 (`--baseline --from-scratch --ema-loss-weighting --loss-weighting-mode cumulative --ema-blend 1.0 --ema-blend-schedule sine --dataset openwebtext --seed 19 --max-steps 500000`). Venus's repo was 4 commits behind (several byte-identical untracked-file collisions from this session's earlier BLiMP/ARC-Easy/lowimpact-sweep work, all confirmed via `md5sum` before pulling clean). Confirmed healthy: `effective_blend=0.0000` at step 0 and step 10 (correct — sine ramp starts at 0), loss declining normally (10.94 → 10.79).
 
-### Status snapshot (2026-09-23, post-migration)
-- `bender`: medium cumulative blend=1.0 run, migrated from `titan`, step 509,500/1,500,000 (34.0%), ~1.1 s/step. Healthy.
+**DONE (2026-09-27) — same pattern as the fixed-decay sine precedent: seed42 was the favorable draw.** All 500,000 steps finished (final val_ppl 64.28), checkpoint verified genuine (all finite, `token_count` sum 2,046,000,000 across 50,134/50,257 tokens — fully populated). No watcher was armed (launched interactively), so it sat unbenchmarked until caught by hand. Results (`lm_eval_gpt2_cumulative_sine_scratch_seed19.json`, `eval_owt_gpt2_cumulative_sine_scratch_seed19.stdout`): OWT held-out ppl **30.49** (loss 3.4175), LAMBADA acc **0.2585**, LAMBADA ppl 135.0, HellaSwag acc_norm 0.2702, PIQA acc_norm 0.5686, Winogrande acc 0.5170.
+
+| Metric | seed42 | seed19 | **2-seed avg** |
+|---|---|---|---|
+| OWT held-out ppl | 30.52 | 30.49 | 30.51 |
+| LAMBADA acc | **0.2818** | 0.2585 | 0.270 |
+| LAMBADA ppl | 114.0 | 135.0 | 124.5 |
+| HellaSwag acc_norm | 0.270 | 0.270 | 0.270 |
+| PIQA acc_norm | 0.573 | 0.569 | 0.571 |
+| Winogrande acc | 0.504 | 0.517 | 0.511 |
+
+**Both seeds still land above plain cumulative blend=1.0's 3-seed average (0.265)** — the sine-anneal benefit for cumulative mode isn't gone, but seed42's single-seed headline (0.2818) is confirmed to have been partly favorable variance, exactly the same story the fixed-decay sine result went through (single-seed 0.281 → confirmed 3-seed average 0.259). The 2-seed average here (0.270) is a smaller, more modest edge over plain cumulative than the first seed implied. A third seed would settle whether 0.270 or something closer to 0.265 is the real number — not yet launched.
+
+### Status snapshot (2026-09-27)
+- `bender`: medium cumulative blend=1.0 run, migrated from `titan`, step 797,480/1,500,000 (53.2%), ~1.1 s/step. Healthy.
 - `titan`: **free**.
-- `io`: free of the BLT checkpoint but occupied by an unrelated `pprune/` job, no known ETA.
-- `venus`: sine+cumulative seed19 (small model), in progress — second seed toward confirming the seed42 sine+cumulative result.
+- `io`: occupied by an unrelated `pprune/` job (Mistral-7B streaming-press KL evaluation), no known ETA.
+- `venus`: **free** — sine+cumulative seed19 finished and benchmarked (see above). Natural next step: launch a third sine+cumulative seed here to settle the 2-seed ambiguity.
 
 ### Other future directions
 - **Grouped Wv**: share Wv across groups of heads (GQA-style) to reduce value cache bandwidth.
