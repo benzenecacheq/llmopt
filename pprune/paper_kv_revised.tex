@@ -732,8 +732,9 @@ Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
 Naive      & 20.8 & 21.6 & 23.4 & 16.9 & 20.1\\
 Streaming  & 23.1 & 23.6 & 23.7 & 26.4 & 26.9\\
-SnapKV     & \textbf{24.8} & 24.9 & 25.0 & 30.7 & 31.5\\
+SnapKV     & \textbf{24.8} & \textbf{24.9} & 25.0 & 30.7 & 31.5\\
 Pyr        & \textbf{24.8} & 24.2 & \textbf{25.1} & \textbf{31.2} & \textbf{31.6}\\
+RADAR      & 24.2 & 24.8 & 24.9 & --- & ---\\
 \midrule
 Full       & 25.0 & 25.0 & 25.0 & 33.2 & 33.2\\
 \bottomrule
@@ -753,6 +754,7 @@ Naive      & 20.2 & 21.1 & 22.0 & 16.7 & 20.9\\
 Streaming  & 21.2 & 22.1 & 22.9 & 23.5 & 25.8\\
 SnapKV     & \textbf{23.0} & \textbf{23.3} & \textbf{23.5} & 31.3 & \textbf{32.2}\\
 Pyr        & \textbf{23.0} & 22.9 & \textbf{23.5} & \textbf{31.6} & 32.1\\
+RADAR      & 22.4 & 23.1 & \textbf{23.5} & --- & ---\\
 \midrule
 Full       & 23.6 & 23.6 & 23.6 & 32.8 & 32.8\\
 \bottomrule
@@ -763,14 +765,16 @@ Full       & 23.6 & 23.6 & 23.6 & 32.8 & 32.8\\
 \end{table}
 
 
-All intelligent KV eviction methods cluster within a point of each other 
-and are very close to the full model.  This clustering is the key limitation of GT as a 
-compression metric---it cannot separate faithful methods from unfaithful ones (§3). 
+All intelligent KV eviction methods cluster within a point of each other
+and are very close to the full model.  This clustering is the key limitation of GT as a
+compression metric---it cannot separate faithful methods from unfaithful ones (§3).
+RADAR matches SnapKV/Pyr on Mistral at 65\% (23.5) and trails by at most 0.6 points
+elsewhere---indistinguishable by this metric despite large KL differences (§4.3).
 
 On Llama at budget~=~1024, the best compressed method (Pyr, 31.6\%) is within
-2 points of the full model (31.6\%). Naive is far below (16.9\% at budget~=~256), 
-confirming that prompt truncation destroys retrieval accuracy, 
-but GT still cannot distinguish among the four selection methods that all score above 30\%.
+2 points of the full model (33.2\%). Naive is far below (16.9\% at budget~=~256),
+confirming that prompt truncation destroys retrieval accuracy,
+but GT still cannot distinguish among the selection methods that all score above 30\%.
 
 \hypertarget{kl-faithfulness-main-results}{%
 \subsection{4.3 KL Faithfulness: Main
@@ -872,6 +876,7 @@ Naive      & 46.9 & 52.1 & 68.6 & 24.9 & 37.0\\
 Streaming  & 51.8 & 56.4 & 61.2 & 56.1 & 62.0\\
 SnapKV     & 66.8 & \textbf{73.2} & 78.5 & \textbf{72.0} & \textbf{81.9}\\
 Pyr        & \textbf{66.9} & 64.2 & \textbf{79.1} & 71.1 & 81.8\\
+RADAR      & 56.3 & 60.8 & 65.2 & --- & ---\\
 \bottomrule
 \end{tabular}
 \end{minipage}%
@@ -889,6 +894,7 @@ Naive      & 53.5 & 56.9 & 60.0 & 25.7 & 36.8\\
 Streaming  & 53.9 & 57.4 & 61.0 & 46.9 & 42.8\\
 SnapKV     & 74.0 & \textbf{79.0} & \textbf{83.7} & \textbf{63.9} & \textbf{55.2}\\
 Pyr        & \textbf{74.8} & 68.8 & 83.5 & 63.0 & 54.9\\
+RADAR      & 65.2 & 69.5 & 74.1 & --- & ---\\
 \bottomrule
 \end{tabular}
 \end{minipage}
@@ -896,15 +902,16 @@ Pyr        & \textbf{74.8} & 68.8 & 83.5 & 63.0 & 54.9\\
 Higher is better. \textbf{Bold} = best per column. Base = retention rate; Instruct = absolute token budget.
 \end{table}
 
-SnapKV and PyramidKV lead \(F_{\text{out}}\) at every base-model rate on both models, with neither consistently dominating. Both methods converge closely at 35\%, consistent with PyramidKV nearing uniform budget allocation at tight compression (§4.3). At extreme instruct budgets, Naive fails badly --- falling below Streaming --- while all selection methods remain substantially above it.
+SnapKV and PyramidKV lead \(F_{\text{out}}\) at every base-model rate on both models, with neither consistently dominating. RADAR trails SnapKV/Pyr by 10--13 points at 65\% (Llama 65.2 vs 78--79\%; Mistral 74.1 vs 83--84\%), despite leading or matching them on KL. Both selection leaders converge closely at 35\%, consistent with PyramidKV nearing uniform budget allocation (§4.3). At extreme instruct budgets, Naive fails badly --- falling below Streaming --- while all selection methods remain substantially above it.
 
 \textbf{What \(F_{\text{out}}\) and KL together reveal.} SnapKV and
-PyramidKV lead both \(F_{\text{out}}\) and KL faithfulness (at 65\%;
-Table~\ref{tab:t3}). Neither metric alone tells the full story: KL shows that selection
-methods are highly faithful at the distributional level, while output-length
-analysis (§6) reveals that the \(F_{\text{out}}\) advantage on short tasks is
-partly structural --- inflated by a first-token advantage that has nothing to do
-with compression quality.
+PyramidKV lead \(F_{\text{out}}\) at every base-model rate, but RADAR leads or matches them
+on KL (Table~\ref{tab:t3}). This inversion is sharpest on Mistral at 65\%: RADAR 0.024 KL
+vs SnapKV/Pyr 0.027/0.029, yet RADAR \(F_{\text{out}}\) 74.1 vs SnapKV/Pyr 83--84\%.
+Neither metric alone tells the full story: KL shows distributional faithfulness, while
+output-length analysis (§6) reveals that the \(F_{\text{out}}\) advantage of SnapKV/Pyr
+on short tasks is partly structural --- inflated by a first-token advantage unrelated to
+compression quality.
 
 \hypertarget{eviction-geometry-and-faithfulness}{%
 \section{5. Eviction Geometry and Faithfulness}\label{eviction-geometry-and-faithfulness}}
