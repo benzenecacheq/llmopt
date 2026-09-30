@@ -1030,26 +1030,22 @@ Method & 2WikiMQA & MultifieldQA & Qasper & QMSum & RepoBench-P & TriviaQA & Mea
 \midrule
 Naive --- prompt construction & 0.221 & 0.262 & 0.281 & 0.081 & \textbf{0.048} & 0.076 & 0.162\\
 SnapKV --- KV pruning (recompute-over-gaps) & 0.254 & 0.186 & 0.223 & 0.117 & 0.106 & 0.122 & 0.168\\
-SnapKV --- KV pruning (post-prefill eviction)$^\dagger$ & 1.714 & 1.316 & 0.881 & 0.393 & 0.702 & 1.151 & 1.026\\
+SnapKV --- KV pruning (post-prefill eviction) & 0.004 & 0.027 & 0.075 & 0.045 & 0.002 & 0.000 & 0.025\\
 SnapKV-Select --- prompt construction & \textbf{0.096} & \textbf{0.118} & \textbf{0.163} & \textbf{0.071} & 0.051 & \textbf{0.060} & \textbf{0.093}\\
 \bottomrule
 \\
 \end{tabular}
 Llama-3.1-8B, 65\% retention, 6 tasks, n = 100 per task.\\All three
 SnapKV rows use identical attention-score-based token selection; only
-the mechanism varies. $\dagger$ = computed with a now-corrected position-ID
-bug; corrected value pending recomputation.
+the mechanism varies.
 \end{table}
 
-The invalid SnapKV KV-pruning row (1.026) was computed under a position-ID
-bug that inflated KL for unrotated methods; corrected data across all 16 tasks
-yields a mean of 0.037 (Table~\ref{tab:t3}). The corrected result would likely
-show that post-prefill SnapKV is \emph{better} than SnapKV-Select (0.093),
-reversing the apparent 11× penalty: enrichment from the full prefill
-is beneficial once the mechanism operates correctly. Recompute-over-gaps (0.168)
-nearly matches naive prompt construction (0.162), showing that positional
-scatter alone causes limited damage when values carry no cross-context
-information --- consistent with the corrected SnapKV result.
+The corrected post-prefill SnapKV row (mean 0.025) is now \emph{better} than
+SnapKV-Select (0.093), reversing what the buggy evaluation had implied.
+Enrichment from the full prefill is beneficial once position IDs are correct.
+Recompute-over-gaps (0.168) nearly matches naive prompt construction (0.162),
+confirming that positional scatter alone causes limited damage when values carry
+no cross-context information---consistent with the corrected SnapKV result.
 
 \hypertarget{synthetic-gap-structure-analysis}{%
 \subsection{5.3 Synthetic Gap-Structure
@@ -1397,15 +1393,14 @@ compound --- Naive actually leads \(F_{\text{out}}\) slightly.
 \begin{table}[H]
 \centering
 \small
-\caption{Mean KL faithfulness by output-length category.
-$\dagger$ = pre-fix values; corrected short/long breakdown pending recomputation.}
+\caption{Mean KL faithfulness by output-length category (Llama-3.1-8B, 65\%)}
 \label{tab:t6}
 \begin{tabular}{@{}lll@{}}
 \toprule
 Method & Short \(F_{\text{KL}}\) & Long \(F_{\text{KL}}\)\\
 \midrule
-SnapKV    & $^\dagger$ & $^\dagger$\\
-PyramidKV & $^\dagger$ & $^\dagger$\\
+SnapKV    & 0.009 & 0.110\\
+PyramidKV & \textbf{0.007} & \textbf{0.098}\\
 Streaming & 0.080 & 0.297\\
 Naive     & 0.143 & 0.256\\
 \bottomrule
@@ -1417,10 +1412,10 @@ Llama-3.1-8B, 65\% retention, all 16 tasks.
 \end{table}
 
 Table~\ref{tab:t6} gives the KL short/long breakdown.
-Corrected short/long values for SnapKV and PyramidKV are pending; the
-mean KL at 65\% (0.037 and 0.032 respectively) is well below Streaming
-(0.141) and Naive (0.175), so both should show substantially better
-fidelity than Naive at both lengths once recomputed.
+SnapKV and PyramidKV are far more faithful than Streaming or Naive at
+both output lengths: PyramidKV leads (short 0.007, long 0.098), followed
+closely by SnapKV (0.009, 0.110). Both are approximately 10× lower than
+Streaming on short outputs and 3× lower on long outputs.
 
 The first-token advantage explains the \(F_{\text{out}}\) pattern in Table~\ref{tab:t5}:
 \(F_{\text{out}}\) is dominated by the first output word, which is
@@ -1574,25 +1569,25 @@ Long = $>$90~words ($n=445$).
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
 Method & Short & Long & Short & Long & Short & Long\\
 \midrule
-SnapKV    & $^\dagger$ & $^\dagger$ & $^\dagger$ & $^\dagger$ & $^\dagger$ & $^\dagger$\\
-PyramidKV & $^\dagger$ & $^\dagger$ & $^\dagger$ & $^\dagger$ & $^\dagger$ & $^\dagger$\\
-Streaming & \textbf{0.080} & \textbf{0.297} & \textbf{0.128} & \textbf{0.385} & \textbf{0.175} & \textbf{0.484}\\
+SnapKV    & 0.009 & 0.110 & \textbf{0.018} & \textbf{0.199} & \textbf{0.038} & \textbf{0.321}\\
+PyramidKV & \textbf{0.007} & \textbf{0.098} & 0.029 & 0.210 & \textbf{0.038} & \textbf{0.321}\\
+Streaming & 0.080 & 0.297 & 0.128 & 0.385 & 0.175 & 0.484\\
 Naive     & 0.143 & 0.256 & 0.173 & 0.331 & 0.225 & 0.427\\
 \bottomrule
 \end{tabular}
 \center\smallskip
-$\dagger$ = corrected short/long breakdown pending recomputation.
-\textbf{Bold} = best per column among available results.
+\textbf{Bold} = best per column.
 All 16 tasks; short/long defined by full-model reference output length.
 \end{table}
 
-Corrected short/long KL values for SnapKV and PyramidKV are pending; these
-methods' mean KL at 65\% (0.037 and 0.032) is well below Streaming (0.141)
-and Naive (0.175), so both should substantially outperform Streaming and Naive
-at both lengths once the breakdown is recomputed. Streaming KL is roughly twice
-as bad on long outputs (0.297) as on short ones (0.080), consistent with
-block\_end enrichment contamination being felt more severely over longer
-generation sequences.
+SnapKV and PyramidKV dominate at every rate and output length, with KL
+4--10× lower than Streaming on short outputs and 2--3× lower on long outputs.
+PyramidKV leads at 65\% (short 0.007, long 0.098 vs SnapKV 0.009/0.110);
+SnapKV leads at 50\% (0.018/0.199 vs PyramidKV 0.029/0.210), consistent with
+PyramidKV's pyramid budget collapsing toward uniform allocation as compression
+tightens (§4.3). Both converge at 35\% (0.038/0.321 each). Streaming KL is
+roughly 3× worse on long outputs (0.297) than short (0.080) at 65\%, consistent
+with block-end enrichment contamination accumulating over longer generation.
 
 Table~\ref{tab:base-fout-shortlong} shows the \(F_{\text{out}}\) counterpart.
 
