@@ -1,0 +1,62 @@
+{
+  "arc_challenge": {
+    "name": "arc_challenge",
+    "alias": "arc_challenge",
+    "sample_len": 1172,
+    "acc,none": 0.20392491467576793,
+    "acc_stderr,none": 0.011774262478702316,
+    "acc_norm,none": 0.24232081911262798,
+    "acc_norm_stderr,none": 0.012521593295800071
+  },
+  "sciq": {
+    "name": "sciq",
+    "alias": "sciq",
+    "sample_len": 1000,
+    "acc,none": 0.724,
+    "acc_stderr,none": 0.01414298497574059,
+    "acc_norm,none": 0.649,
+    "acc_norm_stderr,none": 0.015100563798316508
+  },
+  "copa": {
+    "name": "copa",
+    "alias": "copa",
+    "sample_len": 100,
+    "acc,none": 0.73,
+    "acc_stderr,none": 0.04461960433384737
+  },
+  "truthfulqa_mc2": {
+    "name": "truthfulqa_mc2",
+    "alias": "truthfulqa_mc2",
+    "sample_len": 817,
+    "acc,none": 0.42713039286064886,
+    "acc_stderr,none": 0.01509364156384475
+  },
+  "anli_r1": {
+    "name": "anli_r1",
+    "alias": "anli_r1",
+    "sample_len": 1000,
+    "acc,none": 0.34,
+    "acc_stderr,none": 0.014987482264363972
+  },
+  "anli_r2": {
+    "name": "anli_r2",
+    "alias": "anli_r2",
+    "sample_len": 1000,
+    "acc,none": 0.343,
+    "acc_stderr,none": 0.015019206922357005
+  },
+  "anli_r3": {
+    "name": "anli_r3",
+    "alias": "anli_r3",
+    "sample_len": 1200,
+    "acc,none": 0.3491666666666667,
+    "acc_stderr,none": 0.013767075395077238
+  },
+  "race": {
+    "name": "race",
+    "alias": "race",
+    "sample_len": 1045,
+    "acc,none": 0.2832535885167464,
+    "acc_stderr,none": 0.013945054778900118
+  }
+}

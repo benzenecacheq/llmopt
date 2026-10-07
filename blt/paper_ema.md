@@ -291,18 +291,21 @@ One real supporting result (PIQA), one real opposing result (ARC-Easy), two benc
 
 ### 4.12 The Trade-off Generalizes to a Larger Model Scale
 
-Every result above uses GPT-2 Small (124M parameters). To test whether the core trade-off (Section 4.1) is an artifact of this specific model size, we trained GPT-2-medium (355M parameters, ~3× the parameter count) from scratch for 1.5M steps (Section 3), comparing a non-EMA baseline against the sine-annealed fixed-decay blend=0.75 configuration (chosen because it was the strongest small-scale configuration available at the time this run was launched — before Sections 4.5–4.7's cautionary findings were established; a cumulative-mode medium-scale run, which the small-scale results in this paper would now motivate preferentially, is in progress as of this writing).
+Every other result in this paper uses GPT-2 Small (124M parameters). To test whether the core trade-off (Section 4.1) is an artifact of this specific model size, we trained GPT-2-medium (355M parameters, ~3× the parameter count) from scratch for 1.5M steps (Section 3), comparing a non-EMA baseline against the sine-annealed fixed-decay blend=0.75 configuration and, in a later run motivated by Section 4.6's finding that cumulative weighting edges out fixed-decay EMA at small scale, a cumulative blend=1.0 configuration.
 
-| | Medium baseline | Medium EMA (sine blend=0.75) |
-|---|---|---|
-| OWT held-out ppl | **18.09** | 18.79 |
-| LAMBADA acc | 0.311 | **0.373** |
-| LAMBADA ppl | 40.8 | **31.2** |
-| HellaSwag acc_norm | 0.297 | **0.302** |
-| PIQA acc_norm | **0.607** | 0.594 |
-| Winogrande acc | **0.522** | 0.515 |
+| | Medium baseline | Medium EMA (sine blend=0.75) | Medium cumulative (blend=1.0) |
+|---|---|---|---|
+| OWT held-out ppl | **18.09** | 18.79 | 19.49 |
+| LAMBADA acc | 0.311 | 0.373 | **0.381** |
+| LAMBADA ppl | 40.8 | 31.2 | **30.7** |
+| HellaSwag acc_norm | 0.297 | 0.302 | 0.301 |
+| PIQA acc_norm | **0.607** | 0.594 | 0.608 |
+| Winogrande acc | **0.522** | 0.515 | 0.500 |
+| BLiMP mean acc | **0.801** | 0.792 | 0.791 |
 
-**The same trade-off shape documented at small scale (Section 4.1) replicates at roughly 3× the parameter count.** OWT ppl is modestly worse (+3.9% relative), LAMBADA improves substantially (accuracy +20% relative, perplexity −24%), HellaSwag edges up slightly, and PIQA/Winogrande dip slightly — the same pattern of gains and losses as the small-scale GPT-2 result in Section 4.1, not merely the same direction on LAMBADA alone. Per-step timing on a clean post-migration segment (1.32 s/step, consistent across both halves of the measured window) confirms the reweighting mechanism costs no meaningful extra compute at this scale either — it is a per-token multiply on an already-computed loss, not a new matmul.
+**The same trade-off shape documented at small scale (Section 4.1) replicates at roughly 3× the parameter count, for both mechanisms.** Fixed-decay EMA: OWT ppl modestly worse (+3.9% relative), LAMBADA accuracy +20% relative, HellaSwag edges up slightly, PIQA/Winogrande dip slightly — the same pattern of gains and losses as the small-scale GPT-2 result in Section 4.1. Cumulative weighting at medium scale reproduces its own small-scale signature relative to fixed-decay EMA (Section 4.6): a larger OWT-ppl cost (19.49 vs. 18.79) but the better LAMBADA result of the three configurations (0.381), including a LAMBADA-perplexity figure (30.7) better than either alternative. Per-step timing on a clean post-migration segment (1.32 s/step, consistent across both halves of the measured window) confirms the reweighting mechanism costs no meaningful extra compute at this scale either — it is a per-token multiply on an already-computed loss, not a new matmul.
+
+**One place the medium-scale cumulative result diverges from its small-scale counterpart**: Winogrande drops to 0.500 (chance level) for cumulative weighting, versus 0.522 (baseline) and 0.515 (EMA) — a real-looking, isolated regression rather than the roughly-flat Winogrande numbers cumulative weighting shows at small scale (Section 4.6). Both medium-scale reweighted configurations are single-seed, as is the baseline; no multi-seed medium-scale result exists for any configuration in this paper given the cost (~2–3 weeks) of a single run at this scale, so this divergence should be read as a single data point, not yet a confirmed architectural or mechanistic effect.
 
 ---
 
@@ -325,7 +328,7 @@ Every result above uses GPT-2 Small (124M parameters). To test whether the core 
 - *(Answered)* Does a jointly-trained blend beat sequential fine-tune? — **Yes** (Section 4.4), confirmed across three independent seeds.
 - *(Answered, corrected)* Does annealing the blend coefficient in via a schedule help? — **No, not once confirmed to three seeds**, for either mechanism (Sections 4.5, 4.7). An initial single-seed result for each looked like a substantial improvement; neither replicated.
 - *(Answered)* Is cumulative (exact running-mean) weighting better than fixed-decay EMA? — **Yes, modestly, at matched full blend strength** (Section 4.6), the best-supported mechanistic claim in this paper. Not yet tested at every blend value with equal seed coverage — blend=0.5 has only one seed for either mechanism.
-- *(Answered)* Does the base trade-off generalize across model scale? — **Yes** (Section 4.12): the same trade-off shape holds at ~3× the parameter count. A medium-scale cumulative-mode run, now motivated by Section 4.6's finding, is in progress but not yet complete.
+- *(Answered)* Does the base trade-off generalize across model scale? — **Yes** (Section 4.12): the same trade-off shape holds at ~3× the parameter count, for both fixed-decay EMA and, in a later addition, cumulative weighting — the latter again showing its small-scale signature of a larger OWT-ppl cost for a better LAMBADA result. Both medium-scale results are single-seed.
 - *(Answered)* Is the BLiMP cost uniform or concentrated, and does it depend on mechanism/blend? — **Concentrated in long-range structural dependencies** (anaphor binding, wh-movement), replicating across small and medium scale, and **present at similar small magnitude regardless of mechanism or blend value** (Section 4.9) — a cleaner and more general answer than this paper's earlier, single-seed-per-point read suggested.
 - *(Answered)* Does reweighting benchmark scoring itself (rather than training) reveal a larger hidden advantage? — **No clean confirmation** (Section 4.11): one supporting result, one opposing result, the rest inert or noisy.
 - *(Partially answered)* Sweep more α values — Section 4.3 covers 0.25/0.5/0.75 sequential for fixed-decay EMA; Section 4.6 covers 0.5/0.75/1.0 for cumulative mode, though blend=0.5 is single-seed. A full matched sweep across both mechanisms at equal seed coverage has not been run.
@@ -369,7 +372,7 @@ For digging up raw data behind any number in this paper. Paths are relative to t
 | Cumulative + sine, blend=1.0 target (seed 42/19/7) | `run_gpt2_cumulative_sine_scratch_seed{42,19,7}.pt` | `lm_eval_gpt2_cumulative_sine_scratch_seed{42,19,7}.json` | Section 4.7, 3-seed |
 | Medium baseline (seed 42) | `run_gpt2_medium_baseline_seed42.pt` | `lm_eval_gpt2_medium_baseline_seed42.json` | Section 4.12; also `_blimp.json`/`_supplementary.json`/`_extended.json` |
 | Medium EMA, sine blend=0.75 (seed 42) | `run_gpt2_medium_ema_blend75_sine_seed42.pt` | `lm_eval_gpt2_medium_ema_blend75_sine_seed42.json` | Section 4.12; also `_blimp.json`/`_extended.json` |
-| Medium cumulative blend=1.0 (seed 42, IN PROGRESS) | `run_gpt2_medium_cumulative_seed42.pt` | not yet run | Not reported in this paper; motivated by Section 4.6 |
+| Medium cumulative blend=1.0 (seed 42) | `run_gpt2_medium_cumulative_seed42.pt` | `lm_eval_gpt2_medium_cumulative_seed42.json` | Section 4.12; also `_blimp.json`/`_supplementary.json`/`_extended.json` |
 | BLiMP full per-item decomposition | `blimp_full_results.json` (small), `blimp_full_results_medium.json` (medium) | — | Section 4.9 |
 | ARC-Easy full per-item decomposition | `arc_easy_full_results.json`, `arc_easy_full_results_medium.json`, `arc_easy_disagreements.json` | — | Section 4.10 |
 | Low-impact-token benchmark-reweighting sweep | — | `lm_eval_lowimpact_sweep_{baseline,cumulative100}_seed42_w{0.0,0.1,0.25,0.5,1.0}.json` and per-benchmark variants (40 files total) | Section 4.11 |

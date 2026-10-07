@@ -1255,6 +1255,30 @@ Smoke-tested first (100 steps, since cumulative mode had never been exercised at
 
 **Launched, then relaunched with a corrected batch size**: first launch used `--batch-size 2 --grad-accum-steps 2`, mirroring bender's memory-constrained medium protocol — wrong choice, since `io`'s 32GB V100 has always supported a true `--batch-size 4` pass directly (this is exactly what the original medium EMA blend75 run on `io` used, and CLAUDE.md already documented the ~10-25% speedup from avoiding the small-batch/grad-accum inefficiency tax). Caught at step 1,440/1,500,000 (negligible loss) — killed cleanly (had to `SIGTERM` the actual worker PID, not just the `conda run` wrapper PID, which dies without stopping the underlying python process), verified GPU freed, deleted the tiny checkpoint, relaunched with `--batch-size 4` (no grad-accum). Confirmed settled at 19.5GB/32.75GB, 100% util — exactly matching the original blend75 run's footprint. Final command: `train.py --baseline --from-scratch --pretrained gpt2-medium --ema-loss-weighting --loss-weighting-mode cumulative --ema-blend 1.0 --dataset openwebtext_large --seed 42 --batch-size 4 --max-steps 1500000 --eval-every 1000 --lambada-eval-every 5000 --owt-eval-every 5000 --save-path run_gpt2_medium_cumulative_seed42.pt`. This will be the third point in the medium-scale EMA-family comparison (baseline OWT ppl 18.09/LAMBADA 0.311; EMA sine-blend75 OWT ppl 18.79/LAMBADA 0.373) once it finishes, expected in ~2-3 weeks.
 
+**DONE (2026-10-07).** All 1,500,000 steps completed on `bender` (final val_ppl 44.66), checkpoint verified genuine (all finite, `token_count` sum 6,138,012,276 across 50,154/50,257 tokens — fully populated for the 1.5M-step/effective-batch-4 protocol). Benchmarked across all four suites used for the other two medium checkpoints (primary, supplementary, extended, BLiMP): `lm_eval_gpt2_medium_cumulative_seed42.json`, `eval_owt_gpt2_medium_cumulative_seed42.stdout`, `lm_eval_gpt2_medium_cumulative_seed42_supplementary.json`, `lm_eval_gpt2_medium_cumulative_seed42_extended.json`, `lm_eval_gpt2_medium_cumulative_seed42_blimp.json`.
+
+| | Baseline | EMA sine-blend75 | Cumulative blend=1.0 |
+|---|---|---|---|
+| OWT held-out ppl | 18.09 | 18.79 | 19.49 |
+| OWT held-out loss | 2.8951 | 2.9332 | 2.9697 |
+| LAMBADA acc | 0.311 | 0.373 | **0.381** |
+| LAMBADA ppl | 40.8 | 31.2 | **30.7** |
+| HellaSwag acc_norm | 0.297 | 0.302 | 0.301 |
+| PIQA acc_norm | 0.607 | 0.594 | **0.608** |
+| Winogrande acc | **0.522** | 0.515 | 0.500 |
+| BLiMP mean acc | **0.801** | 0.792 | 0.791 |
+| ARC-Easy acc | 0.4415 | not run | 0.4352 |
+| BoolQ acc | 0.5566 | not run | 0.5661 |
+| OpenBookQA acc | 0.158 | not run | 0.160 |
+| ARC-Challenge acc | 0.183 | 0.200 | **0.204** |
+| SciQ acc | **0.725** | 0.718 | 0.724 |
+| COPA acc | 0.650 | 0.650 | **0.730** |
+| TruthfulQA (mc2) acc | 0.411 | **0.427** | **0.427** |
+| ANLI r1/r2/r3 acc | 0.334/0.359/0.340 | 0.314/0.361/0.343 | 0.340/0.343/0.349 |
+| RACE acc | 0.282 | 0.285 | 0.283 |
+
+**Cumulative weighting is the best LAMBADA result in the whole medium-scale family (0.381)** — beating even EMA sine-blend75 (0.373) — mirroring the small-scale Section 4.6 (`paper_ema.md`) finding that cumulative at full blend buys more LAMBADA than fixed-decay EMA, at a somewhat larger OWT-ppl cost (19.49 vs. 18.79, both still a bounded tax relative to baseline's 18.09). **Winogrande is the one metric where cumulative is clearly the weakest of the three** (0.500, chance level, vs. baseline 0.522 and EMA 0.515) — not just a wash, a real-looking regression specific to this benchmark. COPA's apparent jump (0.730 vs. both others' 0.650) is likely noise given only 100 examples. **Gap noted**: EMA sine-blend75's supplementary suite (ARC-Easy/BoolQ/OpenBookQA) was apparently never run at medium scale — only baseline and cumulative have it; would need a follow-up run to close. Single seed, as with both other medium-scale configs — no multi-seed medium-scale result exists for any configuration in this project given the ~2-3 week cost per run. `bender` is now free.
+
 ### Sine-annealed cumulative mode — testing whether the original sine rationale still applies (2026-09-10)
 
 **User's reassessment of the sine schedule's own rationale.** The original motivation for `--ema-blend-schedule sine` (see "Idea noted, then implemented and launched" under "Active run" above) was to reduce fixed-decay EMA's score swings early in training, on the theory that the buffer would become more trustworthy — and therefore less noisy — as training progressed. User now judges that reasoning as flawed for fixed-decay EMA specifically: the buffer's ~69-occurrence half-life means it never actually "settles down" as training progresses — it's a constant-width recency window throughout. The apparent late-training calming effect documented several times in this file (e.g. the medium EMA noise-dynamics discussion) is more likely attributable to LR decaying toward zero at the same time, not the EMA buffer itself becoming more stable.
