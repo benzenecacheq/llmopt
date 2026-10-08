@@ -1267,15 +1267,18 @@ Smoke-tested first (100 steps, since cumulative mode had never been exercised at
 | PIQA acc_norm | 0.607 | 0.594 | **0.608** |
 | Winogrande acc | **0.522** | 0.515 | 0.500 |
 | BLiMP mean acc | **0.801** | 0.792 | 0.791 |
-| ARC-Easy acc | 0.4415 | not run | 0.4352 |
-| BoolQ acc | 0.5566 | not run | 0.5661 |
-| OpenBookQA acc | 0.158 | not run | 0.160 |
+| ARC-Easy acc | **0.4415** | 0.4364 | 0.4352 |
+| BoolQ acc | 0.5566 | **0.5743** | 0.5661 |
+| OpenBookQA acc | 0.158 | 0.150 | **0.160** |
+| OpenBookQA acc_norm | 0.262 | **0.294** | not run |
 | ARC-Challenge acc | 0.183 | 0.200 | **0.204** |
 | SciQ acc | **0.725** | 0.718 | 0.724 |
 | COPA acc | 0.650 | 0.650 | **0.730** |
 | TruthfulQA (mc2) acc | 0.411 | **0.427** | **0.427** |
 | ANLI r1/r2/r3 acc | 0.334/0.359/0.340 | 0.314/0.361/0.343 | 0.340/0.343/0.349 |
 | RACE acc | 0.282 | 0.285 | 0.283 |
+
+**Gap closed (2026-10-08).** Ran the missing ARC-Easy/BoolQ/OpenBookQA suite on the medium EMA sine-blend75 checkpoint (`lm_eval_gpt2_medium_ema_blend75_sine_seed42_supplementary.json`) — the table above is now updated with real numbers in place of "not run." **No clear winner across this supplementary suite**: all three configurations land within a few points of each other on every metric, no systematic direction favoring baseline, EMA, or cumulative — consistent with this project's standing finding that ARC-Easy/BoolQ/OpenBookQA are noisy benchmarks at this scale and most small aggregate differences in them don't survive item-level scrutiny (Section 4.10, `paper_ema.md`).
 
 **Cumulative weighting is the best LAMBADA result in the whole medium-scale family (0.381)** — beating even EMA sine-blend75 (0.373) — mirroring the small-scale Section 4.6 (`paper_ema.md`) finding that cumulative at full blend buys more LAMBADA than fixed-decay EMA, at a somewhat larger OWT-ppl cost (19.49 vs. 18.79, both still a bounded tax relative to baseline's 18.09). **Winogrande is the one metric where cumulative is clearly the weakest of the three** (0.500, chance level, vs. baseline 0.522 and EMA 0.515) — not just a wash, a real-looking regression specific to this benchmark. COPA's apparent jump (0.730 vs. both others' 0.650) is likely noise given only 100 examples. **Gap noted**: EMA sine-blend75's supplementary suite (ARC-Easy/BoolQ/OpenBookQA) was apparently never run at medium scale — only baseline and cumulative have it; would need a follow-up run to close. Single seed, as with both other medium-scale configs — no multi-seed medium-scale result exists for any configuration in this project given the ~2-3 week cost per run. `bender` is now free.
 

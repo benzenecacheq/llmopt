@@ -302,10 +302,15 @@ Every other result in this paper uses GPT-2 Small (124M parameters). To test whe
 | PIQA acc_norm | **0.607** | 0.594 | 0.608 |
 | Winogrande acc | **0.522** | 0.515 | 0.500 |
 | BLiMP mean acc | **0.801** | 0.792 | 0.791 |
+| ARC-Easy acc | **0.4415** | 0.4364 | 0.4352 |
+| BoolQ acc | 0.5566 | **0.5743** | 0.5661 |
+| OpenBookQA acc | 0.158 | 0.150 | **0.160** |
 
 **The same trade-off shape documented at small scale (Section 4.1) replicates at roughly 3× the parameter count, for both mechanisms.** Fixed-decay EMA: OWT ppl modestly worse (+3.9% relative), LAMBADA accuracy +20% relative, HellaSwag edges up slightly, PIQA/Winogrande dip slightly — the same pattern of gains and losses as the small-scale GPT-2 result in Section 4.1. Cumulative weighting at medium scale reproduces its own small-scale signature relative to fixed-decay EMA (Section 4.6): a larger OWT-ppl cost (19.49 vs. 18.79) but the better LAMBADA result of the three configurations (0.381), including a LAMBADA-perplexity figure (30.7) better than either alternative. Per-step timing on a clean post-migration segment (1.32 s/step, consistent across both halves of the measured window) confirms the reweighting mechanism costs no meaningful extra compute at this scale either — it is a per-token multiply on an already-computed loss, not a new matmul.
 
 **One place the medium-scale cumulative result diverges from its small-scale counterpart**: Winogrande drops to 0.500 (chance level) for cumulative weighting, versus 0.522 (baseline) and 0.515 (EMA) — a real-looking, isolated regression rather than the roughly-flat Winogrande numbers cumulative weighting shows at small scale (Section 4.6). Both medium-scale reweighted configurations are single-seed, as is the baseline; no multi-seed medium-scale result exists for any configuration in this paper given the cost (~2–3 weeks) of a single run at this scale, so this divergence should be read as a single data point, not yet a confirmed architectural or mechanistic effect.
+
+**The supplementary suite (ARC-Easy/BoolQ/OpenBookQA), run on all three medium-scale configurations, shows no clear winner**: every metric lands within a few points across all three, with no systematic direction favoring any configuration — consistent with Section 4.10's finding at small scale that this suite is noisy and most small aggregate gaps in it do not survive item-level scrutiny.
 
 ---
 
@@ -371,7 +376,7 @@ For digging up raw data behind any number in this paper. Paths are relative to t
 | Cumulative blend=0.5 (seed 42) | `run_gpt2_cumulative_blend50_scratch_seed42.pt` | `lm_eval_gpt2_cumulative_blend50_scratch_seed42.json` | Section 4.6, single seed |
 | Cumulative + sine, blend=1.0 target (seed 42/19/7) | `run_gpt2_cumulative_sine_scratch_seed{42,19,7}.pt` | `lm_eval_gpt2_cumulative_sine_scratch_seed{42,19,7}.json` | Section 4.7, 3-seed |
 | Medium baseline (seed 42) | `run_gpt2_medium_baseline_seed42.pt` | `lm_eval_gpt2_medium_baseline_seed42.json` | Section 4.12; also `_blimp.json`/`_supplementary.json`/`_extended.json` |
-| Medium EMA, sine blend=0.75 (seed 42) | `run_gpt2_medium_ema_blend75_sine_seed42.pt` | `lm_eval_gpt2_medium_ema_blend75_sine_seed42.json` | Section 4.12; also `_blimp.json`/`_extended.json` |
+| Medium EMA, sine blend=0.75 (seed 42) | `run_gpt2_medium_ema_blend75_sine_seed42.pt` | `lm_eval_gpt2_medium_ema_blend75_sine_seed42.json` | Section 4.12; also `_blimp.json`/`_extended.json`/`_supplementary.json` |
 | Medium cumulative blend=1.0 (seed 42) | `run_gpt2_medium_cumulative_seed42.pt` | `lm_eval_gpt2_medium_cumulative_seed42.json` | Section 4.12; also `_blimp.json`/`_supplementary.json`/`_extended.json` |
 | BLiMP full per-item decomposition | `blimp_full_results.json` (small), `blimp_full_results_medium.json` (medium) | — | Section 4.9 |
 | ARC-Easy full per-item decomposition | `arc_easy_full_results.json`, `arc_easy_full_results_medium.json`, `arc_easy_disagreements.json` | — | Section 4.10 |
