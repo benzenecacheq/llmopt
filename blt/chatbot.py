@@ -215,7 +215,10 @@ def api_chat():
     if chat_mode:
         system_prompt = data.get('system_prompt', '')
         convo_text = transcript + (f"Human: {message}\nAI:" if message else '')
-        stop_strings = ['\nHuman:']
+        # Not '\nHuman:' -- a degenerating model sometimes glues the next turn
+        # straight onto the prior punctuation with no newline at all, which that
+        # stricter match would silently miss and run to the token budget instead.
+        stop_strings = ['Human:']
     else:
         system_prompt = ''
         convo_text = transcript + message
