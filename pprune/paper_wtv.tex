@@ -176,15 +176,15 @@ We make the following contributions:
   Reveals two complementary effects: a structural first-token advantage
   that inflates short-answer \(F_{\text{out}}\) for all post-prefill methods
   (§6.1), masking faithfulness differences on the tasks where compression
-  is cheapest; and a KL/\(F_{\text{out}}\) inversion in which RADAR ---
+  is cheapest; and a KL vs.\ WTV disagreement in which RADAR ---
   the KL leader at moderate compression --- trails SnapKV and PyramidKV
-  substantially on output-text similarity (§4.4, §6).
+  on both WTV and output-text similarity (§3.4, §4.4).
 \item
   \textbf{Eviction geometry determines faithfulness, not scoring criterion}:
-  Scattered-selection methods (SnapKV, PyramidKV, RADAR) achieve high KL
+  Scattered-selection methods (SnapKV, PyramidKV, RADAR) achieve high WTV
   faithfulness because their distributed retention geometry interacts
   favorably with post-prefill value enrichment. Block eviction methods
-  (StreamingLLM) are substantially less faithful. 
+  (StreamingLLM) are substantially less faithful.
   A controlled gap-geometry experiment confirms the geometry
   mechanism (§5.2--§5.3).
 \end{itemize}
@@ -802,8 +802,8 @@ with any one recent query is retained regardless of competition among positions;
 result from softmax competition. We include RADAR to test whether attention-weight
 scoring specifically is what determines faithfulness, or whether any scattered-selection
 geometry is sufficient. Results show the geometry dominates (§4.3): RADAR leads on
-KL despite different scoring, but trails on $F_{\text{out}}$, the sharpest
-KL/$F_{\text{out}}$ inversion in our experiments. No position adjustment after eviction.
+KL despite different scoring, but trails on both WTV and $F_{\text{out}}$, the sharpest
+KL vs.\ WTV disagreement in our experiments (§3.4). No position adjustment after eviction.
 
 \end{enumerate}
 
