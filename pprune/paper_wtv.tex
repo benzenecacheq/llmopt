@@ -169,12 +169,11 @@ We make the following contributions:
   distinct failure modes of GT evaluation as a compression metric
   (§3.1).
 \item
-  \textbf{KL faithfulness metric (\(F_{\text{KL}}\))}: KL divergence
-  between the full and compressed model's next-token distributions at
-  every generation step, averaged over a shared generation prefix.
-  Measures whether the compressed model's computation matches the full
-  model's at every step, not just whether the final output is correct
-  (§3.2).
+  \textbf{WTV faithfulness metric (\(F_{\text{WTV}}\))}: Entropy-weighted
+  total variation between the full and compressed model's next-token
+  distributions, computed on a shared generation prefix. Suppresses isolated
+  catastrophic divergences to focus on steps where distributional agreement
+  actually matters (§3.2).
 \item
   \textbf{Output faithfulness metric (\(F_{\text{out}}\))}: Word-level
   F1 between the full model's generated output and the compressed
@@ -470,14 +469,14 @@ we need to directly compare the compressed model to the original model to determ
 whether it is faithful to the original.
 
 Compression fidelity is best evaluated by comparing the compressed model's next-token
-distributions directly to the full model's, using KL divergence on a shared
-generation sequence. The uncompressed model generates a response \(y^*\)
+distributions directly to the full model's, on a shared generation sequence.
+The uncompressed model generates a response \(y^*\)
 = (\(y^*_1, \ldots, y^*_L\)) from the full context. Both the full model
 and each compressed model are then teacher-forced on this shared token
 sequence: at step \emph{t}, the full model conditions on {[}\emph{c},
 \emph{q}, \(y^*_1, \ldots, y^*_{t-1}\){]} and the compressed model
 conditions on {[}\emph{ĉ}, \emph{q}, \(y^*_1, \ldots, y^*_{t-1}\){]}.
-The metric averages KL divergence across all generation steps
+The metric is entropy-weighted total variation, averaged across all generation steps
 (Figure~\ref{fig:eval-setup}):
 
 \[
@@ -547,7 +546,7 @@ faithfulness cost in \(F_{\text{WTV}}\).
 \hypertarget{output-faithfulness}{%
 \subsection{3.3 Output Faithfulness}\label{output-faithfulness}}
 
-KL faithfulness measures how well the compressed model's internal
+WTV faithfulness measures how well the compressed model's internal
 distributions match the full model's. A complementary question is: how
 similar is the text the compressed model actually generates?
 
@@ -579,25 +578,25 @@ For a compression method that is a good approximation,
 \(F_{\text{out}}\) should be high regardless of whether the underlying
 outputs are ``correct.''
 
-\(F_{\text{KL}}\) and \(F_{\text{out}}\) are measuring different things:
-\(F_{\text{KL}}\) measures \textbf{distributional faithfulness}, which is how
+\(F_{\text{WTV}}\) and \(F_{\text{out}}\) are measuring different things:
+\(F_{\text{WTV}}\) measures \textbf{distributional faithfulness}, which is how
 similar the two models' probability distributions are over the
 vocabulary at every generation step, while \(F_{\text{out}}\) measures
 \textbf{behavioral faithfulness}, how similar the two models' final
 generated texts are.
 
-These can disagree. A method could have low \(F_{\text{KL}}\)
+These can disagree. A method could have low \(F_{\text{WTV}}\)
 (distributions match well at each step) but low \(F_{\text{out}}\) (due
 to early divergence in sampled text). Conversely, a method could have
-high \(F_{\text{out}}\) (same final answers) but high \(F_{\text{KL}}\)
+high \(F_{\text{out}}\) (same final answers) but high \(F_{\text{WTV}}\)
 (reached those answers via corrupted intermediate distributions).
 
 \textbf{Why these two metrics?}
 
 Other distributional or behavioral
 metrics are possible --- Jensen-Shannon divergence (bounded and
-symmetric, but without \(F_{\text{KL}}\)'s direct expected-surprise
-interpretation), rank correlation between full and compressed top-k
+symmetric, but without a direct information-theoretic interpretation per
+token), rank correlation between full and compressed top-k
 token rankings (sensitive to ordering, blind to probability mass), logit
 cosine similarity (no information-theoretic meaning, sensitive to logit
 scale), or calibration error against ground truth (reintroduces the
@@ -607,7 +606,7 @@ We use \(F_{\text{WTV}}\) as the primary distributional metric because
 its [0,\,1] bound makes absolute values interpretable across methods and
 budgets, and the entropy weighting focuses the metric on generation steps
 where distributional agreement actually matters. \(F_{\text{WTV}}\)
-gives method rankings consistent with \(F_{\text{out}}\); KL does not (§3.4).
+gives method rankings consistent with \(F_{\text{out}}\); KL divergence does not (§3.4).
 
 We use word-level F1 because it requires no reference distribution at
 all, only the two models' realized text, and reuses the scoring function
@@ -1121,7 +1120,8 @@ restoring uniform $\Delta\!=\!1$ spacing.
 \subsection{5.2 Empirical Evidence}\label{empirical-evidence}}
 
 To confirm that mechanism rather than token selection drives the
-faithfulness gap, we compare the KL faithfulness of SnapKV with KV pruning to SnapKV-Select ---
+faithfulness gap, we compare KL divergence (used here as a diagnostic)
+for SnapKV with KV pruning to SnapKV-Select ---
 identical attention-score-based token selection, presented as a new
 prompt rather than patched into the KV cache (Table~\ref{tab:t1}). The same tokens,
 selected by the same algorithm, behave very differently depending on how
@@ -1140,7 +1140,7 @@ positional scatter without enrichment.
 \begin{table}[H]
 \centering
 \small
-\caption{Mean KL faithfulness for four method configurations.}
+\caption{Mean KL divergence (diagnostic) for four method configurations.}
 \label{tab:t1}
 \begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.28\textwidth}rrrrrrr@{}}
 \toprule
@@ -1293,7 +1293,7 @@ rerotated isolates the effect of enrichment at compact positions.
 \begin{table}[H]
 \centering
 \small
-\caption{Mean KL faithfulness by gap geometry}
+\caption{Mean KL divergence (diagnostic) by gap geometry}
 \label{tab:t2}
 \begin{tabular}{@{}lllllll@{}}
 \toprule
@@ -1328,7 +1328,7 @@ Table~\ref{tab:t2} reveals several non-obvious patterns across the four geometri
 \item
   \textbf{Block\_mid and clustered4} show modest damage in both evicted
   (1.4×) and rerotated (1.3×) relative to gapless. The geometries are
-  not directly comparable in absolute KL faithfulness: block\_mid and
+  not directly comparable in absolute KL (used diagnostically here): block\_mid and
   clustered4 discard the recency tail, so their elevated gapless
   baselines reflect lower content informativeness, not mechanism damage.
   Within-geometry ratios are the interpretable signal.
