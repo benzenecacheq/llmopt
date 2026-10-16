@@ -128,8 +128,9 @@ Among scattered-selection methods, SnapKV appears to edge out PyramidKV
 using both metrics.  PyramidKV has a slight advantage at mild compression ratios 
 but SnapKV performs better at tighter compression ratios. Our new method RADAR --- which scores
 keys by maximum query-alignment rather than pooled attention weight --- matches
-SnapKV on WTV but lags substantially on output faithfulness,
-illustrating why distributional and output faithfulness can diverge.
+SnapKV on WTV but lags substantially on output faithfulness.
+WTV alone would rate RADAR as equivalent to SnapKV; output faithfulness
+refutes that conclusion. Neither metric is sufficient on its own.
 
 \end{abstract}
 
