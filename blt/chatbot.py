@@ -135,7 +135,7 @@ def _tokenize_or_empty(text, device):
 
 @torch.no_grad()
 def generate(model, device, system_text, convo_text, max_new_tokens, temperature, top_k,
-             stop_strings=None):
+             repetition_penalty=1.0, stop_strings=None):
     # Full recompute each step (no KV cache) -- simplest thing that's correct across
     # every architecture variant here, several of which have their own bespoke
     # attention classes with no shared caching convention.
@@ -162,6 +162,16 @@ def generate(model, device, system_text, convo_text, max_new_tokens, temperature
     hit_stop = False
     for _ in range(max_new_tokens):
         logits = model(input_ids=ids).logits[:, -1, :] / max(temperature, 1e-5)
+        if repetition_penalty != 1.0:
+            # Standard CTRL-style penalty: push down the score of every token already
+            # seen anywhere in this sequence (system prompt + conversation + what's been
+            # generated so far), proportionally more for tokens already favored by the
+            # model -- this is what stops a small model's own feedback loop ("the capital
+            # of arizona, the capital of arizona, ...") from reinforcing itself.
+            seen = torch.unique(ids[0])
+            seen_logits = logits[0, seen]
+            logits[0, seen] = torch.where(seen_logits < 0, seen_logits * repetition_penalty,
+                                           seen_logits / repetition_penalty)
         topk_vals, _ = torch.topk(logits, min(top_k, logits.shape[-1]))
         logits[logits < topk_vals[:, -1:]] = float('-inf')
         probs = torch.softmax(logits, dim=-1)
@@ -210,6 +220,7 @@ def api_chat():
     max_new_tokens = int(data.get('max_new_tokens', 150))
     temperature = float(data.get('temperature', 0.8))
     top_k = int(data.get('top_k', 50))
+    repetition_penalty = float(data.get('repetition_penalty', 1.3))
     chat_mode = bool(data.get('chat_mode', False))
 
     if chat_mode:
@@ -228,7 +239,8 @@ def api_chat():
         model = get_model(key, app.config['DEVICE'])
         reply, truncated, context_trimmed = generate(
             model, app.config['DEVICE'], system_prompt, convo_text,
-            max_new_tokens, temperature, top_k, stop_strings=stop_strings)
+            max_new_tokens, temperature, top_k, repetition_penalty=repetition_penalty,
+            stop_strings=stop_strings)
 
     new_transcript = convo_text + reply
     if chat_mode and not truncated:
@@ -274,6 +286,7 @@ PAGE = """
   <label>max new tokens <input id="maxTok" type="number" value="150" min="1" max="2000"></label>
   <label>temperature <input id="temp" type="number" value="0.8" step="0.1"></label>
   <label>top-k <input id="topk" type="number" value="50"></label>
+  <label>repetition penalty <input id="repPenalty" type="number" value="1.3" step="0.1" min="1"></label>
   <button id="resetBtn">New conversation</button>
 </div>
 <div id="sysPromptRow">
@@ -282,6 +295,7 @@ PAGE = """
 </div>
 <div class="hint">Chat mode wraps each turn as "Human: ... / AI: ..." and primes the model with the system prompt above, and stops generation as soon as it tries to start the next "Human:" turn itself -- a prompting trick, not real instruction-tuning, so expect it to be unreliable and occasionally ignore the persona (more so on the small 124M models than the 355M medium ones). Turn chat mode off to get the model's raw, unprompted free-association behavior instead (what these checkpoints were actually benchmarked on).
 <br>Generation stops early if the model reaches a natural endpoint (EOS, or the next-turn boundary in chat mode); otherwise it's cut off once "max new tokens" is reached -- raise that number for longer replies. A cut-off reply gets a "(truncated)" note and a Continue button to keep going from where it left off.
+<br>Repetition penalty (default 1.3) discourages the model from re-emitting tokens it's already used in this reply -- raise it if you see loops like "the capital of X, the capital of X, ..."; 1.0 disables it (the model's raw, unmodified behavior).
 <br>Separately, every model here has a hard 1024-token context window (system prompt + conversation so far + generated tokens combined) -- it's a fixed property of the GPT-2 architecture, not something you can raise. If a long conversation runs past it, the oldest turns are silently dropped to make room (the system prompt itself is never dropped), and you'll see a "(dropped older context)" note when that happens.</div>
 
 <div id="log"></div>
@@ -362,6 +376,7 @@ async function generateFrom(message, isContinue) {
     max_new_tokens: document.getElementById('maxTok').value,
     temperature: document.getElementById('temp').value,
     top_k: document.getElementById('topk').value,
+    repetition_penalty: document.getElementById('repPenalty').value,
     chat_mode: document.getElementById('chatMode').checked,
     system_prompt: document.getElementById('sysPrompt').value,
   };
