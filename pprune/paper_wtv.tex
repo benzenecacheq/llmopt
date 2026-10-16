@@ -98,24 +98,13 @@ within one percentage point of full context at 35\% retention on
 LongBench. We argue this measurement is the wrong one: the goal of
 compression should be approximation fidelity --- producing the same
 output the full-context model would have produced --- and ground-truth
-benchmarks do not measure this. In this paper we introduce two faithfulness metrics: \emph{KL
+benchmarks do not measure this. 
+
+In this paper we introduce two faithfulness metrics: \emph{WTV
 Faithfulness}, which measures divergence from full-context token
 distributions at every generation step, and \emph{Output Faithfulness},
 which measures text-level similarity between the full model's generated
 output and the compressed model's generated output.
-
-Using WTV faithfulness as our primary lens, we find that scattered-selection
-methods are substantially more faithful than block eviction. Their distributed
-retention geometry interacts favorably with post-prefill value enrichment.
-StreamingLLM, which retains a contiguous recency window, is substantially less
-faithful: block eviction from the document beginning contaminates value
-representations with expectations about missing context that the model cannot
-satisfy at decode time. Among scattered-selection methods, our new method RADAR --- which scores
-keys by maximum query-alignment rather than pooled attention weight --- leads on
-KL at moderate compression rates on both models, yet trails SnapKV and PyramidKV
-by 1--2 points on WTV and 10--13 points on output faithfulness. This disagreement
-between KL and WTV is the sharpest empirical instance of what the bounded metric
-reveals that KL cannot.
 
 Output faithfulness reveals what ground-truth evaluation hides. At 35\%
 retention, even the best selection methods produce outputs that diverge
@@ -126,6 +115,22 @@ appears less severe, but only because short-answer tasks dominate: a
 post-prefill first-token advantage inflates scores for every eviction
 method on single-word answers, masking larger divergence on the
 longer-form tasks where compression actually reduces generation time.
+
+WTV faithfulness demonstrates that scattered-selection
+methods are substantially more faithful than block eviction. Their distributed
+retention geometry interacts favorably with post-prefill value enrichment.
+StreamingLLM, which retains a contiguous recency window, is substantially less
+faithful: block eviction from the document beginning contaminates value
+representations with expectations about missing context that the model cannot
+satisfy at decode time.
+
+Among scattered-selection methods, SnapKV appears to edge out PyramidKV
+using both metrics.  PyramidKV has a slight advantage at mild compression ratios 
+but SnapKV performs better at tighter compression ratios. Our new method RADAR --- which scores
+keys by maximum query-alignment rather than pooled attention weight --- matches
+SnapKV on WTV but lags substantially on output faithfulness,
+illustrating why distributional and output faithfulness can diverge.
+
 \end{abstract}
 
 \hypertarget{introduction}{%
