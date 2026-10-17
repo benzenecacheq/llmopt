@@ -640,17 +640,22 @@ more informative for comparing methods against each other.
 
 KL divergence has a direct information-theoretic interpretation and
 decomposes cleanly per step, making it attractive as a faithfulness
-metric. Its pathology is equally fundamental: KL is unbounded, and a
-single step with a very low-probability token in the full distribution
-can dominate the per-example average. This matters for KV cache
-compression because structural corruption --- positional displacement
-scrambling the probability mass over a vocabulary of 32,000+ tokens ---
-produces exactly these catastrophic isolated divergences. The
+metric. Its pathology is equally fundamental: KL is unbounded. Whenever
+the compressed model assigns near-zero probability to a token the full
+model places meaningful mass on, KL diverges without limit at that step,
+and a single such spike can dominate the per-example mean. The
 per-example KL then reflects the severity of the worst step, not the
-typical faithfulness across the response. WTV's entropy weighting
-suppresses these isolated spikes: a step where the full model assigns
-near-zero probability everywhere contributes little to the metric
-regardless of what the compressed model does.
+typical faithfulness across the response.
+
+Positional displacement from structural corruption causes exactly these spikes. It
+shifts the compressed model's attention pattern, producing large swings in the
+predicted distribution at scattered generation steps. WTV is affected by the same
+distributional shifts, but its total variation distance is bounded in \([0,1]\) at
+every step, so no single spike can dominate the mean. The entropy weighting
+further focuses WTV on steps where the full model is genuinely uncertain: steps
+where the full model is nearly certain of the next token contribute little
+regardless, concentrating the metric on the generation steps where
+context-dependent distributional differences are most meaningful.
 
 The practical consequence is that KL can rank methods differently from
 both WTV and \(F_{\text{out}}\). We illustrate this with RADAR
