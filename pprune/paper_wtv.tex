@@ -627,13 +627,15 @@ complementary reasons.
 [0,\,1] bound makes absolute values interpretable across methods and
 budgets, and the entropy weighting focuses the metric on generation
 steps where distributional agreement actually matters (near-deterministic
-steps are downweighted regardless). We use word-level F1 for
+steps are downweighted regardless). 
+
+We use word-level F1 for
 \(F_{\text{out}}\) because it requires no external reference, reuses the
 scoring function LongBench already applies to extractive QA, and provides a
 human-readable scale: 0 means no word overlap with the full model's
 output; 100 means identical text. This keeps faithfulness evaluation on
 the same footing as the ground-truth evaluation it is designed to improve on.
-\(F_{\text{out}}\) is the absolute quality anchor; \(F_{\text{WTV}}\) is
+\(F_{\text{out}}\) provides a human-interpretable reference point; \(F_{\text{WTV}}\) is
 more informative for comparing methods against each other.
 
 KL divergence has a direct information-theoretic interpretation and
