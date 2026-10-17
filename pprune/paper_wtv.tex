@@ -442,7 +442,7 @@ four distinct failure modes as a compression metric.
   macro-average GT scores of approximately 25 out of 100 on LongBench.
   Our own evaluations of the instruction-tuned variants on the same
   benchmark yield 33.2\% for Llama-3.1-8B-Instruct and 32.8\% for
-  Mistral-7B-Instruct-v0.3 (Appendix~B) --- meaning roughly 67\% of what
+  Mistral-7B-Instruct-v0.3 (Appendix~A) --- meaning roughly 67\% of what
   each instruct model generates does not overlap with the ground-truth
   reference. For that majority of output, the metric is entirely blind
   to whether compression changed the model's behavior: the compressed
@@ -700,7 +700,7 @@ RADAR  & \textbf{0.024} & \textbf{0.048} & \textbf{0.086} & 0.030 & 0.046 & 0.06
 \end{minipage}
 \par\smallskip
 \textbf{Bold} = better (lower) value per metric column.
-KL values are from corrected position-ID evaluation (Appendix A).
+KL values are from corrected position-ID evaluation (Appendix C).
 \end{table}
 
 \hypertarget{main-experiments}{%
@@ -896,7 +896,7 @@ compression.
 \centering
 \small
 \captionsetup{justification=centering}
-\caption{Mean WTV faithfulness (\(F_{\text{WTV}}\)) by method, retention rate, and token budget (per-task breakdown in Appendix A).}
+\caption{Mean WTV faithfulness (\(F_{\text{WTV}}\)) by method, retention rate, and token budget.}
 \label{tab:t3}
 \begin{minipage}[t]{0.49\textwidth}
 \centering
@@ -948,7 +948,7 @@ Table~\ref{tab:t4} shows what compression actually costs.
 \centering
 \small
 \captionsetup{justification=centering}
-\caption{Mean \(F_{\text{out}}\) by method, retention rate, and token budget (per-task breakdown in Appendix C)}
+\caption{Mean \(F_{\text{out}}\) by method, retention rate, and token budget (per-task breakdown in Appendix B)}
 \label{tab:t4}
 \begin{minipage}[t]{0.49\textwidth}
 \centering
@@ -2126,416 +2126,9 @@ Models. In \emph{Advances in Neural Information Processing Systems
 
 
 \clearpage
-\onecolumn
-
-
-\hypertarget{appendix-a-kl-faithfulness-per-task-results}{%
-\section{Appendix A: KL Faithfulness --- Per-Task
-Results}\label{appendix-a-kl-faithfulness-per-task-results}}
-
-\textbf{Tables A1a--A1c. KL Faithfulness per task, Llama-3.1-8B (lower
-is better). Bold = best per row.}
-
-\begin{table}[H]
-\centering
-\small
-\caption*{Table A1a. 65\% retention.}
-\begin{tabular}{@{}llllllll@{}}
-\toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
-\midrule
-NarrativeQA† & 0.022 & 1.139 & 0.045 & 0.787 & \textbf{0.010} & 1.337 & 0.012\\
-Qasper† & 0.281 & 1.311 & 0.237 & 0.881 & \textbf{0.092} & 1.229 & 0.095\\
-MultifieldQA & 0.262 & 1.767 & 0.302 & 1.316 & \textbf{0.037} & 1.535 & 0.045\\
-HotpotQA† & 0.203 & 2.366 & 0.069 & 1.935 & \textbf{0.006} & 2.181 & 0.008\\
-2WikiMQA† & 0.221 & 2.311 & 0.103 & 1.714 & 0.008 & 2.422 & \textbf{0.004}\\
-MuSiQue† & 0.197 & 2.290 & 0.098 & 1.747 & \textbf{0.007} & 2.523 & 0.010\\
-GovReport & 0.280 & 1.071 & 0.385 & 0.532 & 0.128 & 0.334 & \textbf{0.125}\\
-QMSum† & 0.081 & 0.530 & 0.093 & 0.393 & 0.055 & 0.438 & \textbf{0.047}\\
-MultiNews & 0.585 & 1.787 & 0.643 & 1.050 & \textbf{0.322} & 0.721 & 0.375\\
-TREC & 0.202 & 2.685 & 0.084 & 1.454 & 0.011 & 1.526 & \textbf{0.006}\\
-TriviaQA & 0.076 & 1.568 & 0.008 & 1.151 & \textbf{0.001} & 1.647 & 0.001\\
-SAMSum & 0.011 & 1.082 & 0.015 & 0.791 & \textbf{0.004} & 1.182 & 0.004\\
-PassageCount† & 0.059 & 1.962 & 0.002 & 1.560 & \textbf{0.000} & 1.626 & 0.000\\
-PassageRetrieval & 0.188 & 2.030 & 0.032 & 1.624 & \textbf{0.002} & 1.416 & 0.003\\
-LCC & 0.076 & 1.315 & 0.085 & 0.881 & \textbf{0.007} & 1.142 & 0.007\\
-RepoBench-P & 0.048 & 1.010 & 0.050 & 0.702 & 0.004 & 1.052 & \textbf{0.004}\\
-\textbf{Average} & 0.175 & 1.639 & 0.141 & 1.157 & \textbf{0.043} & 1.394 & 0.047\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[H]
-\centering
-\small
-\caption*{Table A1b. 50\% retention.}
-\begin{tabular}{@{}llllllll@{}}
-\toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
-\midrule
-NarrativeQA† & 0.026 & 0.827 & 0.068 & 0.806 & \textbf{0.019} & 1.380 & 0.067\\
-Qasper† & 0.457 & 1.185 & 0.447 & 0.810 & \textbf{0.165} & 1.394 & 0.220\\
-MultifieldQA & 0.359 & 1.261 & 0.417 & 1.024 & \textbf{0.065} & 1.619 & 0.098\\
-HotpotQA† & 0.212 & 1.348 & 0.097 & 1.519 & \textbf{0.012} & 2.245 & 0.027\\
-2WikiMQA† & 0.278 & 1.284 & 0.198 & 1.286 & 0.021 & 2.282 & \textbf{0.020}\\
-MuSiQue† & 0.188 & 1.367 & 0.123 & 1.457 & \textbf{0.013} & 2.507 & 0.021\\
-GovReport & 0.327 & 1.128 & 0.466 & 0.488 & 0.223 & 0.504 & \textbf{0.223}\\
-QMSum† & 0.088 & 0.506 & 0.125 & 0.369 & 0.086 & 0.484 & \textbf{0.082}\\
-MultiNews & 0.759 & 1.936 & 0.784 & 1.002 & \textbf{0.551} & 1.099 & 0.654\\
-TREC & 0.260 & 1.186 & 0.183 & 1.114 & \textbf{0.016} & 1.711 & 0.021\\
-TriviaQA & 0.095 & 0.872 & 0.015 & 0.963 & \textbf{0.001} & 1.622 & 0.005\\
-SAMSum & 0.012 & 0.830 & 0.020 & 0.619 & \textbf{0.008} & 1.199 & 0.017\\
-PassageCount† & 0.055 & 1.157 & 0.003 & 1.468 & \textbf{0.000} & 1.538 & 0.001\\
-PassageRetrieval & 0.188 & 1.360 & 0.043 & 1.504 & \textbf{0.004} & 1.378 & 0.007\\
-LCC & 0.105 & 0.968 & 0.114 & 0.677 & \textbf{0.029} & 1.238 & 0.045\\
-RepoBench-P & 0.065 & 0.745 & 0.088 & 0.580 & \textbf{0.011} & 1.016 & 0.023\\
-\textbf{Average} & 0.217 & 1.122 & 0.199 & 0.981 & \textbf{0.077} & 1.451 & 0.096\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[H]
-\centering
-\small
-\caption*{Table A1c. 35\% retention.}
-\begin{tabular}{@{}llllllll@{}}
-\toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
-\midrule
-NarrativeQA† & 0.045 & 0.545 & 0.091 & 0.559 & \textbf{0.030} & 0.559 & 0.030\\
-Qasper† & 0.637 & 1.089 & 0.620 & 0.867 & \textbf{0.281} & 0.858 & 0.281\\
-MultifieldQA & 0.475 & 1.119 & 0.499 & 0.925 & \textbf{0.122} & 0.914 & 0.122\\
-HotpotQA† & 0.220 & 1.398 & 0.114 & 1.246 & \textbf{0.018} & 1.252 & 0.018\\
-2WikiMQA† & 0.351 & 1.272 & 0.238 & 1.040 & \textbf{0.049} & 1.052 & 0.049\\
-MuSiQue† & 0.191 & 1.561 & 0.182 & 1.243 & \textbf{0.022} & 1.236 & 0.022\\
-GovReport & 0.423 & 0.717 & 0.583 & 0.529 & \textbf{0.351} & 0.529 & 0.351\\
-QMSum† & \textbf{0.112} & 0.334 & 0.160 & 0.358 & 0.122 & 0.358 & 0.122\\
-MultiNews & 0.947 & 1.132 & 0.961 & 1.063 & 0.822 & 1.064 & \textbf{0.821}\\
-TREC & 0.296 & 1.512 & 0.325 & 0.812 & \textbf{0.040} & 0.823 & 0.040\\
-TriviaQA & 0.157 & 0.879 & 0.044 & 0.832 & \textbf{0.001} & 0.833 & 0.001\\
-SAMSum & 0.017 & 0.372 & 0.031 & 0.475 & \textbf{0.016} & 0.475 & 0.016\\
-PassageCount† & 0.116 & 1.038 & 0.004 & 1.122 & \textbf{0.001} & 1.134 & 0.001\\
-PassageRetrieval & 0.282 & 1.226 & 0.050 & 1.247 & \textbf{0.009} & 1.240 & 0.009\\
-LCC & 0.145 & 0.505 & 0.149 & 0.547 & \textbf{0.070} & 0.550 & 0.070\\
-RepoBench-P & 0.087 & 0.546 & 0.123 & 0.513 & \textbf{0.027} & 0.511 & 0.027\\
-\textbf{Average} & 0.281 & 0.953 & 0.261 & 0.836 & \textbf{0.124} & 0.837 & \textbf{0.124}\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{Tables A2a--A2c. KL Faithfulness per task, Mistral-7B-v0.3
-(lower is better). Bold = best per row.}
-
-\begin{table}[H]
-\centering
-\small
-\caption*{Table A2a. 65\% retention.}
-\begin{tabular}{@{}llllllll@{}}
-\toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
-\midrule
-    NarrativeQA† & \textbf{0.003} & 0.927 & 0.125 & 0.445 & 0.006 & 0.780 & 0.005\\
-    Qasper† & 0.071 & 0.465 & 0.067 & 0.274 & \textbf{0.023} & 0.472 & 0.026\\
-    MultifieldQA & 0.148 & 1.010 & 0.201 & 0.639 & \textbf{0.018} & 0.718 & 0.024\\
-    HotpotQA† & 0.195 & 1.057 & 0.198 & 0.714 & \textbf{0.010} & 0.725 & 0.014\\
-    2WikiMQA† & 0.262 & 1.149 & 0.208 & 0.710 & \textbf{0.010} & 0.683 & 0.018\\
-    MuSiQue† & 0.183 & 1.015 & 0.179 & 0.708 & \textbf{0.008} & 0.679 & 0.013\\
-    GovReport & 0.180 & 1.221 & 0.281 & 0.578 & \textbf{0.081} & 0.294 & 0.087\\
-    QMSum† & 0.067 & 0.411 & 0.082 & 0.201 & 0.022 & 0.183 & \textbf{0.021}\\
-    MultiNews & 0.586 & 2.067 & 0.678 & 1.076 & \textbf{0.264} & 0.626 & 0.289\\
-    TREC & 0.012 & 0.810 & 0.046 & 0.359 & \textbf{0.004} & 0.703 & 0.005\\
-    TriviaQA & 0.039 & 1.694 & 0.070 & 1.104 & \textbf{0.002} & 1.379 & \textbf{0.002}\\
-    SAMSum & 0.021 & 1.501 & 0.040 & 1.030 & \textbf{0.006} & 1.050 & 0.007\\
-    PassageCount† & 0.037 & 1.295 & 0.069 & 1.141 & \textbf{0.002} & 0.897 & \textbf{0.002}\\
-    PassageRetrieval & 0.195 & 1.453 & 0.204 & 0.971 & \textbf{0.009} & 0.541 & 0.015\\
-    LCC & 0.055 & 1.334 & 0.041 & 0.861 & \textbf{0.007} & 1.070 & 0.008\\
-    RepoBench-P & 0.076 & 1.283 & 0.087 & 0.914 & \textbf{0.004} & 0.940 & \textbf{0.004}\\
-    \textbf{Average}  &  0.133  &  1.168 &  0.161  &  0.733  &  \textbf{0.030}  &  0.734  &  0.034\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[H]
-\centering
-\small
-\caption*{Table A2b. 50\% retention.}
-\begin{tabular}{@{}llllllll@{}}
-\toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
-\midrule
-    NarrativeQA† & \textbf{0.003} & 0.915 & 0.149 & 0.349 & 0.014 & 0.782 & 0.017\\
-    Qasper† & 0.130 & 0.588 & 0.129 & 0.248 & \textbf{0.047} & 0.506 & 0.072\\
-    MultifieldQA & 0.181 & 1.023 & 0.239 & 0.526 & \textbf{0.040} & 0.789 & 0.058\\
-    HotpotQA† & 0.206 & 1.179 & 0.262 & 0.678 & \textbf{0.016} & 0.722 & 0.041\\
-    2WikiMQA† & 0.314 & 1.253 & 0.296 & 0.657 & \textbf{0.022} & 0.739 & 0.059\\
-    MuSiQue† & 0.186 & 1.056 & 0.242 & 0.690 & \textbf{0.018} & 0.711 & 0.048\\
-    GovReport & 0.217 & 1.397 & 0.335 & 0.486 & \textbf{0.151} & 0.455 & 0.185\\
-    QMSum† & 0.071 & 0.457 & 0.100 & 0.196 & \textbf{0.039} & 0.210 & 0.042\\
-    MultiNews & 0.747 & 2.349 & 0.805 & 0.995 & \textbf{0.497} & 0.982 & 0.584\\
-    TREC & 0.017 & 1.000 & 0.054 & 0.193 & \textbf{0.007} & 0.676 & 0.016\\
-    TriviaQA & 0.044 & 1.843 & 0.094 & 0.768 & \textbf{0.003} & 1.376 & 0.012\\
-    SAMSum & 0.023 & 1.517 & 0.045 & 0.814 & \textbf{0.012} & 1.102 & 0.019\\
-    PassageCount† & 0.040 & 1.133 & 0.076 & 1.107 & \textbf{0.005} & 0.908 & \textbf{0.005}\\
-    PassageRetrieval & 0.195 & 1.412 & 0.225 & 0.871 & \textbf{0.019} & 0.654 & 0.044\\
-    LCC & 0.070 & 1.300 & 0.053 & 0.652 & \textbf{0.020} & 1.151 & 0.038\\
-    RepoBench-P & 0.088 & 1.325 & 0.115 & 0.678 & \textbf{0.011} & 0.979 & 0.026\\
-    \textbf{Average}  &  0.158  &  1.234 &  0.201  &  0.619  &  \textbf{0.058}  &  0.796  &  0.079\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[H]
-\centering
-\small
-\caption*{Table A2c. 35\% retention.}
-\begin{tabular}{@{}llllllll@{}}
-\toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
-\midrule
-    NarrativeQA† & \textbf{0.011} & 0.324 & 0.170 & 0.203 & 0.022 & 0.203 & 0.022\\
-    Qasper† & 0.165 & 0.370 & 0.165 & 0.262 & \textbf{0.086} & 0.262 & \textbf{0.086}\\
-    MultifieldQA & 0.213 & 0.655 & 0.286 & 0.519 & \textbf{0.077} & 0.513 & \textbf{0.077}\\
-    HotpotQA† & 0.218 & 0.810 & 0.310 & 0.632 & \textbf{0.028} & 0.633 & \textbf{0.028}\\
-    2WikiMQA† & 0.362 & 0.959 & 0.365 & 0.690 & \textbf{0.051} & 0.684 & \textbf{0.051}\\
-    MuSiQue† & 0.186 & 0.786 & 0.290 & 0.679 & \textbf{0.041} & 0.687 & \textbf{0.041}\\
-    GovReport & 0.263 & 0.582 & 0.399 & 0.457 & \textbf{0.248} & 0.457 & \textbf{0.248}\\
-    QMSum† & 0.084 & 0.210 & 0.114 & 0.175 & \textbf{0.058} & 0.175 & \textbf{0.058}\\
-    MultiNews & 0.900 & 1.252 & 0.937 & 1.040 & \textbf{0.750} & 1.039 & \textbf{0.750}\\
-    TREC & 0.022 & 0.562 & 0.070 & 0.192 & \textbf{0.017} & 0.192 & \textbf{0.017}\\
-    TriviaQA & 0.062 & 1.029 & 0.146 & 0.725 & \textbf{0.006} & 0.722 & \textbf{0.006}\\
-    SAMSum & 0.027 & 0.746 & 0.054 & 0.741 & \textbf{0.022} & 0.737 & \textbf{0.022}\\
-    PassageCount† & 0.069 & 0.615 & 0.084 & 0.957 & \textbf{0.010} & 0.930 & \textbf{0.010}\\
-    PassageRetrieval & 0.197 & 0.789 & 0.272 & 0.911 & \textbf{0.037} & 0.920 & \textbf{0.037}\\
-    LCC & 0.109 & 0.563 & 0.090 & 0.564 & \textbf{0.050} & 0.564 & \textbf{0.050}\\
-    RepoBench-P & 0.110 & 0.766 & 0.146 & 0.654 & \textbf{0.025} & 0.661 & \textbf{0.025}\\
-    \textbf{Average}  &  0.188  &  0.688 &  0.244  &  0.588  &  \textbf{0.096}  &  0.586  &  \textbf{0.096}\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection*{Instruction-tuned models (budgets 256 and 1024 tokens)}
-
-
-\textbf{Table A3a. KL Faithfulness per task, Llama-3.1-8B-Instruct,
-budget = 256 tokens (lower is better). Bold = best per row.
-Streaming = no re-rotation; Str+rot = with re-rotation.
-$n = 100$ per task.}
-
-\nopagebreak
-\begin{table}[H]
-\centering
-\small
-\begin{tabular}{@{}llllllll@{}}
-\toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
-\midrule
-NarrativeQA† & 1.710 & 1.281 & 0.719 & 0.772 & \textbf{0.163} & 0.898 &
-0.180\\
-Qasper† & 2.632 & 1.597 & 1.265 & 0.823 & \textbf{0.452} & 0.809 &
-0.495\\
-MultifieldQA & 2.508 & 1.600 & 1.099 & 0.775 & \textbf{0.280} & 0.790 &
-0.313\\
-HotpotQA† & 1.696 & 1.090 & 0.352 & 0.607 & \textbf{0.051} & 0.870 &
-0.054\\
-2WikiMQA† & 2.642 & 1.412 & 0.494 & 0.730 & \textbf{0.102} & 0.822 &
-0.110\\
-MuSiQue† & 1.671 & 0.989 & 0.335 & 0.529 & \textbf{0.054} & 0.777 &
-0.076\\
-GovReport & 1.099 & 1.130 & 1.042 & 1.017 & \textbf{0.915} & 1.029 &
-0.944\\
-QMSum† & 1.622 & 1.297 & 1.109 & 0.843 & \textbf{0.612} & 0.905 &
-0.681\\
-MultiNews & 0.931 & 0.922 & 0.847 & 0.931 & \textbf{0.814} & 0.986 &
-0.870\\
-TREC & 1.857 & 1.825 & 1.716 & 0.475 & \textbf{0.325} & 0.547 &
-0.385\\
-TriviaQA & 1.156 & 1.191 & 0.282 & 0.921 & 0.067 & 1.013 &
-\textbf{0.063}\\
-SAMSum & 1.754 & 1.552 & 1.401 & 1.364 & \textbf{0.962} & 1.454 &
-1.039\\
-PassageCount† & 5.799 & 0.658 & 0.070 & 0.486 & 0.012 & 0.889 &
-\textbf{0.011}\\
-PassageRetrieval & 3.783 & 0.446 & 0.190 & 0.699 & 0.051 & 0.864 &
-\textbf{0.041}\\
-LCC & 0.475 & 0.483 & 0.351 & 0.601 & \textbf{0.341} & 0.639 &
-0.397\\
-RepoBench-P & 0.712 & 0.651 & 0.494 & 0.733 & \textbf{0.429} & 0.817 &
-0.499\\
-\textbf{Average} & 2.003 & 1.133 & 0.735 & 0.769 & \textbf{0.352} & 0.882 &
-0.385\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
-\textbf{Table A3b. KL Faithfulness per task, Llama-3.1-8B-Instruct,
-budget = 1024 tokens (lower is better). Bold = best per row.
-Streaming = no re-rotation; Str+rot = with re-rotation.
-$n = 100$ per task.}
-
-\nopagebreak
-\begin{table}[H]
-\centering
-\small
-\begin{tabular}{@{}llllllll@{}}
-\toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
-\midrule
-NarrativeQA† & 1.047 & 1.110 & 0.494 & 0.693 & \textbf{0.055} & 1.161 &
-0.064\\
-Qasper† & 1.770 & 1.236 & 0.922 & 0.556 & \textbf{0.111} & 0.643 &
-0.161\\
-MultifieldQA & 1.608 & 1.395 & 0.764 & 0.758 & \textbf{0.120} & 0.679 &
-0.135\\
-HotpotQA† & 1.090 & 1.032 & 0.277 & 0.578 & \textbf{0.025} & 0.520 &
-0.027\\
-2WikiMQA† & 1.790 & 1.504 & 0.439 & 0.768 & \textbf{0.042} & 0.790 &
-0.053\\
-MuSiQue† & 0.960 & 1.033 & 0.277 & 0.552 & \textbf{0.027} & 0.484 &
-0.029\\
-GovReport & 0.849 & 0.942 & 0.801 & 0.811 & \textbf{0.630} & 0.820 &
-0.687\\
-QMSum† & 1.268 & 1.181 & 0.959 & 0.616 & \textbf{0.250} & 0.546 &
-0.296\\
-MultiNews & 0.372 & 0.850 & 0.341 & 0.654 & \textbf{0.282} & 0.470 &
-0.324\\
-TREC & 0.300 & 1.683 & 1.353 & 0.491 & \textbf{0.166} & 0.515 &
-0.192\\
-TriviaQA & 0.498 & 0.845 & 0.074 & 0.875 & \textbf{0.008} & 0.956 &
-0.009\\
-SAMSum & 1.141 & 1.764 & 1.273 & 1.089 & \textbf{0.506} & 1.067 &
-0.642\\
-PassageCount† & 3.606 & 0.545 & 0.074 & 0.366 & \textbf{0.007} & 0.418 &
-0.009\\
-PassageRetrieval & 1.791 & 0.598 & 0.259 & 0.826 & \textbf{0.023} & 0.639 &
-0.029\\
-LCC & 0.092 & 0.458 & 0.125 & 0.342 & \textbf{0.026} & 0.335 &
-0.032\\
-RepoBench-P & 0.343 & 0.505 & 0.242 & 0.398 & \textbf{0.061} & 0.382 &
-0.097\\
-\textbf{Average} & 1.158 & 1.043 & 0.542 & 0.648 & \textbf{0.146} & 0.652 &
-0.174\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
-\textbf{Table A4a. KL Faithfulness per task, Mistral-7B-Instruct-v0.3,
-budget = 256 tokens (lower is better). Bold = best per row.
-Streaming = no re-rotation; Str+rot = with re-rotation.
-$n = 100$ per task.}
-
-\nopagebreak
-\begin{table}[H]
-\centering
-\small
-\begin{tabular}{@{}llllllll@{}}
-\toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
-\midrule
-NarrativeQA† & 3.071 & 2.395 & 1.240 & 2.151 & \textbf{0.440} & 1.424 &
-0.603\\
-Qasper† & 3.982 & 2.331 & 1.753 & 1.698 & \textbf{0.618} & 1.586 &
-0.733\\
-MultifieldQA & 2.875 & 2.062 & 1.401 & 1.712 & \textbf{0.433} & 1.691 &
-0.508\\
-HotpotQA† & 2.561 & 2.760 & 0.518 & 2.776 & \textbf{0.163} & 2.611 &
-\textbf{0.163}\\
-2WikiMQA† & 3.584 & 2.355 & 0.910 & 2.641 & \textbf{0.330} & 2.341 &
-0.375\\
-MuSiQue† & 3.148 & 2.272 & 0.814 & 2.149 & \textbf{0.304} & 2.109 &
-0.322\\
-GovReport & 1.591 & 1.484 & 1.486 & 1.344 & \textbf{1.288} & 1.374 &
-1.339\\
-QMSum† & 2.349 & 1.677 & 1.516 & 1.333 & \textbf{0.889} & 1.374 &
-1.004\\
-MultiNews & 1.296 & 1.280 & 1.159 & 1.185 & \textbf{1.080} & 1.237 &
-1.149\\
-TREC & 2.197 & 2.480 & 2.488 & 1.403 & \textbf{1.010} & 1.338 &
-1.107\\
-TriviaQA & 2.135 & 2.857 & 0.730 & 2.528 & \textbf{0.214} & 2.395 &
-0.251\\
-SAMSum & 2.092 & 2.052 & 1.803 & 1.902 & \textbf{1.377} & 1.987 &
-1.462\\
-PassageCount† & 4.816 & 3.490 & 1.061 & 3.444 & \textbf{0.531} & 3.570 &
-0.689\\
-PassageRetrieval & 3.280 & 1.578 & 0.663 & 2.839 & 0.223 & 3.235 &
-\textbf{0.217}\\
-LCC & 0.880 & 0.963 & 0.754 & 0.727 & \textbf{0.434} & 0.814 &
-0.519\\
-RepoBench-P & 1.118 & 1.179 & 1.011 & 0.769 & \textbf{0.482} & 0.865 &
-0.582\\
-\textbf{Average} & 2.561 & 2.076 & 1.207 & 1.912 & \textbf{0.614} & 1.872 &
-0.689\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
-\textbf{Table A4b. KL Faithfulness per task, Mistral-7B-Instruct-v0.3,
-budget = 1024 tokens (lower is better). Bold = best per row.
-Streaming = no re-rotation; Str+rot = with re-rotation.
-$n = 100$ per task.}
-
-\begin{table}[H]
-\centering
-\small
-\begin{tabular}{@{}llllllll@{}}
-\toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
-\midrule
-NarrativeQA† & 1.734 & 2.213 & 0.821 & 2.371 & \textbf{0.104} & 1.838 &
-0.159\\
-Qasper† & 2.683 & 1.806 & 1.216 & 1.673 & \textbf{0.234} & 1.306 &
-0.303\\
-MultifieldQA & 1.592 & 1.868 & 0.981 & 1.571 & \textbf{0.208} & 1.320 &
-0.250\\
-HotpotQA† & 1.848 & 2.553 & 0.431 & 2.475 & \textbf{0.092} & 2.431 &
-0.093\\
-2WikiMQA† & 2.454 & 2.634 & 0.815 & 2.358 & \textbf{0.167} & 2.138 &
-0.195\\
-MuSiQue† & 2.129 & 2.314 & 0.604 & 1.878 & \textbf{0.103} & 1.692 &
-0.136\\
-GovReport & 1.365 & 1.361 & 1.324 & 1.024 & \textbf{0.931} & 1.067 &
-1.025\\
-QMSum† & 1.628 & 1.356 & 1.313 & 1.033 & \textbf{0.448} & 1.101 &
-0.549\\
-MultiNews & 0.722 & 1.250 & 0.664 & 0.791 & \textbf{0.468} & 0.731 &
-0.542\\
-TREC & 0.520 & 2.333 & 1.901 & 1.101 & \textbf{0.472} & 1.083 &
-0.552\\
-TriviaQA & 1.120 & 2.757 & 0.573 & 2.566 & \textbf{0.091} & 2.389 &
-0.106\\
-SAMSum & 1.522 & 2.210 & 1.690 & 1.786 & \textbf{0.764} & 1.651 &
-0.908\\
-PassageCount† & 2.990 & 2.499 & 0.513 & 3.299 & \textbf{0.215} & 2.925 &
-0.236\\
-PassageRetrieval & 1.183 & 1.541 & 0.371 & 3.044 & \textbf{0.088} & 2.412 &
-0.118\\
-LCC & 0.427 & 0.882 & 0.421 & 0.614 & \textbf{0.124} & 0.764 &
-0.166\\
-RepoBench-P & 0.590 & 1.012 & 0.659 & 0.677 & \textbf{0.196} & 0.684 &
-0.247\\
-\textbf{Average} & 1.532 & 1.912 & 0.894 & 1.766 & \textbf{0.294} & 1.596 &
-0.349\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\clearpage
 \hypertarget{appendix-b-ground-truth-accuracy-per-task-results}{%
-\section{Appendix B: Ground-Truth Accuracy --- Per-Task
-Results}\label{appendix-b-ground-truth-accuracy-per-task-results}}
+\section{Appendix A: Ground-Truth Accuracy --- Per-Task
+Results}\label{appendix-a-ground-truth-accuracy-per-task-results}}
 
 \textbf{Tables B1a--B1c. Ground-truth accuracy per task, Llama-3.1-8B
 (higher is better). Bold = best compressed method per row; ``Full'' is
@@ -2544,7 +2137,7 @@ the reference. Streaming = no re-rotation; Str+rot = with re-rotation.}
 \begin{table}[H]
 \centering
 \small
-\caption*{Table B1a. 65\% retention.}
+\caption*{Table A1a. 65\% retention.}
 \begin{tabular}{@{}lllllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
@@ -2574,7 +2167,7 @@ Pyr+rot\\
 \begin{table}[H]
 \centering
 \small
-\caption*{Table B1b. 50\% retention.}
+\caption*{Table A1b. 50\% retention.}
 \begin{tabular}{@{}lllllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
@@ -2604,7 +2197,7 @@ Pyr+rot\\
 \begin{table}[H]
 \centering
 \small
-\caption*{Table B1c. 35\% retention.}
+\caption*{Table A1c. 35\% retention.}
 \begin{tabular}{@{}lllllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
@@ -2638,7 +2231,7 @@ reference. Streaming = no re-rotation; Str+rot = with re-rotation.}
 \begin{table}[H]
 \centering
 \small
-\caption*{Table B2a. 65\% retention.}
+\caption*{Table A2a. 65\% retention.}
 \begin{tabular}{@{}lllllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
@@ -2668,7 +2261,7 @@ Pyr+rot\\
 \begin{table}[H]
 \centering
 \small
-\caption*{Table B2b. 50\% retention.}
+\caption*{Table A2b. 50\% retention.}
 \begin{tabular}{@{}lllllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
@@ -2698,7 +2291,7 @@ Pyr+rot\\
 \begin{table}[H]
 \centering
 \small
-\caption*{Table B2c. 35\% retention.}
+\caption*{Table A2c. 35\% retention.}
 \begin{tabular}{@{}lllllllll@{}}
 \toprule
 Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
@@ -2729,7 +2322,7 @@ Pyr+rot\\
 \subsection*{Instruction-tuned models (budgets 256 and 1024 tokens)}
 
 
-\textbf{Table B3a. Ground-truth accuracy (\%) per task, Llama-3.1-8B-Instruct,
+\textbf{Table A3a. Ground-truth accuracy (\%) per task, Llama-3.1-8B-Instruct,
 budget = 256 tokens (higher is better). ``Full'' is the reference and is not bolded.
 Bold = best compressed method per row.
 $n = 100$ per task. \(\dagger\) = low full-context score; results noisier.}
@@ -2781,7 +2374,7 @@ RepoBench-P & 3.7 & \textbf{7.0} & 2.9 & 3.0 & 2.8 & 1.9 & 2.7 &
 \end{table}
 
 
-\textbf{Table B3b. Ground-truth accuracy (\%) per task, Llama-3.1-8B-Instruct,
+\textbf{Table A3b. Ground-truth accuracy (\%) per task, Llama-3.1-8B-Instruct,
 budget = 1024 tokens (higher is better). ``Full'' is the reference and is not bolded.
 Bold = best compressed method per row. $n = 100$ per task.
 \(\dagger\) = low full-context score; results noisier.}
@@ -2834,7 +2427,7 @@ RepoBench-P & 3.7 & \textbf{5.5} & 4.4 & 4.5 & 3.2 & 3.2 & 3.0 &
 
 
 
-\textbf{Table B4a. Ground-truth accuracy (\%) per task, Mistral-7B-Instruct-v0.3,
+\textbf{Table A4a. Ground-truth accuracy (\%) per task, Mistral-7B-Instruct-v0.3,
 budget = 256 tokens (higher is better). ``Full'' is the reference and is not bolded.
 Bold = best compressed method per row.
 $n = 100$ per task. \(\dagger\) = low full-context score; results noisier.}
@@ -2887,7 +2480,7 @@ RepoBench-P & 30.0 & 19.6 & 27.5 & 26.7 & \textbf{29.9} & 28.7 & 27.9 &
 \end{table}
 
 
-\textbf{Table B4b. Ground-truth accuracy (\%) per task,
+\textbf{Table A4b. Ground-truth accuracy (\%) per task,
 Mistral-7B-Instruct-v0.3, budget = 1024 tokens (higher is better).
 Full = uncompressed model. Bold = best compressed method per row.
 Streaming = no re-rotation; Str+rot = with re-rotation.
@@ -2942,8 +2535,8 @@ RepoBench-P & 20.0 & 20.2 & 27.8 & 28.1 & 30.2 & \textbf{30.7} & 29.4 &
 
 \clearpage
 \hypertarget{appendix-c-output-faithfulness-per-task-results}{%
-\section{Appendix C: Output Faithfulness --- Per-Task
-Results}\label{appendix-c-output-faithfulness-per-task-results}}
+\section{Appendix B: Output Faithfulness --- Per-Task
+Results}\label{appendix-b-output-faithfulness-per-task-results}}
 
 \textbf{Tables C1a--C1c. \(F_{\text{out}}\) per task, Llama-3.1-8B
 (higher is better). Bold = highest value per row.}
@@ -2951,7 +2544,7 @@ Results}\label{appendix-c-output-faithfulness-per-task-results}}
 \begin{table}[H]
 \centering
 \small
-\caption*{Table C1a. 65\% retention.}
+\caption*{Table B1a. 65\% retention.}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
@@ -2981,7 +2574,7 @@ Pyr+rot\\
 \begin{table}[H]
 \centering
 \small
-\caption*{Table C1b. 50\% retention.}
+\caption*{Table B1b. 50\% retention.}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
@@ -3011,7 +2604,7 @@ Pyr+rot\\
 \begin{table}[H]
 \centering
 \small
-\caption*{Table C1c. 35\% retention.}
+\caption*{Table B1c. 35\% retention.}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
@@ -3044,7 +2637,7 @@ Pyr+rot\\
 \begin{table}[H]
 \centering
 \small
-\caption*{Table C2a. 65\% retention.}
+\caption*{Table B2a. 65\% retention.}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
@@ -3074,7 +2667,7 @@ Pyr+rot\\
 \begin{table}[H]
 \centering
 \small
-\caption*{Table C2b. 50\% retention.}
+\caption*{Table B2b. 50\% retention.}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
@@ -3104,7 +2697,7 @@ Pyr+rot\\
 \begin{table}[H]
 \centering
 \small
-\caption*{Table C2c. 35\% retention.}
+\caption*{Table B2c. 35\% retention.}
 \begin{tabular}{@{}llllllll@{}}
 \toprule
 Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
@@ -3134,7 +2727,7 @@ Pyr+rot\\
 \subsection*{Instruction-tuned models (budgets 256 and 1024 tokens)}
 
 
-\textbf{Table C3a. Output Faithfulness (F\textsubscript{out}, \%) per task, Llama-3.1-8B-Instruct,
+\textbf{Table B3a. Output Faithfulness (F\textsubscript{out}, \%) per task, Llama-3.1-8B-Instruct,
 budget = 256 tokens (higher is better). Scores measure agreement with the full-context
 instruct model output, not ground-truth answers. Bold = best per row.
 $n = 100$ per task.}
@@ -3187,7 +2780,7 @@ RepoBench-P & 14.0 & 40.5 & 39.7 & \textbf{51.3} & 43.6 & 48.5 &
 \end{table}
 
 
-\textbf{Table C3b. Output Faithfulness (F\textsubscript{out}, \%) per task, Llama-3.1-8B-Instruct,
+\textbf{Table B3b. Output Faithfulness (F\textsubscript{out}, \%) per task, Llama-3.1-8B-Instruct,
 budget = 1024 tokens (higher is better). Scores measure agreement with the full-context
 instruct model output. Bold = best per row. $n = 100$ per task.}
 
@@ -3238,7 +2831,7 @@ RepoBench-P & 28.7 & 48.2 & 48.5 & \textbf{67.4} & 63.5 & 65.8 &
 \end{table}
 
 
-\textbf{Table C4a. Output Faithfulness (F\textsubscript{out}, \%) per task, Mistral-7B-Instruct-v0.3,
+\textbf{Table B4a. Output Faithfulness (F\textsubscript{out}, \%) per task, Mistral-7B-Instruct-v0.3,
 budget = 256 tokens (higher is better). Scores measure agreement with the full-context
 instruct model output, not ground-truth answers. Bold = best per row.
 $n = 100$ per task.}
@@ -3291,7 +2884,7 @@ RepoBench-P & 20.2 & 33.5 & 32.6 & \textbf{42.4} & 39.6 & 39.2 &
 \end{table}
 
 
-\textbf{Table C4b. Output Faithfulness (\%) per task, Mistral-7B-Instruct-v0.3,
+\textbf{Table B4b. Output Faithfulness (\%) per task, Mistral-7B-Instruct-v0.3,
 budget = 1024 tokens (higher is better). Bold = best per row.
 Streaming = no re-rotation; Str+rot = with re-rotation.
 $n = 100$ per task.}
@@ -3338,6 +2931,413 @@ RepoBench-P & \textbf{31.5} & 22.0 & 21.6 & 28.8 & 27.8 & 26.6 &
 26.8\\
 \textbf{Average} & 36.8 & 43.3 & 42.8 & \textbf{55.2} & 53.5 & 54.9 &
 52.6\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
+\onecolumn
+
+
+\hypertarget{appendix-a-kl-faithfulness-per-task-results}{%
+\section{Appendix C: KL Faithfulness --- Per-Task
+Results}\label{appendix-c-kl-faithfulness-per-task-results}}
+
+\textbf{Tables A1a--A1c. KL Faithfulness per task, Llama-3.1-8B (lower
+is better). Bold = best per row.}
+
+\begin{table}[H]
+\centering
+\small
+\caption*{Table C1a. 65\% retention.}
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+NarrativeQA† & 0.022 & 1.139 & 0.045 & 0.787 & \textbf{0.010} & 1.337 & 0.012\\
+Qasper† & 0.281 & 1.311 & 0.237 & 0.881 & \textbf{0.092} & 1.229 & 0.095\\
+MultifieldQA & 0.262 & 1.767 & 0.302 & 1.316 & \textbf{0.037} & 1.535 & 0.045\\
+HotpotQA† & 0.203 & 2.366 & 0.069 & 1.935 & \textbf{0.006} & 2.181 & 0.008\\
+2WikiMQA† & 0.221 & 2.311 & 0.103 & 1.714 & 0.008 & 2.422 & \textbf{0.004}\\
+MuSiQue† & 0.197 & 2.290 & 0.098 & 1.747 & \textbf{0.007} & 2.523 & 0.010\\
+GovReport & 0.280 & 1.071 & 0.385 & 0.532 & 0.128 & 0.334 & \textbf{0.125}\\
+QMSum† & 0.081 & 0.530 & 0.093 & 0.393 & 0.055 & 0.438 & \textbf{0.047}\\
+MultiNews & 0.585 & 1.787 & 0.643 & 1.050 & \textbf{0.322} & 0.721 & 0.375\\
+TREC & 0.202 & 2.685 & 0.084 & 1.454 & 0.011 & 1.526 & \textbf{0.006}\\
+TriviaQA & 0.076 & 1.568 & 0.008 & 1.151 & \textbf{0.001} & 1.647 & 0.001\\
+SAMSum & 0.011 & 1.082 & 0.015 & 0.791 & \textbf{0.004} & 1.182 & 0.004\\
+PassageCount† & 0.059 & 1.962 & 0.002 & 1.560 & \textbf{0.000} & 1.626 & 0.000\\
+PassageRetrieval & 0.188 & 2.030 & 0.032 & 1.624 & \textbf{0.002} & 1.416 & 0.003\\
+LCC & 0.076 & 1.315 & 0.085 & 0.881 & \textbf{0.007} & 1.142 & 0.007\\
+RepoBench-P & 0.048 & 1.010 & 0.050 & 0.702 & 0.004 & 1.052 & \textbf{0.004}\\
+\textbf{Average} & 0.175 & 1.639 & 0.141 & 1.157 & \textbf{0.043} & 1.394 & 0.047\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\caption*{Table C1b. 50\% retention.}
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+NarrativeQA† & 0.026 & 0.827 & 0.068 & 0.806 & \textbf{0.019} & 1.380 & 0.067\\
+Qasper† & 0.457 & 1.185 & 0.447 & 0.810 & \textbf{0.165} & 1.394 & 0.220\\
+MultifieldQA & 0.359 & 1.261 & 0.417 & 1.024 & \textbf{0.065} & 1.619 & 0.098\\
+HotpotQA† & 0.212 & 1.348 & 0.097 & 1.519 & \textbf{0.012} & 2.245 & 0.027\\
+2WikiMQA† & 0.278 & 1.284 & 0.198 & 1.286 & 0.021 & 2.282 & \textbf{0.020}\\
+MuSiQue† & 0.188 & 1.367 & 0.123 & 1.457 & \textbf{0.013} & 2.507 & 0.021\\
+GovReport & 0.327 & 1.128 & 0.466 & 0.488 & 0.223 & 0.504 & \textbf{0.223}\\
+QMSum† & 0.088 & 0.506 & 0.125 & 0.369 & 0.086 & 0.484 & \textbf{0.082}\\
+MultiNews & 0.759 & 1.936 & 0.784 & 1.002 & \textbf{0.551} & 1.099 & 0.654\\
+TREC & 0.260 & 1.186 & 0.183 & 1.114 & \textbf{0.016} & 1.711 & 0.021\\
+TriviaQA & 0.095 & 0.872 & 0.015 & 0.963 & \textbf{0.001} & 1.622 & 0.005\\
+SAMSum & 0.012 & 0.830 & 0.020 & 0.619 & \textbf{0.008} & 1.199 & 0.017\\
+PassageCount† & 0.055 & 1.157 & 0.003 & 1.468 & \textbf{0.000} & 1.538 & 0.001\\
+PassageRetrieval & 0.188 & 1.360 & 0.043 & 1.504 & \textbf{0.004} & 1.378 & 0.007\\
+LCC & 0.105 & 0.968 & 0.114 & 0.677 & \textbf{0.029} & 1.238 & 0.045\\
+RepoBench-P & 0.065 & 0.745 & 0.088 & 0.580 & \textbf{0.011} & 1.016 & 0.023\\
+\textbf{Average} & 0.217 & 1.122 & 0.199 & 0.981 & \textbf{0.077} & 1.451 & 0.096\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\caption*{Table C1c. 35\% retention.}
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+NarrativeQA† & 0.045 & 0.545 & 0.091 & 0.559 & \textbf{0.030} & 0.559 & 0.030\\
+Qasper† & 0.637 & 1.089 & 0.620 & 0.867 & \textbf{0.281} & 0.858 & 0.281\\
+MultifieldQA & 0.475 & 1.119 & 0.499 & 0.925 & \textbf{0.122} & 0.914 & 0.122\\
+HotpotQA† & 0.220 & 1.398 & 0.114 & 1.246 & \textbf{0.018} & 1.252 & 0.018\\
+2WikiMQA† & 0.351 & 1.272 & 0.238 & 1.040 & \textbf{0.049} & 1.052 & 0.049\\
+MuSiQue† & 0.191 & 1.561 & 0.182 & 1.243 & \textbf{0.022} & 1.236 & 0.022\\
+GovReport & 0.423 & 0.717 & 0.583 & 0.529 & \textbf{0.351} & 0.529 & 0.351\\
+QMSum† & \textbf{0.112} & 0.334 & 0.160 & 0.358 & 0.122 & 0.358 & 0.122\\
+MultiNews & 0.947 & 1.132 & 0.961 & 1.063 & 0.822 & 1.064 & \textbf{0.821}\\
+TREC & 0.296 & 1.512 & 0.325 & 0.812 & \textbf{0.040} & 0.823 & 0.040\\
+TriviaQA & 0.157 & 0.879 & 0.044 & 0.832 & \textbf{0.001} & 0.833 & 0.001\\
+SAMSum & 0.017 & 0.372 & 0.031 & 0.475 & \textbf{0.016} & 0.475 & 0.016\\
+PassageCount† & 0.116 & 1.038 & 0.004 & 1.122 & \textbf{0.001} & 1.134 & 0.001\\
+PassageRetrieval & 0.282 & 1.226 & 0.050 & 1.247 & \textbf{0.009} & 1.240 & 0.009\\
+LCC & 0.145 & 0.505 & 0.149 & 0.547 & \textbf{0.070} & 0.550 & 0.070\\
+RepoBench-P & 0.087 & 0.546 & 0.123 & 0.513 & \textbf{0.027} & 0.511 & 0.027\\
+\textbf{Average} & 0.281 & 0.953 & 0.261 & 0.836 & \textbf{0.124} & 0.837 & \textbf{0.124}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Tables A2a--A2c. KL Faithfulness per task, Mistral-7B-v0.3
+(lower is better). Bold = best per row.}
+
+\begin{table}[H]
+\centering
+\small
+\caption*{Table C2a. 65\% retention.}
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+    NarrativeQA† & \textbf{0.003} & 0.927 & 0.125 & 0.445 & 0.006 & 0.780 & 0.005\\
+    Qasper† & 0.071 & 0.465 & 0.067 & 0.274 & \textbf{0.023} & 0.472 & 0.026\\
+    MultifieldQA & 0.148 & 1.010 & 0.201 & 0.639 & \textbf{0.018} & 0.718 & 0.024\\
+    HotpotQA† & 0.195 & 1.057 & 0.198 & 0.714 & \textbf{0.010} & 0.725 & 0.014\\
+    2WikiMQA† & 0.262 & 1.149 & 0.208 & 0.710 & \textbf{0.010} & 0.683 & 0.018\\
+    MuSiQue† & 0.183 & 1.015 & 0.179 & 0.708 & \textbf{0.008} & 0.679 & 0.013\\
+    GovReport & 0.180 & 1.221 & 0.281 & 0.578 & \textbf{0.081} & 0.294 & 0.087\\
+    QMSum† & 0.067 & 0.411 & 0.082 & 0.201 & 0.022 & 0.183 & \textbf{0.021}\\
+    MultiNews & 0.586 & 2.067 & 0.678 & 1.076 & \textbf{0.264} & 0.626 & 0.289\\
+    TREC & 0.012 & 0.810 & 0.046 & 0.359 & \textbf{0.004} & 0.703 & 0.005\\
+    TriviaQA & 0.039 & 1.694 & 0.070 & 1.104 & \textbf{0.002} & 1.379 & \textbf{0.002}\\
+    SAMSum & 0.021 & 1.501 & 0.040 & 1.030 & \textbf{0.006} & 1.050 & 0.007\\
+    PassageCount† & 0.037 & 1.295 & 0.069 & 1.141 & \textbf{0.002} & 0.897 & \textbf{0.002}\\
+    PassageRetrieval & 0.195 & 1.453 & 0.204 & 0.971 & \textbf{0.009} & 0.541 & 0.015\\
+    LCC & 0.055 & 1.334 & 0.041 & 0.861 & \textbf{0.007} & 1.070 & 0.008\\
+    RepoBench-P & 0.076 & 1.283 & 0.087 & 0.914 & \textbf{0.004} & 0.940 & \textbf{0.004}\\
+    \textbf{Average}  &  0.133  &  1.168 &  0.161  &  0.733  &  \textbf{0.030}  &  0.734  &  0.034\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\caption*{Table C2b. 50\% retention.}
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+    NarrativeQA† & \textbf{0.003} & 0.915 & 0.149 & 0.349 & 0.014 & 0.782 & 0.017\\
+    Qasper† & 0.130 & 0.588 & 0.129 & 0.248 & \textbf{0.047} & 0.506 & 0.072\\
+    MultifieldQA & 0.181 & 1.023 & 0.239 & 0.526 & \textbf{0.040} & 0.789 & 0.058\\
+    HotpotQA† & 0.206 & 1.179 & 0.262 & 0.678 & \textbf{0.016} & 0.722 & 0.041\\
+    2WikiMQA† & 0.314 & 1.253 & 0.296 & 0.657 & \textbf{0.022} & 0.739 & 0.059\\
+    MuSiQue† & 0.186 & 1.056 & 0.242 & 0.690 & \textbf{0.018} & 0.711 & 0.048\\
+    GovReport & 0.217 & 1.397 & 0.335 & 0.486 & \textbf{0.151} & 0.455 & 0.185\\
+    QMSum† & 0.071 & 0.457 & 0.100 & 0.196 & \textbf{0.039} & 0.210 & 0.042\\
+    MultiNews & 0.747 & 2.349 & 0.805 & 0.995 & \textbf{0.497} & 0.982 & 0.584\\
+    TREC & 0.017 & 1.000 & 0.054 & 0.193 & \textbf{0.007} & 0.676 & 0.016\\
+    TriviaQA & 0.044 & 1.843 & 0.094 & 0.768 & \textbf{0.003} & 1.376 & 0.012\\
+    SAMSum & 0.023 & 1.517 & 0.045 & 0.814 & \textbf{0.012} & 1.102 & 0.019\\
+    PassageCount† & 0.040 & 1.133 & 0.076 & 1.107 & \textbf{0.005} & 0.908 & \textbf{0.005}\\
+    PassageRetrieval & 0.195 & 1.412 & 0.225 & 0.871 & \textbf{0.019} & 0.654 & 0.044\\
+    LCC & 0.070 & 1.300 & 0.053 & 0.652 & \textbf{0.020} & 1.151 & 0.038\\
+    RepoBench-P & 0.088 & 1.325 & 0.115 & 0.678 & \textbf{0.011} & 0.979 & 0.026\\
+    \textbf{Average}  &  0.158  &  1.234 &  0.201  &  0.619  &  \textbf{0.058}  &  0.796  &  0.079\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\caption*{Table C2c. 35\% retention.}
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+    NarrativeQA† & \textbf{0.011} & 0.324 & 0.170 & 0.203 & 0.022 & 0.203 & 0.022\\
+    Qasper† & 0.165 & 0.370 & 0.165 & 0.262 & \textbf{0.086} & 0.262 & \textbf{0.086}\\
+    MultifieldQA & 0.213 & 0.655 & 0.286 & 0.519 & \textbf{0.077} & 0.513 & \textbf{0.077}\\
+    HotpotQA† & 0.218 & 0.810 & 0.310 & 0.632 & \textbf{0.028} & 0.633 & \textbf{0.028}\\
+    2WikiMQA† & 0.362 & 0.959 & 0.365 & 0.690 & \textbf{0.051} & 0.684 & \textbf{0.051}\\
+    MuSiQue† & 0.186 & 0.786 & 0.290 & 0.679 & \textbf{0.041} & 0.687 & \textbf{0.041}\\
+    GovReport & 0.263 & 0.582 & 0.399 & 0.457 & \textbf{0.248} & 0.457 & \textbf{0.248}\\
+    QMSum† & 0.084 & 0.210 & 0.114 & 0.175 & \textbf{0.058} & 0.175 & \textbf{0.058}\\
+    MultiNews & 0.900 & 1.252 & 0.937 & 1.040 & \textbf{0.750} & 1.039 & \textbf{0.750}\\
+    TREC & 0.022 & 0.562 & 0.070 & 0.192 & \textbf{0.017} & 0.192 & \textbf{0.017}\\
+    TriviaQA & 0.062 & 1.029 & 0.146 & 0.725 & \textbf{0.006} & 0.722 & \textbf{0.006}\\
+    SAMSum & 0.027 & 0.746 & 0.054 & 0.741 & \textbf{0.022} & 0.737 & \textbf{0.022}\\
+    PassageCount† & 0.069 & 0.615 & 0.084 & 0.957 & \textbf{0.010} & 0.930 & \textbf{0.010}\\
+    PassageRetrieval & 0.197 & 0.789 & 0.272 & 0.911 & \textbf{0.037} & 0.920 & \textbf{0.037}\\
+    LCC & 0.109 & 0.563 & 0.090 & 0.564 & \textbf{0.050} & 0.564 & \textbf{0.050}\\
+    RepoBench-P & 0.110 & 0.766 & 0.146 & 0.654 & \textbf{0.025} & 0.661 & \textbf{0.025}\\
+    \textbf{Average}  &  0.188  &  0.688 &  0.244  &  0.588  &  \textbf{0.096}  &  0.586  &  \textbf{0.096}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Instruction-tuned models (budgets 256 and 1024 tokens)}
+
+
+\textbf{Table C3a. KL Faithfulness per task, Llama-3.1-8B-Instruct,
+budget = 256 tokens (lower is better). Bold = best per row.
+Streaming = no re-rotation; Str+rot = with re-rotation.
+$n = 100$ per task.}
+
+\nopagebreak
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+NarrativeQA† & 1.710 & 1.281 & 0.719 & 0.772 & \textbf{0.163} & 0.898 &
+0.180\\
+Qasper† & 2.632 & 1.597 & 1.265 & 0.823 & \textbf{0.452} & 0.809 &
+0.495\\
+MultifieldQA & 2.508 & 1.600 & 1.099 & 0.775 & \textbf{0.280} & 0.790 &
+0.313\\
+HotpotQA† & 1.696 & 1.090 & 0.352 & 0.607 & \textbf{0.051} & 0.870 &
+0.054\\
+2WikiMQA† & 2.642 & 1.412 & 0.494 & 0.730 & \textbf{0.102} & 0.822 &
+0.110\\
+MuSiQue† & 1.671 & 0.989 & 0.335 & 0.529 & \textbf{0.054} & 0.777 &
+0.076\\
+GovReport & 1.099 & 1.130 & 1.042 & 1.017 & \textbf{0.915} & 1.029 &
+0.944\\
+QMSum† & 1.622 & 1.297 & 1.109 & 0.843 & \textbf{0.612} & 0.905 &
+0.681\\
+MultiNews & 0.931 & 0.922 & 0.847 & 0.931 & \textbf{0.814} & 0.986 &
+0.870\\
+TREC & 1.857 & 1.825 & 1.716 & 0.475 & \textbf{0.325} & 0.547 &
+0.385\\
+TriviaQA & 1.156 & 1.191 & 0.282 & 0.921 & 0.067 & 1.013 &
+\textbf{0.063}\\
+SAMSum & 1.754 & 1.552 & 1.401 & 1.364 & \textbf{0.962} & 1.454 &
+1.039\\
+PassageCount† & 5.799 & 0.658 & 0.070 & 0.486 & 0.012 & 0.889 &
+\textbf{0.011}\\
+PassageRetrieval & 3.783 & 0.446 & 0.190 & 0.699 & 0.051 & 0.864 &
+\textbf{0.041}\\
+LCC & 0.475 & 0.483 & 0.351 & 0.601 & \textbf{0.341} & 0.639 &
+0.397\\
+RepoBench-P & 0.712 & 0.651 & 0.494 & 0.733 & \textbf{0.429} & 0.817 &
+0.499\\
+\textbf{Average} & 2.003 & 1.133 & 0.735 & 0.769 & \textbf{0.352} & 0.882 &
+0.385\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\textbf{Table C3b. KL Faithfulness per task, Llama-3.1-8B-Instruct,
+budget = 1024 tokens (lower is better). Bold = best per row.
+Streaming = no re-rotation; Str+rot = with re-rotation.
+$n = 100$ per task.}
+
+\nopagebreak
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+NarrativeQA† & 1.047 & 1.110 & 0.494 & 0.693 & \textbf{0.055} & 1.161 &
+0.064\\
+Qasper† & 1.770 & 1.236 & 0.922 & 0.556 & \textbf{0.111} & 0.643 &
+0.161\\
+MultifieldQA & 1.608 & 1.395 & 0.764 & 0.758 & \textbf{0.120} & 0.679 &
+0.135\\
+HotpotQA† & 1.090 & 1.032 & 0.277 & 0.578 & \textbf{0.025} & 0.520 &
+0.027\\
+2WikiMQA† & 1.790 & 1.504 & 0.439 & 0.768 & \textbf{0.042} & 0.790 &
+0.053\\
+MuSiQue† & 0.960 & 1.033 & 0.277 & 0.552 & \textbf{0.027} & 0.484 &
+0.029\\
+GovReport & 0.849 & 0.942 & 0.801 & 0.811 & \textbf{0.630} & 0.820 &
+0.687\\
+QMSum† & 1.268 & 1.181 & 0.959 & 0.616 & \textbf{0.250} & 0.546 &
+0.296\\
+MultiNews & 0.372 & 0.850 & 0.341 & 0.654 & \textbf{0.282} & 0.470 &
+0.324\\
+TREC & 0.300 & 1.683 & 1.353 & 0.491 & \textbf{0.166} & 0.515 &
+0.192\\
+TriviaQA & 0.498 & 0.845 & 0.074 & 0.875 & \textbf{0.008} & 0.956 &
+0.009\\
+SAMSum & 1.141 & 1.764 & 1.273 & 1.089 & \textbf{0.506} & 1.067 &
+0.642\\
+PassageCount† & 3.606 & 0.545 & 0.074 & 0.366 & \textbf{0.007} & 0.418 &
+0.009\\
+PassageRetrieval & 1.791 & 0.598 & 0.259 & 0.826 & \textbf{0.023} & 0.639 &
+0.029\\
+LCC & 0.092 & 0.458 & 0.125 & 0.342 & \textbf{0.026} & 0.335 &
+0.032\\
+RepoBench-P & 0.343 & 0.505 & 0.242 & 0.398 & \textbf{0.061} & 0.382 &
+0.097\\
+\textbf{Average} & 1.158 & 1.043 & 0.542 & 0.648 & \textbf{0.146} & 0.652 &
+0.174\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\textbf{Table C4a. KL Faithfulness per task, Mistral-7B-Instruct-v0.3,
+budget = 256 tokens (lower is better). Bold = best per row.
+Streaming = no re-rotation; Str+rot = with re-rotation.
+$n = 100$ per task.}
+
+\nopagebreak
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+NarrativeQA† & 3.071 & 2.395 & 1.240 & 2.151 & \textbf{0.440} & 1.424 &
+0.603\\
+Qasper† & 3.982 & 2.331 & 1.753 & 1.698 & \textbf{0.618} & 1.586 &
+0.733\\
+MultifieldQA & 2.875 & 2.062 & 1.401 & 1.712 & \textbf{0.433} & 1.691 &
+0.508\\
+HotpotQA† & 2.561 & 2.760 & 0.518 & 2.776 & \textbf{0.163} & 2.611 &
+\textbf{0.163}\\
+2WikiMQA† & 3.584 & 2.355 & 0.910 & 2.641 & \textbf{0.330} & 2.341 &
+0.375\\
+MuSiQue† & 3.148 & 2.272 & 0.814 & 2.149 & \textbf{0.304} & 2.109 &
+0.322\\
+GovReport & 1.591 & 1.484 & 1.486 & 1.344 & \textbf{1.288} & 1.374 &
+1.339\\
+QMSum† & 2.349 & 1.677 & 1.516 & 1.333 & \textbf{0.889} & 1.374 &
+1.004\\
+MultiNews & 1.296 & 1.280 & 1.159 & 1.185 & \textbf{1.080} & 1.237 &
+1.149\\
+TREC & 2.197 & 2.480 & 2.488 & 1.403 & \textbf{1.010} & 1.338 &
+1.107\\
+TriviaQA & 2.135 & 2.857 & 0.730 & 2.528 & \textbf{0.214} & 2.395 &
+0.251\\
+SAMSum & 2.092 & 2.052 & 1.803 & 1.902 & \textbf{1.377} & 1.987 &
+1.462\\
+PassageCount† & 4.816 & 3.490 & 1.061 & 3.444 & \textbf{0.531} & 3.570 &
+0.689\\
+PassageRetrieval & 3.280 & 1.578 & 0.663 & 2.839 & 0.223 & 3.235 &
+\textbf{0.217}\\
+LCC & 0.880 & 0.963 & 0.754 & 0.727 & \textbf{0.434} & 0.814 &
+0.519\\
+RepoBench-P & 1.118 & 1.179 & 1.011 & 0.769 & \textbf{0.482} & 0.865 &
+0.582\\
+\textbf{Average} & 2.561 & 2.076 & 1.207 & 1.912 & \textbf{0.614} & 1.872 &
+0.689\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\textbf{Table C4b. KL Faithfulness per task, Mistral-7B-Instruct-v0.3,
+budget = 1024 tokens (lower is better). Bold = best per row.
+Streaming = no re-rotation; Str+rot = with re-rotation.
+$n = 100$ per task.}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
+Pyr+rot\\
+\midrule
+NarrativeQA† & 1.734 & 2.213 & 0.821 & 2.371 & \textbf{0.104} & 1.838 &
+0.159\\
+Qasper† & 2.683 & 1.806 & 1.216 & 1.673 & \textbf{0.234} & 1.306 &
+0.303\\
+MultifieldQA & 1.592 & 1.868 & 0.981 & 1.571 & \textbf{0.208} & 1.320 &
+0.250\\
+HotpotQA† & 1.848 & 2.553 & 0.431 & 2.475 & \textbf{0.092} & 2.431 &
+0.093\\
+2WikiMQA† & 2.454 & 2.634 & 0.815 & 2.358 & \textbf{0.167} & 2.138 &
+0.195\\
+MuSiQue† & 2.129 & 2.314 & 0.604 & 1.878 & \textbf{0.103} & 1.692 &
+0.136\\
+GovReport & 1.365 & 1.361 & 1.324 & 1.024 & \textbf{0.931} & 1.067 &
+1.025\\
+QMSum† & 1.628 & 1.356 & 1.313 & 1.033 & \textbf{0.448} & 1.101 &
+0.549\\
+MultiNews & 0.722 & 1.250 & 0.664 & 0.791 & \textbf{0.468} & 0.731 &
+0.542\\
+TREC & 0.520 & 2.333 & 1.901 & 1.101 & \textbf{0.472} & 1.083 &
+0.552\\
+TriviaQA & 1.120 & 2.757 & 0.573 & 2.566 & \textbf{0.091} & 2.389 &
+0.106\\
+SAMSum & 1.522 & 2.210 & 1.690 & 1.786 & \textbf{0.764} & 1.651 &
+0.908\\
+PassageCount† & 2.990 & 2.499 & 0.513 & 3.299 & \textbf{0.215} & 2.925 &
+0.236\\
+PassageRetrieval & 1.183 & 1.541 & 0.371 & 3.044 & \textbf{0.088} & 2.412 &
+0.118\\
+LCC & 0.427 & 0.882 & 0.421 & 0.614 & \textbf{0.124} & 0.764 &
+0.166\\
+RepoBench-P & 0.590 & 1.012 & 0.659 & 0.677 & \textbf{0.196} & 0.684 &
+0.247\\
+\textbf{Average} & 1.532 & 1.912 & 0.894 & 1.766 & \textbf{0.294} & 1.596 &
+0.349\\
 \bottomrule
 \end{tabular}
 \end{table}
