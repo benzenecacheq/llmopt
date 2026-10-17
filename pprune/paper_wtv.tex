@@ -593,29 +593,6 @@ to early divergence in sampled text). Conversely, a method could have
 high \(F_{\text{out}}\) (same final answers) but high \(F_{\text{WTV}}\)
 (reached those answers via corrupted intermediate distributions).
 
-\textbf{Why these two metrics?}
-
-Other distributional or behavioral
-metrics are possible --- Jensen-Shannon divergence (bounded and
-symmetric, but without a direct information-theoretic interpretation per
-token), rank correlation between full and compressed top-k
-token rankings (sensitive to ordering, blind to probability mass), logit
-cosine similarity (no information-theoretic meaning, sensitive to logit
-scale), or calibration error against ground truth (reintroduces the
-external reference that both metrics are designed to avoid).
-
-We use \(F_{\text{WTV}}\) as the primary distributional metric because
-its [0,\,1] bound makes absolute values interpretable across methods and
-budgets, and the entropy weighting focuses the metric on generation steps
-where distributional agreement actually matters. \(F_{\text{WTV}}\)
-gives method rankings consistent with \(F_{\text{out}}\); KL divergence does not (§3.4).
-
-We use word-level F1 because it requires no reference distribution at
-all, only the two models' realized text, and reuses the scoring function
-LongBench already applies to extractive QA, keeping faithfulness
-evaluation on the same footing as the ground-truth evaluation it is
-meant to improve on.
-
 \textbf{Caveat emptor on output-text metrics.}
 
 \nopagebreak
@@ -631,8 +608,7 @@ generated output-based measurement with appropriate skepticism.
 These limitations are why \(F_{\text{WTV}}\) is the primary distributional metric
 rather than \(F_{\text{out}}\): \(F_{\text{WTV}}\) operates at the distribution
 level at every generation step, is insensitive to output length, and requires no
-string matching. \(F_{\text{out}}\) is the absolute quality anchor; \(F_{\text{WTV}}\)
-is more informative for comparing methods against each other.
+string matching.
 
 
 \hypertarget{why-these-two-metrics}{%
@@ -653,11 +629,12 @@ budgets, and the entropy weighting focuses the metric on generation
 steps where distributional agreement actually matters (near-deterministic
 steps are downweighted regardless). We use word-level F1 for
 \(F_{\text{out}}\) because it requires no external reference, reuses the
-scoring function LongBench already applies, and provides a
+scoring function LongBench already applies to extractive QA, and provides a
 human-readable scale: 0 means no word overlap with the full model's
-output; 100 means identical text. \(F_{\text{out}}\) is the absolute
-quality anchor; \(F_{\text{WTV}}\) is more informative for comparing
-methods against each other.
+output; 100 means identical text. This keeps faithfulness evaluation on
+the same footing as the ground-truth evaluation it is designed to improve on.
+\(F_{\text{out}}\) is the absolute quality anchor; \(F_{\text{WTV}}\) is
+more informative for comparing methods against each other.
 
 KL divergence has a direct information-theoretic interpretation and
 decomposes cleanly per step, making it attractive as a faithfulness
