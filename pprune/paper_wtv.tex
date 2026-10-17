@@ -527,9 +527,11 @@ output $y^*$, anchoring every comparison to the full model's actual behavior.}
 \(H(P_{\text{full},t})\) in the numerator focuses the metric on steps where
 distributional agreement actually matters. When the full model assigns near-certain
 probability to a single token, that step contributes little to the metric regardless
-of what the compressed model does. Steps where the full model is genuinely uncertain
---- where shifts in probability mass across the vocabulary carry real information cost
---- are weighted in proportion to that uncertainty. The \([0,1]\) bound makes
+of what the compressed model does --- and compressed models are unlikely to diverge
+there anyway, since the dominant token is nearly forced. Steps where the full model is
+genuinely uncertain --- where shifts in probability mass across the vocabulary carry
+real information cost, and where compression-induced context differences are most
+likely to matter --- are weighted in proportion to that uncertainty. The \([0,1]\) bound makes
 absolute values interpretable across methods and budgets.
 
 Conditioning all methods on the same shared token sequence \(y^*\) eliminates
