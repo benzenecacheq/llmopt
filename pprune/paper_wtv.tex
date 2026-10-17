@@ -640,22 +640,23 @@ more informative for comparing methods against each other.
 
 KL divergence has a direct information-theoretic interpretation and
 decomposes cleanly per step, making it attractive as a faithfulness
-metric. Its pathology is equally fundamental: KL is unbounded. Whenever
-the compressed model assigns near-zero probability to a token the full
-model places meaningful mass on, KL diverges without limit at that step,
-and a single such spike can dominate the per-example mean. The
-per-example KL then reflects the severity of the worst step, not the
-typical faithfulness across the response.
+metric. Its fundamental problem is that it gives the wrong weight to the steps
+that matter. At near-deterministic steps --- where the full model assigns near-certain
+probability to one token --- the dominant token's contribution \(P(x)\log(P(x)/Q(x))\)
+is amplified by its high probability, making KL large even when the actual choice is
+nearly forced. At genuinely uncertain steps, where context is actively guiding the
+response and a compression-induced shift in the distribution has real consequences,
+probability mass is spread across many tokens, producing smaller individual
+contributions and lower KL. The metric implicitly underweights exactly the
+context-sensitive decision points where faithfulness matters most.
 
-Positional displacement from structural corruption causes exactly these spikes. It
-shifts the compressed model's attention pattern, producing large swings in the
-predicted distribution at scattered generation steps. WTV is affected by the same
-distributional shifts, but its total variation distance is bounded in \([0,1]\) at
-every step, so no single spike can dominate the mean. The entropy weighting
-further focuses WTV on steps where the full model is genuinely uncertain: steps
-where the full model is nearly certain of the next token contribute little
-regardless, concentrating the metric on the generation steps where
-context-dependent distributional differences are most meaningful.
+KL is also unbounded: whenever the compressed model assigns near-zero probability to a
+token the full model places meaningful mass on, KL diverges without limit at that step,
+and a single spike can dominate the per-example mean. Positional displacement from
+structural corruption produces exactly these spikes, which WTV also sees --- but WTV's
+total variation distance is bounded in \([0,1]\) at every step, so no spike can
+dominate the mean. WTV's entropy weight \(H(P_t)\) further corrects the primary
+problem by explicitly upweighting the uncertain steps that KL underweights.
 
 The practical consequence is that KL can rank methods differently from
 both WTV and \(F_{\text{out}}\). We illustrate this with RADAR
