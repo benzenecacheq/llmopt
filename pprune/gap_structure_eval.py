@@ -91,13 +91,14 @@ from kl_faith_eval_ystar import (
     generate_ystar,
     get_comp_log_probs,
     kl_divergence,
+    wtv_distance,
     load_ystar_cache,
     save_ystar_cache,
     get_from_cache,
     put_in_cache,
 )
 
-GEOMETRIES = ("block_end", "block_mid", "clustered4", "scattered")
+GEOMETRIES = ("block_end", "block_mid", "clustered4", "scattered", "streaming_approx")
 PRESENTATIONS = ("gapless", "gapped", "rerotated", "evicted")
 
 
@@ -166,11 +167,24 @@ def scattered_positions(T: int, fraction: float) -> torch.Tensor:
     return torch.tensor(sorted(set(idx)), dtype=torch.long)
 
 
+def streaming_approx_positions(T: int, fraction: float, n_sink: int = 4) -> torch.Tensor:
+    """First n_sink tokens (attention sinks) + recency tail, matching StreamingLLMPress."""
+    budget = _budget(T, fraction)
+    if budget <= n_sink:
+        return torch.arange(budget, dtype=torch.long)
+    n_sink = min(n_sink, T)
+    tail_start = T - (budget - n_sink)
+    tail_start = max(n_sink, tail_start)
+    positions = list(range(n_sink)) + list(range(tail_start, T))
+    return torch.tensor(sorted(set(positions)), dtype=torch.long)
+
+
 GEOMETRY_FNS = {
-    "block_end": block_end_positions,
-    "block_mid": block_mid_positions,
-    "clustered4": clustered4_positions,
-    "scattered": scattered_positions,
+    "block_end":        block_end_positions,
+    "block_mid":        block_mid_positions,
+    "clustered4":       clustered4_positions,
+    "scattered":        scattered_positions,
+    "streaming_approx": streaming_approx_positions,
 }
 
 
@@ -267,7 +281,7 @@ def run_eval(
     cache = load_ystar_cache(ystar_cache_path) if ystar_cache_path else {}
 
     def _is_done(key):
-        return key in ckpt and (ckpt[key] is None or "kl" in ckpt[key])
+        return key in ckpt and (ckpt[key] is None or ("kl" in ckpt[key] and "wtv" in ckpt[key]))
 
     # Build rerotated press once; update .positions and .compression_ratio per example.
     fixed_press = FixedPositionPress(compression_ratio=1.0 - fraction) if _KVPRESS_AVAILABLE else None
@@ -367,8 +381,9 @@ def run_eval(
                         )
                         # early-exit: skip the shared get_comp_log_probs call below
                         if log_p_comp is not None:
-                            kl = kl_divergence(log_p_full, log_p_comp)
-                            ckpt[ck_key] = {"kl": kl, "n_gen": ystar.shape[0],
+                            kl  = kl_divergence(log_p_full, log_p_comp)
+                            wtv = wtv_distance(log_p_full, log_p_comp)
+                            ckpt[ck_key] = {"kl": kl, "wtv": wtv, "n_gen": ystar.shape[0],
                                             "n_retained": int(positions.shape[0]), "T": T}
                         else:
                             ckpt[ck_key] = None
@@ -378,15 +393,17 @@ def run_eval(
                         rate = (grand_done - completed_at_start) / max(elapsed, 1)
                         remaining = (total_work - grand_done) / max(rate, 1e-9)
                         kl_str = f"{kl:.4f}" if log_p_comp is not None else "OOM"
+                        wtv_str = f"  WTV={wtv:.4f}" if log_p_comp is not None else ""
                         print(f"  ex {idx+1:>3}/{n_ex}  {geom:<11} {presentation:<8}"
-                              f"  KL={kl_str}  [ETA {fmt_duration(remaining)}]", flush=True)
+                              f"  KL={kl_str}{wtv_str}  [ETA {fmt_duration(remaining)}]", flush=True)
                         continue
 
                     log_p_comp = get_comp_log_probs(model, comp_ids, ystar, pcfg, device,
                                                     press=press)
                     if log_p_comp is not None:
-                        kl = kl_divergence(log_p_full, log_p_comp)
-                        ckpt[ck_key] = {"kl": kl, "n_gen": ystar.shape[0],
+                        kl  = kl_divergence(log_p_full, log_p_comp)
+                        wtv = wtv_distance(log_p_full, log_p_comp)
+                        ckpt[ck_key] = {"kl": kl, "wtv": wtv, "n_gen": ystar.shape[0],
                                         "n_retained": int(positions.shape[0]), "T": T}
                     else:
                         ckpt[ck_key] = None
@@ -398,8 +415,9 @@ def run_eval(
                     rate = (grand_done - completed_at_start) / max(elapsed, 1)
                     remaining = (total_work - grand_done) / max(rate, 1e-9)
                     kl_str = f"{kl:.4f}" if log_p_comp is not None else "OOM"
+                    wtv_str = f"  WTV={wtv:.4f}" if log_p_comp is not None else ""
                     print(f"  ex {idx+1:>3}/{n_ex}  {geom:<11} {presentation:<8}"
-                          f"  KL={kl_str}  [ETA {fmt_duration(remaining)}]", flush=True)
+                          f"  KL={kl_str}{wtv_str}  [ETA {fmt_duration(remaining)}]", flush=True)
 
 
 def parse_args():

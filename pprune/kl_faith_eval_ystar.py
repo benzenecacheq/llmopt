@@ -226,6 +226,59 @@ try:
             return keys * cos + _rotate_half(keys) * sin
 
     _PyramidKVRerotationPress = PyramidKVRerotationPress
+
+    @_dataclass
+    class RandomEvictionPress(_ScorerPress):
+        """Post-prefill eviction with uniformly random token selection.
+
+        Same mechanism as SnapKV (full prefill, then post-hoc eviction) but
+        scores every position with torch.rand rather than attention scores.
+        Isolates the contribution of intelligent selection from the enrichment
+        benefit that post-prefill eviction provides.
+        """
+        compression_ratio: float = 0.0
+
+        def score(self, module, hidden_states, keys, values, attentions, kwargs):
+            bsz, n_kv_heads, T, _ = keys.shape
+            scores = torch.rand(bsz, n_kv_heads, T, device=keys.device)
+            # Protect attention sinks and recency window to match SnapKV structure,
+            # isolating random middle selection from sink-loss and recency effects.
+            scores[:, :, :4] = 2.0    # attention sinks (first 4)
+            scores[:, :, -128:] = 2.0 # recency window (last 128, matching SnapKV window_size)
+            return scores
+
+    _RandomEvictionPress = RandomEvictionPress
+
+    @_dataclass
+    class GaussianBellPress(_ScorerPress):
+        """Post-prefill eviction with Gaussian-position-weighted stochastic selection.
+
+        Same structure as SnapKV (full prefill, post-hoc eviction, protected sinks
+        and recency window), but selects middle tokens by sampling without replacement
+        weighted by a Gaussian over normalized position. Uses the Gumbel-top-k trick
+        so the aggregate histogram is bell-shaped rather than a rectangle.
+
+        Parameters mu and sigma are fractions of sequence length.
+        """
+        compression_ratio: float = 0.0
+        window_size: int = 64
+        mu: float = 0.55
+        sigma: float = 0.15
+
+        def score(self, module, hidden_states, keys, values, attentions, kwargs):
+            bsz, n_kv_heads, T, _ = keys.shape
+            pos = torch.arange(T, device=keys.device).float() / T
+            # Log of Gaussian (unnormalized) — Gumbel noise makes sampling stochastic
+            log_p = -0.5 * ((pos - self.mu) / self.sigma) ** 2
+            gumbel = -torch.log(-torch.log(torch.rand(T, device=keys.device).clamp(1e-10, 1 - 1e-10)))
+            scores = (log_p + gumbel).unsqueeze(0).unsqueeze(0).expand(bsz, n_kv_heads, T)
+            scores = scores.clone()
+            # Protect sinks and recency window exactly as RandomEvictionPress does
+            scores[:, :, :4] = 1e9
+            scores[:, :, -self.window_size:] = 1e9
+            return scores
+
+    _GaussianBellPress = GaussianBellPress
     _KVPRESS_AVAILABLE = True
 except ImportError:
     _PyramidKVPress = None
@@ -235,6 +288,8 @@ except ImportError:
     _RadarPreRopePress = None
     _RadarPostRopePress = None
     _PyramidKVRerotationPress = None
+    _RandomEvictionPress = None
+    _GaussianBellPress = None
     _KVPRESS_AVAILABLE = False
 
 from llama_pruned import (
@@ -601,6 +656,17 @@ if _KVPRESS_AVAILABLE:
     _KVPRESS_METHODS["streaming_press"]     = _StreamingLLMPress(compression_ratio=0.35, n_sink=4)
     _KVPRESS_METHODS["streaming_press_f50"] = _StreamingLLMPress(compression_ratio=0.50, n_sink=4)
     _KVPRESS_METHODS["streaming_press_f35"] = _StreamingLLMPress(compression_ratio=0.65, n_sink=4)
+
+    # Random eviction: same post-prefill mechanism as SnapKV but positions
+    # selected uniformly at random. Isolates intelligent selection from
+    # the enrichment benefit that post-prefill eviction provides.
+    _KVPRESS_METHODS["random_eviction"]     = _RandomEvictionPress(compression_ratio=0.35)
+    _KVPRESS_METHODS["random_eviction_f50"] = _RandomEvictionPress(compression_ratio=0.50)
+    _KVPRESS_METHODS["random_eviction_f35"] = _RandomEvictionPress(compression_ratio=0.65)
+
+    _KVPRESS_METHODS["gaussian_bell"]     = _GaussianBellPress(compression_ratio=0.35, window_size=64)
+    _KVPRESS_METHODS["gaussian_bell_f50"] = _GaussianBellPress(compression_ratio=0.50, window_size=64)
+    _KVPRESS_METHODS["gaussian_bell_f35"] = _GaussianBellPress(compression_ratio=0.65, window_size=64)
 
     # Streaming: only the KeyRerotationPress-wrapped version is used, since that
     # is the one that matches the published StreamingLLM algorithm. Per kvpress's
@@ -1102,6 +1168,60 @@ def kl_divergence(log_p_full: torch.Tensor, log_p_comp: torch.Tensor) -> float:
     kl_steps = (p_full * (log_p_full - log_p_comp)).sum(dim=-1)  # (n_gen,)
     return kl_steps.mean().item()
 
+
+def tv_distance(log_p_full: torch.Tensor, log_p_comp: torch.Tensor) -> float:
+    """Mean total variation TV(P_full, P_comp) over generation steps.
+    TV = 0.5 * sum_x |P(x) - Q(x)|, ranges [0, 1].
+    Unlike KL, uses absolute probability differences so high-confidence steps
+    with tiny absolute shifts don't dominate the average."""
+    p_full = log_p_full.exp()
+    p_comp = log_p_comp.exp()
+    tv_steps = 0.5 * (p_full - p_comp).abs().sum(dim=-1)  # (n_gen,)
+    return tv_steps.mean().item()
+
+
+def wtv_components(log_p_full: torch.Tensor, log_p_comp: torch.Tensor) -> dict:
+    """Compute WTV and related components in one pass.
+
+    Returns:
+      wtv     - entropy-weighted TV (normalized): Σ H·TV / Σ H
+      wtv_num - Σ_t H(P_t) · TV(P_t,Q_t)
+      wtv_den - Σ_t H(P_t)
+      tv_sum  - Σ_t TV(P_t,Q_t)  (unnormalized; tv_sum/n_gen == mean TV)
+      ptv_num - Σ_t exp(H(P_t)) · TV(P_t,Q_t)  (for perplexity-weighted TV)
+      ptv_den - Σ_t exp(H(P_t))
+    """
+    p_full = log_p_full.exp()
+    p_comp = log_p_comp.exp()
+    # p * log(p) → 0 as p → 0, but 0 * (-inf) = nan in IEEE; replace nan with 0
+    h_terms  = torch.nan_to_num(-(p_full * log_p_full), nan=0.0)
+    h_steps  = h_terms.sum(dim=-1)                          # H(P) per step, (n_gen,)
+    tv_steps = 0.5 * (p_full - p_comp).abs().sum(dim=-1)    # TV per step,   (n_gen,)
+
+    wtv_num = (h_steps * tv_steps).sum().item()
+    wtv_den = h_steps.sum().item()
+    tv_sum  = tv_steps.sum().item()
+
+    # exp(H) can reach vocab size (~128 K) at max entropy — clamp to avoid overflow
+    eh_steps = h_steps.exp().clamp(max=2e5)
+    ptv_num  = (eh_steps * tv_steps).sum().item()
+    ptv_den  = eh_steps.sum().item()
+
+    wtv = (wtv_num / wtv_den) if wtv_den > 1e-9 else 0.0
+    return {
+        "wtv":     wtv,
+        "wtv_num": wtv_num,
+        "wtv_den": wtv_den,
+        "tv_sum":  tv_sum,
+        "ptv_num": ptv_num,
+        "ptv_den": ptv_den,
+    }
+
+
+def wtv_distance(log_p_full: torch.Tensor, log_p_comp: torch.Tensor) -> float:
+    """Thin wrapper — returns only the scalar WTV for callers that don't need components."""
+    return wtv_components(log_p_full, log_p_comp)["wtv"]
+
 # ---------------------------------------------------------------------------
 # y* cache helpers
 # ---------------------------------------------------------------------------
@@ -1158,6 +1278,8 @@ def run_eval(
     max_new_tokens_override: Optional[int] = None,
     ystar_cache_path: Optional[Path] = None,
     do_timing: bool = False,
+    do_tv: bool = False,
+    do_wtv: bool = False,
     salience_table: Optional[dict] = None,
 ):
     ckpt  = load_ckpt(output_path)
@@ -1205,8 +1327,13 @@ def run_eval(
         print(f"[{task}  {t_idx+1}/{n_tasks}]")
 
         for idx in range(n_ex):
-            # Skip if all methods already done for this example
-            if all(f"{task}|{m}|{idx}" in ckpt for m in methods):
+            # Skip if all methods fully done for this example (including secondary metrics)
+            def _method_done(m):
+                ck = f"{task}|{m}|{idx}"
+                return (ck in ckpt and
+                        (not do_tv  or f"TV|{ck}"  in ckpt) and
+                        (not do_wtv or f"WTV|{ck}" in ckpt))
+            if all(_method_done(m) for m in methods):
                 grand_done += n_methods
                 task_done  += n_methods
                 continue
@@ -1249,9 +1376,12 @@ def run_eval(
             for method in methods:
                 ck_key = f"{task}|{method}|{idx}"
                 if ck_key in ckpt:
-                    grand_done += 1
-                    task_done  += 1
-                    continue
+                    # Skip only if all requested secondary metrics are also present
+                    if (not do_tv  or f"TV|{ck_key}"  in ckpt) and \
+                       (not do_wtv or f"WTV|{ck_key}" in ckpt):
+                        grand_done += 1
+                        task_done  += 1
+                        continue
 
                 pcfg  = METHOD_CONFIGS.get(method)
                 press = _KVPRESS_METHODS.get(method)
@@ -1281,9 +1411,23 @@ def run_eval(
                 if log_p_comp is not None:
                     kl = kl_divergence(log_p_full, log_p_comp)
                     ckpt[ck_key] = kl
+                    if do_tv:
+                        tv = tv_distance(log_p_full, log_p_comp)
+                        ckpt[f"TV|{ck_key}"] = tv
+                    if do_wtv:
+                        wc  = wtv_components(log_p_full, log_p_comp)
+                        wtv = wc["wtv"]
+                        ckpt[f"WTV|{ck_key}"]     = wtv
+                        ckpt[f"WTV_num|{ck_key}"] = wc["wtv_num"]
+                        ckpt[f"WTV_den|{ck_key}"] = wc["wtv_den"]
+                        ckpt[f"TV_sum|{ck_key}"]  = wc["tv_sum"]
+                        ckpt[f"PTV_num|{ck_key}"] = wc["ptv_num"]
+                        ckpt[f"PTV_den|{ck_key}"] = wc["ptv_den"]
                 else:
                     ckpt[ck_key] = None
                     kl = None
+                    tv = None
+                    wtv = None
 
                 if do_timing:
                     t_key = f"T|{ck_key}"
@@ -1300,10 +1444,12 @@ def run_eval(
                 elapsed = time.time() - grand_start
                 grand_eta = fmt_eta(grand_done - completed_at_start,
                                     total_work - completed_at_start, elapsed)
-                kl_str = f"{kl:.4f}" if kl is not None else " OOM"
+                kl_str  = f"{kl:.4f}" if kl is not None else " OOM"
+                tv_str  = f"  TV={tv:.4f}"  if (do_tv  and tv  is not None) else ""
+                wtv_str = f"  WTV={wtv:.4f}" if (do_wtv and wtv is not None) else ""
                 print(
                     f"  ex {idx+1:>4}/{n_ex}  {method:<22}"
-                    f"  n_gen={n_gen}  KL={kl_str}"
+                    f"  n_gen={n_gen}  KL={kl_str}{tv_str}{wtv_str}"
                     f"  [{grand_eta} total]",
                     flush=True,
                 )
@@ -1316,7 +1462,19 @@ def run_eval(
                       if isinstance(ckpt.get(f"{task}|{m}|{i}"), float)]
             mean = np.mean(scores) if scores else float("nan")
             per_method[m] = mean
-            print(f"  {m:<24}  n={len(scores)}  mean_KL={mean:.4f}")
+            tv_summary = ""
+            if do_tv:
+                tv_scores = [ckpt[f"TV|{task}|{m}|{i}"] for i in range(n_ex)
+                             if isinstance(ckpt.get(f"TV|{task}|{m}|{i}"), float)]
+                tv_mean = np.mean(tv_scores) if tv_scores else float("nan")
+                tv_summary = f"  mean_TV={tv_mean:.4f}"
+            wtv_summary = ""
+            if do_wtv:
+                wtv_scores = [ckpt[f"WTV|{task}|{m}|{i}"] for i in range(n_ex)
+                              if isinstance(ckpt.get(f"WTV|{task}|{m}|{i}"), float)]
+                wtv_mean = np.mean(wtv_scores) if wtv_scores else float("nan")
+                wtv_summary = f"  mean_WTV={wtv_mean:.4f}"
+            print(f"  {m:<24}  n={len(scores)}  mean_KL={mean:.4f}{tv_summary}{wtv_summary}")
 
         if do_timing:
             print(f"\n  --- {task} timing (ms) ---")
@@ -1427,6 +1585,10 @@ def parse_args():
     p.add_argument("--device",         default="cuda")
     p.add_argument("--timing",         action="store_true",
                    help="Measure TTFT and TPT for each method (adds ~20-30%% overhead)")
+    p.add_argument("--tv",             action="store_true",
+                   help="Also compute TV distance; stored as TV|task|method|idx in checkpoint")
+    p.add_argument("--wtv",            action="store_true",
+                   help="Also compute entropy-weighted TV; stored as WTV|task|method|idx in checkpoint")
     p.add_argument("--salience_table", default=None,
                    help="Path to token salience .pt file (from calibrate_token_salience.py)")
     return p.parse_args()
@@ -1469,6 +1631,8 @@ def main():
         max_new_tokens_override=args.max_new_tokens,
         ystar_cache_path=Path(args.ystar_cache) if args.ystar_cache else None,
         do_timing=args.timing,
+        do_tv=args.tv,
+        do_wtv=args.wtv,
         salience_table=sal_table,
     )
 

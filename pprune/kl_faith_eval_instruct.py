@@ -8,7 +8,7 @@ Creates press instances dynamically per example:
 so the retained count is exactly `budget` tokens regardless of input length.
 
 Supported methods: snapkv, snapkv_rot, pyramidkv, pyramidkv_rot,
-                   streaming, streaming_rot, naive, full
+                   streaming, streaming_rot, naive, full, random_eviction
 
 Usage:
     python kl_faith_eval_instruct.py \\
@@ -56,7 +56,9 @@ from kl_faith_eval import (
 from kl_faith_eval_ystar import (
     PyramidKVRerotationPress,
     _RadarPreRopePress, _RadarPostRopePress,
+    _RandomEvictionPress,
     generate_ystar, get_comp_log_probs, kl_divergence,
+    tv_distance, wtv_components,
     load_ystar_cache, save_ystar_cache,
     get_from_cache, put_in_cache,
     YSTAR_STOP_TOKENS,
@@ -72,6 +74,7 @@ _INSTRUCT_METHOD_TYPES = frozenset({
     "streaming", "streaming_rot",
     "radar_pre", "radar_post",
     "naive", "full",
+    "random_eviction",
 })
 
 def make_press(method: str, budget: int, T: int, window_size: int = 32):
@@ -100,6 +103,8 @@ def make_press(method: str, budget: int, T: int, window_size: int = 32):
         return _RadarPreRopePress(compression_ratio=cr, window_size=window_size)
     elif method == "radar_post":
         return _RadarPostRopePress(compression_ratio=cr, window_size=window_size)
+    elif method == "random_eviction":
+        return _RandomEvictionPress(compression_ratio=cr)
     else:
         raise ValueError(f"Unknown method: {method}")
 
@@ -152,6 +157,8 @@ def run_eval(
     device: str,
     ystar_cache_path: Optional[Path] = None,
     max_new_tokens_override: Optional[int] = None,
+    do_tv: bool = False,
+    do_wtv: bool = False,
 ):
     ckpt  = load_ckpt(output_path)
     cache = load_ystar_cache(ystar_cache_path) if ystar_cache_path else {}
@@ -236,8 +243,10 @@ def run_eval(
             for method in methods:
                 ck_key = f"{task}|{method}|{idx}"
                 if ck_key in ckpt:
-                    grand_done += 1
-                    continue
+                    if (not do_tv  or f"TV|{ck_key}"  in ckpt) and \
+                       (not do_wtv or f"WTV|{ck_key}" in ckpt):
+                        grand_done += 1
+                        continue
 
                 if method == "naive":
                     # Cap to the same window as kvpress methods before selecting,
@@ -258,9 +267,22 @@ def run_eval(
                 else:
                     log_p_comp = get_comp_log_probs(model, comp_ids, ystar, None, device, press=press)
 
+                tv = wtv = None
                 if log_p_comp is not None:
                     kl = kl_divergence(log_p_full, log_p_comp)
                     ckpt[ck_key] = kl
+                    if do_tv:
+                        tv = tv_distance(log_p_full, log_p_comp)
+                        ckpt[f"TV|{ck_key}"] = tv
+                    if do_wtv:
+                        wc  = wtv_components(log_p_full, log_p_comp)
+                        wtv = wc["wtv"]
+                        ckpt[f"WTV|{ck_key}"]     = wtv
+                        ckpt[f"WTV_num|{ck_key}"] = wc["wtv_num"]
+                        ckpt[f"WTV_den|{ck_key}"] = wc["wtv_den"]
+                        ckpt[f"TV_sum|{ck_key}"]  = wc["tv_sum"]
+                        ckpt[f"PTV_num|{ck_key}"] = wc["ptv_num"]
+                        ckpt[f"PTV_den|{ck_key}"] = wc["ptv_den"]
                 else:
                     ckpt[ck_key] = None
                     kl = None
@@ -273,10 +295,12 @@ def run_eval(
                     grand_done - completed_at_start,
                     total_work - completed_at_start, elapsed
                 )
-                kl_str = f"{kl:.4f}" if kl is not None else " OOM"
+                kl_str  = f"{kl:.4f}"  if kl  is not None else " OOM"
+                tv_str  = f"  TV={tv:.4f}"  if (do_tv  and tv  is not None) else ""
+                wtv_str = f"  WTV={wtv:.4f}" if (do_wtv and wtv is not None) else ""
                 print(
                     f"  ex {idx+1:>4}/{n_ex}  {method:<22}"
-                    f"  T={T}  n_gen={n_gen}  KL={kl_str}"
+                    f"  T={T}  n_gen={n_gen}  KL={kl_str}{tv_str}{wtv_str}"
                     f"  [{grand_eta} total]",
                     flush=True,
                 )
@@ -287,7 +311,16 @@ def run_eval(
             scores = [ckpt[f"{task}|{m}|{i}"] for i in range(n_ex)
                       if isinstance(ckpt.get(f"{task}|{m}|{i}"), float)]
             mean = np.mean(scores) if scores else float("nan")
-            print(f"  {m:<24}  n={len(scores)}  mean_KL={mean:.4f}")
+            tv_summary = wtv_summary = ""
+            if do_tv:
+                tv_scores = [ckpt[f"TV|{task}|{m}|{i}"] for i in range(n_ex)
+                             if isinstance(ckpt.get(f"TV|{task}|{m}|{i}"), float)]
+                tv_summary = f"  mean_TV={np.mean(tv_scores):.4f}" if tv_scores else ""
+            if do_wtv:
+                wtv_scores = [ckpt[f"WTV|{task}|{m}|{i}"] for i in range(n_ex)
+                              if isinstance(ckpt.get(f"WTV|{task}|{m}|{i}"), float)]
+                wtv_summary = f"  mean_WTV={np.mean(wtv_scores):.4f}" if wtv_scores else ""
+            print(f"  {m:<24}  n={len(scores)}  mean_KL={mean:.4f}{tv_summary}{wtv_summary}")
         print()
 
     # ---------------------------------------------------------------------------
@@ -363,6 +396,10 @@ def parse_args():
     p.add_argument("--ystar_cache",    default=None,
                    help="Path to y* cache .pt file (shared across budgets for same model+tasks)")
     p.add_argument("--device",         default="cuda")
+    p.add_argument("--tv",             action="store_true",
+                   help="Also compute TV distance; stored as TV|task|method|idx in checkpoint")
+    p.add_argument("--wtv",            action="store_true",
+                   help="Also compute entropy-weighted TV and components; stored as WTV|...|idx etc.")
     return p.parse_args()
 
 
@@ -400,6 +437,8 @@ def main():
         device=args.device,
         ystar_cache_path=Path(args.ystar_cache) if args.ystar_cache else None,
         max_new_tokens_override=args.max_new_tokens,
+        do_tv=args.tv,
+        do_wtv=args.wtv,
     )
 
 

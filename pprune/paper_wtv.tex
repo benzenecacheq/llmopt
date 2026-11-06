@@ -53,7 +53,7 @@
 % ── §6.2 output-length figure series colours ─────────────────────────────────
 \definecolor{cSnap}{RGB}{42,120,214}    % SnapKV    – blue
 \definecolor{cPyr}{RGB}{235,104,52}     % PyramidKV – orange
-\definecolor{cRadar}{RGB}{232,123,164}  % RADAR     – magenta
+\definecolor{cRandom}{RGB}{153,102,204} % Random    – purple
 \definecolor{cStream}{RGB}{27,175,122}  % Streaming – teal
 \definecolor{cNaive}{RGB}{237,161,0}    % Naive     – gold
 
@@ -91,46 +91,38 @@ alignment {[}Li et al., 2024{]}, value norms {[}Feng et al., 2025b{]},
 or combinations thereof --- and evicting the rest before or during
 generation.
 
-Existing papers evaluate these methods on standard benchmarks and report
-near-zero degradation, which has driven widespread deployment.
-We reproduce that result: in our evaluation, SnapKV and PyramidKV score
-within one percentage point of full context at 35\% retention on
-LongBench. We argue this measurement is the wrong one: the goal of
-compression should be approximation fidelity --- producing the same
-output the full-context model would have produced --- and ground-truth
-benchmarks do not measure this. 
+Current compression methods are substantially less faithful to the
+full-context model than standard benchmarks suggest --- and they fail
+most on long-form generation, precisely where compression provides its
+greatest benefit through reduced decode time. Existing papers report
+near-zero accuracy degradation at 35\% retention on LongBench, a
+result we reproduce. But benchmark accuracy measures task performance,
+not whether the compressed model produces the same output the full model
+would have produced; those are not the same thing.
 
-In this paper we introduce two faithfulness metrics: \emph{WTV
-Faithfulness}, which measures divergence from full-context token
-distributions at every generation step, and \emph{Output Faithfulness},
-which measures text-level similarity between the full model's generated
-output and the compressed model's generated output.
+We introduce two faithfulness metrics --- \emph{WTV Faithfulness}, which
+measures token-distribution divergence at every generation step, and
+\emph{Output Faithfulness}, which measures text-level similarity between
+full and compressed model outputs --- and use them to quantify the scale
+of faithfulness loss and identify the structural mechanisms responsible.
 
-Output faithfulness reveals what ground-truth evaluation hides. At 35\%
-retention, even the best selection methods produce outputs that diverge
-from the full model's on more than 30\% of words --- while their
-ground-truth scores remain within one point of the uncompressed model.
-On instruction-tuned models at extreme token budgets, output faithfulness
-appears less severe, but only because short-answer tasks dominate: a
-post-prefill first-token advantage inflates scores for every eviction
-method on single-word answers, masking larger divergence on the
-longer-form tasks where compression actually reduces generation time.
+At 35\% retention, even the best selection methods diverge from the full
+model on more than 30\% of words while their ground-truth scores remain
+within one point of uncompressed performance. On long-form tasks, where
+TPT savings compound and compression is most valuable, output similarity
+differences between methods collapse beyond 100 words: intelligent
+selection provides no long-form advantage over truncation or random
+eviction by this measure. On short-answer tasks, post-prefill enrichment inflates output faithfulness
+scores: the full-context prefill produces high-quality compressed key-value
+pairs that generate correct short answers; this advantage fades as generated
+tokens accumulate and dilute the enrichment effect.
 
-WTV faithfulness demonstrates that scattered-selection
-methods are substantially more faithful than block eviction. Their distributed
-retention geometry interacts favorably with post-prefill value enrichment.
-StreamingLLM, which retains a contiguous recency window, is substantially less
-faithful: block eviction from the document beginning contaminates value
-representations with expectations about missing context that the model cannot
-satisfy at decode time.
-
-Among scattered-selection methods, SnapKV appears to edge out PyramidKV
-using both metrics.  PyramidKV has a slight advantage at mild compression ratios 
-but SnapKV performs better at tighter compression ratios. Our new method RADAR --- which scores
-keys by maximum query-alignment rather than pooled attention weight --- matches
-SnapKV on WTV but lags substantially on output faithfulness.
-WTV alone would rate RADAR as equivalent to SnapKV; output faithfulness
-refutes that conclusion. Neither metric is sufficient on its own.
+WTV faithfulness reveals the structural mechanisms behind the loss.
+Scattered-selection methods interact favorably with post-prefill value
+enrichment; StreamingLLM's contiguous recency window contaminates value
+representations with expectations about evicted context that the model
+cannot satisfy at decode time.
+Neither metric is sufficient on its own.
 
 \end{abstract}
 
@@ -178,15 +170,14 @@ We make the following contributions:
   \textbf{Output faithfulness metric (\(F_{\text{out}}\))}: Word-level
   F1 between the full model's generated output and the compressed
   model's generated output, with no external ground-truth reference.
-  Reveals two complementary effects: a structural first-token advantage
-  that inflates short-answer \(F_{\text{out}}\) for all post-prefill methods
-  (§6.1), masking faithfulness differences on the tasks where compression
-  is cheapest; and a KL vs.\ WTV disagreement in which RADAR ---
-  the KL leader at moderate compression --- trails SnapKV and PyramidKV
-  on both WTV and output-text similarity (§3.4, §4.4).
+  Reveals two complementary effects: post-prefill enrichment inflates
+  short-answer \(F_{\text{out}}\) for selection methods by producing
+  high-quality compressed key-value pairs (§6.1), masking faithfulness
+  differences on the tasks where compression is cheapest; and a consistent
+  ranking across methods that corroborates the WTV ordering (§3.4, §4.4).
 \item
-  \textbf{Eviction geometry determines faithfulness, not scoring criterion}:
-  Scattered-selection methods (SnapKV, PyramidKV, RADAR) achieve high WTV
+  \textbf{Eviction geometry determines faithfulness}:
+  Scattered-selection methods (SnapKV, PyramidKV) achieve high WTV
   faithfulness because their distributed retention geometry interacts
   favorably with post-prefill value enrichment. Block eviction methods
   (StreamingLLM) are substantially less faithful.
@@ -252,19 +243,6 @@ retrieves complete contiguous blocks rather than individual scattered
 tokens, gaps within each attended block are minimal, though inter-block
 gaps remain.
 
-\textbf{Query-alignment scoring.} An alternative to attention-weight-based
-scoring is to score each key by its alignment with current queries directly ---
-asking not ``which tokens have accumulated high attention?'' but ``which tokens
-would a current query score most highly?'' We introduce \textbf{RADAR} as a
-controlled baseline implementing this idea: each key is scored by its maximum
-unnormalized dot product across the last \texttt{window\_size} post-RoPE query
-vectors, retaining the tokens most aligned with at least one recent query. The
-distinction from SnapKV is that RADAR's \emph{max-dot} criterion is not
-softmax-normalized across positions, so a token with strong alignment to any
-single query is retained regardless of competition from other positions. We
-include RADAR to test whether the specific scoring criterion (accumulated
-attention weight vs.\ query alignment) explains faithfulness outcomes, or
-whether the selection geometry is the determining factor.
 
 \textbf{Token merging.} CaM {[}Y. Zhang et al., 2024{]} and its
 successor KVMerger {[}Wang et al., 2024{]} take a different approach:
@@ -654,52 +632,10 @@ dominate the mean. WTV's entropy weight \(H(P_t)\) further corrects the primary
 problem by explicitly upweighting the uncertain steps that KL underweights.
 
 The practical consequence is that KL can rank methods differently from
-both WTV and \(F_{\text{out}}\). We illustrate this with RADAR
-(post-RoPE max-dot scoring), a method included as a diagnostic baseline.
-Table~\ref{tab:kl-vs-wtv} shows the disagreement. On KL,
-RADAR leads SnapKV on all base-model configurations; on WTV, SnapKV
-leads RADAR at all six rate\(\times\)model combinations. The WTV ranking
-is consistent with \(F_{\text{out}}\) --- SnapKV generates text more
-similar to the full model's across all tasks and rates.
-
-\begin{table}[H]
-\centering
-\small
-\caption{KL vs.\ WTV rankings for SnapKV and RADAR (base models). Lower is better.}
-\label{tab:kl-vs-wtv}
-\begin{minipage}[t]{0.49\textwidth}
-\centering
-\textbf{Llama-3.1-8B}\\[0.4em]
-\begin{tabular}{@{}lrrrrrr@{}}
-\toprule
-& \multicolumn{3}{c}{\(F_{\text{KL}}\) (nats)} & \multicolumn{3}{c}{\(F_{\text{WTV}}\)}\\
-\cmidrule(lr){2-4}\cmidrule(lr){5-7}
-Method & 65\% & 50\% & 35\% & 65\% & 50\% & 35\%\\
-\midrule
-SnapKV & 0.037 & 0.069 & 0.117 & \textbf{0.030} & \textbf{0.046} & \textbf{0.065}\\
-RADAR  & \textbf{0.033} & \textbf{0.068} & \textbf{0.121} & 0.031 & 0.047 & 0.067\\
-\bottomrule
-\end{tabular}
-\end{minipage}%
-\hfill
-\begin{minipage}[t]{0.49\textwidth}
-\centering
-\textbf{Mistral-7B-v0.3}\\[0.4em]
-\begin{tabular}{@{}lrrrrrr@{}}
-\toprule
-& \multicolumn{3}{c}{\(F_{\text{KL}}\) (nats)} & \multicolumn{3}{c}{\(F_{\text{WTV}}\)}\\
-\cmidrule(lr){2-4}\cmidrule(lr){5-7}
-Method & 65\% & 50\% & 35\% & 65\% & 50\% & 35\%\\
-\midrule
-SnapKV & 0.027 & 0.053 & 0.090 & \textbf{0.027} & \textbf{0.044} & \textbf{0.065}\\
-RADAR  & \textbf{0.024} & \textbf{0.048} & \textbf{0.086} & 0.030 & 0.046 & 0.067\\
-\bottomrule
-\end{tabular}
-\end{minipage}
-\par\smallskip
-\textbf{Bold} = better (lower) value per metric column.
-KL values are from corrected position-ID evaluation (Appendix D).
-\end{table}
+both WTV and \(F_{\text{out}}\): the positional-displacement spikes that
+SnapKV's gap structure produces inflate KL relative to WTV, and the
+ranking that WTV and \(F_{\text{out}}\) agree on is the more behaviorally
+meaningful one.
 
 \hypertarget{main-experiments}{%
 \section{4. Experiments}\label{main-experiments}}
@@ -716,14 +652,13 @@ full, unrestricted prefill pass over the complete prompt, scores each
 token's KV entry using post-prefill attention weights, and evicts
 lower-scoring entries from the KV cache before the first decode step.
 
-\texttt{kvpress} includes a \texttt{KeyRerotationPress} module that
-re-rotates retained keys to compact, gap-free positions after eviction.
 The kvpress documentation explicitly recommends combining
 \texttt{KeyRerotationPress} with \texttt{StreamingLLMPress} ``to fully
 match the implementation described in the paper.'' We adopt the kvpress
 recommended configuration for Streaming (\texttt{StreamingLLMPress} +
-\texttt{KeyRerotationPress}). SnapKV, PyramidKV, and RADAR use no
-re-rotation; the rationale is discussed in §5.4.
+\texttt{KeyRerotationPress}). For scattered-selection methods (SnapKV,
+PyramidKV), re-rotation worsens WTV at every rate and budget on
+both models, so those use no position adjustment after eviction.
 
 Streaming uses kvpress's post-prefill adaptation: a full prefill is
 performed before trimming (§5.1), so retained tokens' hidden states are
@@ -777,18 +712,6 @@ budget that allocates more KV slots to lower layers and fewer to higher layers [
 The per-layer budget follows a linear decay controlled by beta=20; budgets are clamped to
 \texttt{[window\_size, sequence\_length]}. No position adjustment after eviction.
 
-\item
-\textbf{RADAR} - Prunes the KV cache by scoring each key by its maximum
-unnormalized dot product with the last \texttt{window\_size} post-RoPE (position-aware)
-query vectors. This \emph{max-dot} criterion differs from SnapKV's pooled-attention
-scoring in two ways: (1)~it is not softmax-normalized, so a token strongly aligned
-with any one recent query is retained regardless of competition among positions;
-(2)~it scores by raw query--key alignment rather than the attention weights that
-result from softmax competition. We include RADAR to test whether attention-weight
-scoring specifically is what determines faithfulness, or whether any scattered-selection
-geometry is sufficient. Results show the geometry dominates (§4.3): RADAR leads on
-KL despite different scoring, but trails on both WTV and $F_{\text{out}}$, the sharpest
-KL vs.\ WTV disagreement in our experiments (§3.4). No position adjustment after eviction.
 
 \end{enumerate}
 
@@ -805,7 +728,7 @@ aggregates scores via mean-pooling across query heads sharing a KV head.
 Ground-truth (GT) accuracy measures whether a compressed model produces outputs
 that match human-written reference answers. Table~\ref{tab:gt-allrates} shows macro-averaged scores
 across all rates on both models.
-Per-task results at 65\% retention appear in Appendices~C and~D.
+Per-task results at 65\% retention appear in Appendix~A.
 
 \begin{table}[H]
 \centering
@@ -823,10 +746,10 @@ Per-task results at 65\% retention appear in Appendices~C and~D.
 Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
 Naive      & 20.8 & 21.6 & 23.4 & 16.9 & 20.1\\
-Streaming  & 23.1 & 23.6 & 23.7 & 26.4 & 26.9\\
+Streaming  & 23.1 & 23.5 & 23.8 & 26.4 & 26.9\\
 SnapKV     & \textbf{24.8} & \textbf{24.9} & 25.0 & 30.7 & 31.5\\
 Pyr        & \textbf{24.8} & 24.2 & \textbf{25.1} & \textbf{31.2} & \textbf{31.6}\\
-RADAR      & 24.2 & 24.8 & 24.9 & 30.0 & 30.9\\
+Random     & 22.7 & 23.1 & 24.2 & --- & ---\\
 \midrule
 Full       & 25.0 & 25.0 & 25.0 & 33.2 & 33.2\\
 \bottomrule
@@ -843,10 +766,10 @@ Full       & 25.0 & 25.0 & 25.0 & 33.2 & 33.2\\
 Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
 Naive      & 20.2 & 21.1 & 22.0 & 16.7 & 20.9\\
-Streaming  & 21.2 & 22.1 & 22.9 & 23.5 & 25.8\\
+Streaming  & 21.4 & 22.1 & 22.7 & 23.5 & 25.8\\
 SnapKV     & \textbf{23.0} & \textbf{23.3} & \textbf{23.5} & 31.3 & \textbf{32.2}\\
 Pyr        & \textbf{23.0} & 22.9 & \textbf{23.5} & \textbf{31.6} & 32.1\\
-RADAR      & 22.4 & 23.1 & \textbf{23.5} & 30.0 & 31.6\\
+Random     & 21.8 & 22.8 & 22.9 & --- & ---\\
 \midrule
 Full       & 23.6 & 23.6 & 23.6 & 32.8 & 32.8\\
 \bottomrule
@@ -868,33 +791,26 @@ compression is essentially lossless.
 That conclusion is an artifact of what GT measures. Because it scores against external
 reference answers rather than the full model's outputs (§3.1), it cannot distinguish a
 compressed model that closely replicates the full model from one that produces completely
-different text that happens to contain the right answer words. Every selection method
-clusters within 1 point of the others across all rates; RADAR is indistinguishable from
-SnapKV/Pyr by this metric despite substantially different WTV faithfulness (§4.3).
-On instruct budgets, Naive is the only method GT separates from the rest, because
-prompt truncation destroys exact-match retrieval accuracy. The true cost of
-compression is not in this table. It is in §4.4.
+different text that happens to contain the right answer words. With macro-average GT
+scores around 25\%, two models can post identical scores while getting entirely different
+examples correct --- the compressed model need not overlap at all with the full model to
+match its GT score. 
+
+Scattered-selected methods --- those that distribute token evictions across the entire prompt --- 
+all cluster within 1 point across all rates.
+The true cost of compression is not visible using the ground truth metric.
+On instruct budgets, Naive separates from the rest because
+at extreme compression, prompt truncation destroys exact-match retrieval accuracy. 
 
 \hypertarget{kl-faithfulness-main-results}{%
 \subsection{4.3 WTV Faithfulness: Main Results}\label{wtv-faithfulness-main-results}}
-Table~\ref{tab:t3} shows mean WTV faithfulness. The structural finding
-is consistent across both models: scattered-selection methods (SnapKV,
-PyramidKV, RADAR) are substantially more faithful than block eviction
-(Streaming) and truncation (Naive) at every rate. Among
-scattered-selection methods, SnapKV leads at most base-model
-configurations, with PyramidKV marginally better at 65\% and RADAR
-marginally worse. WTV rankings disagree with KL on RADAR vs.\ SnapKV:
-KL rates RADAR as slightly more faithful, while WTV rates SnapKV
-higher (§3.4). At instruct budgets, SnapKV continues to lead; Streaming
-narrows substantially relative to Naive as budget tightens, suggesting
-block eviction degrades more gracefully than truncation at extreme
-compression.
+Table~\ref{tab:t3} shows mean WTV faithfulness. The per-task breakdown is in Appendix~B.
 
 \begin{table}[H]
 \centering
 \small
 \captionsetup{justification=centering}
-\caption{Mean WTV faithfulness (\(F_{\text{WTV}}\)) by method, retention rate, and token budget (per-task breakdown in Appendix B).}
+\caption{Mean WTV faithfulness (\(F_{\text{WTV}}\)) by method, retention rate, and token budget.}
 \label{tab:t3}
 \begin{minipage}[t]{0.49\textwidth}
 \centering
@@ -907,9 +823,9 @@ Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
 Naive      & 0.200 & 0.162 & 0.139 & 0.537 & 0.406\\
 Streaming  & 0.126 & 0.105 & 0.085 & 0.281 & 0.227\\
-SnapKV     & \textbf{0.065} & \textbf{0.046} & \textbf{0.030} & \textbf{0.179} & \textbf{0.096}\\
+SnapKV     & \textbf{0.065} & \textbf{0.046} & 0.030 & \textbf{0.179} & \textbf{0.096}\\
 Pyr        & \textbf{0.065} & 0.064 & \textbf{0.025} & 0.180 & 0.097\\
-RADAR      & 0.067 & 0.047 & 0.031 & 0.184 & 0.101\\
+Random     & 0.107 & 0.082 & 0.061 & --- & ---\\
 \bottomrule
 \end{tabular}
 \end{minipage}%
@@ -927,7 +843,7 @@ Naive      & 0.161 & 0.132 & 0.116 & 0.602 & 0.467\\
 Streaming  & 0.174 & 0.153 & 0.132 & 0.363 & 0.307\\
 SnapKV     & \textbf{0.065} & \textbf{0.044} & \textbf{0.027} & \textbf{0.251} & \textbf{0.153}\\
 Pyr        & \textbf{0.065} & 0.074 & 0.028 & 0.259 & 0.159\\
-RADAR      & 0.067 & 0.046 & 0.030 & 0.267 & 0.156\\
+Random     & 0.156 & 0.120 & 0.088 & --- & ---\\
 \bottomrule
 \end{tabular}
 \end{minipage}
@@ -936,11 +852,23 @@ Lower is better. \textbf{Bold} = best value per column.
 Base = retention rate; Instruct = absolute token budget.
 \end{table}
 
+The finding here is more striking.
+The scattered-selection methods (SnapKV, PyramidKV) are substantially more faithful than
+block eviction (Streaming), truncation (Naive), and random eviction
+at every rate. Among scattered-selection methods, SnapKV leads at most base-model
+configurations, with PyramidKV marginally better at 65\%.
+At instruct budgets, SnapKV continues to lead; Streaming
+narrows substantially relative to Naive as budget tightens, suggesting
+block eviction degrades more gracefully than truncation at extreme
+compression.
+
+
 \hypertarget{output-faithfulness-results}{%
 \subsection{4.4 Output Faithfulness
 Results}\label{output-faithfulness-results}}
 
-Table~\ref{tab:t4} shows what compression actually costs.
+Table~\ref{tab:t4} shows the output faithfulness results (per-task breakdown in Appendix~C).  
+Here we can get a clearer picture of the true cost of compression.
 
 \begin{table}[H]
 \centering
@@ -958,10 +886,10 @@ Table~\ref{tab:t4} shows what compression actually costs.
 Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
 Naive      & 46.9 & 52.1 & 68.6 & 24.9 & 37.0\\
-Streaming  & 51.8 & 56.4 & 61.2 & 56.1 & 62.0\\
+Streaming  & 51.8 & 56.4 & 61.1 & 56.1 & 62.0\\
 SnapKV     & 66.8 & \textbf{73.2} & 78.5 & \textbf{72.0} & \textbf{81.9}\\
-Pyr        & \textbf{66.9} & 64.2 & \textbf{79.1} & 71.1 & 81.8\\
-RADAR      & 56.3 & 60.8 & 65.2 & 71.5 & 81.8\\
+Pyr        & \textbf{66.9} & 64.2 & \textbf{79.0} & 71.1 & 81.8\\
+Random     & 49.9 & 55.3 & 61.1 & 58.0 & 67.7\\
 \bottomrule
 \end{tabular}
 \end{minipage}%
@@ -975,11 +903,11 @@ RADAR      & 56.3 & 60.8 & 65.2 & 71.5 & 81.8\\
 \cmidrule(lr){2-4}\cmidrule(lr){5-6}
 Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
 \midrule
-Naive      & 53.5 & 56.9 & 60.0 & 25.7 & 33.9\\
-Streaming  & 53.9 & 57.4 & 61.0 & 47.1 & 54.3\\
+Naive      & 52.6 & 56.9 & 60.0 & 25.7 & 33.9\\
+Streaming  & 53.8 & 57.4 & 61.0 & 47.1 & 54.3\\
 SnapKV     & 74.0 & \textbf{79.0} & \textbf{83.7} & \textbf{63.9} & \textbf{76.1}\\
-Pyr        & \textbf{74.8} & 68.8 & 83.5 & 63.0 & 74.9\\
-RADAR      & 65.2 & 69.5 & 74.1 & 61.6 & 75.3\\
+Pyr        & \textbf{74.1} & 68.8 & 83.5 & 63.0 & 74.9\\
+Random     & 52.0 & 57.1 & 64.0 & 48.2 & 57.9\\
 \bottomrule
 \end{tabular}
 \end{minipage}
@@ -996,19 +924,10 @@ percentage points depending on rate. On Mistral the picture is qualitatively the
 
 The instruct model at budget~=~256 looks better at first glance (SnapKV: Llama 72\%,
 Mistral 64\%). This is partly misleading for the same structural reason as GT: a
-post-prefill first-token advantage inflates \(F_{\text{out}}\) on short-answer tasks
+post-prefill enrichment inflates \(F_{\text{out}}\) on short-answer tasks
 where a single correct word dominates the score (§6.1). On longer-form tasks, where
 compression would actually reduce generation time, the cost is comparable to or larger
 than the base-model results.
-
-\textbf{RADAR and the KL vs.\ WTV/\(F_{\text{out}}\) disagreement.}
-SnapKV and PyramidKV lead both WTV and \(F_{\text{out}}\) at every base-model rate.
-RADAR leads on KL (see also §3.4 diagnostic), with the gap sharpest on Mistral at
-65\%: RADAR KL~0.024 vs SnapKV/Pyr 0.027/0.029; but on WTV RADAR trails SnapKV
-(0.030 vs 0.027), and \(F_{\text{out}}\) RADAR 74.1 vs SnapKV/Pyr 83--84\%.
-Section~\ref{why-compression-quality-appears-better} explains the \(F_{\text{out}}\)
-pattern: the advantage of SnapKV/Pyr is concentrated on short-answer tasks via the
-first-token mechanism, not on long-form outputs where compression matters most.
 
 \hypertarget{eviction-geometry-and-faithfulness}{%
 \section{5. Eviction Geometry and Faithfulness}\label{eviction-geometry-and-faithfulness}}
@@ -1023,85 +942,25 @@ empirically, and characterizes how gap geometry determines faithfulness outcomes
 All KV-pruning methods benchmarked here use \emph{post-prefill cache
 eviction}: the model performs one full, unrestricted prefill pass over
 the complete prompt, and only after that pass completes is the cache
-trimmed before the first decode step. This creates two structural
-problems: the retained cache is structurally gapped, and retained keys
-carry their original scattered RoPE positions rather than compact ones.
+trimmed before the first decode step. The evicted tokens leave positional gaps in the retained sequence ---
+the cache itself is compact, but it no longer covers a contiguous span
+of token positions; retained keys carry their original pre-eviction
+RoPE positions.
 
-The gap problem comes with an unexpected benefit. Because the full
-prefill runs before any eviction, retained KV pairs carry
-representations computed under full-context attention over the
-\emph{entire} original sequence --- they have seen tokens that are
-immediately evicted afterward. We call this property \emph{enrichment}
+The full prefill that precedes eviction brings an unexpected benefit:
+retained KV pairs carry representations computed under full-context
+attention over the \emph{entire} original sequence --- they have seen
+tokens that are immediately evicted afterward. We call this property \emph{enrichment}
 throughout §§5--6. Naive prompt construction avoids gaps by building a
 shorter input before prefill, but it loses enrichment: those tokens
 have never attended to the evicted content.
 
-Key re-rotation addresses the positional problem by re-encoding retained
-keys at compact positions \(0 \ldots M-1\) after eviction
-(Figure~\ref{fig:rope-displacement}), restoring uniform positional
-spacing. It does not change the gap structure or the enriched values,
-and it introduces a tension: those values were conditioned on the
-original pre-eviction RoPE angles, so re-rotating the keys shifts the
-positional basis they were computed under. Whether this tension helps or
-hurts net faithfulness depends on geometry (§5.4).
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}
-  \pgfmathsetmacro{\CW}{0.72}   % cell width
-  \pgfmathsetmacro{\CH}{0.46}   % cell height
-  \definecolor{retcol}{RGB}{31,90,161}
-  \definecolor{evtcol}{RGB}{218,218,218}
-
-  % ── Row 1: post-eviction (positions 0–7; retained 0,1,5,6,7; evicted 2,3,4) ──
-  \foreach \p in {0,1,5,6,7} {
-    \fill[retcol] ({\p*\CW},{-\CH/2}) rectangle ({(\p+1)*\CW},{\CH/2});
-    \draw[black!30, line width=0.3pt] ({\p*\CW},{-\CH/2}) rectangle ({(\p+1)*\CW},{\CH/2});
-    \node[font=\scriptsize, text=white] at ({(\p+0.5)*\CW}, 0) {\p};
-  }
-  \foreach \p in {2,3,4} {
-    \fill[evtcol] ({\p*\CW},{-\CH/2}) rectangle ({(\p+1)*\CW},{\CH/2});
-    \draw[black!30, line width=0.3pt] ({\p*\CW},{-\CH/2}) rectangle ({(\p+1)*\CW},{\CH/2});
-    \node[font=\scriptsize, text=black!45] at ({(\p+0.5)*\CW}, 0) {\p};
-  }
-  % Row 1 label
-  \node[anchor=east, font=\small, inner sep=2pt] at (-0.15, 0) {Post-eviction:};
-  % \Delta annotations above retained-token pairs
-  \node[font=\scriptsize] at ({0.5*\CW},   0.62) {$\Delta\!=\!1$};
-  \node[font=\scriptsize] at ({3.0*\CW},   0.62) {$\Delta\!=\!4$};
-  \node[font=\scriptsize] at ({5.5*\CW},   0.62) {$\Delta\!=\!1$};
-  \node[font=\scriptsize] at ({6.5*\CW},   0.62) {$\Delta\!=\!1$};
-
-  % ── Row 2: re-rotated (compact positions 0–4) ─────────────────────────────
-  \foreach \p in {0,1,2,3,4} {
-    \fill[retcol] ({\p*\CW},{-1.7-\CH/2}) rectangle ({(\p+1)*\CW},{-1.7+\CH/2});
-    \draw[black!30, line width=0.3pt] ({\p*\CW},{-1.7-\CH/2}) rectangle ({(\p+1)*\CW},{-1.7+\CH/2});
-    \node[font=\scriptsize, text=white] at ({(\p+0.5)*\CW}, -1.7) {\p};
-  }
-  % Row 2 label
-  \node[anchor=east, font=\small, inner sep=2pt] at (-0.15, -1.7) {Re-rotated:};
-  % \Delta=1 annotations below retained-token pairs
-  \foreach \p in {0,1,2,3} {
-    \node[font=\scriptsize] at ({(\p+0.5)*\CW}, {-2.33}) {$\Delta\!=\!1$};
-  }
-\end{tikzpicture}
-\caption{Positional displacement from post-prefill eviction. Blue cells are retained keys;
-gray cells are evicted.}
-\label{fig:rope-displacement}
-\end{figure}
-
-After eviction, retained positions 0,\,1,\,5,\,6,\,7 in
-Figure~\ref{fig:rope-displacement} create a $\Delta\!=\!4$ gap between
-positions~1 and~5 --- the decode query sees those keys as if they were
-4 apart, distorting RoPE-encoded relative distances. Re-rotation
-re-encodes the five retained keys at compact positions $0\ldots4$,
-restoring uniform $\Delta\!=\!1$ spacing.
 \hypertarget{empirical-evidence}{%
 \subsection{5.2 Empirical Evidence}\label{empirical-evidence}}
 
 To confirm that mechanism rather than token selection drives the
-faithfulness gap, we compare KL divergence (used here as a diagnostic)
-for SnapKV with KV pruning to SnapKV-Select ---
+faithfulness gap, we compare \(F_{\text{WTV}}\) for SnapKV with KV pruning
+to SnapKV-Select ---
 identical attention-score-based token selection, presented as a new
 prompt rather than patched into the KV cache (Table~\ref{tab:t1}). The same tokens,
 selected by the same algorithm, behave very differently depending on how
@@ -1120,16 +979,16 @@ positional scatter without enrichment.
 \begin{table}[H]
 \centering
 \small
-\caption{Mean KL divergence (diagnostic) for four method configurations.}
+\caption{Mean \(F_{\text{WTV}}\) (diagnostic) for four method configurations.}
 \label{tab:t1}
 \begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.28\textwidth}rrrrrrr@{}}
 \toprule
 Method & 2WikiMQA & MultifieldQA & Qasper & QMSum & RepoBench-P & TriviaQA & Mean\\
 \midrule
-Naive --- prompt construction & 0.221 & 0.262 & 0.281 & 0.081 & \textbf{0.048} & 0.076 & 0.162\\
-SnapKV --- KV pruning (recompute-over-gaps) & 0.254 & 0.186 & 0.223 & 0.117 & 0.106 & 0.122 & 0.168\\
-SnapKV --- KV pruning (post-prefill eviction) & 0.004 & 0.027 & 0.075 & 0.045 & 0.002 & 0.000 & 0.025\\
-SnapKV-Select --- prompt construction & \textbf{0.096} & \textbf{0.118} & \textbf{0.163} & \textbf{0.071} & 0.051 & \textbf{0.060} & \textbf{0.093}\\
+Naive --- prompt construction & 0.172 & 0.131 & 0.161 & 0.123 & 0.105 & 0.138 & 0.138\\
+SnapKV --- KV pruning (recompute-over-gaps) & 0.220 & 0.159 & 0.191 & 0.187 & 0.187 & 0.176 & 0.187\\
+SnapKV --- KV pruning (post-prefill eviction) & \textbf{0.009} & \textbf{0.025} & \textbf{0.054} & \textbf{0.068} & \textbf{0.011} & \textbf{0.001} & \textbf{0.028}\\
+SnapKV-Select --- prompt construction & 0.124 & 0.123 & 0.140 & 0.101 & 0.140 & 0.095 & 0.120\\
 \bottomrule
 \\
 \end{tabular}
@@ -1138,19 +997,21 @@ SnapKV rows use identical attention-score-based token selection; only
 the mechanism varies.
 \end{table}
 
-The corrected post-prefill SnapKV row (mean 0.025) is now \emph{better} than
-SnapKV-Select (0.093), reversing what the buggy evaluation had implied.
-Enrichment from the full prefill is beneficial once position IDs are correct.
-Recompute-over-gaps (0.168) nearly matches naive prompt construction (0.162),
-confirming that positional scatter alone causes limited damage when values carry
-no cross-context information---consistent with the corrected SnapKV result.
+Post-prefill eviction (mean 0.028) is substantially more faithful than all
+other configurations. Enrichment from the full prefill is beneficial, and
+WTV captures its effect clearly. Comparing recompute-over-gaps (0.187) to
+SnapKV-Select (0.120) isolates the cost of positional scatter: both use the
+same selected tokens with no enrichment; only the RoPE positions differ ---
+scattered pre-eviction versus compact re-indexed. Recompute-over-gaps is
+worse even than naive prompt construction (0.138), which selects a
+different, non-overlapping token set.
 
 \hypertarget{synthetic-gap-structure-analysis}{%
 \subsection{5.3 Synthetic Gap-Structure
 Analysis}\label{synthetic-gap-structure-analysis}}
 
 To isolate positional displacement from enrichment effects without
-contamination from token selection, we evaluate four pure position
+contamination from token selection, we evaluate five pure position
 geometries generated purely as a function of sequence length and
 retention fraction (r = 0.65), with no query, no content, and no
 model-based selection (Figure~\ref{fig:gap-geometries}). At a typical
@@ -1161,6 +1022,10 @@ context length of \textasciitilde4000 tokens, the geometries are:
 \item
   \textbf{block\_end} --- one contiguous retained block at the tail (1
   causal gap, immediately before it)
+\item
+  \textbf{streaming\_approx} --- 4 sink tokens at the sequence head
+  plus a contiguous tail block (1 gap in the early-middle); approximates
+  StreamingLLMPress
 \item
   \textbf{block\_mid} --- one contiguous retained block, centered (2
   gaps, before and after)
@@ -1184,9 +1049,15 @@ context length of \textasciitilde4000 tokens, the geometries are:
   \definecolor{retcol}{RGB}{31,90,161}
   \definecolor{evtcol}{RGB}{218,218,218}
 
-  % ── block\_end (row 3): evicted [0,35%], retained [35%,100%] ───────────────
-  \fill[evtcol] (0,{3*\VS-\H/2}) rectangle ({\W*0.35},{3*\VS+\H/2});
-  \fill[retcol] ({\W*0.35},{3*\VS-\H/2}) rectangle (\W,{3*\VS+\H/2});
+  % ── block\_end (row 4): evicted [0,35%], retained [35%,100%] ───────────────
+  \fill[evtcol] (0,{4*\VS-\H/2}) rectangle ({\W*0.35},{4*\VS+\H/2});
+  \fill[retcol] ({\W*0.35},{4*\VS-\H/2}) rectangle (\W,{4*\VS+\H/2});
+
+  % ── streaming\_approx (row 3): sinks [0,3%] + evicted [3%,38%] + tail [38%,100%] ──
+  % (sink width exaggerated from actual <0.1% for visibility)
+  \fill[retcol] (0,{3*\VS-\H/2}) rectangle ({\W*0.03},{3*\VS+\H/2});
+  \fill[evtcol] ({\W*0.03},{3*\VS-\H/2}) rectangle ({\W*0.38},{3*\VS+\H/2});
+  \fill[retcol] ({\W*0.38},{3*\VS-\H/2}) rectangle (\W,{3*\VS+\H/2});
 
   % ── block\_mid (row 2): evicted [0,17.5%], retained [17.5%,82.5%], evicted [82.5%,100%] ──
   \fill[evtcol] (0,{2*\VS-\H/2}) rectangle ({\W*0.175},{2*\VS+\H/2});
@@ -1217,18 +1088,20 @@ context length of \textasciitilde4000 tokens, the geometries are:
   }
 
   % ── borders ────────────────────────────────────────────────────────────────
-  \foreach \row in {0,1,2,3} {
+  \foreach \row in {0,1,2,3,4} {
     \draw[black!30, line width=0.3pt] (0,{\row*\VS-\H/2}) rectangle (\W,{\row*\VS+\H/2});
   }
 
   % ── row labels ─────────────────────────────────────────────────────────────
-  \node[anchor=east, font=\small, inner sep=2pt] at (-0.2,{3*\VS}) {\texttt{block\_end}};
+  \node[anchor=east, font=\small, inner sep=2pt] at (-0.2,{4*\VS}) {\texttt{block\_end}};
+  \node[anchor=east, font=\small, inner sep=2pt] at (-0.2,{3*\VS}) {\texttt{streaming\_approx}};
   \node[anchor=east, font=\small, inner sep=2pt] at (-0.2,{2*\VS}) {\texttt{block\_mid}};
   \node[anchor=east, font=\small, inner sep=2pt] at (-0.2,{1*\VS}) {\texttt{clustered4}};
   \node[anchor=east, font=\small, inner sep=2pt] at (-0.2,0) {\texttt{scattered}};
 
   % ── gap-count annotations ──────────────────────────────────────────────────
-  \node[anchor=west, font=\scriptsize, text=black!55, inner sep=2pt] at ({\W+0.15},{3*\VS}) {1 gap};
+  \node[anchor=west, font=\scriptsize, text=black!55, inner sep=2pt] at ({\W+0.15},{4*\VS}) {1 gap (prefix)};
+  \node[anchor=west, font=\scriptsize, text=black!55, inner sep=2pt] at ({\W+0.15},{3*\VS}) {1 gap (middle)};
   \node[anchor=west, font=\scriptsize, text=black!55, inner sep=2pt] at ({\W+0.15},{2*\VS}) {2 gaps};
   \node[anchor=west, font=\scriptsize, text=black!55, inner sep=2pt] at ({\W+0.15},{1*\VS}) {$\sim$5 gaps};
   \node[anchor=west, font=\scriptsize, text=black!55, inner sep=2pt] at ({\W+0.15},0) {$\sim$1400 gaps};
@@ -1243,7 +1116,8 @@ context length of \textasciitilde4000 tokens, the geometries are:
 \end{tikzpicture}
 \captionsetup{justification=centering}
 \caption{Gap geometries used in the synthetic analysis (Table~\ref{tab:t2}). Each bar represents
-\\the token sequence at $r = 0.65$ retention; blue = retained in KV cache, gray = evicted.}
+\\the token sequence at $r = 0.65$ retention; blue = retained in KV cache, gray = evicted.
+\\For \texttt{streaming\_approx}, the 4-token sink region at the head is exaggerated for visibility.}
 \label{fig:gap-geometries}
 \end{figure}
 
@@ -1261,163 +1135,140 @@ presentations:
   full-context enrichment), then post-prefill eviction; retained keys
   remain at their original RoPE positions. This is the mechanism used by
   SnapKV.
-\item
-  \textbf{Rerotated}: identical to evicted but with key re-rotation to
-  compact RoPE positions after eviction (\texttt{KeyRerotationPress}).
-  This is the mechanism used by StreamingLLM used in our benchmarks.
 \end{itemize}
 
-Comparing rerotated to evicted isolates position correction alone, since
-enrichment is identical in both conditions. Comparing gapless to
-rerotated isolates the effect of enrichment at compact positions.
 \begin{table}[H]
 \centering
 \small
-\caption{Mean KL divergence (diagnostic) by gap geometry}
+\caption{Mean \(F_{\text{WTV}}\) (diagnostic) by gap geometry}
 \label{tab:t2}
-\begin{tabular}{@{}lllllll@{}}
+\begin{tabular}{@{}lllll@{}}
 \toprule
-Geometry & Gaps & Gapless & Evicted & Rerotated & ev/gl & rot/gl\\
+Geometry & Gaps & Gapless & Evicted & ev/gl\\
 \midrule
-block\_end & 1 & 0.177 & 2.846 & 2.814 & 16.1× & 15.9×\\
-block\_mid & 2 & 3.127 & 4.225 & 3.973 & 1.4× & 1.3×\\
-clustered4 & \textasciitilde5 & 2.745 & 3.765 & 3.498 & 1.4× & 1.3×\\
-scattered & \textasciitilde1400 & 1.205 & 0.183 & 0.221 & 0.15× & 0.18×\\
+block\_end & 1 (prefix) & 0.149 & 0.544 & 3.6×\\
+streaming\_approx & 1 (middle) & 0.146 & 0.081 & 0.55×\\
+block\_mid & 2 & 0.644 & 0.640 & 1.0×\\
+clustered4 & \textasciitilde5 & 0.610 & 0.624 & 1.0×\\
+scattered & \textasciitilde1400 & 0.519 & 0.138 & 0.27×\\
 \bottomrule
 \\
 \end{tabular}
 \\Llama-3.1-8B, r = 0.65, 6 tasks, n = 20 per task.
 \end{table}
 
-Table~\ref{tab:t2} reveals several non-obvious patterns across the four geometries.
+Table~\ref{tab:t2} reveals several non-obvious patterns across the five geometries.
 
 \begin{itemize}
 \tightlist
 \item
-  \textbf{Block\_end geometry: positional shift and structural
-  corruption both contribute.} A single large prefix gap combined with
-  enrichment causes severe damage: evicted (2.846) is 16.1× worse than
-  gapless (0.177).
-  Re-rotation provides only partial recovery: rerotated (2.814, 15.9×)
-  substantially outperforms evicted but remains far from gapless. In
-  contrast to the scattered geometry, where re-rotation reaches below
-  gapless, block\_end retains substantial residual damage after position
-  correction. What drives this irreversibility is not established here;
-  several factors contribute, and we do not attempt to isolate the
-  dominant one.
+  \textbf{Block\_end geometry: attention sink loss.} A single large
+  prefix gap causes severe damage: evicted (0.544) is 3.6× worse than
+  gapless (0.149). The distinguishing factor is not the size of the
+  evicted region but the loss of attention sink tokens at positions 0--3.
+  Transformers develop a structural dependency on these early positions
+  as anchor tokens where attention redistributes when no semantically
+  relevant key is nearby. Block\_end eviction removes them entirely; the
+  first KV entry in the compressed cache sits at position $T{-}M$, deep
+  in the original sequence, and does not function as a natural sink. The
+  result is destabilized attention during decode, visible in degenerate
+  outputs such as repetitive loops.
 \item
-  \textbf{Block\_mid and clustered4} show modest damage in both evicted
-  (1.4×) and rerotated (1.3×) relative to gapless. The geometries are
-  not directly comparable in absolute KL (used diagnostically here): block\_mid and
-  clustered4 discard the recency tail, so their elevated gapless
-  baselines reflect lower content informativeness, not mechanism damage.
-  Within-geometry ratios are the interpretable signal.
+  \textbf{Streaming\_approx geometry: gap position determines outcome.}
+  Adding just 4 sink tokens before the tail block shifts the single gap
+  from the prefix boundary to the early-middle of the sequence, and the
+  enrichment effect reverses completely: evicted (0.081) is 0.55× gapless
+  (0.146) --- beneficial rather than damaging. The retained tokens now
+  have both a sequence-initial anchor and the recency tail; the evicted
+  middle content enriches their representations without creating the same
+  systematic dependency on absent prefix context.
 \item
-  \textbf{Scattered geometry: enrichment dominates.} With
-  uniformly-distributed positions, scatter combined with enrichment is
-  \emph{beneficial}: evicted (0.183) outperforms gapless (1.205, 0.15×)
-  --- enriched keys carry information about the evicted context that
-  compact-prompt construction cannot provide. Re-rotation then yields
-  the table's best result: rerotated (0.221) is 0.18× of gapless and
-  also below it, but slightly worse than evicted (0.183), showing a
-  mild tension between compact positions and the original enriched
-  RoPE angles.
+  \textbf{Block\_mid and clustered4} show virtually no enrichment
+  effect (1.0×). These geometries discard the recency tail, so their
+  elevated gapless baselines reflect lower content informativeness rather
+  than mechanism damage; within-geometry ratios are the interpretable
+  signal.
 \item
-  \textbf{The scattered results reveal the enrichment direction.}
-  Comparing within the scattered geometry: both evicted (0.183) and
-  rerotated (0.221) dramatically outperform gapless (1.205) despite all
-  three using the same retained tokens --- the only difference is that
-  evicted/rerotated have seen the full context during prefill. Enrichment
-  carries information about the evicted tokens that compact-prompt
-  construction cannot replicate, even at the same token budget.
+  \textbf{Scattered geometry: enrichment strongly beneficial (0.27×).}
+  Uniformly-distributed positions with enrichment substantially
+  outperform gapless (0.519 vs 0.138) --- enriched keys carry
+  information about evicted context that compact-prompt construction
+  cannot replicate, even at the same token budget.
 \end{itemize}
 
-These results make a concrete prediction for SnapKV and StreamingLLM,
-whose retained-set geometries are approximately scattered and block\_end
-respectively: SnapKV's scattered geometry interacts favorably with enrichment,
-and should yield better KL than the block\_end geometry of Streaming --- even
-without re-rotation. §4.3 confirms: corrected SnapKV KL at 65\% (0.037) is
-substantially better than Streaming (0.141), consistent with evicted falling
-below gapless (0.15×) for scattered versus 16.1× above gapless for block\_end.
+The synthetic analysis isolates mechanism; task-level WTV variance in §4
+reflects how well each geometry aligns with where relevant content actually
+appears in a given task, which the content-blind synthetic cannot predict.
 
-Re-rotation provides only partial benefit for block\_end (rerotated 2.814
-still 15.9× above gapless 0.177) and slightly hurts scattered (rerotated 0.221
-vs evicted 0.183). The geometric differences are the dominant factor.
+These results provide a mechanistic account of the clustering in §4.3.
+SnapKV and PyramidKV share a scattered position geometry that
+interacts strongly and favorably with enrichment (0.27×), explaining
+why they form a tight group well above the remaining methods. Streaming
+and Naive have a structurally similar geometry --- both retain sink
+tokens plus a recency tail with a middle gap, approximating
+streaming\_approx --- but Streaming undergoes post-prefill eviction
+while Naive is prompt truncation. The WTV gap between them isolates the
+enrichment effect: same structure, enrichment is the differentiator.
 
 
-\hypertarget{re-rotation-effects}{%
-\subsection{5.4 Re-Rotation Effects}\label{re-rotation-effects}}
-
-Key re-rotation's effect depends on the eviction geometry, consistent
-with the synthetic evidence in §5.3. For Streaming's block\_end geometry,
-the KL difference between rotated and unrotated is small (0.141 with
-re-rotation vs.\ 0.160 without on Mistral at 65\%; within noise on
-Llama), but output faithfulness favors re-rotation --- \(F_{\text{out}}\) rises
-from 54.2 to 61.2 on Llama at 65\%. Since the kvpress library explicitly
-recommends the combined configuration for Streaming, and the empirical
-evidence provides no reason to diverge, we adopt StreamingLLM +
-\texttt{KeyRerotationPress} as the Streaming configuration throughout.
-
-For scattered-selection methods (SnapKV, PyramidKV, RADAR),
-re-rotation consistently \emph{worsens} KL faithfulness (and WTV) at every
-retention rate and every instruct budget on both models. On Llama at 65\%:
-SnapKV 0.037 KL (no rotation) vs.\ SnapKV+rot 0.043; PyramidKV 0.032 vs.\
-Pyr+rot 0.047. The pattern holds on Mistral and across all rates.
-This is consistent with the enrichment--position tension identified in §5.1:
-scattered retained keys carry enriched values computed under their original
-scattered RoPE angles. Re-rotating the keys to compact positions
-\(0\ldots M-1\) introduces a mismatch between the position encoding and
-the value vectors' prefill context, which the scattered geometry
-(where enriched keys span the full original sequence) makes especially
-costly. We therefore use the unrotated configuration for all
-scattered-selection methods.
 
 
 \hypertarget{why-compression-quality-appears-better}{%
-\section{6. Why Compression Quality Appears Better Than It Is}\label{why-compression-quality-appears-better}}
+\section{6. Why Compression Quality Appears Better Than It Actually Is}\label{why-compression-quality-appears-better}}
 
 SnapKV and PyramidKV lead \(F_{\text{out}}\) across all retention rates
-(Table~\ref{tab:t4}), and they also lead WTV faithfulness. Yet the two
-metrics do not tell the same story at the task level: \(F_{\text{out}}\) is
-substantially inflated for all post-prefill methods on short-answer tasks,
-due to a structural mechanism that WTV does not suppress. This section explains
-the inflation and its consequences for interpreting aggregate \(F_{\text{out}}\)
-numbers.
+(Table~\ref{tab:t4}), and they also lead WTV faithfulness. The aggregate numbers,
+however, conceal three structural effects that distort how well compression
+quality is perceived to generalize.
+
+\textbf{Enrichment and the short-answer advantage} (§6.1).  All post-prefill
+eviction methods compute a complete, uncompressed prefill before eviction.
+The retained KV pairs therefore carry representations formed under full-context
+attention, making the compressed cache a higher-quality approximation of the
+full model's state.  This enrichment inflates \(F_{\text{out}}\) on short-answer
+tasks where a single correct word dominates the score.  WTV, being
+teacher-forced on the full model's output sequence, is immune.
+
+\textbf{Output-length effects} (§6.2).  The enrichment advantage
+is concentrated on short outputs and dilutes on long ones as generated tokens
+accumulate in the KV cache.  Splitting by output length reveals that
+\(F_{\text{out}}\) gaps between methods are largely driven by short-answer
+tasks; on long-form outputs the ranking shifts substantially, and WTV is a
+more reliable guide to faithfulness at any length.
+
+\textbf{Selection blind spot} (§6.3).  Attention-based
+scoring produces a systematic positional bias: across models (Llama, Mistral),
+the retained tokens form a bell curve peaking
+near the middle of the sequence, with near-zero selection from the first 30\% of
+the context.  This matters most for tasks where critical content is distributed
+throughout the document rather than concentrated at the end---particularly
+summarization, which has no retrieval target to focus attention and suffers the
+largest WTV penalty as a result.
 
 \hypertarget{first-token-advantage}{%
-\subsection{6.1 First-Token Advantage}\label{first-token-advantage}}
+\subsection{6.1 Enrichment and the Short-Answer Advantage}\label{first-token-advantage}}
 
-All post-prefill eviction methods
-run a complete, uncompressed prefill before evicting the KV cache. The
-first output token's distribution is therefore always exactly identical
-to the full model's: eviction has not yet occurred at that point, so the
-hidden state at the last prefill position is computed from full,
-unrestricted attention over the entire context. Divergence begins at the
-second decode step, when the compressed cache takes over. 
+All post-prefill methods compute a complete, uncompressed prefill before
+eviction. The retained KV pairs therefore carry representations formed
+under full-context attention over the entire sequence --- each key and
+value encodes cross-token interactions that would be absent if attention
+had been restricted during prefill. This richer representation makes the
+compressed cache a better approximation of the full model's state at every
+decode position. Enrichment benefits both \(F_{\text{out}}\) and WTV: it
+is a genuine quality improvement, not an artifact of evaluation procedure.
 
-WTV faithfulness is measured at every generation step. Post-prefill
-eviction creates gaps in the retained cache that corrupt distributions
-at all subsequent steps, even when the first output is correct. On
-short-answer tasks, \(F_{\text{out}}\) is determined almost entirely by
-the first-token decision and registers no corruption at subsequent
-steps even if the distributional divergence is high. Both methods produce the
-same output text as the full model while assigning completely different
-probability mass to alternatives at every subsequent step.
-
-That the short-answer advantage comes
-from the full-prefill hidden state --- not from query-relevant token
-selection --- is confirmed by comparing SnapKV
-(post-prefill eviction) to the recompute-over-gaps variant
-introduced in §5.2 (Table~\ref{tab:t1}): both use identical
-attention-score selection at the same retention budget; only the
-eviction point differs. The recompute-over-gaps variant restricts
-attention \emph{during} prefill rather than pruning the cache after it,
-so the full-prefill hidden state never exists. 
+That enrichment --- not a structural guarantee about the first token --- is
+what drives the short-answer \(F_{\text{out}}\) advantage is confirmed by
+comparing SnapKV to the recompute-over-gaps variant introduced in §5.2
+(Table~\ref{tab:rog}): both use identical attention-score selection at
+the same retention budget; only the eviction point differs. The
+recompute-over-gaps variant restricts attention \emph{during} prefill
+rather than pruning the cache after it, so no enrichment accumulates.
 
 \begin{table}[H]
 \centering
 \small
-\caption{\(F_{\text{out}}\) by output-length category: first-token advantage diagnostic (Llama, 65\%)}
+\caption{\(F_{\text{out}}\) by output-length category: enrichment diagnostic (Llama, 65\%)}
 \label{tab:rog}
 \begin{tabular}{@{}llll@{}}
 \toprule
@@ -1431,12 +1282,12 @@ SnapKV              & 87.7 & 54.7 & 33.0\\
 \center Llama-3.1-8B, 65\% retention. Short = reference output ≤\,90 words; Long = \textgreater{}90 words.
 \end{table}
 
-Table~\ref{tab:rog} shows
-the result: recompute-over-gaps is nearly flat across output lengths
-(Gap=6.0) with no short-answer advantage, while SnapKV shows a steep
-33.0-point gradient. The same token selection rule applied at a
-different point in the forward pass produces a completely different
-behavioral signature.
+Table~\ref{tab:rog} shows the result: recompute-over-gaps is nearly flat
+across output lengths (Gap=6.0), while SnapKV shows a steep 33.0-point
+gradient. The same token selection rule with enrichment produces a
+31-point short-answer advantage over the variant without it; on long-form
+outputs both methods converge, consistent with enrichment being diluted
+as generated tokens accumulate in the cache.
 
 \hypertarget{output-length-effects}{%
 \subsection{6.2 Output-Length Effects}\label{output-length-effects}}
@@ -1460,9 +1311,10 @@ Method & Short-answer \(F_{\text{out}}\) & Long-form \(F_{\text{out}}\)
 & Gap\\
 \midrule
 PyramidKV & \textbf{88.1} & 55.5 & 32.6\\
-SnapKV & 87.7 & 54.7 & 33.0\\
-Streaming & 66.7 & 47.0 & 19.7\\
-Naive & 72.8 & \textbf{57.6} & 15.2\\
+SnapKV    & 87.7          & 54.7 & 33.0\\
+Random    & 69.0          & 45.0 & 24.0\\
+Streaming & 66.7          & 47.0 & 19.7\\
+Naive     & 72.8          & \textbf{57.6} & 15.2\\
 \bottomrule
 \end{tabular}
 
@@ -1472,20 +1324,16 @@ Naive & 72.8 & \textbf{57.6} & 15.2\\
 \end{table}
 
 PyramidKV and SnapKV show nearly identical short-to-long drops
-(\textasciitilde33 points), more than twice Naive's (15.2) and more than
-double Streaming's (19.7). Naive slightly leads all selection methods on
-long-form \(F_{\text{out}}\) (57.6 vs 55.5 and 54.7), and the headline
-aggregate \(F_{\text{out}}\) advantage of selection methods is propped up
-almost entirely by short, structured outputs where the first-token advantage
-is decisive. Both methods achieve near-full-model performance on single-token
-or short-phrase tasks: TriviaQA (Pyr: 97.0\%, Snap: 92.0\%), PassageCount
-(96.4\%, 92.8\%), 2WikiMQA (95.6\%, 95.6\%), PassageRetrieval (93.8\%, 94.0\%).
-
-The practical implication: post-prefill selection methods (SnapKV, PyramidKV)
-do not provide latency savings on short-answer tasks (TTFT is unchanged;
-§7.1), yet that is precisely where their \(F_{\text{out}}\) advantage is
-concentrated and largest. On long-form tasks --- where TPT savings would
-compound --- Naive actually leads \(F_{\text{out}}\) slightly.
+(\textasciitilde33 points), significantly larger than Random's (24.0), Naive's (15.2), and
+Streaming's (19.7). The large gap for selection methods reflects enrichment quality (§\ref{first-token-advantage}):
+their full-context prefill produces high-quality compressed KV pairs that generate
+correct short answers. Random eviction's 19-point gap below the selection methods
+(69.0 vs 87--88) confirms that selection quality matters; this advantage largely
+disappears on long-form tasks where both converge to 45--55\% as enrichment dilutes.
+Naive slightly leads all other methods on long-form \(F_{\text{out}}\)
+(57.6 vs 55.5 and 54.7), and both selection methods achieve near-full-model
+performance on single-token or short-phrase tasks: TriviaQA (Pyr: 97.0\%, Snap: 92.0\%),
+PassageCount (96.4\%, 92.8\%), 2WikiMQA (95.6\%, 95.6\%), PassageRetrieval (93.8\%, 94.0\%).
 
 \begin{table}[H]
 \centering
@@ -1496,10 +1344,11 @@ compound --- Naive actually leads \(F_{\text{out}}\) slightly.
 \toprule
 Method & Short \(F_{\text{WTV}}\) & Long \(F_{\text{WTV}}\)\\
 \midrule
-SnapKV    & 0.011 & 0.080\\
+SnapKV    & 0.011          & 0.080\\
 PyramidKV & \textbf{0.011} & \textbf{0.061}\\
-Streaming & 0.051 & 0.171\\
-Naive     & 0.139 & 0.141\\
+Random    & 0.040          & 0.115\\
+Streaming & 0.051          & 0.171\\
+Naive     & 0.139          & 0.141\\
 \bottomrule
 \end{tabular}
 \center
@@ -1509,16 +1358,19 @@ Llama-3.1-8B, 65\% retention, all 16 tasks.
 \end{table}
 
 Table~\ref{tab:t6} gives the WTV short/long breakdown.
-SnapKV and PyramidKV are far more faithful than Streaming or Naive at
+SnapKV and PyramidKV are far more faithful than all other methods at
 both output lengths, with PyramidKV slightly leading on long-form (0.061 vs 0.080
-for SnapKV). Streaming is 5× worse than SnapKV/Pyr on short outputs and
-2--3× worse on long outputs. Naive is nearly flat across lengths
-(short 0.139, long 0.141) --- no first-token advantage.
+for SnapKV). Random eviction is 3.6$\times$ worse than SnapKV/Pyr on short outputs
+(0.040 vs 0.011), confirming that intelligent selection contributes meaningfully to
+WTV faithfulness even on short outputs. Streaming is 4.6$\times$ worse on short outputs and
+2--3$\times$ worse on long outputs. Naive is nearly flat across lengths
+(short 0.139, long 0.141) --- no enrichment benefit.
 
-The first-token advantage explains the \(F_{\text{out}}\) pattern in Table~\ref{tab:t5}:
-\(F_{\text{out}}\) is dominated by the first output word, which is
-identical to the full model's by construction for all post-prefill methods,
-masking any faithfulness differences at subsequent positions on short-answer tasks.
+Enrichment explains the \(F_{\text{out}}\) pattern in Table~\ref{tab:t5}:
+the high-quality compressed cache that enrichment produces drives correct
+short answers for selection methods, while the advantage fades on longer
+outputs as the enriched prompt KV entries are diluted by accumulated
+generated tokens.
 
 The practical implication is direct. Post-prefill eviction cannot reduce
 TTFT, so any \(F_{\text{out}}\) advantage of SnapKV/PyramidKV is
@@ -1531,22 +1383,6 @@ PyramidKV (55.5\%) at 65\% retention, while delivering a 63\% TTFT reduction
 (§4.3) and on short-form \(F_{\text{out}}\), but the case for their superiority
 on long-form generation tasks --- the workloads where compression saves the most
 time --- rests on WTV faithfulness rather than output-text similarity.
-
-Figures~\ref{fig:fout-by-length} and \ref{fig:wtv-by-length} resolve both
-metrics into ten equal-count decile bins spanning the full range of full-model
-output lengths ($n \approx 155$ per bin), extending
-Tables~\ref{tab:t5}--\ref{tab:base-wtv-shortlong} with a continuous view and adding RADAR (absent
-from those tables) and 35\% retention.  The $F_{\text{out}}$ panels confirm that
-the selection-method lead is concentrated on short outputs and narrows steadily
-with length; above 50 words, SnapKV, PyramidKV, and RADAR are nearly
-indistinguishable at both rates.  At 35\%, Naive incurs a larger short-output
-penalty while all three selection methods converge tightly at long outputs.  The
-WTV panels show the complementary picture: near-zero WTV on short outputs
-(first-token advantage in full effect), rising steeply for long-form outputs.
-RADAR tracks SnapKV/PyramidKV closely at all output lengths; Naive is nearly
-flat across the full length distribution, confirming that truncation has no
-first-token advantage.  At 35\%, SnapKV and PyramidKV are numerically identical
-(budget collapse confirmed continuously across the length distribution).
 
 \pgfplotsset{
   outlen/.style={
@@ -1583,9 +1419,9 @@ first-token advantage.  At 35\%, SnapKV and PyramidKV are numerically identical
 \addplot[color=cPyr,    dashed,       mark=square*]
   coordinates{(8,92.1)(18,92.7)(21,93.4)(24,93.5)(26,94.1)(39,83.2)(69,77.1)(96,67.3)(258,54.7)(460,46.9)};
 \addlegendentry{PyramidKV}
-\addplot[color=cRadar,  dash dot,     mark=diamond*]
-  coordinates{(8,90.1)(18,89.8)(21,92.2)(24,94.3)(26,91.6)(39,85.2)(69,76.6)(96,66.8)(258,52.0)(460,45.0)};
-\addlegendentry{RADAR}
+\addplot[color=cRandom, dash dot,     mark=diamond*]
+  coordinates{(7,74.3)(18,67.5)(21,71.2)(23,74.7)(26,66.6)(43,71.0)(69,62.3)(95,53.3)(309,42.8)(441,39.8)};
+\addlegendentry{Random}
 \addplot[color=cStream, dotted,       mark=triangle*]
   coordinates{(8,71.8)(18,62.1)(21,68.0)(24,70.7)(26,72.0)(39,67.7)(69,60.0)(96,56.4)(258,46.7)(460,38.6)};
 \addlegendentry{Streaming}
@@ -1598,8 +1434,8 @@ first-token advantage.  At 35\%, SnapKV and PyramidKV are numerically identical
   coordinates{(8,78.6)(18,77.0)(21,83.6)(24,85.7)(26,85.2)(39,72.6)(69,60.9)(96,53.5)(258,38.6)(460,36.1)};
 \addplot[color=cPyr,    dashed,       mark=square*]
   coordinates{(8,78.8)(18,77.2)(21,84.3)(24,85.4)(26,85.4)(39,72.3)(69,60.9)(96,53.5)(258,39.0)(460,36.2)};
-\addplot[color=cRadar,  dash dot,     mark=diamond*]
-  coordinates{(8,77.8)(18,76.6)(21,84.3)(24,85.1)(26,81.6)(39,72.9)(69,62.6)(96,56.0)(258,39.6)(460,39.2)};
+\addplot[color=cRandom, dash dot,     mark=diamond*]
+  coordinates{(7,62.2)(18,53.5)(21,56.4)(23,63.0)(26,52.3)(43,56.1)(69,52.7)(95,46.7)(309,35.1)(441,36.1)};
 \addplot[color=cStream, dotted,       mark=triangle*]
   coordinates{(8,56.1)(18,51.9)(21,56.8)(24,63.1)(26,66.4)(39,59.4)(69,51.2)(96,43.9)(258,35.7)(460,33.6)};
 \addplot[color=cNaive,  dash dot dot, mark=o]
@@ -1608,10 +1444,7 @@ first-token advantage.  At 35\%, SnapKV and PyramidKV are numerically identical
 \node[yshift=-2.1cm] at ($(group c1r1.south)!0.5!(group c2r1.south)$)
   {\pgfplotslegendfromname{foutLenLeg}};
 \end{tikzpicture}
-\caption{$F_{\text{out}}$ by full-model output length (Llama-3.1-8B, all 16 tasks,
-  ten equal-count bins, $n \approx 155$/bin).  The selection-method lead is driven by short
-  outputs; at long outputs all methods converge.  At 35\%, SnapKV, PyramidKV, and RADAR
-  are nearly indistinguishable above 50 words.}
+\caption{$F_{\text{out}}$ by full-model output length (Llama-3.1-8B, 16 tasks, $n \approx 155$/bin).}
 \label{fig:fout-by-length}
 \end{figure}
 
@@ -1639,9 +1472,9 @@ first-token advantage.  At 35\%, SnapKV and PyramidKV are numerically identical
 \addplot[color=cPyr,    dashed,       mark=square*]
   coordinates{(7,0.0086)(19,0.0099)(21,0.0074)(24,0.0076)(27,0.0074)(48,0.0124)(84,0.0243)(98,0.0345)(375,0.0821)(444,0.0649)};
 \addlegendentry{PyramidKV}
-\addplot[color=cRadar,  dash dot,     mark=diamond*]
-  coordinates{(7,0.0106)(19,0.0101)(21,0.0094)(24,0.0071)(27,0.0077)(48,0.0153)(84,0.0262)(98,0.0381)(375,0.1152)(444,0.0881)};
-\addlegendentry{RADAR}
+\addplot[color=cRandom, dash dot,     mark=diamond*]
+  coordinates{(7,0.0365)(18,0.0414)(21,0.0398)(23,0.0314)(26,0.0329)(43,0.0450)(69,0.0470)(95,0.0661)(309,0.1496)(441,0.1159)};
+\addlegendentry{Random}
 \addplot[color=cStream, dotted,       mark=triangle*]
   coordinates{(7,0.0450)(19,0.0553)(21,0.0456)(24,0.0412)(27,0.0494)(48,0.0461)(84,0.0795)(98,0.0986)(375,0.2357)(444,0.1789)};
 \addlegendentry{Streaming}
@@ -1654,8 +1487,8 @@ first-token advantage.  At 35\%, SnapKV and PyramidKV are numerically identical
   coordinates{(7,0.0284)(19,0.0256)(21,0.0215)(24,0.0214)(27,0.0215)(48,0.0314)(84,0.0658)(98,0.0851)(375,0.2196)(444,0.1678)};
 \addplot[color=cPyr,    dashed,       mark=square*]
   coordinates{(7,0.0284)(19,0.0256)(21,0.0215)(24,0.0214)(27,0.0215)(48,0.0314)(84,0.0658)(98,0.0851)(375,0.2196)(444,0.1678)};
-\addplot[color=cRadar,  dash dot,     mark=diamond*]
-  coordinates{(7,0.0302)(19,0.0283)(21,0.0250)(24,0.0210)(27,0.0226)(48,0.0400)(84,0.0601)(98,0.0831)(375,0.2224)(444,0.1664)};
+\addplot[color=cRandom, dash dot,     mark=diamond*]
+  coordinates{(7,0.0731)(18,0.0732)(21,0.0725)(23,0.0599)(26,0.0582)(43,0.0814)(69,0.0832)(95,0.1189)(309,0.2554)(441,0.1969)};
 \addplot[color=cStream, dotted,       mark=triangle*]
   coordinates{(7,0.0696)(19,0.0910)(21,0.0805)(24,0.0655)(27,0.0725)(48,0.0734)(84,0.1289)(98,0.1543)(375,0.3189)(444,0.2443)};
 \addplot[color=cNaive,  dash dot dot, mark=o]
@@ -1664,14 +1497,187 @@ first-token advantage.  At 35\%, SnapKV and PyramidKV are numerically identical
 \node[yshift=-2.1cm] at ($(group c1r1.south)!0.5!(group c2r1.south)$)
   {\pgfplotslegendfromname{wtvLenLeg}};
 \end{tikzpicture}
-\caption{WTV by full-model output length (Llama-3.1-8B,
-  all 16 tasks, ten equal-count bins, $n \approx 155$/bin).  SnapKV and PyramidKV
-  approach near-zero WTV on short outputs (first-token advantage); Naive is nearly
-  flat --- truncation has no first-token advantage.
-  At 35\%, SnapKV and PyramidKV are numerically identical (budget collapse).}
+\caption{$F_{\text{WTV}}$ by full-model output length (Llama-3.1-8B, 16 tasks, $n \approx 155$/bin).}
 \label{fig:wtv-by-length}
 \end{figure}
 
+Figures~\ref{fig:fout-by-length} and \ref{fig:wtv-by-length} resolve both
+metrics into ten equal-count decile bins spanning the full range of full-model
+output lengths ($n \approx 160$ per bin), extending
+Tables~\ref{tab:t5}--\ref{tab:base-wtv-shortlong} with a continuous view and adding Random eviction
+(absent from those tables) and 35\% retention.  The $F_{\text{out}}$ panels show
+that intelligent selection matters for short outputs but not long ones:
+SnapKV and PyramidKV lead Random eviction by 14--18 points at the shortest
+outputs (7 words: 89--92\% vs.\ 74\%), but the gap narrows to under 5 points
+beyond 100 words and to under 2 points at 441 words.  Beyond roughly 100 words,
+all methods --- including Streaming and Naive --- converge to similar
+\(F_{\text{out}}\) values, and the convergence is nearly complete at 35\%
+retention (spread of \textasciitilde3 points across all methods at 441 words,
+vs.\ 41 points at 7 words).  At long outputs the information bottleneck of
+compression itself dominates: no selection strategy can synthesize a faithful
+long-form summary from 35\% of the document's tokens, and coverage breadth
+matters as much as selection precision.  The WTV panels show the complementary
+picture: SnapKV and PyramidKV achieve near-zero WTV on short outputs (enrichment
+in full effect), while Random eviction is 3--4$\times$ worse at the same lengths
+(0.037--0.041 vs.\ 0.009--0.010 for Snap/Pyr at 7 words), narrowing to
+$\sim$1.3$\times$ beyond 300 words.  The mechanism is dilution: as generation
+proceeds, newly decoded tokens accumulate in the KV cache alongside the
+compressed prompt entries.  By step $t$, the cache holds $n_{\text{kept}}$
+prompt tokens and $t$ generated tokens; once $t \gg n_{\text{kept}}$, attention
+is dominated by the model's own prior outputs rather than the enriched prompt
+context, and the quality difference between intelligent and random prompt
+selection matters less.  Naive is nearly flat across the full length
+distribution, confirming that truncation has no enrichment benefit.  The WTV
+drop in the final bin (\textasciitilde441 words) is a task-composition effect:
+those examples are drawn almost entirely from GovReport and MultiNews, whose
+longest outputs consist of formulaic long-form prose where both models tend to
+produce similarly structured text regardless of what was compressed, yielding
+lower per-step distributional divergence than the shorter long-form outputs in
+the preceding bin.
+
+
+\hypertarget{selection-blind-spot}{%
+\subsection{6.3 The Selection Blind Spot}\label{selection-blind-spot}}
+
+Attention-based scoring selects the tokens the model attends to most during
+prefill.  This seems like the right signal, yet both the WTV and \(F_{\text{out}}\)
+results show that selection quality matters enormously.  A natural question is
+\emph{what} the selection actually looks like: does attention concentrate on the
+right tokens, or does it reflect a systematic bias in where the model looks?
+
+Figure~\ref{fig:position-hist} answers this.  For each retained token, we record
+its position as a fraction of the total sequence length, averaged over all layers
+and attention heads.  Across 20 examples on five diverse LongBench tasks
+(NarrativeQA, GovReport, HotpotQA, PassageRetrieval, TREC), the distribution is
+not uniform: it forms a bell curve peaking at 45--65\% of the sequence, with
+near-zero selection below 30\% and a narrow recency spike at the very end (the
+fixed window).  The first quarter of every context---where background, definitions,
+and framing typically appear---is almost entirely discarded.
+
+The same bell curve appears on Mistral-7B-v0.3 (Figure~\ref{fig:position-hist}),
+confirming the pattern is a property of the attention mechanism rather
+than of any particular model architecture. At 35\% retention (right panel)
+the peak shifts toward the sequence end and the recency spike grows, but
+the first-quarter dead zone persists on both models.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{groupplot}[
+  group style={group size=2 by 1, horizontal sep=2.0cm},
+  width=0.46\linewidth,
+  height=4.2cm,
+  ybar,
+  every axis/.append style={bar width=8pt},
+  xlabel={Relative position},
+  ymin=0, ymax=32,
+  xtick={0.05,0.25,0.45,0.65,0.85},
+  xticklabels={0,0.25,0.45,0.65,0.85},
+  xticklabel style={font=\footnotesize},
+  yticklabel style={font=\footnotesize},
+  xlabel style={font=\footnotesize},
+  ylabel style={font=\footnotesize,yshift=-4pt},
+  tick align=outside,
+  minor tick num=0,
+  enlarge x limits=0.08,
+  legend style={font=\footnotesize,at={(0.02,0.98)},anchor=north west},
+  legend cell align=left,
+]
+\nextgroupplot[title={\footnotesize 65\% retention},
+  ylabel={Fraction of retained tokens (\%)}]
+\addplot[fill=blue!40,draw=blue!60] coordinates {
+  (0.05,0.0)(0.15,0.2)(0.25,1.8)(0.35,10.5)(0.45,23.8)(0.55,26.8)(0.65,18.3)(0.75,9.4)(0.85,4.8)(0.95,4.5)
+};
+\addlegendentry{Llama}
+\addplot[fill=orange!50,draw=orange!80] coordinates {
+  (0.05,0.2)(0.15,0.2)(0.25,2.2)(0.35,11.7)(0.45,24.4)(0.55,25.7)(0.65,17.0)(0.75,9.0)(0.85,4.8)(0.95,4.8)
+};
+\addlegendentry{Mistral}
+\nextgroupplot[title={\footnotesize 35\% retention}, yticklabels={}]
+\addplot[fill=blue!40,draw=blue!60] coordinates {
+  (0.05,0.0)(0.15,0.2)(0.25,0.4)(0.35,3.5)(0.45,13.0)(0.55,24.6)(0.65,25.1)(0.75,15.6)(0.85,8.4)(0.95,9.1)
+};
+\addlegendentry{Llama}
+\addplot[fill=orange!50,draw=orange!80] coordinates {
+  (0.05,0.2)(0.15,0.2)(0.25,0.8)(0.35,5.2)(0.45,15.8)(0.55,25.6)(0.65,23.7)(0.75,14.3)(0.85,7.2)(0.95,7.0)
+};
+\addlegendentry{Mistral}
+\end{groupplot}
+\end{tikzpicture}
+\caption{SnapKV retained token positions as a fraction of sequence length,
+  averaged over layers and heads (5 LongBench tasks, $n=20$, 10\%-wide bins).}
+\label{fig:position-hist}
+\end{figure}
+
+The gaussian-bell experiment (§\ref{output-faithfulness}) makes the practical
+consequence explicit: a stochastic selection that \emph{mimics the bell-curve shape}
+but draws tokens randomly within it scores 53.5\% \(F_{\text{out}}\) at 65\%
+retention---seven points below uniform random eviction (61.1\%) and 25 points below
+SnapKV (78.7\%).  The bell shape is not what makes attention-based selection
+valuable; the specific tokens chosen are.  The bias toward the middle of the sequence
+is incidental to the scoring function, and on tasks where the critical content is
+near the beginning---or distributed throughout---it actively hurts.
+
+\label{summarization-hardest-case}%
+The per-task breakdown in Appendix~B reveals a structural divide that aggregate numbers obscure: summarization tasks (GovReport, QMSum, MultiNews) show consistently high WTV across all methods, while retrieval and classification tasks reach near-zero WTV at the same retention rates. Table~\ref{tab:t-summ} makes the contrast explicit.
+
+\begin{table}[H]
+\centering
+\small
+\caption{WTV faithfulness on summarization vs.\ QA tasks (Llama-3.1-8B, 65\% retention, lower is better)}
+\label{tab:t-summ}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Task & Naive & Streaming & SnapKV & Pyr\\
+\midrule
+\multicolumn{5}{l}{\textit{Summarization}}\\
+GovReport & 0.115 & 0.192 & 0.078 & \textbf{0.051}\\
+QMSum     & 0.123 & 0.119 & 0.068 & \textbf{0.053}\\
+MultiNews & 0.232 & 0.321 & 0.163 & \textbf{0.126}\\
+\midrule
+\multicolumn{5}{l}{\textit{Retrieval / classification}}\\
+HotpotQA  & 0.159 & 0.054 & \textbf{0.008} & \textbf{0.008}\\
+TriviaQA  & 0.138 & 0.021 & \textbf{0.001} & 0.002\\
+TREC      & 0.137 & 0.007 & \textbf{0.001} & 0.002\\
+\bottomrule
+\end{tabular}
+
+\center Llama-3.1-8B, 65\% retention. \textbf{Bold} = best per row.
+\end{table}
+
+On retrieval and classification tasks, SnapKV and PyramidKV achieve near-zero WTV
+(0.001--0.008), more than 100$\times$ lower than Naive. On the three summarization tasks that
+advantage shrinks to 1.5--2.5$\times$, and PyramidKV leads SnapKV by a meaningful margin
+(GovReport: 0.051 vs.\ 0.078; MultiNews: 0.126 vs.\ 0.163).
+
+The explanation is structural. Retrieval tasks have a localized answer; attention-guided selection
+concentrates the retained cache around that answer's context. Summarization has no retrieval
+target: the instruction is a generic ``summarize'' directive, so attention scores do not
+preferentially identify any particular region of the document. Selection reverts to a positional
+prior (Figures~\ref{fig:fout-by-length}--\ref{fig:wtv-by-length}
+already show that selection and random eviction converge on long outputs), and the task requires
+content from \emph{across} the document that is systematically evicted.
+
+Naive truncation is comparatively more competitive on summarization. On HotpotQA and 2WikiMQA it
+is 20$\times$ worse than SnapKV; on GovReport it is only 1.5$\times$ worse (0.115 vs.\ 0.078).
+Truncation preserves the document's opening paragraphs intact, and for long reports the leading
+section is disproportionately informative.
+
+PyramidKV's advantage over SnapKV on summarization persists from 65\% to 50\%
+(GovReport: 0.099 vs.\ 0.114 at 50\%) but vanishes at 35\%, where both methods score
+identically on all three summarization tasks --- the same budget-collapse behaviour as in the
+macro averages (§\ref{wtv-faithfulness-main-results}). The pyramid schedule assigns more
+retained tokens to early and middle layers, where long-range cross-token integration is
+richest; this aligns with what summarization demands, explaining why the advantage
+exists but also why it collapses when per-layer budgets become too small to maintain a
+gradient.
+
+The practical implication is that the 16-task macro average used throughout §4 underweights
+the summarization failure. SnapKV's aggregate WTV lead over Naive (0.030 vs.\ 0.139 at 65\%)
+is driven almost entirely by near-zero scores on retrieval and classification tasks; on
+GovReport and MultiNews the gap is modest, and at 35\% retention it disappears entirely. A
+deployment whose workload is dominated by long-document summarization should not expect the
+macro WTV ranking to hold.
 
 \hypertarget{inference-performance}{%
 \section{7. Inference Performance}\label{inference-performance}}
@@ -1697,16 +1703,20 @@ We will start by measuring the TTFT and TPT of the base model.
 \begin{table}[H]
 \centering
 \small
-\caption{Mean TTFT by retention rate. Full-context baseline: 6425\,ms.}
+\caption{Mean TTFT and TPT by retention rate. Full-context baseline: 6425\,ms TTFT, 67.5\,ms/tok TPT.}
 \label{tab:ttft}
 \begin{tabular}{@{}llll@{}}
 \toprule
 Method & 65\% & 50\% & 35\%\\
 \midrule
-Naive     & 2400\,ms & 2082\,ms & 1632\,ms\\
-SnapKV    & 6621\,ms & 6872\,ms & 6834\,ms\\
-Streaming & 6796\,ms & 6750\,ms & 6861\,ms\\
-Pyr       & 6973\,ms & 7245\,ms & 7276\,ms\\
+\multicolumn{4}{@{}l}{\textit{TTFT (ms)}}\\
+Naive     & 2400 & 2082 & 1632\\
+SnapKV    & 6621 & 6872 & 6834\\
+Streaming & 6796 & 6750 & 6861\\
+Pyr       & 6973 & 7245 & 7276\\
+\midrule
+\multicolumn{4}{@{}l}{\textit{TPT (ms/tok, all compressed methods)}}\\
+All       & 53.5 & 48.4 & 43.6\\
 \bottomrule
 \end{tabular}
 \center
@@ -1818,15 +1828,14 @@ All 16 tasks; short/long defined by full-model reference output length.
 
 SnapKV and PyramidKV are the most faithful at every rate and output length.
 The short/long gap in WTV is large for all selection methods: SnapKV has WTV
-0.011 on short vs 0.080 on long at 65\% (7× ratio), consistent with the
-first-token advantage suppressing measured WTV on short-answer outputs.
+0.011 on short vs 0.080 on long at 65\% (7× ratio), consistent with enrichment quality being highest at early decode steps.
 PyramidKV leads at 65\% (long 0.061 vs SnapKV 0.080);
 SnapKV leads at 50\%, consistent with PyramidKV's pyramid budget collapsing
 toward uniform allocation as compression tightens (§4.3). Both converge at 35\%.
 Streaming WTV is roughly 3× worse on long outputs (0.171) than short (0.051)
 at 65\%, consistent with block-end enrichment contamination accumulating over
 longer generation. Naive WTV is nearly flat across short and long --- truncation
-does not produce first-token advantage and its errors distribute uniformly.
+has no enrichment benefit and its errors distribute uniformly.
 
 Table~\ref{tab:base-fout-shortlong} shows the \(F_{\text{out}}\) counterpart.
 
@@ -1854,10 +1863,10 @@ All 16 tasks; short/long defined by full-model reference output length.
 \end{table}
 
 Here the direction flips: \(F_{\text{out}}\) is \emph{higher} on short outputs for
-all selection methods (30+ point short/long gap for SnapKV/PyramidKV). The
-first-token advantage inflates short-answer \(F_{\text{out}}\) because the
-model's first output word matches the full model's regardless of distributional
-corruption at later positions.
+all selection methods (30+ point short/long gap for SnapKV/PyramidKV). Enrichment
+inflates short-answer \(F_{\text{out}}\): the high-quality compressed cache drives
+correct short answers, while the advantage fades over longer generation as
+generated tokens dilute the enrichment effect.
 Naive is the exception: its short/long \(F_{\text{out}}\) gap is small
 (15 points at 65\%, near zero at 35\%), and Naive leads long-form
 \(F_{\text{out}}\) at 65\% (57.6 vs 55.5 for the next-best).
@@ -1869,10 +1878,10 @@ it averages 3.9~words on HotpotQA and 4.5~words on NarrativeQA (vs.\ 21.9
 and 80.6 for the base model), so nearly all instruct-model outputs fall in
 the ``short'' category under any threshold. The \(F_{\text{out}}\) short/long gap
 is large for all selection methods ($\approx$36 points for SnapKV/PyramidKV
-at budget~256), driven by the first-token advantage on single-word answers.
+at budget~256), driven by enrichment on single-word answers.
 WTV shows the same direction: SnapKV WTV is 3× worse on long outputs than short
 at budget~256 (0.405 vs 0.137), confirming that the metric advantage on short
-outputs is structural, not a genuine faithfulness improvement.
+outputs reflects enrichment quality, not a structural guarantee.
 
 Table~\ref{tab:instruct-wtv-shortlong} gives the WTV breakdown by output-length category for the instruct model.
 
@@ -1990,12 +1999,9 @@ primary metric for evaluating KV cache compression fidelity, alongside
 output faithfulness \(F_{\text{out}}\) as a human-readable behavioral anchor.
 WTV is bounded in [0,\,1], making values interpretable across methods and
 budgets without being distorted by isolated catastrophic divergences as KL is.
-The case for preferring WTV over KL is concrete: on RADAR, KL rates it as
-more faithful than SnapKV on all six base-model rate-by-model combinations,
-while WTV and \(F_{\text{out}}\) consistently rank SnapKV higher. KL's answer
-is driven by the positional-displacement spikes that SnapKV's gap structure
-produces; WTV suppresses these and recovers the ranking that output behavior
-corroborates.
+WTV is preferred over KL because KL's unbounded spikes from positional
+displacement can distort method rankings; WTV suppresses these and
+consistently recovers the ranking that output behavior corroborates.
 
 On base models, scattered-selection methods (SnapKV, PyramidKV) are the most
 faithful by WTV at every retention rate on both Llama-3.1-8B and Mistral-7B-v0.3,
@@ -2006,14 +2012,36 @@ while block eviction contaminates retained values with expectations about the
 missing prefix (§5). The same pattern holds at instruct budgets: SnapKV leads
 at budgets 256 and 1024 on both Llama and Mistral instruct models.
 
-Both metrics are needed to see through the first-token advantage: a complete
-uncompressed prefill before eviction makes the first decode step identical to
-the full model's, inflating short-answer \(F_{\text{out}}\) for all
-post-prefill methods regardless of how faithfully they reproduce the full
-model's distributions at subsequent steps. WTV exposes the same asymmetry
---- SnapKV's WTV is 7× worse on long-form outputs than short at 65\% --- and
-confirms that the aggregate advantage of selection methods in \(F_{\text{out}}\)
-is partly a measurement artifact driven by LongBench's short-answer tasks.
+The mechanism analysis in §5 has broader implications for compression
+method design. The near-perfect faithfulness of scattered post-prefill
+eviction (WTV 0.028) does not arise simply from retaining the right
+tokens: the same tokens without a full prefill (SnapKV-Select, 0.120)
+or with a full prefill but masked enrichment (recompute-over-gaps,
+0.187) perform far worse. The decisive factor is that scattered
+retention after a full prefill allows each retained KV pair to carry a
+representation that attended over the entire original sequence,
+including tokens immediately evicted afterward. Block eviction methods
+are structurally excluded from this benefit: the gap geometry analysis (§5.3) shows that a single large prefix gap
+incurs a 3.6× WTV penalty relative to the gapless case, while both
+scattered and sink-plus-tail geometries produce beneficial enrichment
+(0.27× and 0.55× respectively). The critical factor is not simply how
+many tokens are retained but whether the gap structure creates a
+systematic dependency on a single absent block. Researchers pursuing
+block eviction should be aware that even a small sequence-initial
+anchor (such as Streaming's sink tokens) substantially changes the
+enrichment direction --- the disadvantage relative to scattered
+selection is not merely retaining the wrong context window, but failing
+to achieve the enrichment geometry that scattered selection provides as
+a consequence of its token-selection policy.
+
+Both metrics are needed to see through the enrichment effect: the full-context
+prefill before eviction produces high-quality compressed KV pairs that inflate
+short-answer \(F_{\text{out}}\) for selection methods regardless of how faithfully
+they reproduce the full model's distributions at subsequent steps. WTV exposes
+the same asymmetry --- SnapKV's WTV is 7× worse on long-form outputs than short
+at 65\% --- and confirms that the aggregate advantage of selection methods in
+\(F_{\text{out}}\) is partly a measurement artifact driven by LongBench's
+short-answer tasks.
 On long-form tasks, where reduced decode length would actually accelerate
 inference, the \(F_{\text{out}}\) advantage of selection methods over Naive
 truncation substantially narrows.
@@ -2128,36 +2156,35 @@ Models. In \emph{Advances in Neural Information Processing Systems
 \section{Appendix A: Ground-Truth Accuracy --- Per-Task
 Results}\label{appendix-a-ground-truth-accuracy-per-task-results}}
 
-\textbf{Tables B1a--B1c. Ground-truth accuracy per task, Llama-3.1-8B
+\textbf{Tables A1a--A1c. Ground-truth accuracy per task, Llama-3.1-8B
 (higher is better). Bold = best compressed method per row; ``Full'' is
-the reference. Streaming = no re-rotation; Str+rot = with re-rotation.}
+the reference.}
 
 \begin{table}[H]
 \centering
 \small
 \caption*{Table A1a. 65\% retention.}
-\begin{tabular}{@{}lllllllll@{}}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Full & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA† & 5.5 & 4.9 & 5.7 & \textbf{5.8} & 5.6 & 5.2 & 5.5 & 5.3\\
-    Qasper† & 11.1 & 10.2 & 9.5 & 9.5 & 11.3 & \textbf{12.0} & 11.8 & 11.3\\
-    MultifieldQA & 28.9 & 27.0 & 26.3 & 26.3 & \textbf{30.2} & 29.1 & 29.4 & 28.6\\
-    HotpotQA† & 9.9 & 9.6 & 9.0 & 9.0 & 9.9 & 10.1 & 10.2 & \textbf{10.5}\\
-    2WikiMQA† & 14.1 & 12.6 & \textbf{14.1} & 13.9 & 13.9 & 13.5 & 13.7 & 13.4\\
-    MuSiQue† & 6.9 & 7.0 & 5.8 & 5.6 & 7.2 & 7.0 & 7.1 & \textbf{7.5}\\
-    GovReport & 20.4 & 19.8 & 19.2 & 18.9 & 19.6 & 19.8 & 20.1 & \textbf{20.3}\\
-    QMSum† & 10.3 & \textbf{11.5} & 10.1 & 9.9 & 9.7 & 9.4 & 9.4 & 9.9\\
-    MultiNews & 19.0 & 16.5 & 17.5 & 17.7 & \textbf{18.1} & 17.7 & 17.9 & 17.4\\
-    TREC & 70.0 & 66.0 & 68.0 & 68.0 & \textbf{71.0} & 70.0 & \textbf{71.0} & \textbf{71.0}\\
-    TriviaQA & 17.4 & 17.3 & 17.5 & 17.4 & 17.5 & \textbf{17.7} & 17.5 & 17.2\\
-    SAMSum & 16.0 & 16.5 & \textbf{17.1} & \textbf{17.1} & 16.2 & 16.2 & 16.3 & 16.4\\
-    PassageCount† & 3.0 & 1.0 & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & \textbf{3.0}\\
-    PassageRetrieval & 44.0 & 37.0 & 37.0 & 37.0 & 44.0 & 43.0 & 44.0 & \textbf{45.0}\\
-    LCC & 68.1 & 63.4 & 67.3 & 67.2 & 68.1 & 67.8 & \textbf{68.5} & 67.2\\
-    RepoBench-P & 55.6 & 53.9 & 53.2 & 53.2 & 55.4 & 55.5 & \textbf{56.0} & 55.8\\
-    \textbf{Average} & 25.0 & 23.4 & 23.8 & 23.7 & 25.0 & 24.8 & \textbf{25.1} & 25.0\\
+    NarrativeQA\dag & 6.4 & 4.9 & 5.7 & 5.6 & 5.5 & \textbf{6.6}\\
+    Qasper\dag & 12.7 & 10.2 & 9.5 & 11.3 & \textbf{11.8} & 10.7\\
+    MultifieldQA & 27.8 & 27.0 & 26.3 & \textbf{30.2} & 29.4 & 30.1\\
+    HotpotQA\dag & 11.2 & 9.6 & 9.0 & 9.9 & \textbf{10.2} & 9.7\\
+    2WikiMQA\dag & 13.7 & 12.6 & 14.1 & 13.9 & 13.7 & \textbf{14.5}\\
+    MuSiQue\dag & 7.3 & 7.0 & 5.8 & \textbf{7.2} & 7.1 & 6.8\\
+    GovReport & 20.8 & 19.8 & 19.2 & 19.6 & \textbf{20.1} & 19.8\\
+    QMSum\dag & 10.7 & \textbf{11.5} & 10.1 & 9.7 & 9.4 & 10.4\\
+    MultiNews & 18.5 & 16.5 & 17.5 & \textbf{18.1} & 17.9 & 16.7\\
+    TREC & 75.0 & 66.0 & 68.0 & \textbf{71.0} & \textbf{71.0} & 70.0\\
+    TriviaQA & 17.8 & 17.3 & \textbf{17.5} & \textbf{17.5} & \textbf{17.5} & 17.3\\
+    SAMSum & 15.9 & 16.5 & \textbf{17.1} & 16.2 & 16.3 & 15.8\\
+    PassageCount\dag & 2.0 & 1.0 & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & \textbf{3.0}\\
+    PassageRetrieval & 41.0 & 37.0 & 37.0 & \textbf{44.0} & \textbf{44.0} & 35.0\\
+    LCC & 68.1 & 63.4 & 67.3 & 68.1 & \textbf{68.5} & 67.7\\
+    RepoBench-P & 55.6 & 53.9 & 53.2 & 55.4 & \textbf{56.0} & 53.3\\
+    \textbf{Average} & 25.3 & 23.4 & 23.8 & 25.0 & \textbf{25.1} & 24.2\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2166,28 +2193,27 @@ Pyr+rot\\
 \centering
 \small
 \caption*{Table A1b. 50\% retention.}
-\begin{tabular}{@{}lllllllll@{}}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Full & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA† & 5.5 & 5.7 & 5.5 & 5.5 & 6.7 & 5.7 & \textbf{6.8} & 6.7\\
-    Qasper† & 11.1 & 8.6 & 9.1 & 9.4 & 11.1 & \textbf{11.7} & 9.8 & 9.3\\
-    MultifieldQA & 28.9 & 23.0 & 25.3 & 25.4 & 29.2 & 29.1 & \textbf{29.5} & 29.2\\
-    HotpotQA† & 9.9 & 8.9 & 9.6 & \textbf{9.9} & 9.7 & 9.7 & 9.6 & 9.2\\
-    2WikiMQA† & 14.1 & 12.7 & 13.8 & 13.8 & 14.0 & \textbf{14.6} & 13.8 & 14.0\\
-    MuSiQue† & 6.9 & 5.8 & 5.3 & 5.3 & 7.0 & \textbf{7.4} & 6.8 & 6.3\\
-    GovReport & 20.4 & 19.5 & 19.0 & 19.0 & \textbf{20.0} & 19.6 & 19.5 & 19.4\\
-    QMSum† & 10.3 & 9.5 & 9.3 & 9.1 & 9.7 & \textbf{10.3} & 9.7 & 9.7\\
-    MultiNews & 19.0 & 17.5 & \textbf{17.7} & 17.6 & 16.1 & 16.6 & 15.4 & 15.7\\
-    TREC & 70.0 & 63.0 & 67.0 & 67.0 & 71.0 & \textbf{72.0} & 68.0 & 69.0\\
-    TriviaQA & 17.4 & 17.4 & 17.5 & \textbf{17.6} & 17.4 & 17.4 & 17.3 & 17.3\\
-    SAMSum & 16.0 & \textbf{17.7} & 17.6 & 17.6 & 16.1 & 16.0 & 17.6 & 17.1\\
-    PassageCount† & 3.0 & 2.0 & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & \textbf{3.0}\\
-    PassageRetrieval & 44.0 & 21.0 & 36.0 & 36.0 & \textbf{44.0} & \textbf{44.0} & 43.0 & 41.0\\
-    LCC & 68.1 & 61.6 & 66.8 & 66.8 & \textbf{68.1} & 67.0 & 63.9 & 63.1\\
-    RepoBench-P & 55.6 & 51.4 & 53.8 & 53.8 & \textbf{55.7} & 55.3 & 52.8 & 53.5\\
-    \textbf{Average} & 25.0 & 21.6 & 23.5 & 23.6 & 24.9 & \textbf{25.0} & 24.2 & 24.0\\
+    NarrativeQA\dag & 6.4 & 5.7 & 5.5 & 6.7 & \textbf{6.8} & 4.4\\
+    Qasper\dag & 12.7 & 8.6 & 9.1 & \textbf{11.1} & 9.8 & 9.7\\
+    MultifieldQA & 27.8 & 23.0 & 25.3 & 29.2 & \textbf{29.5} & 28.0\\
+    HotpotQA\dag & 11.2 & 8.9 & 9.6 & \textbf{9.7} & 9.6 & 9.4\\
+    2WikiMQA\dag & 13.7 & 12.7 & 13.8 & \textbf{14.0} & 13.8 & 13.8\\
+    MuSiQue\dag & 7.3 & 5.8 & 5.3 & \textbf{7.0} & 6.8 & 5.5\\
+    GovReport & 20.8 & 19.5 & 19.0 & \textbf{20.0} & 19.5 & 19.8\\
+    QMSum\dag & 10.7 & 9.5 & 9.3 & \textbf{9.7} & \textbf{9.7} & \textbf{9.7}\\
+    MultiNews & 18.5 & 17.5 & \textbf{17.7} & 16.1 & 15.4 & 16.8\\
+    TREC & 75.0 & 63.0 & 67.0 & \textbf{71.0} & 68.0 & 70.0\\
+    TriviaQA & 17.8 & 17.4 & \textbf{17.5} & 17.4 & 17.3 & 16.9\\
+    SAMSum & 15.9 & \textbf{17.7} & 17.6 & 16.1 & 17.6 & 16.0\\
+    PassageCount\dag & 2.0 & 2.0 & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & \textbf{3.0}\\
+    PassageRetrieval & 41.0 & 21.0 & 36.0 & \textbf{44.0} & 43.0 & 24.0\\
+    LCC & 68.1 & 61.6 & 66.8 & 68.1 & 63.9 & \textbf{68.9}\\
+    RepoBench-P & 55.6 & 51.4 & 53.8 & \textbf{55.7} & 52.8 & 53.9\\
+    \textbf{Average} & 25.3 & 21.6 & 23.5 & \textbf{24.9} & 24.2 & 23.1\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2196,62 +2222,60 @@ Pyr+rot\\
 \centering
 \small
 \caption*{Table A1c. 35\% retention.}
-\begin{tabular}{@{}lllllllll@{}}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Full & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA† & 5.5 & \textbf{7.8} & 6.3 & 6.5 & 6.4 & 6.6 & 6.4 & 6.6\\
-    Qasper† & 11.1 & 7.7 & 7.7 & 7.8 & \textbf{10.8} & 10.4 & \textbf{10.8} & 10.6\\
-    MultifieldQA & 28.9 & 21.2 & 23.8 & 24.2 & \textbf{30.2} & 29.6 & 30.0 & 29.8\\
-    HotpotQA† & 9.9 & \textbf{11.4} & 9.5 & 9.4 & 10.0 & 9.7 & 10.0 & 9.7\\
-    2WikiMQA† & 14.1 & 11.0 & 12.4 & 12.5 & \textbf{14.6} & 13.6 & \textbf{14.6} & 13.6\\
-    MuSiQue† & 6.9 & 4.7 & 5.0 & 5.2 & \textbf{6.5} & \textbf{6.5} & \textbf{6.5} & \textbf{6.5}\\
-    GovReport & 20.4 & 18.7 & 18.5 & 18.6 & 18.9 & \textbf{19.1} & 19.0 & 18.7\\
-    QMSum† & 10.3 & 9.9 & 9.8 & 9.9 & \textbf{10.2} & \textbf{10.2} & \textbf{10.2} & 10.1\\
-    MultiNews & 19.0 & \textbf{16.7} & 16.1 & 16.0 & 15.7 & 15.4 & 15.8 & 15.4\\
-    TREC & 70.0 & 60.0 & 64.0 & 63.0 & \textbf{69.0} & 68.0 & \textbf{69.0} & 68.0\\
-    TriviaQA & 17.4 & 17.3 & \textbf{18.4} & 18.3 & 17.4 & 17.6 & 17.4 & 17.7\\
-    SAMSum & 16.0 & 17.6 & \textbf{18.5} & 18.2 & 17.3 & 17.3 & 17.3 & 17.3\\
-    PassageCount† & 3.0 & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & \textbf{3.0}\\
-    PassageRetrieval & 44.0 & 12.0 & 37.0 & 37.0 & \textbf{44.0} & 42.0 & \textbf{44.0} & 42.0\\
-    LCC & 68.1 & 62.4 & 65.9 & 66.2 & 67.0 & \textbf{67.1} & 67.0 & \textbf{67.1}\\
-    RepoBench-P & 55.6 & 50.6 & 53.9 & 54.0 & \textbf{55.1} & 54.7 & \textbf{55.1} & 54.7\\
-    \textbf{Average} & 25.0 & 20.8 & 23.1 & 23.1 & \textbf{24.8} & 24.4 & \textbf{24.8} & 24.4\\
+    NarrativeQA\dag & 6.4 & \textbf{7.8} & 6.3 & 6.4 & 6.4 & 6.4\\
+    Qasper\dag & 12.7 & 7.7 & 7.7 & \textbf{10.8} & \textbf{10.8} & 8.8\\
+    MultifieldQA & 27.8 & 21.2 & 23.8 & \textbf{30.2} & 30.0 & 26.5\\
+    HotpotQA\dag & 11.2 & \textbf{11.4} & 9.5 & 10.0 & 10.0 & 9.1\\
+    2WikiMQA\dag & 13.7 & 11.0 & 12.4 & \textbf{14.6} & \textbf{14.6} & 12.2\\
+    MuSiQue\dag & 7.3 & 4.7 & 5.0 & \textbf{6.5} & \textbf{6.5} & 5.1\\
+    GovReport & 20.8 & 18.7 & 18.5 & 18.9 & \textbf{19.0} & 18.6\\
+    QMSum\dag & 10.7 & 9.9 & 9.8 & \textbf{10.2} & \textbf{10.2} & 9.7\\
+    MultiNews & 18.5 & \textbf{16.7} & 16.1 & 15.7 & 15.8 & 15.2\\
+    TREC & 75.0 & 60.0 & 64.0 & \textbf{69.0} & \textbf{69.0} & 65.0\\
+    TriviaQA & 17.8 & 17.3 & \textbf{18.4} & 17.4 & 17.4 & 17.7\\
+    SAMSum & 15.9 & 17.6 & \textbf{18.5} & 17.3 & 17.3 & 17.3\\
+    PassageCount\dag & 2.0 & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & \textbf{3.0}\\
+    PassageRetrieval & 41.0 & 12.0 & 37.0 & \textbf{44.0} & \textbf{44.0} & 28.0\\
+    LCC & 68.1 & 62.4 & 65.9 & 67.0 & 67.0 & \textbf{68.9}\\
+    RepoBench-P & 55.6 & 50.6 & 53.9 & \textbf{55.1} & \textbf{55.1} & 52.2\\
+    \textbf{Average} & 25.3 & 20.8 & 23.1 & \textbf{24.8} & \textbf{24.8} & 22.7\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{Tables B2a--B2c. Ground-truth accuracy per task, Mistral-7B-v0.3
+\textbf{Tables A2a--A2c. Ground-truth accuracy per task, Mistral-7B-v0.3
 (higher is better). Bold = best compressed method per row; Full is the
-reference. Streaming = no re-rotation; Str+rot = with re-rotation.}
+reference.}
 
 \begin{table}[H]
 \centering
 \small
 \caption*{Table A2a. 65\% retention.}
-\begin{tabular}{@{}lllllllll@{}}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Full & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA† & 5.1 & 2.7 & 5.4 & 5.4 & 5.1 & \textbf{5.7} & 4.1 & \textbf{5.7}\\
-    Qasper† & 5.3 & 4.3 & 5.1 & 5.0 & 5.1 & \textbf{5.2} & 4.8 & 5.1\\
-    MultifieldQA & 25.3 & 22.1 & 23.2 & 23.2 & 24.9 & 24.9 & 24.8 & \textbf{25.8}\\
-    HotpotQA† & 10.5 & 10.6 & 9.9 & 9.8 & 10.7 & \textbf{10.9} & 10.6 & \textbf{10.9}\\
-    2WikiMQA† & 11.5 & 9.8 & 11.2 & 11.3 & \textbf{11.7} & 11.4 & \textbf{11.7} & 11.5\\
-    MuSiQue† & 5.1 & 3.9 & 3.9 & 4.4 & \textbf{5.1} & 4.7 & \textbf{5.1} & 4.6\\
-    GovReport & 20.0 & 19.7 & 19.5 & 19.4 & 19.8 & 19.7 & \textbf{20.0} & 19.8\\
-    QMSum† & 8.0 & \textbf{8.4} & 8.2 & 8.3 & 7.9 & 7.9 & 7.9 & 8.1\\
-    MultiNews & 18.1 & 17.2 & 17.1 & 17.1 & 17.2 & 17.1 & \textbf{17.3} & \textbf{17.3}\\
-    TREC & 72.0 & 67.0 & 69.0 & 70.0 & 70.0 & 70.0 & \textbf{71.0} & 70.0\\
-    TriviaQA & 23.1 & 24.2 & 24.6 & \textbf{26.5} & 23.4 & 23.8 & 23.3 & 23.2\\
-    SAMSum & 16.9 & 17.8 & \textbf{18.6} & 18.3 & 17.9 & 17.7 & 18.1 & 17.7\\
-    PassageCount† & 1.0 & \textbf{3.0} & 1.0 & 1.0 & 1.0 & 1.0 & 1.0 & 1.0\\
-    PassageRetrieval & 39.0 & 26.0 & 30.0 & 30.0 & \textbf{39.0} & 29.0 & \textbf{39.0} & 29.0\\
-    LCC & 62.9 & 60.2 & 62.4 & 62.1 & \textbf{63.2} & 62.8 & \textbf{63.2} & 63.1\\
-    RepoBench-P & 53.9 & \textbf{54.4} & 54.0 & 54.1 & 54.1 & 53.5 & 54.0 & 53.3\\
-    \textbf{Average} & 23.6 & 22.0 & 22.7 & 22.9 & \textbf{23.5} & 22.8 & \textbf{23.5} & 22.9\\
+    NarrativeQA\dag & 5.1 & 2.7 & \textbf{5.4} & 5.1 & 4.1 & 4.6\\
+    Qasper\dag & 5.3 & 4.3 & \textbf{5.1} & \textbf{5.1} & 4.8 & 4.5\\
+    MultifieldQA & 25.3 & 22.1 & 23.2 & 24.9 & 24.8 & \textbf{25.7}\\
+    HotpotQA\dag & 10.5 & 10.6 & 9.9 & 10.7 & 10.6 & \textbf{11.5}\\
+    2WikiMQA\dag & 11.5 & 9.8 & 11.2 & \textbf{11.7} & \textbf{11.7} & 11.2\\
+    MuSiQue\dag & 5.1 & 3.9 & 3.9 & \textbf{5.1} & \textbf{5.1} & 4.7\\
+    GovReport & 20.0 & 19.7 & 19.5 & 19.8 & \textbf{20.0} & 19.2\\
+    QMSum\dag & 8.0 & \textbf{8.4} & 8.2 & 7.9 & 7.9 & 7.7\\
+    MultiNews & 18.1 & 17.2 & 17.1 & 17.2 & 17.3 & \textbf{17.5}\\
+    TREC & 72.0 & 67.0 & 69.0 & 70.0 & \textbf{71.0} & \textbf{71.0}\\
+    TriviaQA & 23.1 & 24.2 & \textbf{24.6} & 23.4 & 23.3 & 24.5\\
+    SAMSum & 16.9 & 17.8 & \textbf{18.6} & 17.9 & 18.1 & 17.5\\
+    PassageCount\dag & 1.0 & \textbf{3.0} & 1.0 & 1.0 & 1.0 & 2.0\\
+    PassageRetrieval & 39.0 & 26.0 & 30.0 & \textbf{39.0} & \textbf{39.0} & 28.0\\
+    LCC & 62.9 & 60.2 & 62.4 & \textbf{63.2} & \textbf{63.2} & 62.6\\
+    RepoBench-P & 53.9 & \textbf{54.4} & 54.0 & 54.1 & 54.0 & 54.1\\
+    \textbf{Average} & 23.6 & 22.0 & 22.7 & \textbf{23.5} & 23.5 & 22.9\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2260,28 +2284,27 @@ Pyr+rot\\
 \centering
 \small
 \caption*{Table A2b. 50\% retention.}
-\begin{tabular}{@{}lllllllll@{}}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Full & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA† & 5.1 & 4.7 & 4.5 & 4.5 & 5.1 & \textbf{5.2} & 5.0 & 5.0\\
-    Qasper† & 5.3 & 4.5 & 4.5 & 4.5 & 4.7 & \textbf{4.8} & 4.4 & 4.3\\
-    MultifieldQA & 25.3 & 18.0 & 23.4 & 23.5 & 25.0 & 25.3 & 25.6 & \textbf{25.7}\\
-    HotpotQA† & 10.5 & 10.3 & \textbf{10.9} & \textbf{10.9} & 10.5 & 10.7 & 10.7 & \textbf{10.9}\\
-    2WikiMQA† & 11.5 & 9.5 & 11.4 & 11.3 & 11.4 & 11.6 & \textbf{11.8} & \textbf{11.8}\\
-    MuSiQue† & 5.1 & 4.7 & 4.1 & 3.9 & \textbf{5.3} & 4.6 & 5.1 & 4.5\\
-    GovReport & 20.0 & 19.1 & 18.5 & 18.4 & \textbf{19.5} & \textbf{19.5} & 18.4 & 18.6\\
-    QMSum† & 8.0 & 8.0 & \textbf{8.1} & \textbf{8.1} & 7.6 & 7.8 & 7.5 & 7.6\\
-    MultiNews & 18.1 & \textbf{16.7} & 16.4 & 16.6 & 16.4 & 16.6 & 15.6 & 15.7\\
-    TREC & 72.0 & 62.0 & 66.0 & 65.0 & \textbf{70.0} & 68.0 & 67.0 & 66.0\\
-    TriviaQA & 23.1 & 26.1 & 24.1 & \textbf{26.6} & 23.9 & 23.9 & 23.8 & 24.0\\
-    SAMSum & 16.9 & 17.3 & 17.2 & 17.7 & 17.1 & 17.8 & 19.1 & \textbf{19.2}\\
-    PassageCount† & 1.0 & \textbf{3.0} & 1.0 & 1.0 & 1.0 & 1.0 & 1.0 & 1.0\\
-    PassageRetrieval & 39.0 & 23.0 & 26.0 & 26.0 & \textbf{39.0} & 29.0 & 38.0 & 25.0\\
-    LCC & 62.9 & 58.9 & \textbf{64.8} & 62.9 & 62.9 & 63.1 & 60.1 & 60.7\\
-    RepoBench-P & 53.9 & 52.2 & 53.3 & 52.9 & \textbf{54.1} & \textbf{54.1} & 53.8 & 53.5\\
-    \textbf{Average} & 23.6 & 21.1 & 22.1 & 22.1 & \textbf{23.3} & 22.7 & 22.9 & 22.1\\
+    NarrativeQA\dag & 5.1 & 4.7 & 4.5 & \textbf{5.1} & 5.0 & 4.4\\
+    Qasper\dag & 5.3 & 4.5 & 4.5 & \textbf{4.7} & 4.4 & 4.4\\
+    MultifieldQA & 25.3 & 18.0 & 23.4 & 25.0 & \textbf{25.6} & 24.6\\
+    HotpotQA\dag & 10.5 & 10.3 & \textbf{10.9} & 10.5 & 10.7 & 10.3\\
+    2WikiMQA\dag & 11.5 & 9.5 & 11.4 & 11.4 & 11.8 & \textbf{12.1}\\
+    MuSiQue\dag & 5.1 & 4.7 & 4.1 & \textbf{5.3} & 5.1 & 4.6\\
+    GovReport & 20.0 & 19.1 & 18.5 & \textbf{19.5} & 18.4 & 18.6\\
+    QMSum\dag & 8.0 & 8.0 & \textbf{8.1} & 7.6 & 7.5 & 7.8\\
+    MultiNews & 18.1 & \textbf{16.7} & 16.4 & 16.4 & 15.6 & 16.5\\
+    TREC & 72.0 & 62.0 & 66.0 & \textbf{70.0} & 67.0 & \textbf{70.0}\\
+    TriviaQA & 23.1 & 26.1 & 24.1 & 23.9 & 23.8 & \textbf{27.1}\\
+    SAMSum & 16.9 & 17.3 & 17.2 & 17.1 & \textbf{19.1} & 17.2\\
+    PassageCount\dag & 1.0 & 3.0 & 1.0 & 1.0 & 1.0 & \textbf{5.0}\\
+    PassageRetrieval & 39.0 & 23.0 & 26.0 & \textbf{39.0} & 38.0 & 27.0\\
+    LCC & 62.9 & 58.9 & \textbf{64.8} & 62.9 & 60.1 & 61.3\\
+    RepoBench-P & 53.9 & 52.2 & 53.3 & \textbf{54.1} & 53.8 & 53.5\\
+    \textbf{Average} & 23.6 & 21.1 & 22.1 & \textbf{23.3} & 22.9 & 22.8\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2290,28 +2313,27 @@ Pyr+rot\\
 \centering
 \small
 \caption*{Table A2c. 35\% retention.}
-\begin{tabular}{@{}lllllllll@{}}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Full & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA† & 5.1 & 3.9 & 4.7 & 4.7 & \textbf{5.1} & \textbf{5.1} & \textbf{5.1} & \textbf{5.1}\\
-    Qasper† & 5.3 & 4.0 & 4.1 & 4.2 & \textbf{4.9} & 4.8 & 4.8 & 4.6\\
-    MultifieldQA & 25.3 & 18.2 & 19.4 & 18.6 & \textbf{25.1} & 24.9 & \textbf{25.1} & \textbf{25.1}\\
-    HotpotQA† & 10.5 & 11.0 & \textbf{11.3} & \textbf{11.3} & 10.4 & 10.9 & 10.4 & 10.9\\
-    2WikiMQA† & 11.5 & 11.6 & \textbf{12.5} & 12.4 & 11.2 & 11.7 & 11.2 & 11.7\\
-    MuSiQue† & 5.1 & 4.6 & 3.6 & 3.5 & \textbf{5.2} & 4.6 & \textbf{5.2} & 4.6\\
-    GovReport & 20.0 & 18.6 & 18.0 & 18.0 & 18.6 & \textbf{19.0} & 18.6 & 18.9\\
-    QMSum† & 8.0 & 7.8 & 8.1 & \textbf{8.2} & 7.8 & 7.8 & 7.8 & 7.8\\
-    MultiNews & 18.1 & \textbf{16.5} & 15.1 & 15.2 & 15.7 & 15.6 & 15.7 & 15.6\\
-    TREC & 72.0 & 60.0 & 62.0 & 61.0 & \textbf{66.0} & \textbf{66.0} & \textbf{66.0} & \textbf{66.0}\\
-    TriviaQA & 23.1 & 25.3 & 25.8 & \textbf{26.9} & 23.7 & 24.6 & 23.7 & 24.6\\
-    SAMSum & 16.9 & 17.2 & \textbf{18.4} & 18.3 & 17.8 & 17.9 & 17.8 & 17.9\\
-    PassageCount† & 1.0 & \textbf{3.0} & 1.0 & 1.0 & 1.0 & 1.0 & 1.0 & 1.0\\
-    PassageRetrieval & 39.0 & 15.0 & 22.0 & 22.0 & \textbf{39.0} & 27.0 & \textbf{39.0} & 27.0\\
-    LCC & 62.9 & 57.4 & \textbf{63.4} & 62.6 & 62.3 & 61.3 & 62.3 & 61.7\\
-    RepoBench-P & 53.9 & 49.5 & 52.3 & 52.1 & 53.7 & \textbf{54.1} & 53.7 & \textbf{54.1}\\
-    \textbf{Average} & 23.6 & 20.2 & 21.3 & 21.2 & \textbf{23.0} & 22.3 & \textbf{23.0} & 22.3\\
+    NarrativeQA\dag & 5.1 & 3.9 & 4.7 & \textbf{5.1} & \textbf{5.1} & 3.6\\
+    Qasper\dag & 5.3 & 4.0 & 4.1 & \textbf{4.9} & 4.8 & 3.9\\
+    MultifieldQA & 25.3 & 18.2 & 19.4 & \textbf{25.1} & \textbf{25.1} & 22.6\\
+    HotpotQA\dag & 10.5 & 11.0 & \textbf{11.3} & 10.4 & 10.4 & 10.9\\
+    2WikiMQA\dag & 11.5 & 11.6 & \textbf{12.5} & 11.2 & 11.2 & 11.4\\
+    MuSiQue\dag & 5.1 & 4.6 & 3.6 & \textbf{5.2} & \textbf{5.2} & 3.9\\
+    GovReport & 20.0 & \textbf{18.6} & 18.0 & \textbf{18.6} & \textbf{18.6} & 18.4\\
+    QMSum\dag & 8.0 & 7.8 & \textbf{8.1} & 7.8 & 7.8 & 8.0\\
+    MultiNews & 18.1 & \textbf{16.5} & 15.1 & 15.7 & 15.7 & 15.7\\
+    TREC & 72.0 & 60.0 & 62.0 & 66.0 & 66.0 & \textbf{69.0}\\
+    TriviaQA & 23.1 & 25.3 & 25.8 & 23.7 & 23.7 & \textbf{28.4}\\
+    SAMSum & 16.9 & 17.2 & \textbf{18.4} & 17.8 & 17.8 & 17.2\\
+    PassageCount\dag & 1.0 & 3.0 & 1.0 & 1.0 & 1.0 & \textbf{5.0}\\
+    PassageRetrieval & 39.0 & 15.0 & 22.0 & \textbf{39.0} & \textbf{39.0} & 18.0\\
+    LCC & 62.9 & 57.4 & \textbf{63.4} & 62.3 & 62.3 & 60.9\\
+    RepoBench-P & 53.9 & 49.5 & 52.3 & \textbf{53.7} & \textbf{53.7} & 52.2\\
+    \textbf{Average} & 23.6 & 20.2 & 21.4 & \textbf{23.0} & 23.0 & 21.8\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2328,45 +2350,27 @@ $n = 100$ per task. \(\dagger\) = low full-context score; results noisier.}
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{@{}lllllllll@{}}
+\begin{tabular}{@{}lrrrrrrr@{}}
 \toprule
-Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Full & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-NarrativeQA† & 27.0 & 9.8 & 20.8 & 20.8 & \textbf{26.5} & 26.1 & 25.1 &
-26.0\\
-Qasper† & 42.4 & 11.4 & 23.3 & 22.5 & 34.5 & 34.7 & \textbf{38.1} &
-37.6\\
-MultifieldQA & 45.3 & 18.7 & 32.0 & 30.8 & \textbf{45.2} & 44.4 & 44.6 &
-44.6\\
-HotpotQA† & 47.9 & 21.9 & 39.7 & 40.9 & 47.2 & \textbf{47.5} & 46.7 &
-47.1\\
-2WikiMQA† & 48.9 & 10.8 & 43.7 & 43.3 & 47.0 & 46.8 & \textbf{47.9} &
-47.6\\
-MuSiQue† & 22.6 & 4.5 & 16.5 & 15.8 & 21.3 & 21.6 & \textbf{21.8} &
-20.7\\
-GovReport & 41.6 & 27.0 & 27.9 & 27.4 & 33.7 & \textbf{34.5} & 33.6 &
-34.3\\
-QMSum† & 24.4 & 17.6 & 21.1 & 21.1 & 23.3 & \textbf{23.4} & 23.2 &
-23.2\\
-MultiNews & 33.4 & 26.0 & 24.8 & 24.8 & 26.9 & \textbf{27.2} & 25.9 &
-26.6\\
-TREC† & 8.0 & 1.5 & 1.7 & 2.0 & 8.4 & 6.8 & \textbf{11.3} &
-8.1\\
-TriviaQA & 75.4 & 43.8 & 72.8 & 73.1 & 75.7 & 78.2 & 76.0 &
-\textbf{78.3}\\
-SAMSum & 17.5 & \textbf{32.2} & 19.5 & 18.7 & 18.0 & 18.4 & 16.9 &
-18.1\\
-PassageCount† & 3.0 & 0.0 & 3.0 & 3.0 & 3.0 & 3.0 & 3.0 &
-\textbf{3.3}\\
-PassageRetrieval & 79.5 & 50.2 & 77.6 & 77.1 & 79.5 & 77.9 & \textbf{79.6} &
-78.0\\
-LCC & 10.1 & \textbf{10.6} & 9.7 & 10.0 & 7.4 & 4.8 & 7.3 &
-4.9\\
-RepoBench-P & 3.7 & \textbf{7.0} & 2.9 & 3.0 & 2.8 & 1.9 & 2.7 &
-1.8\\
-\textbf{Average} & 33.2 & 18.3 & 27.3 & 27.2 & 31.3 & 31.1 & \textbf{31.5} &
-31.3\\
+    NarrativeQA\dagger & 27.0 & 9.8 & 20.8 & \textbf{26.5} & 25.1 & 20.9\\
+    Qasper\dagger & 42.4 & 11.4 & 23.3 & 34.5 & \textbf{38.1} & 24.2\\
+    MultifieldQA & 45.3 & 18.7 & 32.0 & \textbf{45.2} & 44.6 & 34.3\\
+    HotpotQA\dagger & 47.9 & 21.9 & 39.7 & \textbf{47.2} & 46.7 & 40.6\\
+    2WikiMQA\dagger & 48.9 & 10.8 & 43.7 & 47.0 & \textbf{47.9} & 41.5\\
+    MuSiQue\dagger & 22.6 & 4.5 & 16.5 & 21.3 & \textbf{21.8} & 17.3\\
+    GovReport & 21.5 & 15.1 & 16.4 & 18.3 & \textbf{18.4} & 16.5\\
+    QMSum\dagger & 19.2 & 15.9 & 18.0 & \textbf{18.9} & 18.8 & 18.7\\
+    MultiNews & 18.2 & 15.3 & 14.9 & 15.7 & 15.3 & \textbf{15.7}\\
+    TREC & 18.0 & 6.0 & 5.0 & 19.0 & \textbf{26.0} & 3.0\\
+    TriviaQA & 75.4 & 43.8 & 72.8 & 75.7 & \textbf{76.0} & 71.4\\
+    SAMSum & 14.5 & \textbf{24.9} & 16.0 & 14.8 & 14.0 & 15.5\\
+    PassageCount\dagger & 3.0 & 0.0 & \textbf{3.0} & 3.0 & 3.0 & 3.0\\
+    PassageRetrieval & 67.0 & 3.0 & 63.0 & \textbf{67.0} & 67.0 & 62.0\\
+    LCC & 19.8 & \textbf{34.9} & 20.7 & 19.7 & 19.5 & 20.6\\
+    RepoBench-P & 17.0 & \textbf{33.9} & 17.3 & 17.1 & 16.6 & 16.6\\
+    \textbf{Average} & 31.7 & 16.9 & 26.4 & 30.7 & \textbf{31.2} & 26.4\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2380,45 +2384,27 @@ Bold = best compressed method per row. $n = 100$ per task.
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{@{}lllllllll@{}}
+\begin{tabular}{@{}lrrrrrrr@{}}
 \toprule
-Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Full & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-NarrativeQA† & 27.0 & 12.6 & 23.0 & 23.0 & 25.2 & 25.3 & \textbf{26.4} &
-26.3\\
-Qasper† & 42.4 & 16.3 & 25.7 & 25.7 & 41.0 & 40.8 & \textbf{41.4} &
-40.2\\
-MultifieldQA & 45.3 & 29.2 & 34.9 & 35.0 & 45.3 & 44.8 & 46.0 &
-\textbf{46.4}\\
-HotpotQA† & 47.9 & 26.7 & 43.0 & 43.0 & 48.2 & 48.3 & 47.7 &
-\textbf{48.9}\\
-2WikiMQA† & 48.9 & 26.6 & 45.6 & 45.6 & 48.2 & 48.5 & \textbf{49.2} &
-46.9\\
-MuSiQue† & 22.6 & 11.8 & 15.6 & 15.7 & 22.3 & \textbf{22.7} & 21.6 &
-22.6\\
-GovReport & 41.6 & 36.2 & 32.6 & 32.8 & 36.3 & \textbf{37.0} & 36.1 &
-36.8\\
-QMSum† & 24.4 & 20.2 & 21.8 & 22.1 & \textbf{24.5} & 24.3 & 24.3 &
-24.0\\
-MultiNews & 33.4 & 32.0 & 31.7 & 31.7 & \textbf{32.5} & 32.1 & 31.9 &
-31.9\\
-TREC† & 8.0 & 6.3 & 2.0 & 1.6 & 8.1 & \textbf{8.7} & 8.1 &
-7.5\\
-TriviaQA & 75.4 & 61.7 & 75.5 & 74.7 & 76.0 & \textbf{77.4} & 75.7 &
-75.9\\
-SAMSum & 17.5 & \textbf{19.9} & 18.4 & 19.0 & 17.1 & 17.8 & 17.5 &
-17.3\\
-PassageCount† & 3.0 & 2.1 & \textbf{3.0} & 3.0 & 3.0 & 3.0 & 3.0 &
-3.0\\
-PassageRetrieval & 79.5 & 54.6 & 73.1 & 73.1 & \textbf{79.5} & 79.0 & 79.5 &
-79.5\\
-LCC & 10.1 & 6.9 & 10.4 & 10.5 & 10.2 & 9.9 & \textbf{11.0} &
-10.8\\
-RepoBench-P & 3.7 & \textbf{5.5} & 4.4 & 4.5 & 3.2 & 3.2 & 3.0 &
-2.8\\
-\textbf{Average} & 33.2 & 23.0 & 28.8 & 28.8 & 32.5 & \textbf{32.7} & 32.6 &
-32.6\\
+    NarrativeQA\dagger & 27.0 & 12.6 & 23.0 & 25.2 & \textbf{26.4} & 24.1\\
+    Qasper\dagger & 42.4 & 16.3 & 25.7 & 41.0 & \textbf{41.4} & 36.3\\
+    MultifieldQA & 45.3 & 29.2 & 34.9 & 45.3 & \textbf{46.0} & 41.6\\
+    HotpotQA\dagger & 47.9 & 26.7 & 43.0 & \textbf{48.2} & 47.7 & 42.8\\
+    2WikiMQA\dagger & 48.9 & 26.6 & 45.6 & 48.2 & \textbf{49.2} & 43.9\\
+    MuSiQue\dagger & 22.6 & 11.8 & 15.6 & 22.3 & 21.6 & \textbf{23.6}\\
+    GovReport & 21.5 & 18.1 & 17.9 & 19.3 & \textbf{19.4} & 18.2\\
+    QMSum\dagger & 19.2 & 17.0 & 18.0 & 19.1 & \textbf{19.2} & 18.7\\
+    MultiNews & 18.2 & 17.7 & 17.7 & 17.9 & \textbf{18.0} & 17.8\\
+    TREC & 18.0 & 15.0 & 4.0 & 20.0 & 21.0 & \textbf{22.0}\\
+    TriviaQA & 75.4 & 61.7 & 75.5 & \textbf{76.0} & 75.7 & 74.8\\
+    SAMSum & 14.5 & \textbf{16.0} & 15.9 & 14.4 & 14.7 & 14.4\\
+    PassageCount\dagger & 3.0 & 2.0 & \textbf{3.0} & 3.0 & 3.0 & 3.0\\
+    PassageRetrieval & 67.0 & 10.0 & 54.0 & \textbf{67.0} & 67.0 & 60.0\\
+    LCC & 19.8 & \textbf{20.6} & 20.1 & 19.9 & 19.5 & 19.9\\
+    RepoBench-P & 17.0 & \textbf{20.5} & 17.1 & 16.9 & 16.8 & 17.4\\
+    \textbf{Average} & 31.7 & 20.1 & 26.9 & 31.5 & \textbf{31.6} & 29.9\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2434,45 +2420,27 @@ $n = 100$ per task. \(\dagger\) = low full-context score; results noisier.}
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{@{}lllllllll@{}}
+\begin{tabular}{@{}lrrrrrrr@{}}
 \toprule
-Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Full & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-NarrativeQA† & 22.2 & 6.8 & 15.2 & 15.3 & 19.8 & 17.5 & \textbf{20.5} &
-19.7\\
-Qasper† & 38.5 & 8.9 & 20.2 & 20.4 & \textbf{31.7} & 29.5 & \textbf{31.7} &
-29.6\\
-MultifieldQA & 42.2 & 17.6 & 27.8 & 26.2 & \textbf{40.6} & 38.7 & 40.2 &
-39.7\\
-HotpotQA† & 42.3 & 21.0 & 31.0 & 31.4 & 41.8 & 41.0 & 41.8 &
-\textbf{42.5}\\
-2WikiMQA† & 40.3 & 13.9 & 34.4 & 32.3 & 37.3 & 35.6 & \textbf{37.4} &
-35.7\\
-MuSiQue† & 15.7 & 6.8 & 12.9 & 12.7 & 17.8 & 17.1 & \textbf{18.4} &
-17.3\\
-GovReport & 22.6 & 15.0 & 14.9 & 15.2 & \textbf{18.5} & 18.3 & 17.7 &
-18.2\\
-QMSum† & 19.5 & 15.9 & 17.6 & 17.5 & 18.6 & 18.6 & 19.0 &
-\textbf{19.1}\\
-MultiNews & 18.6 & 15.1 & 15.0 & 14.9 & \textbf{16.4} & \textbf{16.4} & 16.3 &
-16.0\\
-TREC & 33.0 & \textbf{36.0} & 16.0 & 17.0 & 34.0 & 30.0 & \textbf{36.0} &
-30.0\\
-TriviaQA & 81.8 & 41.4 & 77.7 & 77.3 & 80.1 & 81.4 & \textbf{83.3} &
-82.2\\
-SAMSum & 40.4 & 28.5 & 33.3 & 32.8 & 38.9 & 39.0 & \textbf{39.3} &
-38.5\\
-PassageCount† & 3.0 & 1.0 & \textbf{4.0} & 3.0 & 2.0 & 3.0 & 1.0 &
-3.0\\
-PassageRetrieval & 56.0 & 3.0 & 15.0 & 15.0 & 56.0 & 48.0 & \textbf{57.0} &
-48.0\\
-LCC & 18.1 & 16.7 & 18.9 & \textbf{19.0} & 18.1 & 18.1 & 18.2 &
-17.1\\
-RepoBench-P & 30.0 & 19.6 & 27.5 & 26.7 & \textbf{29.9} & 28.7 & 27.9 &
-26.5\\
-\textbf{Average} & 32.8 & 16.7 & 23.8 & 23.5 & 31.3 & 30.1 & \textbf{31.6} &
-30.2\\
+    NarrativeQA\dagger & 22.2 & 6.8 & 15.2 & 19.8 & \textbf{20.5} & 16.5\\
+    Qasper\dagger & 38.5 & 8.9 & 20.2 & 31.7 & \textbf{31.7} & 22.5\\
+    MultifieldQA & 42.2 & 17.6 & 27.8 & \textbf{40.6} & 40.2 & 26.8\\
+    HotpotQA\dagger & 42.3 & 21.0 & 31.0 & \textbf{41.8} & 41.8 & 32.0\\
+    2WikiMQA\dagger & 40.3 & 13.9 & 34.4 & 37.3 & \textbf{37.4} & 33.0\\
+    MuSiQue\dagger & 15.7 & 6.8 & 12.9 & 17.8 & \textbf{18.4} & 12.1\\
+    GovReport & 22.6 & 15.0 & 14.9 & \textbf{18.5} & 17.7 & 15.3\\
+    QMSum\dagger & 19.5 & 15.9 & 17.6 & 18.6 & \textbf{19.0} & 17.7\\
+    MultiNews & 18.6 & 15.1 & 15.0 & \textbf{16.4} & 16.3 & 16.0\\
+    TREC & 33.0 & \textbf{36.0} & 16.0 & 34.0 & 36.0 & 19.0\\
+    TriviaQA & 81.8 & 41.4 & 77.7 & 80.1 & \textbf{83.3} & 75.3\\
+    SAMSum & 40.4 & 28.5 & 33.3 & 38.9 & \textbf{39.3} & 33.4\\
+    PassageCount\dagger & 3.0 & 1.0 & \textbf{4.0} & 2.0 & 1.0 & 3.0\\
+    PassageRetrieval & 56.0 & 3.0 & 15.0 & 56.0 & \textbf{57.0} & 16.0\\
+    LCC & 18.1 & 16.7 & \textbf{18.9} & 18.1 & 18.2 & 18.3\\
+    RepoBench-P & 30.0 & 19.6 & 27.5 & \textbf{29.9} & 27.9 & 28.2\\
+    \textbf{Average} & 32.8 & 16.7 & 23.8 & 31.3 & \textbf{31.6} & 24.1\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2481,51 +2449,32 @@ RepoBench-P & 30.0 & 19.6 & 27.5 & 26.7 & \textbf{29.9} & 28.7 & 27.9 &
 \textbf{Table A4b. Ground-truth accuracy (\%) per task,
 Mistral-7B-Instruct-v0.3, budget = 1024 tokens (higher is better).
 Full = uncompressed model. Bold = best compressed method per row.
-Streaming = no re-rotation; Str+rot = with re-rotation.
 †Long-context task. $n = 100$ per task.}
 
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{@{}lllllllll@{}}
+\begin{tabular}{@{}lrrrrrrr@{}}
 \toprule
-Task & Full & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Full & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-NarrativeQA† & 18.3 & 9.2 & 17.6 & 18.2 & \textbf{23.4} & 21.9 & 22.4 &
-21.4\\
-Qasper† & 39.5 & 13.3 & 24.9 & 24.8 & 34.3 & \textbf{35.3} & 33.6 &
-32.8\\
-MultifieldQA & 44.7 & 27.6 & 31.0 & 30.3 & \textbf{42.5} & 40.5 & 42.4 &
-41.2\\
-HotpotQA† & 42.9 & 25.1 & 37.7 & 37.0 & 42.6 & \textbf{43.7} & 42.2 &
-42.8\\
-2WikiMQA† & 38.8 & 21.7 & 35.2 & 35.4 & 37.6 & 37.3 & 39.1 &
-\textbf{39.5}\\
-MuSiQue† & 15.1 & 9.5 & 11.7 & 11.7 & \textbf{16.4} & 15.2 & 14.8 &
-15.7\\
-GovReport & 21.2 & 17.6 & 17.6 & 17.2 & \textbf{19.5} & 19.3 & 18.9 &
-19.3\\
-QMSum† & 18.8 & 17.4 & 17.9 & 17.7 & 19.1 & 19.0 & \textbf{19.4} &
-19.0\\
-MultiNews & 18.7 & 17.8 & \textbf{18.2} & 18.1 & 17.9 & 17.9 & 18.1 &
-17.7\\
-TREC & 19.0 & \textbf{38.0} & 18.0 & 16.0 & 33.0 & 30.0 & 30.0 &
-30.0\\
-TriviaQA & 67.8 & 60.2 & 83.0 & 82.3 & 81.5 & 80.8 & \textbf{84.1} &
-83.3\\
-SAMSum & 19.2 & 32.6 & 37.7 & 37.2 & 40.6 & \textbf{40.9} & 40.7 &
-40.1\\
-PassageCount† & 6.0 & 0.0 & \textbf{3.0} & \textbf{3.0} & \textbf{3.0} & 2.0 & 2.0 &
-\textbf{3.0}\\
-PassageRetrieval & 55.0 & 6.0 & 16.0 & 17.0 & 56.0 & 50.0 & \textbf{57.0} &
-49.0\\
-LCC & 16.9 & 17.5 & 18.8 & \textbf{19.0} & 18.3 & 18.6 & 18.8 &
-\textbf{19.0}\\
-RepoBench-P & 20.0 & 20.2 & 27.8 & 28.1 & 30.2 & \textbf{30.7} & 29.4 &
-29.6\\
-\textbf{Average} & 28.9 & 20.9 & 26.0 & 25.8 & \textbf{32.2} & 31.5 & 32.1 &
-31.5\\
+    NarrativeQA\dagger & 22.2 & 9.2 & 17.6 & \textbf{23.4} & 22.4 & 21.1\\
+    Qasper\dagger & 38.5 & 13.3 & 24.9 & \textbf{34.3} & 33.6 & 28.6\\
+    MultifieldQA & 42.2 & 27.6 & 31.0 & \textbf{42.5} & 42.4 & 37.0\\
+    HotpotQA\dagger & 42.3 & 25.1 & 37.7 & \textbf{42.6} & 42.2 & 40.3\\
+    2WikiMQA\dagger & 40.3 & 21.7 & 35.2 & 37.6 & \textbf{39.1} & 35.5\\
+    MuSiQue\dagger & 15.7 & 9.5 & 11.7 & \textbf{16.4} & 14.8 & 13.0\\
+    GovReport & 22.6 & 17.6 & 17.6 & \textbf{19.5} & 18.9 & 18.7\\
+    QMSum\dagger & 19.5 & 17.4 & 17.9 & 19.1 & \textbf{19.4} & 18.6\\
+    MultiNews & 18.6 & 17.8 & \textbf{18.2} & 17.9 & 18.1 & 18.2\\
+    TREC & 33.0 & \textbf{38.0} & 18.0 & 33.0 & 30.0 & 22.0\\
+    TriviaQA & 81.8 & 60.2 & 83.0 & 81.5 & \textbf{84.1} & 79.4\\
+    SAMSum & 40.4 & 32.6 & 37.7 & 40.6 & \textbf{40.7} & 36.7\\
+    PassageCount\dagger & 3.0 & 0.0 & \textbf{3.0} & 3.0 & 2.0 & 1.0\\
+    PassageRetrieval & 56.0 & 6.0 & 16.0 & 56.0 & \textbf{57.0} & 23.0\\
+    LCC & 18.1 & 17.5 & 18.8 & 18.3 & \textbf{18.8} & 18.3\\
+    RepoBench-P & 30.0 & 20.2 & 27.8 & \textbf{30.2} & 29.4 & 27.9\\
+    \textbf{Average} & 32.8 & 20.9 & 26.0 & \textbf{32.2} & 32.1 & 27.4\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2545,25 +2494,25 @@ Results}\label{appendix-b-wtv-faithfulness-per-task-results}}
 \caption*{Table B1a. 65\% retention.}
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA\dag & 0.082 & 0.066 & 0.017 & 0.016 & \textbf{0.015}\\
-    Qasper\dag & 0.161 & 0.115 & 0.054 & \textbf{0.045} & 0.056\\
-    MultifieldQA & 0.131 & 0.102 & 0.025 & \textbf{0.019} & 0.029\\
-    HotpotQA\dag & 0.159 & 0.054 & \textbf{0.008} & 0.008 & 0.008\\
-    2WikiMQA\dag & 0.172 & 0.049 & 0.009 & \textbf{0.007} & 0.012\\
-    MuSiQue\dag & 0.163 & 0.054 & 0.008 & 0.009 & \textbf{0.008}\\
-    GovReport & 0.115 & 0.192 & 0.078 & \textbf{0.051} & 0.081\\
-    QMSum\dag & 0.123 & 0.119 & 0.068 & \textbf{0.053} & 0.066\\
-    MultiNews & 0.232 & 0.321 & 0.163 & \textbf{0.126} & 0.165\\
-    TREC & 0.137 & 0.007 & \textbf{0.001} & 0.002 & 0.003\\
-    TriviaQA & 0.138 & 0.021 & \textbf{0.001} & 0.002 & \textbf{0.001}\\
-    SAMSum & 0.065 & 0.062 & 0.020 & 0.019 & \textbf{0.016}\\
-    PassageCount\dag & 0.122 & 0.009 & \textbf{0.001} & 0.002 & 0.001\\
-    PassageRetrieval & 0.184 & 0.032 & \textbf{0.002} & 0.002 & 0.003\\
-    LCC & 0.140 & 0.076 & \textbf{0.017} & 0.019 & 0.021\\
-    RepoBench-P & 0.105 & 0.074 & \textbf{0.011} & 0.014 & 0.013\\
-    \textbf{Average} & 0.139 & 0.085 & 0.030 & \textbf{0.025} & 0.031\\
+    NarrativeQA\dag & 0.082 & 0.066 & 0.017 & \textbf{0.015} & 0.050\\
+    Qasper\dag & 0.161 & 0.115 & 0.054 & \textbf{0.045} & 0.093\\
+    MultifieldQA & 0.131 & 0.102 & 0.025 & \textbf{0.019} & 0.076\\
+    HotpotQA\dag & 0.159 & 0.054 & \textbf{0.008} & 0.008 & 0.032\\
+    2WikiMQA\dag & 0.172 & 0.049 & 0.009 & \textbf{0.007} & 0.030\\
+    MuSiQue\dag & 0.163 & 0.054 & \textbf{0.008} & 0.009 & 0.032\\
+    GovReport & 0.115 & 0.192 & 0.078 & \textbf{0.051} & 0.126\\
+    QMSum\dag & 0.123 & 0.119 & 0.068 & \textbf{0.052} & 0.079\\
+    MultiNews & 0.232 & 0.321 & 0.163 & \textbf{0.126} & 0.205\\
+    TREC & 0.137 & 0.007 & \textbf{0.001} & 0.002 & 0.005\\
+    TriviaQA & 0.138 & 0.021 & \textbf{0.001} & 0.002 & 0.024\\
+    SAMSum & 0.065 & 0.062 & 0.020 & \textbf{0.019} & 0.045\\
+    PassageCount\dag & 0.122 & 0.009 & \textbf{0.001} & 0.002 & 0.007\\
+    PassageRetrieval & 0.184 & 0.032 & \textbf{0.002} & 0.002 & 0.021\\
+    LCC & 0.140 & 0.076 & \textbf{0.017} & 0.019 & 0.066\\
+    RepoBench-P & 0.105 & 0.074 & \textbf{0.011} & 0.013 & 0.077\\
+    \textbf{Average} & 0.139 & 0.085 & 0.030 & \textbf{0.025} & 0.061\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2574,25 +2523,25 @@ Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
 \caption*{Table B1b. 50\% retention.}
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA\dag & 0.104 & 0.080 & 0.028 & 0.110 & \textbf{0.026}\\
-    Qasper\dag & 0.210 & 0.164 & \textbf{0.083} & 0.122 & 0.088\\
-    MultifieldQA & 0.150 & 0.131 & \textbf{0.039} & 0.055 & 0.048\\
-    HotpotQA\dag & 0.159 & 0.063 & \textbf{0.012} & 0.025 & 0.013\\
-    2WikiMQA\dag & 0.194 & 0.068 & \textbf{0.018} & 0.029 & 0.019\\
-    MuSiQue\dag & 0.156 & 0.065 & \textbf{0.013} & 0.024 & 0.013\\
-    GovReport & 0.158 & 0.224 & 0.114 & \textbf{0.099} & 0.118\\
-    QMSum\dag & 0.156 & 0.154 & 0.096 & \textbf{0.089} & 0.094\\
-    MultiNews & 0.292 & 0.363 & 0.231 & \textbf{0.224} & 0.234\\
-    TREC & 0.173 & 0.010 & \textbf{0.003} & 0.007 & 0.010\\
-    TriviaQA & 0.169 & 0.035 & \textbf{0.002} & 0.012 & \textbf{0.002}\\
-    SAMSum & 0.073 & 0.078 & 0.032 & 0.062 & \textbf{0.026}\\
-    PassageCount\dag & 0.120 & 0.012 & \textbf{0.002} & 0.005 & \textbf{0.002}\\
-    PassageRetrieval & 0.191 & 0.041 & \textbf{0.004} & 0.006 & 0.004\\
-    LCC & 0.164 & 0.097 & \textbf{0.036} & 0.087 & 0.037\\
-    RepoBench-P & 0.124 & 0.094 & \textbf{0.023} & 0.060 & 0.024\\
-    \textbf{Average} & 0.162 & 0.105 & \textbf{0.046} & 0.064 & 0.047\\
+    NarrativeQA\dag & 0.104 & 0.080 & \textbf{0.028} & 0.110 & 0.067\\
+    Qasper\dag & 0.210 & 0.165 & \textbf{0.083} & 0.122 & 0.128\\
+    MultifieldQA & 0.150 & 0.131 & \textbf{0.039} & 0.056 & 0.103\\
+    HotpotQA\dag & 0.159 & 0.063 & \textbf{0.012} & 0.025 & 0.045\\
+    2WikiMQA\dag & 0.194 & 0.068 & \textbf{0.018} & 0.029 & 0.043\\
+    MuSiQue\dag & 0.156 & 0.065 & \textbf{0.013} & 0.024 & 0.044\\
+    GovReport & 0.158 & 0.224 & 0.114 & \textbf{0.099} & 0.166\\
+    QMSum\dag & 0.156 & 0.154 & 0.096 & \textbf{0.089} & 0.106\\
+    MultiNews & 0.292 & 0.363 & 0.231 & \textbf{0.224} & 0.273\\
+    TREC & 0.173 & 0.010 & \textbf{0.003} & 0.007 & 0.008\\
+    TriviaQA & 0.169 & 0.035 & \textbf{0.002} & 0.013 & 0.033\\
+    SAMSum & 0.073 & 0.078 & \textbf{0.032} & 0.062 & 0.064\\
+    PassageCount\dag & 0.120 & 0.012 & \textbf{0.002} & 0.005 & 0.010\\
+    PassageRetrieval & 0.191 & 0.041 & \textbf{0.004} & 0.006 & 0.029\\
+    LCC & 0.164 & 0.097 & \textbf{0.036} & 0.087 & 0.093\\
+    RepoBench-P & 0.124 & 0.094 & \textbf{0.023} & 0.060 & 0.104\\
+    \textbf{Average} & 0.162 & 0.105 & \textbf{0.046} & 0.064 & 0.082\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2603,25 +2552,25 @@ Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
 \caption*{Table B1c. 35\% retention.}
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA\dag & 0.127 & 0.097 & 0.043 & 0.043 & \textbf{0.039}\\
-    Qasper\dag & 0.260 & 0.208 & \textbf{0.120} & \textbf{0.120} & 0.124\\
-    MultifieldQA & 0.192 & 0.155 & \textbf{0.062} & \textbf{0.062} & 0.071\\
-    HotpotQA\dag & 0.188 & 0.075 & \textbf{0.018} & \textbf{0.018} & 0.021\\
-    2WikiMQA\dag & 0.226 & 0.074 & \textbf{0.028} & \textbf{0.028} & 0.030\\
-    MuSiQue\dag & 0.192 & 0.077 & \textbf{0.020} & \textbf{0.020} & 0.024\\
-    GovReport & 0.200 & 0.258 & \textbf{0.157} & \textbf{0.157} & 0.159\\
-    QMSum\dag & 0.184 & 0.185 & 0.125 & 0.125 & \textbf{0.121}\\
-    MultiNews & 0.354 & 0.406 & \textbf{0.306} & \textbf{0.306} & 0.308\\
-    TREC & 0.210 & 0.015 & \textbf{0.004} & \textbf{0.004} & 0.015\\
-    TriviaQA & 0.248 & 0.068 & 0.003 & 0.004 & \textbf{0.003}\\
-    SAMSum & 0.093 & 0.098 & 0.050 & 0.050 & \textbf{0.039}\\
-    PassageCount\dag & 0.147 & 0.014 & \textbf{0.002} & \textbf{0.002} & 0.003\\
-    PassageRetrieval & 0.225 & 0.047 & \textbf{0.005} & \textbf{0.005} & 0.006\\
-    LCC & 0.200 & 0.122 & 0.062 & 0.061 & \textbf{0.061}\\
-    RepoBench-P & 0.151 & 0.113 & \textbf{0.040} & \textbf{0.040} & 0.044\\
-    \textbf{Average} & 0.200 & 0.126 & \textbf{0.065} & \textbf{0.065} & 0.067\\
+    NarrativeQA\dag & 0.127 & 0.097 & \textbf{0.043} & \textbf{0.043} & 0.089\\
+    Qasper\dag & 0.260 & 0.208 & \textbf{0.120} & 0.120 & 0.165\\
+    MultifieldQA & 0.192 & 0.155 & \textbf{0.062} & \textbf{0.062} & 0.135\\
+    HotpotQA\dag & 0.188 & 0.075 & \textbf{0.018} & 0.018 & 0.057\\
+    2WikiMQA\dag & 0.226 & 0.074 & \textbf{0.028} & 0.028 & 0.055\\
+    MuSiQue\dag & 0.192 & 0.077 & \textbf{0.020} & 0.021 & 0.055\\
+    GovReport & 0.200 & 0.258 & \textbf{0.157} & \textbf{0.157} & 0.210\\
+    QMSum\dag & 0.184 & 0.185 & \textbf{0.126} & \textbf{0.126} & 0.139\\
+    MultiNews & 0.353 & 0.406 & \textbf{0.306} & \textbf{0.306} & 0.347\\
+    TREC & 0.209 & 0.015 & \textbf{0.004} & \textbf{0.004} & 0.009\\
+    TriviaQA & 0.248 & 0.068 & \textbf{0.004} & \textbf{0.004} & 0.043\\
+    SAMSum & 0.093 & 0.098 & \textbf{0.050} & \textbf{0.050} & 0.085\\
+    PassageCount\dag & 0.147 & 0.014 & \textbf{0.002} & \textbf{0.002} & 0.013\\
+    PassageRetrieval & 0.225 & 0.047 & \textbf{0.005} & \textbf{0.005} & 0.038\\
+    LCC & 0.200 & 0.122 & 0.062 & \textbf{0.061} & 0.130\\
+    RepoBench-P & 0.151 & 0.113 & \textbf{0.040} & \textbf{0.040} & 0.147\\
+    \textbf{Average} & 0.200 & 0.126 & \textbf{0.065} & 0.065 & 0.107\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2635,25 +2584,25 @@ Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
 \caption*{Table B2a. 65\% retention.}
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA\dag & 0.039 & 0.097 & 0.011 & 0.010 & \textbf{0.010}\\
-    Qasper\dag & 0.107 & 0.099 & \textbf{0.029} & 0.031 & 0.030\\
-    MultifieldQA & 0.109 & 0.125 & \textbf{0.021} & 0.021 & 0.021\\
-    HotpotQA\dag & 0.156 & 0.150 & \textbf{0.013} & 0.018 & 0.013\\
-    2WikiMQA\dag & 0.178 & 0.137 & \textbf{0.013} & 0.019 & 0.014\\
-    MuSiQue\dag & 0.146 & 0.141 & 0.014 & 0.019 & \textbf{0.014}\\
-    GovReport & 0.097 & 0.172 & 0.054 & \textbf{0.048} & 0.079\\
-    QMSum\dag & 0.105 & 0.149 & 0.042 & \textbf{0.037} & 0.043\\
-    MultiNews & 0.221 & 0.332 & 0.141 & \textbf{0.126} & 0.148\\
-    TREC & 0.044 & 0.081 & 0.023 & 0.027 & \textbf{0.019}\\
-    TriviaQA & 0.114 & 0.113 & \textbf{0.009} & 0.011 & 0.012\\
-    SAMSum & 0.066 & 0.087 & 0.025 & 0.026 & \textbf{0.019}\\
-    PassageCount\dag & 0.095 & 0.100 & 0.005 & \textbf{0.005} & 0.006\\
-    PassageRetrieval & 0.147 & 0.144 & \textbf{0.008} & 0.010 & 0.009\\
-    LCC & 0.131 & 0.078 & \textbf{0.018} & 0.021 & 0.021\\
-    RepoBench-P & 0.103 & 0.106 & \textbf{0.012} & 0.016 & 0.016\\
-    \textbf{Average} & 0.116 & 0.132 & \textbf{0.027} & 0.028 & 0.030\\
+    NarrativeQA\dag & 0.039 & 0.097 & 0.011 & \textbf{0.010} & 0.066\\
+    Qasper\dag & 0.107 & 0.099 & \textbf{0.029} & 0.031 & 0.065\\
+    MultifieldQA & 0.109 & 0.124 & \textbf{0.021} & 0.021 & 0.075\\
+    HotpotQA\dag & 0.156 & 0.150 & \textbf{0.013} & 0.018 & 0.071\\
+    2WikiMQA\dag & 0.178 & 0.137 & \textbf{0.013} & 0.019 & 0.075\\
+    MuSiQue\dag & 0.146 & 0.141 & \textbf{0.014} & 0.019 & 0.069\\
+    GovReport & 0.097 & 0.172 & 0.054 & \textbf{0.048} & 0.114\\
+    QMSum\dag & 0.105 & 0.149 & 0.042 & \textbf{0.037} & 0.087\\
+    MultiNews & 0.221 & 0.332 & 0.141 & \textbf{0.126} & 0.197\\
+    TREC & 0.044 & 0.081 & \textbf{0.023} & 0.027 & 0.059\\
+    TriviaQA & 0.114 & 0.113 & \textbf{0.009} & 0.011 & 0.076\\
+    SAMSum & 0.066 & 0.087 & \textbf{0.025} & 0.026 & 0.070\\
+    PassageCount\dag & 0.095 & 0.100 & 0.005 & \textbf{0.005} & 0.073\\
+    PassageRetrieval & 0.147 & 0.144 & \textbf{0.007} & 0.010 & 0.147\\
+    LCC & 0.131 & 0.078 & \textbf{0.018} & 0.021 & 0.070\\
+    RepoBench-P & 0.103 & 0.106 & \textbf{0.012} & 0.016 & 0.086\\
+    \textbf{Average} & 0.116 & 0.132 & \textbf{0.027} & 0.028 & 0.088\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2664,25 +2613,25 @@ Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
 \caption*{Table B2b. 50\% retention.}
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA\dag & 0.058 & 0.106 & 0.018 & 0.045 & \textbf{0.015}\\
-    Qasper\dag & 0.131 & 0.130 & 0.048 & 0.089 & \textbf{0.047}\\
-    MultifieldQA & 0.117 & 0.143 & \textbf{0.033} & 0.060 & 0.034\\
-    HotpotQA\dag & 0.152 & 0.173 & \textbf{0.022} & 0.065 & 0.022\\
-    2WikiMQA\dag & 0.190 & 0.167 & \textbf{0.024} & 0.082 & 0.025\\
-    MuSiQue\dag & 0.144 & 0.164 & 0.023 & 0.066 & \textbf{0.023}\\
-    GovReport & 0.130 & 0.195 & \textbf{0.083} & 0.099 & 0.107\\
-    QMSum\dag & 0.131 & 0.171 & \textbf{0.064} & 0.075 & 0.066\\
-    MultiNews & 0.280 & 0.370 & \textbf{0.211} & 0.222 & 0.216\\
-    TREC & 0.053 & 0.093 & 0.037 & 0.064 & \textbf{0.032}\\
-    TriviaQA & 0.136 & 0.148 & \textbf{0.016} & 0.047 & 0.019\\
-    SAMSum & 0.073 & 0.100 & 0.038 & 0.062 & \textbf{0.032}\\
-    PassageCount\dag & 0.106 & 0.106 & \textbf{0.009} & 0.016 & 0.010\\
-    PassageRetrieval & 0.147 & 0.157 & \textbf{0.013} & 0.047 & 0.018\\
-    LCC & 0.153 & 0.095 & \textbf{0.034} & 0.078 & 0.039\\
-    RepoBench-P & 0.117 & 0.125 & \textbf{0.024} & 0.073 & 0.028\\
-    \textbf{Average} & 0.132 & 0.153 & \textbf{0.044} & 0.074 & 0.046\\
+    NarrativeQA\dag & 0.058 & 0.106 & \textbf{0.018} & 0.045 & 0.088\\
+    Qasper\dag & 0.131 & 0.130 & \textbf{0.048} & 0.089 & 0.087\\
+    MultifieldQA & 0.117 & 0.143 & \textbf{0.033} & 0.060 & 0.105\\
+    HotpotQA\dag & 0.152 & 0.173 & \textbf{0.022} & 0.065 & 0.096\\
+    2WikiMQA\dag & 0.190 & 0.167 & \textbf{0.024} & 0.082 & 0.097\\
+    MuSiQue\dag & 0.144 & 0.164 & \textbf{0.023} & 0.066 & 0.096\\
+    GovReport & 0.130 & 0.195 & \textbf{0.083} & 0.099 & 0.151\\
+    QMSum\dag & 0.131 & 0.171 & \textbf{0.064} & 0.075 & 0.117\\
+    MultiNews & 0.280 & 0.370 & \textbf{0.211} & 0.222 & 0.261\\
+    TREC & 0.053 & 0.093 & \textbf{0.037} & 0.064 & 0.078\\
+    TriviaQA & 0.136 & 0.147 & \textbf{0.016} & 0.047 & 0.104\\
+    SAMSum & 0.073 & 0.100 & \textbf{0.038} & 0.062 & 0.094\\
+    PassageCount\dag & 0.106 & 0.106 & \textbf{0.009} & 0.017 & 0.103\\
+    PassageRetrieval & 0.147 & 0.157 & \textbf{0.013} & 0.047 & 0.216\\
+    LCC & 0.153 & 0.095 & \textbf{0.034} & 0.078 & 0.102\\
+    RepoBench-P & 0.117 & 0.125 & \textbf{0.024} & 0.073 & 0.125\\
+    \textbf{Average} & 0.132 & 0.153 & \textbf{0.044} & 0.074 & 0.120\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2693,25 +2642,25 @@ Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
 \caption*{Table B2c. 35\% retention.}
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA\dag & 0.068 & 0.117 & 0.026 & 0.026 & \textbf{0.023}\\
-    Qasper\dag & 0.151 & 0.151 & 0.072 & 0.072 & \textbf{0.069}\\
-    MultifieldQA & 0.139 & 0.159 & 0.053 & 0.053 & \textbf{0.052}\\
-    HotpotQA\dag & 0.183 & 0.193 & \textbf{0.036} & \textbf{0.036} & 0.036\\
-    2WikiMQA\dag & 0.219 & 0.195 & 0.041 & 0.041 & \textbf{0.040}\\
-    MuSiQue\dag & 0.172 & 0.180 & 0.038 & 0.038 & \textbf{0.035}\\
-    GovReport & 0.160 & 0.220 & \textbf{0.122} & \textbf{0.122} & 0.139\\
-    QMSum\dag & 0.154 & 0.189 & \textbf{0.088} & \textbf{0.088} & 0.089\\
-    MultiNews & 0.334 & 0.403 & 0.281 & \textbf{0.281} & 0.285\\
-    TREC & 0.069 & 0.109 & 0.058 & 0.058 & \textbf{0.053}\\
-    TriviaQA & 0.187 & 0.194 & 0.030 & 0.030 & \textbf{0.028}\\
-    SAMSum & 0.095 & 0.120 & 0.058 & 0.058 & \textbf{0.049}\\
-    PassageCount\dag & 0.133 & 0.118 & \textbf{0.014} & \textbf{0.014} & 0.020\\
-    PassageRetrieval & 0.180 & 0.169 & \textbf{0.024} & \textbf{0.024} & 0.034\\
-    LCC & 0.185 & 0.120 & \textbf{0.062} & \textbf{0.062} & 0.066\\
-    RepoBench-P & 0.147 & 0.146 & \textbf{0.042} & \textbf{0.042} & 0.047\\
-    \textbf{Average} & 0.161 & 0.174 & \textbf{0.065} & \textbf{0.065} & 0.067\\
+    NarrativeQA\dag & 0.068 & 0.117 & \textbf{0.026} & \textbf{0.026} & 0.107\\
+    Qasper\dag & 0.151 & 0.151 & \textbf{0.071} & \textbf{0.071} & 0.117\\
+    MultifieldQA & 0.139 & 0.159 & \textbf{0.053} & \textbf{0.053} & 0.134\\
+    HotpotQA\dag & 0.182 & 0.193 & \textbf{0.036} & \textbf{0.036} & 0.127\\
+    2WikiMQA\dag & 0.219 & 0.195 & \textbf{0.041} & \textbf{0.041} & 0.129\\
+    MuSiQue\dag & 0.172 & 0.180 & \textbf{0.038} & \textbf{0.038} & 0.128\\
+    GovReport & 0.160 & 0.220 & \textbf{0.122} & \textbf{0.122} & 0.191\\
+    QMSum\dag & 0.154 & 0.189 & \textbf{0.088} & \textbf{0.088} & 0.146\\
+    MultiNews & 0.334 & 0.403 & 0.281 & \textbf{0.281} & 0.326\\
+    TREC & 0.069 & 0.109 & \textbf{0.058} & \textbf{0.058} & 0.100\\
+    TriviaQA & 0.187 & 0.194 & \textbf{0.030} & \textbf{0.030} & 0.143\\
+    SAMSum & 0.095 & 0.120 & \textbf{0.058} & \textbf{0.058} & 0.121\\
+    PassageCount\dag & 0.133 & 0.118 & \textbf{0.014} & \textbf{0.014} & 0.135\\
+    PassageRetrieval & 0.180 & 0.169 & \textbf{0.024} & \textbf{0.024} & 0.280\\
+    LCC & 0.185 & 0.120 & \textbf{0.062} & \textbf{0.062} & 0.136\\
+    RepoBench-P & 0.147 & 0.146 & \textbf{0.042} & 0.042 & 0.169\\
+    \textbf{Average} & 0.161 & 0.174 & 0.065 & \textbf{0.065} & 0.156\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2725,25 +2674,25 @@ budget = 256 tokens (lower is better). Bold = best per row.}
 \caption*{Table B3a. Llama-3.1-8B-Instruct, $b$=256.}
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA\dag & 0.574 & 0.258 & 0.125 & 0.134 & \textbf{0.124}\\
-    Qasper\dag & 0.670 & 0.348 & 0.201 & \textbf{0.191} & 0.216\\
-    MultifieldQA & 0.556 & 0.314 & \textbf{0.162} & 0.162 & 0.183\\
-    HotpotQA\dag & 0.468 & 0.136 & 0.069 & \textbf{0.061} & 0.081\\
-    2WikiMQA\dag & 0.637 & 0.139 & 0.079 & \textbf{0.073} & 0.093\\
-    MuSiQue\dag & 0.456 & 0.115 & \textbf{0.069} & 0.076 & 0.073\\
-    GovReport & 0.503 & 0.470 & 0.420 & 0.418 & \textbf{0.410}\\
-    QMSum\dag & 0.583 & 0.433 & 0.323 & 0.329 & \textbf{0.313}\\
-    MultiNews & 0.461 & 0.420 & 0.396 & \textbf{0.390} & 0.395\\
-    TREC & 0.536 & 0.422 & \textbf{0.175} & 0.179 & 0.213\\
-    TriviaQA & 0.553 & 0.195 & 0.077 & \textbf{0.063} & 0.105\\
-    SAMSum & 0.536 & 0.396 & 0.282 & 0.283 & \textbf{0.281}\\
-    PassageCount\dag & 0.848 & 0.027 & 0.011 & 0.010 & \textbf{0.009}\\
-    PassageRetrieval & 0.416 & 0.286 & 0.078 & 0.107 & \textbf{0.071}\\
-    LCC & 0.394 & 0.265 & 0.183 & 0.187 & \textbf{0.175}\\
-    RepoBench-P & 0.406 & 0.277 & 0.213 & 0.216 & \textbf{0.205}\\
-    \textbf{Average} & 0.537 & 0.281 & \textbf{0.179} & 0.180 & 0.184\\
+    NarrativeQA\dagger & 1.710 & 0.720 & \textbf{0.147} & 0.164 & 0.581\\
+    Qasper\dagger & 2.632 & 1.266 & \textbf{0.418} & 0.463 & 1.097\\
+    MultifieldQA & 2.508 & 1.096 & \textbf{0.249} & 0.287 & 0.913\\
+    HotpotQA\dagger & 1.696 & 0.353 & \textbf{0.037} & 0.043 & 0.318\\
+    2WikiMQA\dagger & 2.642 & 0.490 & \textbf{0.088} & 0.107 & 0.361\\
+    MuSiQue\dagger & 1.671 & 0.332 & \textbf{0.038} & 0.057 & 0.274\\
+    GovReport & 1.099 & 1.043 & \textbf{0.925} & 0.948 & 1.015\\
+    QMSum\dagger & 1.622 & 1.108 & \textbf{0.583} & 0.656 & 0.943\\
+    MultiNews & 0.931 & 0.848 & 0.815 & 0.868 & \textbf{0.746}\\
+    TREC & 1.857 & 1.710 & \textbf{0.288} & 0.349 & 1.429\\
+    TriviaQA & 1.157 & 0.271 & 0.051 & \textbf{0.048} & 0.339\\
+    SAMSum & 1.754 & 1.400 & \textbf{0.898} & 0.976 & 1.316\\
+    PassageCount\dagger & 5.798 & 0.068 & 0.005 & \textbf{0.005} & 0.069\\
+    PassageRetrieval & 3.783 & 0.192 & \textbf{0.018} & 0.025 & 0.229\\
+    LCC & 0.475 & 0.351 & \textbf{0.314} & 0.377 & 0.324\\
+    RepoBench-P & 0.712 & 0.494 & \textbf{0.417} & 0.489 & 0.502\\
+    \textbf{Average} & 2.003 & 0.734 & \textbf{0.331} & 0.366 & 0.654\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2757,25 +2706,25 @@ budget = 1024 tokens (lower is better). Bold = best per row.}
 \caption*{Table B3b. Llama-3.1-8B-Instruct, $b$=1024.}
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA\dag & 0.434 & 0.201 & 0.063 & 0.069 & \textbf{0.057}\\
-    Qasper\dag & 0.533 & 0.281 & \textbf{0.086} & 0.096 & 0.103\\
-    MultifieldQA & 0.423 & 0.241 & 0.081 & \textbf{0.080} & 0.107\\
-    HotpotQA\dag & 0.372 & 0.111 & 0.034 & \textbf{0.033} & 0.054\\
-    2WikiMQA\dag & 0.525 & 0.133 & 0.036 & \textbf{0.033} & 0.048\\
-    MuSiQue\dag & 0.385 & 0.105 & \textbf{0.035} & 0.039 & 0.043\\
-    GovReport & 0.429 & 0.407 & 0.331 & \textbf{0.328} & 0.334\\
-    QMSum\dag & 0.484 & 0.384 & 0.195 & 0.195 & \textbf{0.162}\\
-    MultiNews & 0.245 & 0.226 & 0.180 & \textbf{0.166} & 0.179\\
-    TREC & 0.244 & 0.395 & 0.123 & \textbf{0.119} & 0.150\\
-    TriviaQA & 0.366 & 0.107 & \textbf{0.023} & 0.024 & 0.033\\
-    SAMSum & 0.385 & 0.355 & 0.180 & 0.186 & \textbf{0.180}\\
-    PassageCount\dag & 0.811 & 0.027 & 0.005 & \textbf{0.004} & 0.005\\
-    PassageRetrieval & 0.397 & 0.275 & 0.024 & 0.027 & \textbf{0.016}\\
-    LCC & 0.182 & 0.185 & \textbf{0.052} & 0.061 & 0.056\\
-    RepoBench-P & 0.281 & 0.194 & 0.086 & 0.096 & \textbf{0.085}\\
-    \textbf{Average} & 0.406 & 0.227 & \textbf{0.096} & 0.097 & 0.101\\
+    NarrativeQA\dagger & 1.047 & 0.494 & \textbf{0.041} & 0.048 & 0.279\\
+    Qasper\dagger & 1.770 & 0.924 & \textbf{0.096} & 0.138 & 0.447\\
+    MultifieldQA & 1.608 & 0.764 & \textbf{0.093} & 0.098 & 0.434\\
+    HotpotQA\dagger & 1.090 & 0.278 & 0.017 & \textbf{0.017} & 0.152\\
+    2WikiMQA\dagger & 1.790 & 0.437 & \textbf{0.027} & 0.043 & 0.203\\
+    MuSiQue\dagger & 0.960 & 0.276 & \textbf{0.017} & 0.023 & 0.174\\
+    GovReport & 0.849 & 0.802 & 0.634 & 0.681 & \textbf{0.563}\\
+    QMSum\dagger & 1.268 & 0.958 & \textbf{0.225} & 0.257 & 0.456\\
+    MultiNews & 0.372 & 0.341 & 0.278 & 0.309 & \textbf{0.200}\\
+    TREC & 0.300 & 1.348 & \textbf{0.139} & 0.163 & 0.586\\
+    TriviaQA & 0.498 & 0.072 & \textbf{0.003} & 0.004 & 0.173\\
+    SAMSum & 1.141 & 1.274 & \textbf{0.464} & 0.570 & 0.567\\
+    PassageCount\dagger & 3.606 & 0.064 & 0.001 & \textbf{0.001} & 0.056\\
+    PassageRetrieval & 1.791 & 0.262 & \textbf{0.002} & 0.003 & 0.168\\
+    LCC & 0.092 & 0.125 & \textbf{0.023} & 0.031 & 0.074\\
+    RepoBench-P & 0.343 & 0.243 & \textbf{0.056} & 0.095 & 0.212\\
+    \textbf{Average} & 1.158 & 0.541 & \textbf{0.132} & 0.155 & 0.297\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2789,25 +2738,25 @@ budget = 256 tokens (lower is better). Bold = best per row.}
 \caption*{Table B4a. Mistral-7B-Instruct-v0.3, $b$=256.}
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA\dag & 0.668 & 0.330 & \textbf{0.204} & 0.221 & 0.213\\
-    Qasper\dag & 0.701 & 0.381 & \textbf{0.241} & 0.266 & \textbf{0.241}\\
-    MultifieldQA & 0.633 & 0.371 & \textbf{0.226} & 0.229 & 0.240\\
-    HotpotQA\dag & 0.543 & 0.180 & 0.116 & \textbf{0.113} & 0.134\\
-    2WikiMQA\dag & 0.729 & 0.190 & \textbf{0.154} & 0.159 & 0.195\\
-    MuSiQue\dag & 0.617 & 0.183 & \textbf{0.143} & 0.151 & 0.152\\
-    GovReport & 0.600 & 0.560 & \textbf{0.491} & 0.492 & 0.496\\
-    QMSum\dag & 0.622 & 0.491 & 0.368 & 0.380 & \textbf{0.359}\\
-    MultiNews & 0.539 & 0.497 & \textbf{0.453} & 0.454 & 0.459\\
-    TREC & 0.550 & 0.501 & \textbf{0.338} & 0.342 & 0.367\\
-    TriviaQA & 0.571 & 0.228 & \textbf{0.115} & 0.120 & 0.170\\
-    SAMSum & 0.586 & 0.467 & \textbf{0.360} & 0.367 & 0.373\\
-    PassageCount\dag & 0.776 & 0.407 & \textbf{0.224} & 0.254 & 0.250\\
-    PassageRetrieval & 0.613 & 0.276 & \textbf{0.074} & 0.080 & 0.107\\
-    LCC & 0.422 & 0.345 & \textbf{0.230} & 0.236 & 0.240\\
-    RepoBench-P & 0.457 & 0.402 & \textbf{0.280} & 0.284 & 0.281\\
-    \textbf{Average} & 0.602 & 0.363 & \textbf{0.251} & 0.259 & 0.267\\
+    NarrativeQA\dagger & 3.071 & 1.143 & \textbf{0.340} & 0.462 & 0.912\\
+    Qasper\dagger & 3.982 & 1.642 & \textbf{0.494} & 0.608 & 1.320\\
+    MultifieldQA & 2.875 & 1.319 & \textbf{0.363} & 0.434 & 1.199\\
+    HotpotQA\dagger & 2.561 & 0.464 & \textbf{0.097} & 0.105 & 0.452\\
+    2WikiMQA\dagger & 3.584 & 0.807 & \textbf{0.202} & 0.228 & 0.647\\
+    MuSiQue\dagger & 3.148 & 0.717 & \textbf{0.184} & 0.214 & 0.582\\
+    GovReport & 1.591 & 1.474 & \textbf{1.244} & 1.290 & 1.406\\
+    QMSum\dagger & 2.349 & 1.486 & \textbf{0.788} & 0.905 & 1.260\\
+    MultiNews & 1.296 & 1.150 & 1.051 & 1.114 & \textbf{1.037}\\
+    TREC & 2.197 & 2.333 & \textbf{0.848} & 0.962 & 2.064\\
+    TriviaQA & 2.135 & 0.652 & \textbf{0.138} & 0.156 & 0.610\\
+    SAMSum & 2.092 & 1.763 & \textbf{1.206} & 1.302 & 1.812\\
+    PassageCount\dagger & 4.816 & 0.984 & \textbf{0.194} & 0.255 & 0.972\\
+    PassageRetrieval & 3.280 & 0.682 & \textbf{0.018} & 0.021 & 0.576\\
+    LCC & 0.880 & 0.734 & \textbf{0.400} & 0.491 & 0.650\\
+    RepoBench-P & 1.118 & 0.991 & \textbf{0.461} & 0.553 & 0.912\\
+    \textbf{Average} & 2.561 & 1.146 & \textbf{0.502} & 0.569 & 1.026\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2821,25 +2770,25 @@ budget = 1024 tokens (lower is better). Bold = best per row.}
 \caption*{Table B4b. Mistral-7B-Instruct-v0.3, $b$=1024.}
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & SnapKV & Pyr & RADAR\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA\dag & 0.534 & 0.276 & \textbf{0.097} & 0.111 & 0.103\\
-    Qasper\dag & 0.595 & 0.314 & \textbf{0.128} & 0.148 & 0.140\\
-    MultifieldQA & 0.459 & 0.309 & \textbf{0.124} & 0.137 & 0.139\\
-    HotpotQA\dag & 0.482 & 0.166 & 0.064 & \textbf{0.060} & 0.074\\
-    2WikiMQA\dag & 0.616 & 0.183 & 0.085 & \textbf{0.074} & 0.091\\
-    MuSiQue\dag & 0.538 & 0.158 & 0.086 & \textbf{0.084} & 0.094\\
-    GovReport & 0.537 & 0.529 & \textbf{0.394} & 0.397 & 0.402\\
-    QMSum\dag & 0.518 & 0.450 & 0.241 & 0.250 & \textbf{0.212}\\
-    MultiNews & 0.358 & 0.339 & 0.248 & \textbf{0.243} & 0.244\\
-    TREC & 0.331 & 0.470 & \textbf{0.241} & 0.242 & 0.280\\
-    TriviaQA & 0.372 & 0.173 & \textbf{0.061} & 0.074 & 0.078\\
-    SAMSum & 0.446 & 0.431 & 0.248 & 0.261 & \textbf{0.245}\\
-    PassageCount\dag & 0.680 & 0.338 & 0.119 & 0.132 & \textbf{0.102}\\
-    PassageRetrieval & 0.358 & 0.192 & 0.025 & 0.028 & \textbf{0.018}\\
-    LCC & 0.307 & 0.261 & \textbf{0.114} & 0.120 & 0.117\\
-    RepoBench-P & 0.347 & 0.327 & 0.171 & 0.178 & \textbf{0.163}\\
-    \textbf{Average} & 0.467 & 0.307 & \textbf{0.153} & 0.159 & 0.156\\
+    NarrativeQA\dagger & 1.734 & 0.780 & \textbf{0.060} & 0.091 & 0.369\\
+    Qasper\dagger & 2.683 & 1.174 & \textbf{0.176} & 0.239 & 0.560\\
+    MultifieldQA & 1.592 & 0.950 & \textbf{0.160} & 0.193 & 0.583\\
+    HotpotQA\dagger & 1.848 & 0.412 & \textbf{0.036} & 0.040 & 0.226\\
+    2WikiMQA\dagger & 2.454 & 0.771 & 0.082 & \textbf{0.062} & 0.338\\
+    MuSiQue\dagger & 2.129 & 0.570 & \textbf{0.068} & 0.078 & 0.306\\
+    GovReport & 1.365 & 1.320 & 0.897 & 0.981 & \textbf{0.813}\\
+    QMSum\dagger & 1.628 & 1.297 & \textbf{0.358} & 0.420 & 0.655\\
+    MultiNews & 0.722 & 0.660 & 0.451 & 0.515 & \textbf{0.356}\\
+    TREC & 0.520 & 1.831 & \textbf{0.407} & 0.456 & 0.962\\
+    TriviaQA & 1.120 & 0.543 & \textbf{0.056} & 0.068 & 0.319\\
+    SAMSum & 1.522 & 1.665 & \textbf{0.639} & 0.742 & 0.949\\
+    PassageCount\dagger & 2.990 & 0.478 & \textbf{0.050} & 0.054 & 0.689\\
+    PassageRetrieval & 1.183 & 0.378 & \textbf{0.002} & 0.003 & 0.436\\
+    LCC & 0.427 & 0.412 & \textbf{0.117} & 0.157 & 0.205\\
+    RepoBench-P & 0.590 & 0.650 & \textbf{0.173} & 0.227 & 0.397\\
+    \textbf{Average} & 1.532 & 0.868 & \textbf{0.233} & 0.270 & 0.510\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2856,28 +2805,27 @@ Results}\label{appendix-c-output-faithfulness-per-task-results}}
 \centering
 \small
 \caption*{Table C1a. 65\% retention.}
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA† & \textbf{88.1} & 60.4 & 59.9 & 63.1 & 59.6 & 61.7 & 60.4\\
-    Qasper† & 46.4 & 56.4 & 56.9 & 71.4 & 58.4 & \textbf{72.6} & 61.0\\
-    MultifieldQA & 57.3 & 64.2 & 63.6 & 81.0 & 73.9 & \textbf{86.0} & 76.3\\
-    HotpotQA† & 88.2 & 73.3 & 72.6 & \textbf{95.3} & 85.3 & 92.2 & 85.9\\
-    2WikiMQA† & 64.5 & 79.6 & 77.9 & \textbf{95.6} & 85.2 & \textbf{95.6} & 86.4\\
-    MuSiQue† & \textbf{97.1} & 72.0 & 72.3 & 92.7 & 86.9 & 92.3 & 83.5\\
-    GovReport & \textbf{55.8} & 32.6 & 40.1 & 47.8 & 45.5 & 51.2 & 43.9\\
-    QMSum† & \textbf{54.4} & 35.9 & 37.0 & 41.7 & 40.3 & 40.4 & 42.1\\
-    MultiNews & 43.8 & 31.5 & 41.0 & 44.6 & 42.5 & \textbf{49.0} & 40.5\\
-    TREC & 75.3 & 29.0 & 74.0 & \textbf{82.6} & 78.2 & 81.3 & 78.6\\
-    TriviaQA & 71.1 & 58.1 & 60.2 & 92.0 & 83.3 & \textbf{97.0} & 86.6\\
-    SAMSum & 64.9 & 50.7 & 52.6 & \textbf{78.4} & 67.2 & 73.4 & 66.5\\
-    PassageCount† & 70.7 & 53.0 & 61.8 & 92.8 & 83.9 & \textbf{96.4} & 82.3\\
-    PassageRetrieval & 80.1 & 87.0 & 70.0 & \textbf{94.0} & 82.2 & 93.8 & 82.8\\
-    LCC & 62.0 & 23.6 & 73.8 & \textbf{92.8} & 87.7 & 91.3 & 88.3\\
-    RepoBench-P & 77.3 & 25.5 & 65.6 & 90.5 & 77.9 & \textbf{90.6} & 80.6\\
-    \textbf{Average} & 68.6 & 52.0 & 61.2 & 78.5 & 71.1 & \textbf{79.1} & 71.6\\
+    NarrativeQA\dagger & \textbf{89.1} & 60.4 & 64.7 & 63.1 & 58.6\\
+    Qasper\dagger & 46.6 & 57.1 & 71.9 & \textbf{72.8} & 53.9\\
+    MultifieldQA & 58.1 & 63.3 & 82.7 & \textbf{87.6} & 69.7\\
+    HotpotQA\dagger & 88.2 & 73.0 & \textbf{95.5} & 92.3 & 80.7\\
+    2WikiMQA\dagger & 65.5 & 78.2 & \textbf{96.6} & 96.6 & 86.8\\
+    MuSiQue\dagger & \textbf{97.1} & 72.1 & 92.7 & 92.3 & 80.7\\
+    GovReport & \textbf{55.9} & 40.9 & 50.3 & 53.3 & 39.4\\
+    QMSum\dagger & \textbf{54.4} & 37.1 & 41.8 & 40.5 & 38.9\\
+    MultiNews & 44.5 & 41.7 & 45.2 & \textbf{49.5} & 37.6\\
+    TREC & 75.0 & 73.7 & \textbf{82.3} & 80.9 & 79.9\\
+    TriviaQA & 71.1 & 60.3 & 92.2 & \textbf{97.0} & 63.3\\
+    SAMSum & 66.2 & 54.5 & \textbf{79.0} & 74.2 & 56.5\\
+    PassageCount\dagger & 70.1 & 58.9 & 93.1 & \textbf{96.4} & 59.8\\
+    PassageRetrieval & 80.1 & 69.9 & \textbf{94.1} & 93.8 & 43.7\\
+    LCC & 66.8 & 79.2 & \textbf{95.0} & 93.7 & 79.9\\
+    RepoBench-P & 81.9 & 72.0 & \textbf{92.0} & 91.9 & 68.3\\
+    \textbf{Average} & 69.4 & 62.0 & 79.3 & \textbf{79.7} & 62.4\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2886,28 +2834,27 @@ Pyr+rot\\
 \centering
 \small
 \caption*{Table C1b. 50\% retention.}
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA† & 48.4 & 53.9 & 53.0 & \textbf{62.2} & 58.5 & 53.0 & 50.6\\
-    Qasper† & 38.3 & 47.0 & 46.6 & \textbf{61.1} & 54.0 & 52.2 & 46.6\\
-    MultifieldQA & 55.7 & 59.6 & 59.6 & \textbf{76.3} & 73.8 & 70.6 & 67.1\\
-    HotpotQA† & 65.2 & 69.9 & 68.4 & \textbf{90.2} & 81.6 & 77.8 & 73.9\\
-    2WikiMQA† & 62.8 & 75.5 & 74.2 & \textbf{92.0} & 84.4 & 84.5 & 82.2\\
-    MuSiQue† & 64.3 & 68.4 & 68.1 & \textbf{90.1} & 83.3 & 80.8 & 77.3\\
-    GovReport & 37.9 & 29.5 & 36.6 & \textbf{41.5} & 40.2 & 37.3 & 34.7\\
-    QMSum† & 38.7 & 34.4 & 36.0 & 39.8 & \textbf{40.8} & 38.0 & 38.4\\
-    MultiNews & \textbf{44.9} & 27.8 & 37.7 & 35.4 & 35.9 & 33.4 & 33.1\\
-    TREC & 71.8 & 18.0 & 71.1 & \textbf{76.3} & 73.8 & 70.5 & 68.8\\
-    TriviaQA & 45.4 & 48.9 & 48.8 & \textbf{90.8} & 78.5 & 76.1 & 71.8\\
-    SAMSum & 48.2 & 47.5 & 48.6 & \textbf{67.2} & 61.1 & 49.1 & 49.1\\
-    PassageCount† & 31.8 & 53.0 & 57.9 & \textbf{89.3} & 77.5 & 85.6 & 75.1\\
-    PassageRetrieval & 67.1 & 84.0 & 69.8 & \textbf{92.6} & 81.7 & 82.7 & 76.8\\
-    LCC & 57.8 & 22.2 & 67.7 & \textbf{84.6} & 81.1 & 70.0 & 68.4\\
-    RepoBench-P & 55.3 & 24.8 & 57.7 & \textbf{82.5} & 78.1 & 65.8 & 66.5\\
-    \textbf{Average} & 52.1 & 47.8 & 56.4 & \textbf{73.2} & 67.8 & 64.2 & 61.3\\
+    NarrativeQA\dagger & 49.6 & 53.4 & \textbf{63.4} & 54.4 & 57.4\\
+    Qasper\dagger & 38.3 & 46.7 & \textbf{61.4} & 52.4 & 46.2\\
+    MultifieldQA & 57.1 & 60.6 & \textbf{78.0} & 72.3 & 66.3\\
+    HotpotQA\dagger & 65.2 & 68.8 & \textbf{90.4} & 78.2 & 76.4\\
+    2WikiMQA\dagger & 62.9 & 74.5 & \textbf{93.2} & 85.8 & 83.8\\
+    MuSiQue\dagger & 64.4 & 67.9 & \textbf{90.1} & 80.9 & 73.3\\
+    GovReport & 37.8 & 37.0 & \textbf{43.8} & 39.4 & 36.4\\
+    QMSum\dagger & 38.7 & 36.0 & \textbf{39.9} & 38.1 & 38.9\\
+    MultiNews & \textbf{45.7} & 38.4 & 36.1 & 33.7 & 33.1\\
+    TREC & 71.5 & 70.8 & \textbf{76.1} & 70.1 & 74.3\\
+    TriviaQA & 45.8 & 49.0 & \textbf{91.0} & 76.0 & 54.5\\
+    SAMSum & 49.7 & 50.7 & \textbf{68.1} & 49.8 & 53.8\\
+    PassageCount\dagger & 29.5 & 55.1 & \textbf{89.5} & 85.6 & 51.6\\
+    PassageRetrieval & 67.0 & 69.6 & \textbf{92.6} & 82.6 & 26.8\\
+    LCC & 62.6 & 73.7 & \textbf{87.9} & 75.0 & 73.3\\
+    RepoBench-P & 62.3 & 65.5 & \textbf{85.3} & 72.7 & 63.3\\
+    \textbf{Average} & 53.0 & 57.4 & \textbf{74.2} & 65.4 & 56.8\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2916,28 +2863,27 @@ Pyr+rot\\
 \centering
 \small
 \caption*{Table C1c. 35\% retention.}
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA† & 44.7 & 49.3 & 48.4 & 57.3 & \textbf{59.6} & 57.3 & \textbf{59.6}\\
-    Qasper† & 34.3 & 40.1 & 40.6 & \textbf{51.8} & 50.3 & \textbf{51.8} & 50.7\\
-    MultifieldQA & 47.6 & 54.0 & 54.5 & 69.9 & 69.0 & \textbf{70.0} & 68.6\\
-    HotpotQA† & 58.8 & 66.2 & 66.9 & 85.2 & 80.1 & \textbf{85.4} & 80.5\\
-    2WikiMQA† & 56.1 & 71.7 & 69.8 & \textbf{87.3} & 81.1 & \textbf{87.3} & 81.2\\
-    MuSiQue† & 58.4 & 67.3 & 68.2 & 84.2 & 80.5 & \textbf{84.6} & 80.7\\
-    GovReport & 35.1 & 25.8 & 31.9 & 36.6 & 36.0 & \textbf{36.7} & 35.1\\
-    QMSum† & 37.2 & 32.4 & 34.0 & 36.4 & \textbf{37.7} & 36.4 & \textbf{37.7}\\
-    MultiNews & \textbf{36.8} & 24.3 & 32.2 & 31.9 & 29.5 & 32.6 & 29.2\\
-    TREC & 66.9 & 11.0 & 65.3 & \textbf{68.1} & 66.6 & 67.6 & 66.4\\
-    TriviaQA & 38.6 & 40.4 & 39.8 & 84.2 & 74.8 & \textbf{84.8} & 75.3\\
-    SAMSum & 41.4 & 41.9 & 43.7 & \textbf{56.3} & 51.0 & \textbf{56.3} & 50.5\\
-    PassageCount† & 32.1 & 53.0 & 47.1 & 84.7 & 71.9 & \textbf{85.1} & 72.9\\
-    PassageRetrieval & 57.9 & 84.0 & 65.4 & \textbf{86.0} & 78.5 & 85.4 & 78.0\\
-    LCC & 54.2 & 21.6 & 63.0 & 77.3 & 75.2 & \textbf{77.4} & 74.9\\
-    RepoBench-P & 50.0 & 23.7 & 57.2 & 71.6 & 66.9 & \textbf{71.7} & 66.5\\
-    \textbf{Average} & 46.9 & 44.2 & 51.8 & 66.8 & 63.0 & \textbf{66.9} & 63.0\\
+    NarrativeQA\dagger & 45.9 & 48.9 & \textbf{58.6} & \textbf{58.6} & 55.8\\
+    Qasper\dagger & 34.5 & 40.8 & \textbf{51.8} & \textbf{51.9} & 42.6\\
+    MultifieldQA & 49.0 & 55.5 & 71.4 & \textbf{71.5} & 57.9\\
+    HotpotQA\dagger & 58.9 & 67.1 & 85.4 & \textbf{85.6} & 72.5\\
+    2WikiMQA\dagger & 56.9 & 70.1 & \textbf{88.7} & \textbf{88.7} & 78.1\\
+    MuSiQue\dagger & 58.5 & 68.2 & 84.4 & \textbf{84.7} & 69.5\\
+    GovReport & 35.6 & 32.2 & 39.1 & \textbf{39.2} & 32.8\\
+    QMSum\dagger & 37.3 & 34.1 & 36.4 & 36.4 & \textbf{37.8}\\
+    MultiNews & \textbf{37.4} & 32.9 & 32.4 & 33.2 & 30.4\\
+    TREC & 66.3 & 64.9 & 67.7 & 67.2 & \textbf{68.8}\\
+    TriviaQA & 39.0 & 39.8 & 84.2 & \textbf{84.7} & 41.7\\
+    SAMSum & 43.2 & 45.7 & \textbf{57.0} & \textbf{57.0} & 44.2\\
+    PassageCount\dagger & 25.5 & 44.4 & 84.0 & \textbf{84.4} & 41.6\\
+    PassageRetrieval & 57.6 & 65.2 & \textbf{86.0} & 85.4 & 25.7\\
+    LCC & 59.8 & 69.8 & 81.8 & \textbf{81.9} & 68.1\\
+    RepoBench-P & 60.3 & 64.9 & 76.3 & \textbf{76.4} & 55.2\\
+    \textbf{Average} & 47.9 & 52.8 & 67.8 & \textbf{67.9} & 51.4\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2949,28 +2895,27 @@ Pyr+rot\\
 \centering
 \small
 \caption*{Table C2a. 65\% retention.}
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA† & 40.5 & \textbf{64.1} & 38.2 & 57.4 & 53.1 & 55.4 & 55.7\\
-    Qasper† & 69.0 & 69.6 & 69.4 & \textbf{87.1} & 79.6 & 86.1 & 80.6\\
-    MultifieldQA & 63.9 & 67.6 & 66.8 & \textbf{90.3} & 84.3 & 89.3 & 81.8\\
-    HotpotQA† & 66.9 & 63.6 & 63.9 & 94.7 & 88.5 & \textbf{94.8} & 87.1\\
-    2WikiMQA† & 66.8 & 77.7 & 77.0 & \textbf{95.2} & 89.0 & 94.8 & 88.3\\
-    MuSiQue† & 64.6 & 67.8 & 68.0 & \textbf{94.3} & 90.2 & 93.3 & 82.2\\
-    GovReport & 46.7 & 37.6 & 41.8 & 62.6 & 58.6 & \textbf{64.2} & 58.1\\
-    QMSum† & 48.3 & 47.4 & 47.0 & 72.2 & 68.4 & \textbf{73.8} & 66.2\\
-    MultiNews & 45.5 & 24.1 & 35.8 & \textbf{51.7} & 48.7 & 51.6 & 46.2\\
-    TREC & 85.0 & 40.0 & 82.2 & \textbf{94.5} & 91.8 & 92.6 & 90.7\\
-    TriviaQA & 57.4 & 60.1 & 60.6 & 91.9 & 84.0 & \textbf{93.8} & 88.5\\
-    SAMSum & 55.1 & 58.5 & 57.2 & \textbf{72.4} & 69.8 & 69.6 & 67.9\\
-    PassageCount† & 57.3 & 51.0 & 57.7 & 97.0 & 90.8 & \textbf{97.5} & 84.7\\
-    PassageRetrieval & 68.8 & 75.0 & 68.5 & 97.2 & 85.5 & \textbf{97.8} & 83.8\\
-    LCC & 62.1 & 29.9 & 76.0 & 88.3 & 86.1 & \textbf{90.8} & 87.2\\
-    RepoBench-P & 62.8 & 33.2 & 66.1 & \textbf{93.0} & 83.1 & 90.1 & 82.2\\
-    \textbf{Average} & 60.0 & 54.2 & 61.0 & \textbf{83.7} & 78.2 & 83.5 & 77.0\\
+    NarrativeQA\dag & 40.5 & 37.8 & \textbf{57.4} & 55.4 & 39.3\\
+    Qasper\dag & 69.0 & 69.6 & \textbf{87.1} & 86.1 & 74.1\\
+    MultifieldQA & 63.9 & 67.0 & \textbf{90.3} & 89.3 & 75.9\\
+    HotpotQA\dag & 66.9 & 63.6 & 94.7 & \textbf{94.8} & 79.2\\
+    2WikiMQA\dag & 66.8 & 76.9 & \textbf{95.2} & 94.8 & 83.0\\
+    MuSiQue\dag & 64.6 & 67.8 & \textbf{94.3} & 93.3 & 80.5\\
+    GovReport & 46.7 & 41.8 & 62.6 & \textbf{64.2} & 41.8\\
+    QMSum\dag & 48.3 & 47.1 & 72.2 & \textbf{73.8} & 57.7\\
+    MultiNews & 45.5 & 35.1 & \textbf{51.7} & 51.6 & 40.3\\
+    TREC & 85.0 & 82.1 & \textbf{94.5} & 92.6 & 88.1\\
+    TriviaQA & 57.4 & 60.1 & 91.9 & \textbf{93.8} & 61.6\\
+    SAMSum & 55.1 & 59.4 & \textbf{72.4} & 69.6 & 55.8\\
+    PassageCount\dag & 57.3 & 58.2 & 97.0 & \textbf{97.5} & 57.8\\
+    PassageRetrieval & 68.8 & 68.8 & 97.2 & \textbf{97.8} & 45.1\\
+    LCC & 62.1 & 76.0 & 88.3 & \textbf{90.8} & 74.9\\
+    RepoBench-P & 62.8 & 65.0 & \textbf{93.0} & 90.1 & 69.0\\
+    \textbf{Average} & 60.0 & 61.0 & \textbf{83.7} & 83.5 & 64.0\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2979,28 +2924,27 @@ Pyr+rot\\
 \centering
 \small
 \caption*{Table C2b. 50\% retention.}
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA† & 38.9 & \textbf{62.5} & 36.5 & 56.6 & 53.3 & 47.5 & 49.3\\
-    Qasper† & 61.4 & 63.8 & 64.0 & \textbf{81.1} & 77.5 & 71.4 & 70.4\\
-    MultifieldQA & 57.4 & 61.9 & 62.9 & \textbf{87.1} & 81.0 & 77.8 & 73.2\\
-    HotpotQA† & 68.1 & 62.7 & 61.9 & \textbf{90.9} & 82.2 & 83.6 & 79.3\\
-    2WikiMQA† & 64.2 & 72.0 & 71.3 & \textbf{93.7} & 85.9 & 77.0 & 78.4\\
-    MuSiQue† & 66.3 & 65.6 & 66.2 & \textbf{91.6} & 84.8 & 78.6 & 76.0\\
-    GovReport & 41.1 & 35.4 & 38.6 & \textbf{53.8} & 50.8 & 46.5 & 43.8\\
-    QMSum† & 45.3 & 43.3 & 42.2 & \textbf{65.2} & 63.9 & 58.5 & 58.8\\
-    MultiNews & 40.6 & 22.6 & 33.8 & \textbf{41.2} & 38.2 & 35.2 & 32.6\\
-    TREC & 82.7 & 34.0 & 78.2 & \textbf{91.1} & 89.6 & 80.8 & 81.5\\
-    TriviaQA & 53.0 & 49.3 & 49.3 & \textbf{86.8} & 81.1 & 74.1 & 67.4\\
-    SAMSum & 52.6 & 55.7 & 56.3 & 66.3 & \textbf{66.4} & 51.0 & 50.8\\
-    PassageCount† & 49.3 & 50.0 & 55.2 & \textbf{90.7} & 87.7 & 90.0 & 82.1\\
-    PassageRetrieval & 69.0 & 73.0 & 67.2 & \textbf{94.9} & 79.6 & 83.4 & 76.3\\
-    LCC & 57.0 & 30.3 & 74.0 & \textbf{85.6} & 83.2 & 74.2 & 74.3\\
-    RepoBench-P & 62.9 & 31.3 & 60.3 & \textbf{88.0} & 83.1 & 70.6 & 70.6\\
-    \textbf{Average} & 56.9 & 50.8 & 57.4 & \textbf{79.0} & 74.3 & 68.8 & 66.5\\
+    NarrativeQA\dag & 38.9 & 36.9 & \textbf{56.6} & 47.5 & 33.8\\
+    Qasper\dag & 61.4 & 63.8 & \textbf{81.1} & 71.4 & 70.4\\
+    MultifieldQA & 57.4 & 61.3 & \textbf{87.1} & 77.8 & 65.4\\
+    HotpotQA\dag & 68.1 & 62.7 & \textbf{90.9} & 83.6 & 74.5\\
+    2WikiMQA\dag & 64.2 & 71.3 & \textbf{93.7} & 77.0 & 78.1\\
+    MuSiQue\dag & 66.3 & 65.6 & \textbf{91.6} & 78.6 & 78.5\\
+    GovReport & 41.1 & 38.6 & \textbf{53.8} & 46.5 & 35.7\\
+    QMSum\dag & 45.3 & 42.3 & \textbf{65.2} & 58.5 & 56.7\\
+    MultiNews & 40.6 & 33.1 & \textbf{41.2} & 35.2 & 32.5\\
+    TREC & 82.7 & 78.4 & \textbf{91.1} & 80.8 & 85.0\\
+    TriviaQA & 53.0 & 49.3 & \textbf{86.8} & 74.1 & 54.8\\
+    SAMSum & 52.6 & 56.6 & \textbf{66.3} & 51.0 & 49.4\\
+    PassageCount\dag & 49.3 & 55.7 & \textbf{90.7} & 90.0 & 48.4\\
+    PassageRetrieval & 69.0 & 67.9 & \textbf{94.9} & 83.4 & 26.8\\
+    LCC & 57.0 & 74.9 & \textbf{85.6} & 74.2 & 69.1\\
+    RepoBench-P & 62.9 & 59.2 & \textbf{88.0} & 70.6 & 55.3\\
+    \textbf{Average} & 56.9 & 57.4 & \textbf{79.0} & 68.8 & 57.1\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3009,28 +2953,27 @@ Pyr+rot\\
 \centering
 \small
 \caption*{Table C2c. 35\% retention.}
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-    NarrativeQA† & 39.5 & \textbf{58.9} & 37.1 & 54.4 & 53.8 & 54.6 & 53.7\\
-    Qasper† & 60.6 & 60.3 & 60.4 & \textbf{77.1} & 73.5 & 77.0 & 73.3\\
-    MultifieldQA & 56.0 & 53.6 & 52.5 & 81.8 & 78.9 & \textbf{82.3} & 79.6\\
-    HotpotQA† & 64.0 & 63.0 & 63.6 & \textbf{88.0} & 81.3 & \textbf{88.0} & 81.8\\
-    2WikiMQA† & 65.4 & 68.9 & 68.1 & \textbf{88.5} & 83.7 & \textbf{88.5} & 83.6\\
-    MuSiQue† & 58.7 & 63.6 & 63.7 & 87.9 & 80.9 & \textbf{88.0} & 81.0\\
-    GovReport & 36.8 & 31.2 & 33.6 & 45.5 & 44.4 & \textbf{46.1} & 44.5\\
-    QMSum† & 39.9 & 42.2 & 40.1 & \textbf{61.6} & 59.6 & 61.5 & 58.9\\
-    MultiNews & \textbf{36.3} & 19.6 & 28.6 & 35.1 & 32.7 & \textbf{36.3} & 32.2\\
-    TREC & 78.9 & 22.0 & 73.3 & 86.8 & \textbf{87.0} & 86.8 & 86.9\\
-    TriviaQA & 42.9 & 42.4 & 42.0 & 79.8 & 76.8 & \textbf{80.5} & 77.0\\
-    SAMSum & 52.9 & 51.7 & 52.6 & 62.8 & 59.3 & \textbf{64.3} & 59.3\\
-    PassageCount† & 39.2 & 52.0 & 54.6 & \textbf{87.3} & 79.3 & 87.1 & 79.2\\
-    PassageRetrieval & 61.9 & 69.0 & 66.2 & \textbf{88.4} & 78.3 & \textbf{88.4} & 77.3\\
-    LCC & 59.5 & 29.0 & 68.4 & 77.8 & 74.9 & \textbf{81.8} & 74.8\\
-    RepoBench-P & 62.6 & 30.6 & 57.6 & 82.0 & 77.6 & \textbf{85.9} & 77.6\\
-    \textbf{Average} & 53.5 & 47.4 & 53.9 & 74.0 & 70.1 & \textbf{74.8} & 70.0\\
+    NarrativeQA\dag & 39.2 & 34.8 & \textbf{54.4} & \textbf{54.4} & 32.0\\
+    Qasper\dag & 60.9 & 60.3 & \textbf{77.1} & 77.0 & 64.9\\
+    MultifieldQA & 56.0 & 53.1 & \textbf{81.8} & \textbf{81.8} & 62.8\\
+    HotpotQA\dag & 64.1 & 63.0 & \textbf{88.0} & \textbf{88.0} & 70.1\\
+    2WikiMQA\dag & 65.6 & 68.3 & \textbf{88.5} & 88.3 & 76.4\\
+    MuSiQue\dag & 58.8 & 63.6 & \textbf{87.9} & \textbf{87.9} & 70.8\\
+    GovReport & 36.7 & 33.4 & \textbf{45.5} & \textbf{45.5} & 35.7\\
+    QMSum\dag & 40.1 & 41.1 & \textbf{61.6} & \textbf{61.6} & 48.9\\
+    MultiNews & 35.5 & 28.0 & 35.1 & \textbf{35.6} & 29.4\\
+    TREC & 79.4 & 72.4 & 86.8 & \textbf{87.0} & 82.4\\
+    TriviaQA & 42.8 & 42.4 & 79.8 & \textbf{80.4} & 47.5\\
+    SAMSum & 50.9 & 53.3 & 62.8 & \textbf{62.9} & 46.5\\
+    PassageCount\dag & 41.3 & 54.6 & \textbf{87.3} & 87.0 & 35.5\\
+    PassageRetrieval & 61.9 & 66.1 & \textbf{88.4} & \textbf{88.4} & 21.2\\
+    LCC & 53.6 & 69.2 & \textbf{77.8} & \textbf{77.8} & 61.8\\
+    RepoBench-P & 54.6 & 57.7 & \textbf{82.0} & 81.9 & 45.6\\
+    \textbf{Average} & 52.6 & 53.8 & 74.0 & \textbf{74.1} & 52.0\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3047,45 +2990,27 @@ $n = 100$ per task.}
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-NarrativeQA† & 22.3 & 57.5 & 58.0 & 79.6 & \textbf{81.7} & 78.1 &
-80.6\\
-Qasper† & 12.8 & 43.9 & 43.7 & 67.8 & 67.5 & \textbf{71.5} &
-68.4\\
-MultifieldQA & 20.1 & 54.3 & 52.9 & \textbf{82.1} & 81.6 & 79.9 &
-78.6\\
-HotpotQA† & 24.9 & 79.4 & 81.2 & \textbf{93.8} & 92.8 & 93.1 &
-92.3\\
-2WikiMQA† & 12.2 & 71.6 & 71.6 & 90.9 & 89.2 & 90.7 &
-\textbf{91.9}\\
-MuSiQue† & 19.9 & 66.6 & 65.9 & \textbf{84.1} & 81.2 & 83.7 &
-84.0\\
-GovReport & 32.7 & 37.4 & 37.5 & 45.1 & 45.6 & 45.5 &
-\textbf{45.7}\\
-QMSum† & 26.2 & 41.5 & 42.0 & \textbf{51.8} & 49.6 & 51.3 &
-50.3\\
-MultiNews & 40.4 & 44.8 & 45.1 & 48.3 & \textbf{48.5} & 46.4 &
-47.4\\
-TREC & 14.5 & 20.8 & 21.5 & \textbf{65.0} & 62.9 & 64.0 &
-59.6\\
-TriviaQA & 39.7 & 81.9 & 81.7 & 91.6 & 90.2 & \textbf{92.4} &
-90.0\\
-SAMSum & 22.2 & 42.0 & 44.0 & \textbf{59.2} & 56.7 & 58.5 &
-55.3\\
-PassageCount† & 26.4 & 84.9 & 84.1 & 88.6 & \textbf{88.7} & 87.2 &
-83.0\\
-PassageRetrieval & 45.7 & 89.4 & 88.9 & \textbf{97.6} & 90.3 & 96.2 &
-91.2\\
-LCC & 24.0 & 39.5 & 39.4 & \textbf{54.9} & 41.0 & 50.8 &
-40.7\\
-RepoBench-P & 14.0 & 40.5 & 39.7 & \textbf{51.3} & 43.6 & 48.5 &
-44.1\\
-\textbf{Average} & 24.9 & 56.0 & 56.1 & \textbf{72.0} & 69.4 & 71.1 &
-68.9\\
+    NarrativeQA\dagger & 22.3 & 57.5 & \textbf{79.6} & 78.1 & 59.3\\
+    Qasper\dagger & 12.8 & 43.9 & 67.8 & \textbf{71.5} & 44.5\\
+    MultifieldQA & 20.1 & 54.3 & \textbf{82.1} & 79.9 & 57.8\\
+    HotpotQA\dagger & 24.9 & 79.4 & \textbf{93.8} & 93.1 & 82.5\\
+    2WikiMQA\dagger & 12.2 & 71.6 & \textbf{90.9} & 90.7 & 73.2\\
+    MuSiQue\dagger & 19.9 & 66.6 & \textbf{84.1} & 83.7 & 67.2\\
+    GovReport & 32.7 & 37.4 & 45.1 & \textbf{45.5} & 37.7\\
+    QMSum\dagger & 26.2 & 41.5 & \textbf{51.8} & 51.3 & 44.0\\
+    MultiNews & 40.4 & 44.8 & \textbf{48.3} & 46.4 & 47.9\\
+    TREC & 14.5 & 20.8 & \textbf{65.0} & 64.0 & 23.7\\
+    TriviaQA & 39.7 & 81.9 & 91.6 & \textbf{92.4} & 79.2\\
+    SAMSum & 22.2 & 42.0 & \textbf{59.2} & 58.5 & 41.8\\
+    PassageCount\dagger & 26.4 & 84.9 & \textbf{88.6} & 87.2 & 84.9\\
+    PassageRetrieval & 45.7 & 89.4 & \textbf{97.6} & 96.2 & 87.7\\
+    LCC & 24.0 & 39.5 & \textbf{54.9} & 50.8 & 38.8\\
+    RepoBench-P & 14.0 & 40.5 & \textbf{51.3} & 48.5 & 39.0\\
+    \textbf{Average} & 24.9 & 56.0 & \textbf{72.0} & 71.1 & 56.8\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3098,45 +3023,27 @@ instruct model output. Bold = best per row. $n = 100$ per task.}
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-NarrativeQA† & 27.1 & 62.9 & 62.9 & 87.1 & 85.1 & \textbf{89.5} &
-86.3\\
-Qasper† & 27.8 & 54.7 & 55.0 & \textbf{85.4} & 84.1 & 84.8 &
-80.5\\
-MultifieldQA & 39.9 & 63.6 & 63.8 & \textbf{89.8} & 86.3 & 89.6 &
-85.3\\
-HotpotQA† & 37.3 & 84.3 & 83.4 & 96.6 & 95.1 & \textbf{97.1} &
-96.6\\
-2WikiMQA† & 31.0 & 75.4 & 75.3 & 95.1 & 91.7 & \textbf{96.1} &
-93.5\\
-MuSiQue† & 29.6 & 66.0 & 66.8 & \textbf{91.1} & 90.9 & 88.4 &
-87.0\\
-GovReport & 44.5 & 46.7 & 47.1 & \textbf{52.9} & 52.6 & 51.5 &
-51.3\\
-QMSum† & 33.0 & 45.1 & 45.4 & 62.9 & 59.3 & \textbf{64.7} &
-59.9\\
-MultiNews & 63.0 & 63.2 & 62.8 & 67.1 & \textbf{67.2} & 66.6 &
-66.3\\
-TREC & 41.8 & 23.0 & 22.7 & 72.0 & 69.3 & \textbf{72.6} &
-68.8\\
-TriviaQA & 60.6 & 91.1 & 90.0 & \textbf{96.4} & 94.1 & \textbf{96.4} &
-94.6\\
-SAMSum & 24.6 & 51.0 & 47.9 & 72.0 & 67.7 & \textbf{73.4} &
-69.2\\
-PassageCount† & 1.8 & 85.6 & 85.6 & \textbf{94.7} & 93.0 & 93.8 &
-93.3\\
-PassageRetrieval & 48.5 & 88.5 & 88.6 & \textbf{98.9} & 96.0 & 98.4 &
-97.6\\
-LCC & 52.9 & 45.9 & 46.9 & \textbf{80.8} & 75.5 & 80.0 &
-71.4\\
-RepoBench-P & 28.7 & 48.2 & 48.5 & \textbf{67.4} & 63.5 & 65.8 &
-62.3\\
-\textbf{Average} & 37.0 & 62.2 & 62.0 & \textbf{81.9} & 79.5 & 81.8 &
-79.0\\
+    NarrativeQA\dagger & 27.1 & 62.9 & 87.1 & \textbf{89.5} & 68.8\\
+    Qasper\dagger & 27.8 & 54.7 & \textbf{85.4} & 84.8 & 64.4\\
+    MultifieldQA & 39.9 & 63.6 & \textbf{89.8} & 89.6 & 70.2\\
+    HotpotQA\dagger & 37.3 & 84.3 & 96.6 & \textbf{97.1} & 86.1\\
+    2WikiMQA\dagger & 31.0 & 75.4 & 95.1 & \textbf{96.1} & 80.2\\
+    MuSiQue\dagger & 29.6 & 66.0 & \textbf{91.1} & 88.4 & 73.5\\
+    GovReport & 44.5 & 46.7 & \textbf{52.9} & 51.5 & 47.6\\
+    QMSum\dagger & 33.0 & 45.1 & 62.9 & \textbf{64.7} & 51.2\\
+    MultiNews & 63.0 & 63.2 & \textbf{67.1} & 66.6 & 65.1\\
+    TREC & 41.8 & 23.0 & 72.0 & \textbf{72.6} & 43.6\\
+    TriviaQA & 60.6 & 91.1 & 96.4 & \textbf{96.4} & 85.3\\
+    SAMSum & 24.6 & 51.0 & 72.0 & \textbf{73.4} & 52.2\\
+    PassageCount\dagger & 1.8 & 85.6 & \textbf{94.7} & 93.8 & 85.0\\
+    PassageRetrieval & 48.5 & 88.5 & \textbf{98.9} & 98.4 & 88.6\\
+    LCC & 52.9 & 45.9 & \textbf{80.8} & 80.0 & 58.6\\
+    RepoBench-P & 28.7 & 48.2 & \textbf{67.4} & 65.8 & 45.4\\
+    \textbf{Average} & 37.0 & 62.2 & \textbf{81.9} & 81.8 & 66.6\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3151,45 +3058,27 @@ $n = 100$ per task.}
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-NarrativeQA† & 13.5 & 49.3 & 48.4 & \textbf{68.5} & 65.4 & 63.4 &
-62.6\\
-Qasper† & 16.3 & 43.6 & 44.1 & \textbf{65.1} & 61.3 & 62.0 &
-60.2\\
-MultifieldQA & 23.5 & 40.2 & 40.5 & \textbf{69.2} & 65.4 & 67.8 &
-64.0\\
-HotpotQA† & 30.1 & 61.4 & 62.9 & 83.4 & 83.4 & 83.4 &
-\textbf{83.9}\\
-2WikiMQA† & 13.1 & 66.4 & 64.9 & 78.7 & 72.5 & \textbf{80.8} &
-70.6\\
-MuSiQue† & 18.0 & 54.7 & 55.2 & 75.9 & 75.3 & 74.8 &
-\textbf{77.2}\\
-GovReport & 30.0 & 28.5 & 29.1 & \textbf{42.5} & 40.6 & 40.9 &
-41.4\\
-QMSum† & 23.9 & 37.7 & 37.7 & \textbf{51.1} & 50.5 & 49.2 &
-48.8\\
-MultiNews & 37.6 & 38.4 & 37.9 & 44.8 & \textbf{45.3} & 44.2 &
-44.2\\
-TREC & 14.2 & 32.4 & 30.5 & 49.2 & 45.8 & \textbf{52.6} &
-50.1\\
-TriviaQA & 39.9 & 85.2 & 84.1 & 92.6 & 91.7 & \textbf{93.4} &
-93.3\\
-SAMSum & 47.2 & 57.6 & 57.5 & 69.5 & 67.8 & \textbf{70.8} &
-68.2\\
-PassageCount† & 4.6 & 22.4 & 23.6 & 44.1 & \textbf{45.1} & 41.3 &
-38.1\\
-PassageRetrieval & 49.1 & 62.0 & 62.0 & \textbf{92.5} & 81.5 & 92.0 &
-83.0\\
-LCC & 29.6 & 40.3 & 39.3 & \textbf{52.4} & 49.3 & 51.4 &
-49.6\\
-RepoBench-P & 20.2 & 33.5 & 32.6 & \textbf{42.4} & 39.6 & 39.2 &
-39.9\\
-\textbf{Average} & 25.7 & 47.1 & 46.9 & \textbf{63.9} & 61.3 & 63.0 &
-60.9\\
+    NarrativeQA\dagger & 13.5 & 49.3 & \textbf{68.5} & 63.4 & 48.0\\
+    Qasper\dagger & 16.3 & 43.6 & \textbf{65.1} & 62.0 & 42.9\\
+    MultifieldQA & 23.5 & 40.2 & \textbf{69.2} & 67.8 & 41.6\\
+    HotpotQA\dagger & 30.1 & 61.4 & 83.4 & \textbf{83.4} & 63.3\\
+    2WikiMQA\dagger & 13.1 & 66.4 & 78.7 & \textbf{80.8} & 65.2\\
+    MuSiQue\dagger & 18.0 & 54.7 & \textbf{75.9} & 74.8 & 55.3\\
+    GovReport & 30.0 & 28.5 & \textbf{42.5} & 40.9 & 30.4\\
+    QMSum\dagger & 23.9 & 37.7 & \textbf{51.1} & 49.2 & 39.9\\
+    MultiNews & 37.6 & 38.4 & \textbf{44.8} & 44.2 & 42.8\\
+    TREC & 14.2 & 32.4 & 49.2 & \textbf{52.6} & 33.8\\
+    TriviaQA & 39.9 & 85.2 & 92.6 & \textbf{93.4} & 80.7\\
+    SAMSum & 47.2 & 57.6 & 69.5 & \textbf{70.8} & 57.4\\
+    PassageCount\dagger & 4.6 & 22.4 & \textbf{44.1} & 41.3 & 20.7\\
+    PassageRetrieval & 49.1 & 62.0 & \textbf{92.5} & 92.0 & 61.0\\
+    LCC & 29.6 & 40.3 & \textbf{52.4} & 51.4 & 41.0\\
+    RepoBench-P & 20.2 & 33.5 & \textbf{42.4} & 39.2 & 30.9\\
+    \textbf{Average} & 25.7 & 47.1 & \textbf{63.9} & 63.0 & 47.2\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3197,51 +3086,32 @@ RepoBench-P & 20.2 & 33.5 & 32.6 & \textbf{42.4} & 39.6 & 39.2 &
 
 \textbf{Table C4b. Output Faithfulness (\%) per task, Mistral-7B-Instruct-v0.3,
 budget = 1024 tokens (higher is better). Bold = best per row.
-Streaming = no re-rotation; Str+rot = with re-rotation.
 $n = 100$ per task.}
 
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr & Random\\
 \midrule
-NarrativeQA† & 33.6 & 38.9 & 40.2 & 50.6 & 47.6 & \textbf{51.6} &
-48.2\\
-Qasper† & 27.4 & 50.6 & 50.8 & \textbf{75.3} & 73.3 & 72.6 &
-69.6\\
-MultifieldQA & 45.5 & 49.8 & 48.1 & 66.1 & 64.6 & \textbf{66.9} &
-65.7\\
-HotpotQA† & 39.8 & 55.8 & 54.6 & 68.1 & 67.4 & \textbf{69.9} &
-67.7\\
-2WikiMQA† & 29.1 & 62.3 & 61.5 & 73.2 & 72.9 & \textbf{77.1} &
-71.9\\
-MuSiQue† & 29.9 & 47.6 & 46.5 & 57.3 & 56.1 & \textbf{57.9} &
-56.0\\
-GovReport & 42.1 & 37.2 & 36.6 & \textbf{42.5} & 42.2 & 41.3 &
-42.2\\
-QMSum† & 37.9 & 37.7 & 37.0 & \textbf{47.5} & 46.5 & \textbf{47.5} &
-43.8\\
-MultiNews & 57.3 & 56.4 & 56.5 & \textbf{62.3} & 61.9 & 61.7 &
-60.5\\
-TREC & \textbf{36.3} & 12.1 & 12.1 & 30.2 & 25.8 & 30.5 &
-25.1\\
-TriviaQA & 58.3 & 74.1 & 73.6 & 74.7 & 74.7 & \textbf{74.9} &
-74.6\\
-SAMSum & 34.4 & 33.7 & 32.1 & \textbf{39.5} & 36.7 & 36.6 &
-35.0\\
-PassageCount† & 4.3 & 8.9 & 9.3 & \textbf{21.5} & 16.3 & 17.6 &
-15.7\\
-PassageRetrieval & 45.5 & 61.5 & 61.0 & 81.0 & \textbf{82.0} & 81.5 &
-80.5\\
-LCC & 35.7 & 43.7 & 43.5 & \textbf{65.2} & 60.3 & 64.3 &
-58.6\\
-RepoBench-P & \textbf{31.5} & 22.0 & 21.6 & 28.8 & 27.8 & 26.6 &
-26.8\\
-\textbf{Average} & 36.8 & 43.3 & 42.8 & \textbf{55.2} & 53.5 & 54.9 &
-52.6\\
+    NarrativeQA\dagger & 20.3 & 60.0 & \textbf{84.8} & 81.6 & 65.4\\
+    Qasper\dagger & 25.0 & 54.4 & \textbf{81.2} & 77.3 & 59.4\\
+    MultifieldQA & 39.5 & 52.4 & 76.4 & \textbf{76.8} & 56.3\\
+    HotpotQA\dagger & 37.5 & 69.5 & \textbf{93.9} & 91.8 & 73.7\\
+    2WikiMQA\dagger & 29.1 & 67.4 & 85.2 & \textbf{88.5} & 72.1\\
+    MuSiQue\dagger & 20.6 & 61.0 & \textbf{85.0} & 83.4 & 65.1\\
+    GovReport & 39.5 & 37.0 & \textbf{46.7} & 46.2 & 40.3\\
+    QMSum\dagger & 32.5 & 42.0 & \textbf{63.2} & 60.9 & 47.2\\
+    MultiNews & 57.3 & 56.5 & \textbf{62.6} & 62.2 & 59.5\\
+    TREC & 15.0 & 35.1 & \textbf{64.6} & 63.8 & 44.9\\
+    TriviaQA & 60.9 & 89.1 & \textbf{96.2} & 94.7 & 84.6\\
+    SAMSum & 56.3 & 70.3 & \textbf{82.1} & 78.8 & 64.4\\
+    PassageCount\dagger & 4.9 & 21.1 & 68.7 & \textbf{71.9} & 23.3\\
+    PassageRetrieval & 47.0 & 62.5 & \textbf{97.0} & 95.5 & 67.0\\
+    LCC & 35.0 & 47.1 & \textbf{68.7} & 68.1 & 49.8\\
+    RepoBench-P & 22.0 & 43.1 & \textbf{61.5} & 56.8 & 35.9\\
+    \textbf{Average} & 33.9 & 54.3 & \textbf{76.1} & 74.9 & 56.8\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3254,35 +3124,34 @@ RepoBench-P & \textbf{31.5} & 22.0 & 21.6 & 28.8 & 27.8 & 26.6 &
 \section{Appendix D: KL Faithfulness --- Per-Task
 Results}\label{appendix-d-kl-faithfulness-per-task-results}}
 
-\textbf{Tables A1a--A1c. KL Faithfulness per task, Llama-3.1-8B (lower
+\textbf{Tables D1a--D1c. KL Faithfulness per task, Llama-3.1-8B (lower
 is better). Bold = best per row.}
 
 \begin{table}[H]
 \centering
 \small
 \caption*{Table D1a. 65\% retention.}
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr\\
 \midrule
-NarrativeQA† & 0.022 & 1.139 & 0.045 & 0.787 & \textbf{0.010} & 1.337 & 0.012\\
-Qasper† & 0.281 & 1.311 & 0.237 & 0.881 & \textbf{0.092} & 1.229 & 0.095\\
-MultifieldQA & 0.262 & 1.767 & 0.302 & 1.316 & \textbf{0.037} & 1.535 & 0.045\\
-HotpotQA† & 0.203 & 2.366 & 0.069 & 1.935 & \textbf{0.006} & 2.181 & 0.008\\
-2WikiMQA† & 0.221 & 2.311 & 0.103 & 1.714 & 0.008 & 2.422 & \textbf{0.004}\\
-MuSiQue† & 0.197 & 2.290 & 0.098 & 1.747 & \textbf{0.007} & 2.523 & 0.010\\
-GovReport & 0.280 & 1.071 & 0.385 & 0.532 & 0.128 & 0.334 & \textbf{0.125}\\
-QMSum† & 0.081 & 0.530 & 0.093 & 0.393 & 0.055 & 0.438 & \textbf{0.047}\\
-MultiNews & 0.585 & 1.787 & 0.643 & 1.050 & \textbf{0.322} & 0.721 & 0.375\\
-TREC & 0.202 & 2.685 & 0.084 & 1.454 & 0.011 & 1.526 & \textbf{0.006}\\
-TriviaQA & 0.076 & 1.568 & 0.008 & 1.151 & \textbf{0.001} & 1.647 & 0.001\\
-SAMSum & 0.011 & 1.082 & 0.015 & 0.791 & \textbf{0.004} & 1.182 & 0.004\\
-PassageCount† & 0.059 & 1.962 & 0.002 & 1.560 & \textbf{0.000} & 1.626 & 0.000\\
-PassageRetrieval & 0.188 & 2.030 & 0.032 & 1.624 & \textbf{0.002} & 1.416 & 0.003\\
-LCC & 0.076 & 1.315 & 0.085 & 0.881 & \textbf{0.007} & 1.142 & 0.007\\
-RepoBench-P & 0.048 & 1.010 & 0.050 & 0.702 & 0.004 & 1.052 & \textbf{0.004}\\
-\textbf{Average} & 0.175 & 1.639 & 0.141 & 1.157 & \textbf{0.043} & 1.394 & 0.047\\
+    NarrativeQA\dagger & 0.022 & 0.045 & \textbf{0.006} & 0.006\\
+    Qasper\dagger & 0.281 & 0.237 & 0.075 & \textbf{0.071}\\
+    MultifieldQA & 0.262 & 0.302 & 0.027 & \textbf{0.017}\\
+    HotpotQA\dagger & 0.203 & 0.069 & 0.002 & \textbf{0.002}\\
+    2WikiMQA\dagger & 0.221 & 0.103 & 0.004 & \textbf{0.001}\\
+    MuSiQue\dagger & 0.197 & 0.098 & \textbf{0.002} & 0.003\\
+    GovReport & 0.280 & 0.385 & 0.110 & \textbf{0.084}\\
+    QMSum\dagger & 0.081 & 0.093 & 0.045 & \textbf{0.031}\\
+    MultiNews & 0.585 & 0.643 & 0.300 & \textbf{0.281}\\
+    TREC & 0.202 & 0.084 & 0.011 & \textbf{0.004}\\
+    TriviaQA & 0.076 & 0.008 & \textbf{0.000} & 0.000\\
+    SAMSum & 0.011 & 0.015 & \textbf{0.002} & 0.002\\
+    PassageCount\dagger & 0.059 & 0.002 & \textbf{-0.000} & -0.000\\
+    PassageRetrieval & 0.188 & 0.032 & \textbf{0.000} & 0.000\\
+    LCC & 0.076 & 0.085 & 0.005 & \textbf{0.005}\\
+    RepoBench-P & 0.048 & 0.050 & 0.002 & \textbf{0.002}\\
+    \textbf{Average} & 0.175 & 0.141 & 0.037 & \textbf{0.032}\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3291,28 +3160,27 @@ RepoBench-P & 0.048 & 1.010 & 0.050 & 0.702 & 0.004 & 1.052 & \textbf{0.004}\\
 \centering
 \small
 \caption*{Table D1b. 50\% retention.}
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr\\
 \midrule
-NarrativeQA† & 0.026 & 0.827 & 0.068 & 0.806 & \textbf{0.019} & 1.380 & 0.067\\
-Qasper† & 0.457 & 1.185 & 0.447 & 0.810 & \textbf{0.165} & 1.394 & 0.220\\
-MultifieldQA & 0.359 & 1.261 & 0.417 & 1.024 & \textbf{0.065} & 1.619 & 0.098\\
-HotpotQA† & 0.212 & 1.348 & 0.097 & 1.519 & \textbf{0.012} & 2.245 & 0.027\\
-2WikiMQA† & 0.278 & 1.284 & 0.198 & 1.286 & 0.021 & 2.282 & \textbf{0.020}\\
-MuSiQue† & 0.188 & 1.367 & 0.123 & 1.457 & \textbf{0.013} & 2.507 & 0.021\\
-GovReport & 0.327 & 1.128 & 0.466 & 0.488 & 0.223 & 0.504 & \textbf{0.223}\\
-QMSum† & 0.088 & 0.506 & 0.125 & 0.369 & 0.086 & 0.484 & \textbf{0.082}\\
-MultiNews & 0.759 & 1.936 & 0.784 & 1.002 & \textbf{0.551} & 1.099 & 0.654\\
-TREC & 0.260 & 1.186 & 0.183 & 1.114 & \textbf{0.016} & 1.711 & 0.021\\
-TriviaQA & 0.095 & 0.872 & 0.015 & 0.963 & \textbf{0.001} & 1.622 & 0.005\\
-SAMSum & 0.012 & 0.830 & 0.020 & 0.619 & \textbf{0.008} & 1.199 & 0.017\\
-PassageCount† & 0.055 & 1.157 & 0.003 & 1.468 & \textbf{0.000} & 1.538 & 0.001\\
-PassageRetrieval & 0.188 & 1.360 & 0.043 & 1.504 & \textbf{0.004} & 1.378 & 0.007\\
-LCC & 0.105 & 0.968 & 0.114 & 0.677 & \textbf{0.029} & 1.238 & 0.045\\
-RepoBench-P & 0.065 & 0.745 & 0.088 & 0.580 & \textbf{0.011} & 1.016 & 0.023\\
-\textbf{Average} & 0.217 & 1.122 & 0.199 & 0.981 & \textbf{0.077} & 1.451 & 0.096\\
+    NarrativeQA\dagger & 0.026 & 0.068 & \textbf{0.013} & 0.052\\
+    Qasper\dagger & 0.457 & 0.446 & \textbf{0.148} & 0.185\\
+    MultifieldQA & 0.359 & 0.417 & \textbf{0.049} & 0.073\\
+    HotpotQA\dagger & 0.212 & 0.097 & \textbf{0.005} & 0.019\\
+    2WikiMQA\dagger & 0.278 & 0.197 & \textbf{0.014} & 0.015\\
+    MuSiQue\dagger & 0.188 & 0.123 & \textbf{0.005} & 0.011\\
+    GovReport & 0.327 & 0.467 & 0.206 & \textbf{0.183}\\
+    QMSum\dagger & 0.088 & 0.125 & 0.078 & \textbf{0.065}\\
+    MultiNews & 0.759 & 0.784 & \textbf{0.524} & 0.560\\
+    TREC & 0.260 & 0.182 & \textbf{0.014} & 0.020\\
+    TriviaQA & 0.095 & 0.015 & \textbf{0.000} & 0.004\\
+    SAMSum & 0.012 & 0.020 & \textbf{0.006} & 0.014\\
+    PassageCount\dagger & 0.055 & 0.003 & \textbf{-0.000} & 0.000\\
+    PassageRetrieval & 0.188 & 0.044 & \textbf{0.000} & 0.000\\
+    LCC & 0.105 & 0.114 & \textbf{0.027} & 0.043\\
+    RepoBench-P & 0.065 & 0.088 & \textbf{0.008} & 0.021\\
+    \textbf{Average} & 0.217 & 0.199 & \textbf{0.069} & 0.079\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3321,61 +3189,59 @@ RepoBench-P & 0.065 & 0.745 & 0.088 & 0.580 & \textbf{0.011} & 1.016 & 0.023\\
 \centering
 \small
 \caption*{Table D1c. 35\% retention.}
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr\\
 \midrule
-NarrativeQA† & 0.045 & 0.545 & 0.091 & 0.559 & \textbf{0.030} & 0.559 & 0.030\\
-Qasper† & 0.637 & 1.089 & 0.620 & 0.867 & \textbf{0.281} & 0.858 & 0.281\\
-MultifieldQA & 0.475 & 1.119 & 0.499 & 0.925 & \textbf{0.122} & 0.914 & 0.122\\
-HotpotQA† & 0.220 & 1.398 & 0.114 & 1.246 & \textbf{0.018} & 1.252 & 0.018\\
-2WikiMQA† & 0.351 & 1.272 & 0.238 & 1.040 & \textbf{0.049} & 1.052 & 0.049\\
-MuSiQue† & 0.191 & 1.561 & 0.182 & 1.243 & \textbf{0.022} & 1.236 & 0.022\\
-GovReport & 0.423 & 0.717 & 0.583 & 0.529 & \textbf{0.351} & 0.529 & 0.351\\
-QMSum† & \textbf{0.112} & 0.334 & 0.160 & 0.358 & 0.122 & 0.358 & 0.122\\
-MultiNews & 0.947 & 1.132 & 0.961 & 1.063 & 0.822 & 1.064 & \textbf{0.821}\\
-TREC & 0.296 & 1.512 & 0.325 & 0.812 & \textbf{0.040} & 0.823 & 0.040\\
-TriviaQA & 0.157 & 0.879 & 0.044 & 0.832 & \textbf{0.001} & 0.833 & 0.001\\
-SAMSum & 0.017 & 0.372 & 0.031 & 0.475 & \textbf{0.016} & 0.475 & 0.016\\
-PassageCount† & 0.116 & 1.038 & 0.004 & 1.122 & \textbf{0.001} & 1.134 & 0.001\\
-PassageRetrieval & 0.282 & 1.226 & 0.050 & 1.247 & \textbf{0.009} & 1.240 & 0.009\\
-LCC & 0.145 & 0.505 & 0.149 & 0.547 & \textbf{0.070} & 0.550 & 0.070\\
-RepoBench-P & 0.087 & 0.546 & 0.123 & 0.513 & \textbf{0.027} & 0.511 & 0.027\\
-\textbf{Average} & 0.281 & 0.953 & 0.261 & 0.836 & \textbf{0.124} & 0.837 & \textbf{0.124}\\
+    NarrativeQA\dagger & 0.045 & 0.091 & \textbf{0.026} & 0.026\\
+    Qasper\dagger & 0.637 & 0.620 & 0.267 & \textbf{0.267}\\
+    MultifieldQA & 0.475 & 0.500 & \textbf{0.099} & 0.099\\
+    HotpotQA\dagger & 0.220 & 0.114 & 0.012 & \textbf{0.012}\\
+    2WikiMQA\dagger & 0.351 & 0.237 & \textbf{0.038} & 0.039\\
+    MuSiQue\dagger & 0.191 & 0.182 & \textbf{0.012} & 0.012\\
+    GovReport & 0.423 & 0.583 & 0.337 & \textbf{0.337}\\
+    QMSum\dagger & \textbf{0.112} & 0.160 & 0.116 & 0.116\\
+    MultiNews & 0.947 & 0.961 & 0.807 & \textbf{0.806}\\
+    TREC & 0.296 & 0.323 & \textbf{0.043} & 0.043\\
+    TriviaQA & 0.157 & 0.043 & \textbf{0.000} & 0.000\\
+    SAMSum & 0.017 & 0.030 & 0.015 & \textbf{0.014}\\
+    PassageCount\dagger & 0.116 & 0.003 & \textbf{0.000} & 0.000\\
+    PassageRetrieval & 0.282 & 0.050 & 0.000 & \textbf{0.000}\\
+    LCC & 0.145 & 0.149 & \textbf{0.069} & 0.069\\
+    RepoBench-P & 0.087 & 0.123 & 0.022 & \textbf{0.022}\\
+    \textbf{Average} & 0.281 & 0.261 & 0.116 & \textbf{0.116}\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{Tables A2a--A2c. KL Faithfulness per task, Mistral-7B-v0.3
+\textbf{Tables D2a--D2c. KL Faithfulness per task, Mistral-7B-v0.3
 (lower is better). Bold = best per row.}
 
 \begin{table}[H]
 \centering
 \small
 \caption*{Table D2a. 65\% retention.}
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr\\
 \midrule
-    NarrativeQA† & \textbf{0.003} & 0.927 & 0.125 & 0.445 & 0.006 & 0.780 & 0.005\\
-    Qasper† & 0.071 & 0.465 & 0.067 & 0.274 & \textbf{0.023} & 0.472 & 0.026\\
-    MultifieldQA & 0.148 & 1.010 & 0.201 & 0.639 & \textbf{0.018} & 0.718 & 0.024\\
-    HotpotQA† & 0.195 & 1.057 & 0.198 & 0.714 & \textbf{0.010} & 0.725 & 0.014\\
-    2WikiMQA† & 0.262 & 1.149 & 0.208 & 0.710 & \textbf{0.010} & 0.683 & 0.018\\
-    MuSiQue† & 0.183 & 1.015 & 0.179 & 0.708 & \textbf{0.008} & 0.679 & 0.013\\
-    GovReport & 0.180 & 1.221 & 0.281 & 0.578 & \textbf{0.081} & 0.294 & 0.087\\
-    QMSum† & 0.067 & 0.411 & 0.082 & 0.201 & 0.022 & 0.183 & \textbf{0.021}\\
-    MultiNews & 0.586 & 2.067 & 0.678 & 1.076 & \textbf{0.264} & 0.626 & 0.289\\
-    TREC & 0.012 & 0.810 & 0.046 & 0.359 & \textbf{0.004} & 0.703 & 0.005\\
-    TriviaQA & 0.039 & 1.694 & 0.070 & 1.104 & \textbf{0.002} & 1.379 & \textbf{0.002}\\
-    SAMSum & 0.021 & 1.501 & 0.040 & 1.030 & \textbf{0.006} & 1.050 & 0.007\\
-    PassageCount† & 0.037 & 1.295 & 0.069 & 1.141 & \textbf{0.002} & 0.897 & \textbf{0.002}\\
-    PassageRetrieval & 0.195 & 1.453 & 0.204 & 0.971 & \textbf{0.009} & 0.541 & 0.015\\
-    LCC & 0.055 & 1.334 & 0.041 & 0.861 & \textbf{0.007} & 1.070 & 0.008\\
-    RepoBench-P & 0.076 & 1.283 & 0.087 & 0.914 & \textbf{0.004} & 0.940 & \textbf{0.004}\\
-    \textbf{Average}  &  0.133  &  1.168 &  0.161  &  0.733  &  \textbf{0.030}  &  0.734  &  0.034\\
+    NarrativeQA\dagger & \textbf{0.003} & 0.123 & 0.005 & 0.005\\
+    Qasper\dagger & 0.071 & 0.067 & \textbf{0.022} & 0.023\\
+    MultifieldQA & 0.148 & 0.202 & \textbf{0.014} & 0.018\\
+    HotpotQA\dagger & 0.195 & 0.198 & \textbf{0.002} & 0.003\\
+    2WikiMQA\dagger & 0.262 & 0.208 & \textbf{0.005} & 0.005\\
+    MuSiQue\dagger & 0.183 & 0.177 & \textbf{0.005} & 0.006\\
+    GovReport & 0.180 & 0.281 & \textbf{0.079} & 0.083\\
+    QMSum\dagger & 0.067 & 0.081 & 0.021 & \textbf{0.018}\\
+    MultiNews & 0.586 & 0.678 & \textbf{0.256} & 0.278\\
+    TREC & 0.012 & 0.044 & \textbf{0.003} & 0.004\\
+    TriviaQA & 0.039 & 0.068 & 0.001 & \textbf{0.001}\\
+    SAMSum & 0.021 & 0.039 & \textbf{0.005} & 0.005\\
+    PassageCount\dagger & 0.037 & 0.067 & 0.000 & \textbf{0.000}\\
+    PassageRetrieval & 0.195 & 0.204 & \textbf{0.003} & 0.003\\
+    LCC & 0.055 & 0.041 & \textbf{0.006} & 0.008\\
+    RepoBench-P & 0.076 & 0.086 & \textbf{0.002} & 0.003\\
+    \textbf{Average} & 0.133 & 0.160 & \textbf{0.027} & 0.029\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3384,28 +3250,27 @@ Pyr+rot\\
 \centering
 \small
 \caption*{Table D2b. 50\% retention.}
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr\\
 \midrule
-    NarrativeQA† & \textbf{0.003} & 0.915 & 0.149 & 0.349 & 0.014 & 0.782 & 0.017\\
-    Qasper† & 0.130 & 0.588 & 0.129 & 0.248 & \textbf{0.047} & 0.506 & 0.072\\
-    MultifieldQA & 0.181 & 1.023 & 0.239 & 0.526 & \textbf{0.040} & 0.789 & 0.058\\
-    HotpotQA† & 0.206 & 1.179 & 0.262 & 0.678 & \textbf{0.016} & 0.722 & 0.041\\
-    2WikiMQA† & 0.314 & 1.253 & 0.296 & 0.657 & \textbf{0.022} & 0.739 & 0.059\\
-    MuSiQue† & 0.186 & 1.056 & 0.242 & 0.690 & \textbf{0.018} & 0.711 & 0.048\\
-    GovReport & 0.217 & 1.397 & 0.335 & 0.486 & \textbf{0.151} & 0.455 & 0.185\\
-    QMSum† & 0.071 & 0.457 & 0.100 & 0.196 & \textbf{0.039} & 0.210 & 0.042\\
-    MultiNews & 0.747 & 2.349 & 0.805 & 0.995 & \textbf{0.497} & 0.982 & 0.584\\
-    TREC & 0.017 & 1.000 & 0.054 & 0.193 & \textbf{0.007} & 0.676 & 0.016\\
-    TriviaQA & 0.044 & 1.843 & 0.094 & 0.768 & \textbf{0.003} & 1.376 & 0.012\\
-    SAMSum & 0.023 & 1.517 & 0.045 & 0.814 & \textbf{0.012} & 1.102 & 0.019\\
-    PassageCount† & 0.040 & 1.133 & 0.076 & 1.107 & \textbf{0.005} & 0.908 & \textbf{0.005}\\
-    PassageRetrieval & 0.195 & 1.412 & 0.225 & 0.871 & \textbf{0.019} & 0.654 & 0.044\\
-    LCC & 0.070 & 1.300 & 0.053 & 0.652 & \textbf{0.020} & 1.151 & 0.038\\
-    RepoBench-P & 0.088 & 1.325 & 0.115 & 0.678 & \textbf{0.011} & 0.979 & 0.026\\
-    \textbf{Average}  &  0.158  &  1.234 &  0.201  &  0.619  &  \textbf{0.058}  &  0.796  &  0.079\\
+    NarrativeQA\dagger & \textbf{0.003} & 0.139 & 0.013 & 0.016\\
+    Qasper\dagger & 0.130 & 0.129 & \textbf{0.044} & 0.067\\
+    MultifieldQA & 0.181 & 0.239 & \textbf{0.033} & 0.047\\
+    HotpotQA\dagger & 0.206 & 0.261 & \textbf{0.006} & 0.022\\
+    2WikiMQA\dagger & 0.314 & 0.296 & \textbf{0.012} & 0.034\\
+    MuSiQue\dagger & 0.186 & 0.240 & \textbf{0.010} & 0.031\\
+    GovReport & 0.217 & 0.335 & \textbf{0.148} & 0.177\\
+    QMSum\dagger & 0.071 & 0.100 & \textbf{0.036} & 0.036\\
+    MultiNews & 0.747 & 0.805 & \textbf{0.486} & 0.563\\
+    TREC & 0.017 & 0.054 & \textbf{0.007} & 0.014\\
+    TriviaQA & 0.044 & 0.091 & \textbf{0.002} & 0.010\\
+    SAMSum & 0.023 & 0.044 & \textbf{0.011} & 0.015\\
+    PassageCount\dagger & 0.040 & 0.071 & \textbf{0.001} & 0.002\\
+    PassageRetrieval & 0.195 & 0.225 & \textbf{0.008} & 0.018\\
+    LCC & 0.070 & 0.053 & \textbf{0.019} & 0.036\\
+    RepoBench-P & 0.088 & 0.114 & \textbf{0.009} & 0.024\\
+    \textbf{Average} & 0.158 & 0.200 & \textbf{0.053} & 0.070\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3414,28 +3279,27 @@ Pyr+rot\\
 \centering
 \small
 \caption*{Table D2c. 35\% retention.}
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr\\
 \midrule
-    NarrativeQA† & \textbf{0.011} & 0.324 & 0.170 & 0.203 & 0.022 & 0.203 & 0.022\\
-    Qasper† & 0.165 & 0.370 & 0.165 & 0.262 & \textbf{0.086} & 0.262 & \textbf{0.086}\\
-    MultifieldQA & 0.213 & 0.655 & 0.286 & 0.519 & \textbf{0.077} & 0.513 & \textbf{0.077}\\
-    HotpotQA† & 0.218 & 0.810 & 0.310 & 0.632 & \textbf{0.028} & 0.633 & \textbf{0.028}\\
-    2WikiMQA† & 0.362 & 0.959 & 0.365 & 0.690 & \textbf{0.051} & 0.684 & \textbf{0.051}\\
-    MuSiQue† & 0.186 & 0.786 & 0.290 & 0.679 & \textbf{0.041} & 0.687 & \textbf{0.041}\\
-    GovReport & 0.263 & 0.582 & 0.399 & 0.457 & \textbf{0.248} & 0.457 & \textbf{0.248}\\
-    QMSum† & 0.084 & 0.210 & 0.114 & 0.175 & \textbf{0.058} & 0.175 & \textbf{0.058}\\
-    MultiNews & 0.900 & 1.252 & 0.937 & 1.040 & \textbf{0.750} & 1.039 & \textbf{0.750}\\
-    TREC & 0.022 & 0.562 & 0.070 & 0.192 & \textbf{0.017} & 0.192 & \textbf{0.017}\\
-    TriviaQA & 0.062 & 1.029 & 0.146 & 0.725 & \textbf{0.006} & 0.722 & \textbf{0.006}\\
-    SAMSum & 0.027 & 0.746 & 0.054 & 0.741 & \textbf{0.022} & 0.737 & \textbf{0.022}\\
-    PassageCount† & 0.069 & 0.615 & 0.084 & 0.957 & \textbf{0.010} & 0.930 & \textbf{0.010}\\
-    PassageRetrieval & 0.197 & 0.789 & 0.272 & 0.911 & \textbf{0.037} & 0.920 & \textbf{0.037}\\
-    LCC & 0.109 & 0.563 & 0.090 & 0.564 & \textbf{0.050} & 0.564 & \textbf{0.050}\\
-    RepoBench-P & 0.110 & 0.766 & 0.146 & 0.654 & \textbf{0.025} & 0.661 & \textbf{0.025}\\
-    \textbf{Average}  &  0.188  &  0.688 &  0.244  &  0.588  &  \textbf{0.096}  &  0.586  &  \textbf{0.096}\\
+    NarrativeQA\dagger & \textbf{0.011} & 0.165 & 0.021 & 0.021\\
+    Qasper\dagger & 0.165 & 0.165 & \textbf{0.083} & 0.083\\
+    MultifieldQA & 0.213 & 0.285 & \textbf{0.067} & 0.067\\
+    HotpotQA\dagger & 0.218 & 0.306 & \textbf{0.015} & 0.015\\
+    2WikiMQA\dagger & 0.362 & 0.363 & \textbf{0.032} & 0.032\\
+    MuSiQue\dagger & 0.186 & 0.284 & \textbf{0.029} & 0.029\\
+    GovReport & 0.263 & 0.399 & 0.243 & \textbf{0.243}\\
+    QMSum\dagger & 0.084 & 0.115 & \textbf{0.055} & 0.055\\
+    MultiNews & 0.900 & 0.937 & 0.751 & \textbf{0.751}\\
+    TREC & 0.022 & 0.069 & 0.016 & \textbf{0.016}\\
+    TriviaQA & 0.062 & 0.141 & \textbf{0.005} & 0.005\\
+    SAMSum & 0.027 & 0.053 & 0.020 & \textbf{0.020}\\
+    PassageCount\dagger & 0.069 & 0.082 & 0.006 & \textbf{0.006}\\
+    PassageRetrieval & 0.197 & 0.269 & \textbf{0.024} & 0.024\\
+    LCC & 0.109 & 0.090 & 0.048 & \textbf{0.048}\\
+    RepoBench-P & 0.110 & 0.144 & \textbf{0.023} & 0.023\\
+    \textbf{Average} & 0.188 & 0.242 & 0.090 & \textbf{0.090}\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3445,52 +3309,33 @@ Pyr+rot\\
 
 \textbf{Table D3a. KL Faithfulness per task, Llama-3.1-8B-Instruct,
 budget = 256 tokens (lower is better). Bold = best per row.
-Streaming = no re-rotation; Str+rot = with re-rotation.
 $n = 100$ per task.}
 
 \nopagebreak
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr\\
 \midrule
-NarrativeQA† & 1.710 & 1.281 & 0.719 & 0.772 & \textbf{0.163} & 0.898 &
-0.180\\
-Qasper† & 2.632 & 1.597 & 1.265 & 0.823 & \textbf{0.452} & 0.809 &
-0.495\\
-MultifieldQA & 2.508 & 1.600 & 1.099 & 0.775 & \textbf{0.280} & 0.790 &
-0.313\\
-HotpotQA† & 1.696 & 1.090 & 0.352 & 0.607 & \textbf{0.051} & 0.870 &
-0.054\\
-2WikiMQA† & 2.642 & 1.412 & 0.494 & 0.730 & \textbf{0.102} & 0.822 &
-0.110\\
-MuSiQue† & 1.671 & 0.989 & 0.335 & 0.529 & \textbf{0.054} & 0.777 &
-0.076\\
-GovReport & 1.099 & 1.130 & 1.042 & 1.017 & \textbf{0.915} & 1.029 &
-0.944\\
-QMSum† & 1.622 & 1.297 & 1.109 & 0.843 & \textbf{0.612} & 0.905 &
-0.681\\
-MultiNews & 0.931 & 0.922 & 0.847 & 0.931 & \textbf{0.814} & 0.986 &
-0.870\\
-TREC & 1.857 & 1.825 & 1.716 & 0.475 & \textbf{0.325} & 0.547 &
-0.385\\
-TriviaQA & 1.156 & 1.191 & 0.282 & 0.921 & 0.067 & 1.013 &
-\textbf{0.063}\\
-SAMSum & 1.754 & 1.552 & 1.401 & 1.364 & \textbf{0.962} & 1.454 &
-1.039\\
-PassageCount† & 5.799 & 0.658 & 0.070 & 0.486 & 0.012 & 0.889 &
-\textbf{0.011}\\
-PassageRetrieval & 3.783 & 0.446 & 0.190 & 0.699 & 0.051 & 0.864 &
-\textbf{0.041}\\
-LCC & 0.475 & 0.483 & 0.351 & 0.601 & \textbf{0.341} & 0.639 &
-0.397\\
-RepoBench-P & 0.712 & 0.651 & 0.494 & 0.733 & \textbf{0.429} & 0.817 &
-0.499\\
-\textbf{Average} & 2.003 & 1.133 & 0.735 & 0.769 & \textbf{0.352} & 0.882 &
-0.385\\
+    NarrativeQA\dagger & 1.710 & 1.281 & \textbf{0.772} & 0.898\\
+    Qasper\dagger & 2.632 & 1.597 & 0.823 & \textbf{0.809}\\
+    MultifieldQA & 2.508 & 1.600 & \textbf{0.775} & 0.790\\
+    HotpotQA\dagger & 1.696 & 1.090 & \textbf{0.607} & 0.870\\
+    2WikiMQA\dagger & 2.642 & 1.412 & \textbf{0.730} & 0.822\\
+    MuSiQue\dagger & 1.671 & 0.989 & \textbf{0.529} & 0.777\\
+    GovReport & 1.099 & 1.130 & \textbf{1.017} & 1.029\\
+    QMSum\dagger & 1.622 & 1.297 & \textbf{0.843} & 0.905\\
+    MultiNews & 0.931 & \textbf{0.922} & 0.931 & 0.986\\
+    TREC & 1.857 & 1.825 & \textbf{0.475} & 0.547\\
+    TriviaQA & 1.156 & 1.191 & \textbf{0.921} & 1.013\\
+    SAMSum & 1.754 & 1.552 & \textbf{1.364} & 1.454\\
+    PassageCount\dagger & 5.799 & 0.658 & \textbf{0.486} & 0.889\\
+    PassageRetrieval & 3.783 & \textbf{0.446} & 0.699 & 0.864\\
+    LCC & \textbf{0.475} & 0.483 & 0.601 & 0.639\\
+    RepoBench-P & 0.712 & \textbf{0.651} & 0.733 & 0.817\\
+    \textbf{Average} & 2.003 & 1.133 & \textbf{0.769} & 0.882\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3498,52 +3343,33 @@ RepoBench-P & 0.712 & 0.651 & 0.494 & 0.733 & \textbf{0.429} & 0.817 &
 
 \textbf{Table D3b. KL Faithfulness per task, Llama-3.1-8B-Instruct,
 budget = 1024 tokens (lower is better). Bold = best per row.
-Streaming = no re-rotation; Str+rot = with re-rotation.
 $n = 100$ per task.}
 
 \nopagebreak
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr\\
 \midrule
-NarrativeQA† & 1.047 & 1.110 & 0.494 & 0.693 & \textbf{0.055} & 1.161 &
-0.064\\
-Qasper† & 1.770 & 1.236 & 0.922 & 0.556 & \textbf{0.111} & 0.643 &
-0.161\\
-MultifieldQA & 1.608 & 1.395 & 0.764 & 0.758 & \textbf{0.120} & 0.679 &
-0.135\\
-HotpotQA† & 1.090 & 1.032 & 0.277 & 0.578 & \textbf{0.025} & 0.520 &
-0.027\\
-2WikiMQA† & 1.790 & 1.504 & 0.439 & 0.768 & \textbf{0.042} & 0.790 &
-0.053\\
-MuSiQue† & 0.960 & 1.033 & 0.277 & 0.552 & \textbf{0.027} & 0.484 &
-0.029\\
-GovReport & 0.849 & 0.942 & 0.801 & 0.811 & \textbf{0.630} & 0.820 &
-0.687\\
-QMSum† & 1.268 & 1.181 & 0.959 & 0.616 & \textbf{0.250} & 0.546 &
-0.296\\
-MultiNews & 0.372 & 0.850 & 0.341 & 0.654 & \textbf{0.282} & 0.470 &
-0.324\\
-TREC & 0.300 & 1.683 & 1.353 & 0.491 & \textbf{0.166} & 0.515 &
-0.192\\
-TriviaQA & 0.498 & 0.845 & 0.074 & 0.875 & \textbf{0.008} & 0.956 &
-0.009\\
-SAMSum & 1.141 & 1.764 & 1.273 & 1.089 & \textbf{0.506} & 1.067 &
-0.642\\
-PassageCount† & 3.606 & 0.545 & 0.074 & 0.366 & \textbf{0.007} & 0.418 &
-0.009\\
-PassageRetrieval & 1.791 & 0.598 & 0.259 & 0.826 & \textbf{0.023} & 0.639 &
-0.029\\
-LCC & 0.092 & 0.458 & 0.125 & 0.342 & \textbf{0.026} & 0.335 &
-0.032\\
-RepoBench-P & 0.343 & 0.505 & 0.242 & 0.398 & \textbf{0.061} & 0.382 &
-0.097\\
-\textbf{Average} & 1.158 & 1.043 & 0.542 & 0.648 & \textbf{0.146} & 0.652 &
-0.174\\
+    NarrativeQA\dagger & 1.047 & 1.110 & \textbf{0.693} & 1.161\\
+    Qasper\dagger & 1.770 & 1.236 & \textbf{0.556} & 0.643\\
+    MultifieldQA & 1.608 & 1.395 & 0.758 & \textbf{0.679}\\
+    HotpotQA\dagger & 1.090 & 1.032 & 0.578 & \textbf{0.520}\\
+    2WikiMQA\dagger & 1.790 & 1.504 & \textbf{0.768} & 0.790\\
+    MuSiQue\dagger & 0.960 & 1.033 & 0.552 & \textbf{0.484}\\
+    GovReport & 0.849 & 0.942 & \textbf{0.811} & 0.820\\
+    QMSum\dagger & 1.268 & 1.181 & 0.616 & \textbf{0.546}\\
+    MultiNews & \textbf{0.372} & 0.850 & 0.654 & 0.470\\
+    TREC & \textbf{0.300} & 1.683 & 0.491 & 0.515\\
+    TriviaQA & \textbf{0.498} & 0.845 & 0.875 & 0.956\\
+    SAMSum & 1.141 & 1.764 & 1.089 & \textbf{1.067}\\
+    PassageCount\dagger & 3.606 & 0.545 & \textbf{0.366} & 0.418\\
+    PassageRetrieval & 1.791 & \textbf{0.598} & 0.826 & 0.639\\
+    LCC & \textbf{0.092} & 0.458 & 0.342 & 0.335\\
+    RepoBench-P & \textbf{0.343} & 0.505 & 0.398 & 0.382\\
+    \textbf{Average} & 1.158 & 1.043 & \textbf{0.648} & 0.652\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3551,52 +3377,33 @@ RepoBench-P & 0.343 & 0.505 & 0.242 & 0.398 & \textbf{0.061} & 0.382 &
 
 \textbf{Table D4a. KL Faithfulness per task, Mistral-7B-Instruct-v0.3,
 budget = 256 tokens (lower is better). Bold = best per row.
-Streaming = no re-rotation; Str+rot = with re-rotation.
 $n = 100$ per task.}
 
 \nopagebreak
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr\\
 \midrule
-NarrativeQA† & 3.071 & 2.395 & 1.240 & 2.151 & \textbf{0.440} & 1.424 &
-0.603\\
-Qasper† & 3.982 & 2.331 & 1.753 & 1.698 & \textbf{0.618} & 1.586 &
-0.733\\
-MultifieldQA & 2.875 & 2.062 & 1.401 & 1.712 & \textbf{0.433} & 1.691 &
-0.508\\
-HotpotQA† & 2.561 & 2.760 & 0.518 & 2.776 & \textbf{0.163} & 2.611 &
-\textbf{0.163}\\
-2WikiMQA† & 3.584 & 2.355 & 0.910 & 2.641 & \textbf{0.330} & 2.341 &
-0.375\\
-MuSiQue† & 3.148 & 2.272 & 0.814 & 2.149 & \textbf{0.304} & 2.109 &
-0.322\\
-GovReport & 1.591 & 1.484 & 1.486 & 1.344 & \textbf{1.288} & 1.374 &
-1.339\\
-QMSum† & 2.349 & 1.677 & 1.516 & 1.333 & \textbf{0.889} & 1.374 &
-1.004\\
-MultiNews & 1.296 & 1.280 & 1.159 & 1.185 & \textbf{1.080} & 1.237 &
-1.149\\
-TREC & 2.197 & 2.480 & 2.488 & 1.403 & \textbf{1.010} & 1.338 &
-1.107\\
-TriviaQA & 2.135 & 2.857 & 0.730 & 2.528 & \textbf{0.214} & 2.395 &
-0.251\\
-SAMSum & 2.092 & 2.052 & 1.803 & 1.902 & \textbf{1.377} & 1.987 &
-1.462\\
-PassageCount† & 4.816 & 3.490 & 1.061 & 3.444 & \textbf{0.531} & 3.570 &
-0.689\\
-PassageRetrieval & 3.280 & 1.578 & 0.663 & 2.839 & 0.223 & 3.235 &
-\textbf{0.217}\\
-LCC & 0.880 & 0.963 & 0.754 & 0.727 & \textbf{0.434} & 0.814 &
-0.519\\
-RepoBench-P & 1.118 & 1.179 & 1.011 & 0.769 & \textbf{0.482} & 0.865 &
-0.582\\
-\textbf{Average} & 2.561 & 2.076 & 1.207 & 1.912 & \textbf{0.614} & 1.872 &
-0.689\\
+    NarrativeQA\dagger & 3.071 & 2.395 & 2.151 & \textbf{1.424}\\
+    Qasper\dagger & 3.982 & 2.331 & 1.698 & \textbf{1.586}\\
+    MultifieldQA & 2.875 & 2.062 & 1.712 & \textbf{1.691}\\
+    HotpotQA\dagger & \textbf{2.561} & 2.760 & 2.776 & 2.611\\
+    2WikiMQA\dagger & 3.584 & 2.355 & 2.641 & \textbf{2.341}\\
+    MuSiQue\dagger & 3.148 & 2.272 & 2.149 & \textbf{2.109}\\
+    GovReport & 1.591 & 1.484 & \textbf{1.344} & 1.374\\
+    QMSum\dagger & 2.349 & 1.677 & \textbf{1.333} & 1.374\\
+    MultiNews & 1.296 & 1.280 & \textbf{1.185} & 1.237\\
+    TREC & 2.197 & 2.480 & 1.403 & \textbf{1.338}\\
+    TriviaQA & \textbf{2.135} & 2.857 & 2.528 & 2.395\\
+    SAMSum & 2.092 & 2.052 & \textbf{1.902} & 1.987\\
+    PassageCount\dagger & 4.816 & 3.490 & \textbf{3.444} & 3.570\\
+    PassageRetrieval & 3.280 & \textbf{1.578} & 2.839 & 3.235\\
+    LCC & 0.880 & 0.963 & \textbf{0.727} & 0.814\\
+    RepoBench-P & 1.118 & 1.179 & \textbf{0.769} & 0.865\\
+    \textbf{Average} & 2.561 & 2.076 & 1.912 & \textbf{1.872}\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3604,51 +3411,32 @@ RepoBench-P & 1.118 & 1.179 & 1.011 & 0.769 & \textbf{0.482} & 0.865 &
 
 \textbf{Table D4b. KL Faithfulness per task, Mistral-7B-Instruct-v0.3,
 budget = 1024 tokens (lower is better). Bold = best per row.
-Streaming = no re-rotation; Str+rot = with re-rotation.
 $n = 100$ per task.}
 
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{@{}llllllll@{}}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Task & Naive & Streaming & Str+rot & SnapKV & SnapKV+rot & Pyr &
-Pyr+rot\\
+Task & Naive & Streaming & SnapKV & Pyr\\
 \midrule
-NarrativeQA† & 1.734 & 2.213 & 0.821 & 2.371 & \textbf{0.104} & 1.838 &
-0.159\\
-Qasper† & 2.683 & 1.806 & 1.216 & 1.673 & \textbf{0.234} & 1.306 &
-0.303\\
-MultifieldQA & 1.592 & 1.868 & 0.981 & 1.571 & \textbf{0.208} & 1.320 &
-0.250\\
-HotpotQA† & 1.848 & 2.553 & 0.431 & 2.475 & \textbf{0.092} & 2.431 &
-0.093\\
-2WikiMQA† & 2.454 & 2.634 & 0.815 & 2.358 & \textbf{0.167} & 2.138 &
-0.195\\
-MuSiQue† & 2.129 & 2.314 & 0.604 & 1.878 & \textbf{0.103} & 1.692 &
-0.136\\
-GovReport & 1.365 & 1.361 & 1.324 & 1.024 & \textbf{0.931} & 1.067 &
-1.025\\
-QMSum† & 1.628 & 1.356 & 1.313 & 1.033 & \textbf{0.448} & 1.101 &
-0.549\\
-MultiNews & 0.722 & 1.250 & 0.664 & 0.791 & \textbf{0.468} & 0.731 &
-0.542\\
-TREC & 0.520 & 2.333 & 1.901 & 1.101 & \textbf{0.472} & 1.083 &
-0.552\\
-TriviaQA & 1.120 & 2.757 & 0.573 & 2.566 & \textbf{0.091} & 2.389 &
-0.106\\
-SAMSum & 1.522 & 2.210 & 1.690 & 1.786 & \textbf{0.764} & 1.651 &
-0.908\\
-PassageCount† & 2.990 & 2.499 & 0.513 & 3.299 & \textbf{0.215} & 2.925 &
-0.236\\
-PassageRetrieval & 1.183 & 1.541 & 0.371 & 3.044 & \textbf{0.088} & 2.412 &
-0.118\\
-LCC & 0.427 & 0.882 & 0.421 & 0.614 & \textbf{0.124} & 0.764 &
-0.166\\
-RepoBench-P & 0.590 & 1.012 & 0.659 & 0.677 & \textbf{0.196} & 0.684 &
-0.247\\
-\textbf{Average} & 1.532 & 1.912 & 0.894 & 1.766 & \textbf{0.294} & 1.596 &
-0.349\\
+    NarrativeQA\dagger & \textbf{1.734} & 2.213 & 2.371 & 1.838\\
+    Qasper\dagger & 2.683 & 1.806 & 1.673 & \textbf{1.306}\\
+    MultifieldQA & 1.592 & 1.868 & 1.571 & \textbf{1.320}\\
+    HotpotQA\dagger & \textbf{1.848} & 2.553 & 2.475 & 2.431\\
+    2WikiMQA\dagger & 2.454 & 2.634 & 2.358 & \textbf{2.138}\\
+    MuSiQue\dagger & 2.129 & 2.314 & 1.878 & \textbf{1.692}\\
+    GovReport & 1.365 & 1.361 & \textbf{1.024} & 1.067\\
+    QMSum\dagger & 1.628 & 1.356 & \textbf{1.033} & 1.101\\
+    MultiNews & \textbf{0.722} & 1.250 & 0.791 & 0.731\\
+    TREC & \textbf{0.520} & 2.333 & 1.101 & 1.083\\
+    TriviaQA & \textbf{1.120} & 2.757 & 2.566 & 2.389\\
+    SAMSum & \textbf{1.522} & 2.210 & 1.786 & 1.651\\
+    PassageCount\dagger & 2.990 & \textbf{2.499} & 3.299 & 2.925\\
+    PassageRetrieval & \textbf{1.183} & 1.541 & 3.044 & 2.412\\
+    LCC & \textbf{0.427} & 0.882 & 0.614 & 0.764\\
+    RepoBench-P & \textbf{0.590} & 1.012 & 0.677 & 0.684\\
+    \textbf{Average} & \textbf{1.532} & 1.912 & 1.766 & 1.596\\
 \bottomrule
 \end{tabular}
 \end{table}
