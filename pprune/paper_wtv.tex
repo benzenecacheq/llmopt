@@ -35,7 +35,7 @@
 \pgfplotsset{compat=1.18}
 \usepgfplotslibrary{groupplots}
 
-% ── §3.3 F_out word-overlap illustration ─────────────────────────────────────
+% ── §4.3 F_out word-overlap illustration ─────────────────────────────────────
 \definecolor{wov@c}{RGB}{42,130,80}    % shared (green)
 \definecolor{wrf@c}{RGB}{170,100,20}   % ref-only (amber)
 \definecolor{wpr@c}{RGB}{50,88,150}    % pred-only (blue)
@@ -50,7 +50,7 @@
 \newcommand{\wst}[1]{\tikz[baseline=(n.base)]%
   \node[wbox,draw=black!22,fill=black!5,text=black!35](n){\strut #1};}
 
-% ── §6.2 output-length figure series colours ─────────────────────────────────
+% ── §7.2 output-length figure series colours ─────────────────────────────────
 \definecolor{cSnap}{RGB}{42,120,214}    % SnapKV    – blue
 \definecolor{cPyr}{RGB}{235,104,52}     % PyramidKV – orange
 \definecolor{cRandom}{RGB}{153,102,204} % Random    – purple
@@ -159,22 +159,22 @@ We make the following contributions:
   answer, not whether it behaves the same way as the full model. We
   argue this is the wrong objective for compression and analyze several
   distinct failure modes of GT evaluation as a compression metric
-  (§3.1).
+  (§4.1).
 \item
   \textbf{WTV faithfulness metric (\(F_{\text{WTV}}\))}: Entropy-weighted
   total variation between the full and compressed model's next-token
   distributions, computed on a shared generation prefix. Suppresses isolated
   catastrophic divergences to focus on steps where distributional agreement
-  actually matters (§3.2).
+  actually matters (§4.2).
 \item
   \textbf{Output faithfulness metric (\(F_{\text{out}}\))}: Word-level
   F1 between the full model's generated output and the compressed
   model's generated output, with no external ground-truth reference.
   Reveals two complementary effects: post-prefill enrichment inflates
   short-answer \(F_{\text{out}}\) for selection methods by producing
-  high-quality compressed key-value pairs (§6.1), masking faithfulness
+  high-quality compressed key-value pairs (§7.1), masking faithfulness
   differences on the tasks where compression is cheapest; and a consistent
-  ranking across methods that corroborates the WTV ordering (§3.4, §4.4).
+  ranking across methods that corroborates the WTV ordering (§4.4, §5.2).
 \item
   \textbf{Eviction geometry determines faithfulness}:
   Scattered-selection methods (SnapKV, PyramidKV) achieve high WTV
@@ -182,7 +182,7 @@ We make the following contributions:
   favorably with post-prefill value enrichment. Block eviction methods
   (StreamingLLM) are substantially less faithful.
   A controlled gap-geometry experiment confirms the geometry
-  mechanism (§5.2--§5.3).
+  mechanism (§6.2--§6.3).
 \end{itemize}
 
 \hypertarget{background-and-related-work}{%
@@ -226,7 +226,7 @@ patterns have already concentrated). Both families operate on top of an
 existing token-scoring method and can in principle be combined with any
 of the per-token importance metrics discussed above. Our method uses a
 uniform budget per layer, and we note that the structural corruption
-problem (§5) applies to any of these methods that rely on the KV
+problem (§6) applies to any of these methods that rely on the KV
 patching mechanism regardless of how budgets are distributed.
 
 \textbf{Query-aware and dynamic selection.} Quest {[}Tang et al., ICML
@@ -277,11 +277,177 @@ a unified framework for KV cache compression research. Our method can be
 implemented as a KVPress press subclass, providing compatibility with
 the associated leaderboard and ecosystem.
 
+
+\hypertarget{ground-truth-evaluation}{%
+\section{3. Ground-Truth Evaluation}\label{ground-truth-evaluation}}
+
+\hypertarget{setup-1}{%
+\subsection{3.1 Setup}\label{setup-1}}
+
+\textbf{kvpress}
+
+All KV-cache eviction methods in this paper are implemented using
+\texttt{kvpress} v0.5.4, a library that provides a unified hook-based
+interface for post-prefill cache compression. Each method performs a
+full, unrestricted prefill pass over the complete prompt, scores each
+token's KV entry using post-prefill attention weights, and evicts
+lower-scoring entries from the KV cache before the first decode step.
+
+The kvpress documentation explicitly recommends combining
+\texttt{KeyRerotationPress} with \texttt{StreamingLLMPress} ``to fully
+match the implementation described in the paper.'' We adopt the kvpress
+recommended configuration for Streaming (\texttt{StreamingLLMPress} +
+\texttt{KeyRerotationPress}). For scattered-selection methods (SnapKV,
+PyramidKV), re-rotation worsens WTV at every rate and budget on
+both models, so those use no position adjustment after eviction.
+
+Streaming uses kvpress's post-prefill adaptation: a full prefill is
+performed before trimming (§6.1), so retained tokens' hidden states are
+computed with access to the complete context. This departs from the
+original StreamingLLM online design's TTFT advantage but puts Streaming
+on equal footing with SnapKV and PyramidKV.
+
+\textbf{Benchmarks}
+\\LongBench v1, 16 English tasks, 100 examples per task.
+
+\textbf{Models}
+\\Base: Llama-3.1-8B and Mistral-7B-v0.3 (fp16) evaluated at 35\%, 50\% and 65\% retention budget.
+\\Instruct: Llama-3.1-8B-Instruct and Mistral-7B-Instruct-v0.3 (fp16), evaluated at absolute token budgets of 256 and 1024 tokens (§3.2, §§5.1--5.2).
+
+\textbf{Hyperparameters}
+\\Base model experiments use retention rates 35/50/65\% with \texttt{window\_size=128}; PyramidKV uses \texttt{beta=20}; Streaming uses \texttt{n\_sink=4}.
+\\Instruct experiments use \texttt{window\_size=8} for SnapKV and PyramidKV at budget~=~256 
+(PyramidKV's per-layer average would collapse to uniform distribution at the default 
+\texttt{window\_size=32}); \texttt{window\_size=32} is used at budget~=~1024.
+\\Full implementation details below; per-task instruct breakdowns in Appendices~A--C.
+
+\textbf{Compression Methods Tested}
+\\We benchmarked the baseline uncompressed prompt and five compression methods,
+one of which compresses the input prompt while the remaining four all prune the KV
+cache after prefill.
+
+\begin{enumerate}
+\item 
+\textbf{Full context} - This uses the 
+complete prompt with no compressions and serves as the baseline for comparison.
+
+\item
+\textbf{Naive} This method truncates the prompt
+to form a shorter, self-consistent input with no modification to the KV patching or
+attention mask calculations. The prompt is split into a 10\% head (literal first tokens)
+and a 90\% recency tail, concatenated to form a new prompt at the budgeted length.
+
+\item
+\textbf{Streaming} - The KV Cache is pruned reserving the first 4 attention sink tokens plus a
+recency window to fill the remaining budget, following StreamingLLM’s selection rule [Xiao et
+al., 2023]. Retained keys are re-rotated to compact positions after eviction
+(\texttt{KeyRerotationPress}), consistent with the kvpress recommended configuration.
+
+\item
+\textbf{SnapKV} - Prunes the KV cache based on the attention weights pooled over the last 128-token
+observation window {[}Li et al., 2024{]}. No position adjustment after eviction.
+
+\item
+\textbf{PyramidKV} - Follows the same SnapKV-style attention scoring, but with a layer-adaptive
+budget that allocates more KV slots to lower layers and fewer to higher layers [Cai et al., 2024].
+The per-layer budget follows a linear decay controlled by beta=20; budgets are clamped to
+\texttt{[window\_size, sequence\_length]}. No position adjustment after eviction.
+
+
+\end{enumerate}
+
+
+The last \texttt{window\_size} tokens (the observation window) are
+always retained by being assigned high scores; we use
+\texttt{window\_size=128} throughout (kvpress stock default is 64). For
+GQA models such as Llama-3.1-8B (32 Q-heads, 8 KV-heads), kvpress
+aggregates scores via mean-pooling across query heads sharing a KV head.
+
+\hypertarget{gt-evaluation}{%
+\subsection{3.2 Ground-Truth Results}\label{gt-evaluation}}
+
+Ground-truth (GT) accuracy measures whether a compressed model produces outputs
+that match human-written reference answers. Table~\ref{tab:gt-allrates} shows macro-averaged scores
+across all rates on both models.
+Per-task results at 65\% retention appear in Appendix~A.
+
+\begin{table}[H]
+\centering
+\small
+\captionsetup{justification=centering}
+\caption{Mean ground-truth accuracy by method and retention rate (higher is better)}
+\label{tab:gt-allrates}
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\textbf{Llama-3.1-8B}\\[0.4em]
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+& \multicolumn{3}{c}{Base} & \multicolumn{2}{c}{Instruct}\\
+\cmidrule(lr){2-4}\cmidrule(lr){5-6}
+Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
+\midrule
+Naive      & 20.8 & 21.6 & 23.4 & 16.9 & 20.1\\
+Streaming  & 23.1 & 23.5 & 23.8 & 26.4 & 26.9\\
+SnapKV     & \textbf{24.8} & \textbf{24.9} & 25.0 & 30.7 & 31.5\\
+Pyr        & \textbf{24.8} & 24.2 & \textbf{25.1} & \textbf{31.2} & \textbf{31.6}\\
+Random     & 22.7 & 23.1 & 24.2 & --- & ---\\
+\midrule
+Full       & 25.0 & 25.0 & 25.0 & 33.2 & 33.2\\
+\bottomrule
+\end{tabular}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\textbf{Mistral-7B-v0.3}\\[0.4em]
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+& \multicolumn{3}{c}{Base} & \multicolumn{2}{c}{Instruct}\\
+\cmidrule(lr){2-4}\cmidrule(lr){5-6}
+Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
+\midrule
+Naive      & 20.2 & 21.1 & 22.0 & 16.7 & 20.9\\
+Streaming  & 21.4 & 22.1 & 22.7 & 23.5 & 25.8\\
+SnapKV     & \textbf{23.0} & \textbf{23.3} & \textbf{23.5} & 31.3 & \textbf{32.2}\\
+Pyr        & \textbf{23.0} & 22.9 & \textbf{23.5} & \textbf{31.6} & 32.1\\
+Random     & 21.8 & 22.8 & 22.9 & --- & ---\\
+\midrule
+Full       & 23.6 & 23.6 & 23.6 & 32.8 & 32.8\\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\par\smallskip
+\textbf{Bold} = best compressed method per column. Full context is the reference (rate-independent).
+\end{table}
+
+
+These are the numbers that support the claim that compression is nearly free.
+On Llama, SnapKV and PyramidKV at 65\% retention score 25.0 and 25.1 --- matching
+or exceeding the full-model baseline of 25.0. At 35\% retention they score 24.8,
+within one percentage point. On Mistral the picture is identical: SnapKV and Pyr
+match Full (23.6) at 65\%, and drop by at most 0.6 points at 35\%. A reader of the
+papers introducing these methods would conclude from these numbers that aggressive
+compression is essentially lossless.
+
+That conclusion is an artifact of what GT measures. Because it scores against external
+reference answers rather than the full model's outputs (§4.1), it cannot distinguish a
+compressed model that closely replicates the full model from one that produces completely
+different text that happens to contain the right answer words. With macro-average GT
+scores around 25\%, two models can post identical scores while getting entirely different
+examples correct --- the compressed model need not overlap at all with the full model to
+match its GT score. 
+
+Scattered-selected methods --- those that distribute token evictions across the entire prompt --- 
+all cluster within 1 point across all rates.
+The true cost of compression is not visible using the ground truth metric.
+On instruct budgets, Naive separates from the rest because
+at extreme compression, prompt truncation destroys exact-match retrieval accuracy. 
+
 \hypertarget{faithfulness-metrics}{%
-\section{3. Faithfulness Metrics}\label{faithfulness-metrics}}
+\section{4. Faithfulness Metrics}\label{faithfulness-metrics}}
 
 \hypertarget{why-ground-truth-evaluation-falls-short}{%
-\subsection{3.1 Why Ground-Truth Evaluation Falls
+\subsection{4.1 Why Ground-Truth Evaluation Falls
 Short}\label{why-ground-truth-evaluation-falls-short}}
 
 The papers that introduced SnapKV, PyramidKV, and StreamingLLM evaluated
@@ -439,7 +605,7 @@ four distinct failure modes as a compression metric.
 
 
 \hypertarget{kl-faithfulness}{%
-\subsection{3.2 WTV Faithfulness}\label{wtv-faithfulness}}
+\subsection{4.2 WTV Faithfulness}\label{wtv-faithfulness}}
 
 We need a metric that addresses ground-truth evaluation's failures. Rather than comparing
 the outputs of the original and compressed models to a human-written reference,
@@ -524,7 +690,7 @@ both greedy accuracy measures and ground-truth benchmarks --- registers as a
 faithfulness cost in \(F_{\text{WTV}}\).
 
 \hypertarget{output-faithfulness}{%
-\subsection{3.3 Output Faithfulness}\label{output-faithfulness}}
+\subsection{4.3 Output Faithfulness}\label{output-faithfulness}}
 
 WTV faithfulness measures how well the compressed model's internal
 distributions match the full model's. A complementary question is: how
@@ -578,7 +744,7 @@ string matching.
 
 
 \hypertarget{why-these-two-metrics}{%
-\subsection{3.4 Why These Two Metrics?}\label{why-these-two-metrics}}
+\subsection{4.4 Why These Two Metrics?}\label{why-these-two-metrics}}
 
 Other distributional or behavioral metrics are possible ---
 Jensen-Shannon divergence (bounded and symmetric), rank correlation
@@ -637,173 +803,12 @@ SnapKV's gap structure produces inflate KL relative to WTV, and the
 ranking that WTV and \(F_{\text{out}}\) agree on is the more behaviorally
 meaningful one.
 
-\hypertarget{main-experiments}{%
-\section{4. Experiments}\label{main-experiments}}
 
-\hypertarget{setup-1}{%
-\subsection{4.1 Setup}\label{setup-1}}
-
-\textbf{kvpress}
-
-All KV-cache eviction methods in this paper are implemented using
-\texttt{kvpress} v0.5.4, a library that provides a unified hook-based
-interface for post-prefill cache compression. Each method performs a
-full, unrestricted prefill pass over the complete prompt, scores each
-token's KV entry using post-prefill attention weights, and evicts
-lower-scoring entries from the KV cache before the first decode step.
-
-The kvpress documentation explicitly recommends combining
-\texttt{KeyRerotationPress} with \texttt{StreamingLLMPress} ``to fully
-match the implementation described in the paper.'' We adopt the kvpress
-recommended configuration for Streaming (\texttt{StreamingLLMPress} +
-\texttt{KeyRerotationPress}). For scattered-selection methods (SnapKV,
-PyramidKV), re-rotation worsens WTV at every rate and budget on
-both models, so those use no position adjustment after eviction.
-
-Streaming uses kvpress's post-prefill adaptation: a full prefill is
-performed before trimming (§5.1), so retained tokens' hidden states are
-computed with access to the complete context. This departs from the
-original StreamingLLM online design's TTFT advantage but puts Streaming
-on equal footing with SnapKV and PyramidKV.
-
-\textbf{Benchmarks}
-\\LongBench v1, 16 English tasks, 100 examples per task.
-
-\textbf{Models}
-\\Base: Llama-3.1-8B and Mistral-7B-v0.3 (fp16) evaluated at 35\%, 50\% and 65\% retention budget.
-\\Instruct: Llama-3.1-8B-Instruct and Mistral-7B-Instruct-v0.3 (fp16), evaluated at absolute token budgets of 256 and 1024 tokens (§§4.2--4.4).
-
-\textbf{Hyperparameters}
-\\Base model experiments use retention rates 35/50/65\% with \texttt{window\_size=128}; PyramidKV uses \texttt{beta=20}; Streaming uses \texttt{n\_sink=4}.
-\\Instruct experiments use \texttt{window\_size=8} for SnapKV and PyramidKV at budget~=~256 
-(PyramidKV's per-layer average would collapse to uniform distribution at the default 
-\texttt{window\_size=32}); \texttt{window\_size=32} is used at budget~=~1024.
-\\Full implementation details below; per-task instruct breakdowns in Appendices~A--C.
-
-\textbf{Compression Methods Tested}
-\\We benchmarked the baseline uncompressed prompt and five compression methods,
-one of which compresses the input prompt while the remaining four all prune the KV
-cache after prefill.
-
-\begin{enumerate}
-\item 
-\textbf{Full context} - This uses the 
-complete prompt with no compressions and serves as the baseline for comparison.
-
-\item
-\textbf{Naive} This method truncates the prompt
-to form a shorter, self-consistent input with no modification to the KV patching or
-attention mask calculations. The prompt is split into a 10\% head (literal first tokens)
-and a 90\% recency tail, concatenated to form a new prompt at the budgeted length.
-
-\item
-\textbf{Streaming} - The KV Cache is pruned reserving the first 4 attention sink tokens plus a
-recency window to fill the remaining budget, following StreamingLLM’s selection rule [Xiao et
-al., 2023]. Retained keys are re-rotated to compact positions after eviction
-(\texttt{KeyRerotationPress}), consistent with the kvpress recommended configuration.
-
-\item
-\textbf{SnapKV} - Prunes the KV cache based on the attention weights pooled over the last 128-token
-observation window {[}Li et al., 2024{]}. No position adjustment after eviction.
-
-\item
-\textbf{PyramidKV} - Follows the same SnapKV-style attention scoring, but with a layer-adaptive
-budget that allocates more KV slots to lower layers and fewer to higher layers [Cai et al., 2024].
-The per-layer budget follows a linear decay controlled by beta=20; budgets are clamped to
-\texttt{[window\_size, sequence\_length]}. No position adjustment after eviction.
-
-
-\end{enumerate}
-
-
-The last \texttt{window\_size} tokens (the observation window) are
-always retained by being assigned high scores; we use
-\texttt{window\_size=128} throughout (kvpress stock default is 64). For
-GQA models such as Llama-3.1-8B (32 Q-heads, 8 KV-heads), kvpress
-aggregates scores via mean-pooling across query heads sharing a KV head.
-
-\hypertarget{gt-evaluation}{%
-\subsection{4.2 Ground-Truth Results}\label{gt-evaluation}}
-
-Ground-truth (GT) accuracy measures whether a compressed model produces outputs
-that match human-written reference answers. Table~\ref{tab:gt-allrates} shows macro-averaged scores
-across all rates on both models.
-Per-task results at 65\% retention appear in Appendix~A.
-
-\begin{table}[H]
-\centering
-\small
-\captionsetup{justification=centering}
-\caption{Mean ground-truth accuracy by method and retention rate (higher is better)}
-\label{tab:gt-allrates}
-\begin{minipage}[t]{0.49\textwidth}
-\centering
-\textbf{Llama-3.1-8B}\\[0.4em]
-\begin{tabular}{@{}lrrrrr@{}}
-\toprule
-& \multicolumn{3}{c}{Base} & \multicolumn{2}{c}{Instruct}\\
-\cmidrule(lr){2-4}\cmidrule(lr){5-6}
-Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
-\midrule
-Naive      & 20.8 & 21.6 & 23.4 & 16.9 & 20.1\\
-Streaming  & 23.1 & 23.5 & 23.8 & 26.4 & 26.9\\
-SnapKV     & \textbf{24.8} & \textbf{24.9} & 25.0 & 30.7 & 31.5\\
-Pyr        & \textbf{24.8} & 24.2 & \textbf{25.1} & \textbf{31.2} & \textbf{31.6}\\
-Random     & 22.7 & 23.1 & 24.2 & --- & ---\\
-\midrule
-Full       & 25.0 & 25.0 & 25.0 & 33.2 & 33.2\\
-\bottomrule
-\end{tabular}
-\end{minipage}%
-\hfill
-\begin{minipage}[t]{0.49\textwidth}
-\centering
-\textbf{Mistral-7B-v0.3}\\[0.4em]
-\begin{tabular}{@{}lrrrrr@{}}
-\toprule
-& \multicolumn{3}{c}{Base} & \multicolumn{2}{c}{Instruct}\\
-\cmidrule(lr){2-4}\cmidrule(lr){5-6}
-Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
-\midrule
-Naive      & 20.2 & 21.1 & 22.0 & 16.7 & 20.9\\
-Streaming  & 21.4 & 22.1 & 22.7 & 23.5 & 25.8\\
-SnapKV     & \textbf{23.0} & \textbf{23.3} & \textbf{23.5} & 31.3 & \textbf{32.2}\\
-Pyr        & \textbf{23.0} & 22.9 & \textbf{23.5} & \textbf{31.6} & 32.1\\
-Random     & 21.8 & 22.8 & 22.9 & --- & ---\\
-\midrule
-Full       & 23.6 & 23.6 & 23.6 & 32.8 & 32.8\\
-\bottomrule
-\end{tabular}
-\end{minipage}
-\par\smallskip
-\textbf{Bold} = best compressed method per column. Full context is the reference (rate-independent).
-\end{table}
-
-
-These are the numbers that support the claim that compression is nearly free.
-On Llama, SnapKV and PyramidKV at 65\% retention score 25.0 and 25.1 --- matching
-or exceeding the full-model baseline of 25.0. At 35\% retention they score 24.8,
-within one percentage point. On Mistral the picture is identical: SnapKV and Pyr
-match Full (23.6) at 65\%, and drop by at most 0.6 points at 35\%. A reader of the
-papers introducing these methods would conclude from these numbers that aggressive
-compression is essentially lossless.
-
-That conclusion is an artifact of what GT measures. Because it scores against external
-reference answers rather than the full model's outputs (§3.1), it cannot distinguish a
-compressed model that closely replicates the full model from one that produces completely
-different text that happens to contain the right answer words. With macro-average GT
-scores around 25\%, two models can post identical scores while getting entirely different
-examples correct --- the compressed model need not overlap at all with the full model to
-match its GT score. 
-
-Scattered-selected methods --- those that distribute token evictions across the entire prompt --- 
-all cluster within 1 point across all rates.
-The true cost of compression is not visible using the ground truth metric.
-On instruct budgets, Naive separates from the rest because
-at extreme compression, prompt truncation destroys exact-match retrieval accuracy. 
+\hypertarget{faithfulness-results}{%
+\section{5. Faithfulness Results}\label{faithfulness-results}}
 
 \hypertarget{kl-faithfulness-main-results}{%
-\subsection{4.3 WTV Faithfulness: Main Results}\label{wtv-faithfulness-main-results}}
+\subsection{5.1 WTV Faithfulness: Main Results}\label{wtv-faithfulness-main-results}}
 Table~\ref{tab:t3} shows mean WTV faithfulness. The per-task breakdown is in Appendix~B.
 
 \begin{table}[H]
@@ -864,7 +869,7 @@ compression.
 
 
 \hypertarget{output-faithfulness-results}{%
-\subsection{4.4 Output Faithfulness
+\subsection{5.2 Output Faithfulness
 Results}\label{output-faithfulness-results}}
 
 Table~\ref{tab:t4} shows the output faithfulness results (per-task breakdown in Appendix~C).  
@@ -925,19 +930,19 @@ percentage points depending on rate. On Mistral the picture is qualitatively the
 The instruct model at budget~=~256 looks better at first glance (SnapKV: Llama 72\%,
 Mistral 64\%). This is partly misleading for the same structural reason as GT: a
 post-prefill enrichment inflates \(F_{\text{out}}\) on short-answer tasks
-where a single correct word dominates the score (§6.1). On longer-form tasks, where
+where a single correct word dominates the score (§7.1). On longer-form tasks, where
 compression would actually reduce generation time, the cost is comparable to or larger
 than the base-model results.
 
 \hypertarget{eviction-geometry-and-faithfulness}{%
-\section{5. Eviction Geometry and Faithfulness}\label{eviction-geometry-and-faithfulness}}
+\section{6. Eviction Geometry and Faithfulness}\label{eviction-geometry-and-faithfulness}}
 
 Post-prefill cache eviction introduces structural effects whose impact depends critically
 on the retained-set geometry. This section establishes the mechanism, confirms it
 empirically, and characterizes how gap geometry determines faithfulness outcomes.
 
 \hypertarget{the-mechanism}{%
-\subsection{5.1 The Mechanism}\label{the-mechanism}}
+\subsection{6.1 The Mechanism}\label{the-mechanism}}
 
 All KV-pruning methods benchmarked here use \emph{post-prefill cache
 eviction}: the model performs one full, unrestricted prefill pass over
@@ -951,12 +956,12 @@ The full prefill that precedes eviction brings an unexpected benefit:
 retained KV pairs carry representations computed under full-context
 attention over the \emph{entire} original sequence --- they have seen
 tokens that are immediately evicted afterward. We call this property \emph{enrichment}
-throughout §§5--6. Naive prompt construction avoids gaps by building a
+throughout §§6--7. Naive prompt construction avoids gaps by building a
 shorter input before prefill, but it loses enrichment: those tokens
 have never attended to the evicted content.
 
 \hypertarget{empirical-evidence}{%
-\subsection{5.2 Empirical Evidence}\label{empirical-evidence}}
+\subsection{6.2 Empirical Evidence}\label{empirical-evidence}}
 
 To confirm that mechanism rather than token selection drives the
 faithfulness gap, we compare \(F_{\text{WTV}}\) for SnapKV with KV pruning
@@ -1007,7 +1012,7 @@ worse even than naive prompt construction (0.138), which selects a
 different, non-overlapping token set.
 
 \hypertarget{synthetic-gap-structure-analysis}{%
-\subsection{5.3 Synthetic Gap-Structure
+\subsection{6.3 Synthetic Gap-Structure
 Analysis}\label{synthetic-gap-structure-analysis}}
 
 To isolate positional displacement from enrichment effects without
@@ -1196,11 +1201,11 @@ Table~\ref{tab:t2} reveals several non-obvious patterns across the five geometri
   cannot replicate, even at the same token budget.
 \end{itemize}
 
-The synthetic analysis isolates mechanism; task-level WTV variance in §4
+The synthetic analysis isolates mechanism; task-level WTV variance in §§3 and 5
 reflects how well each geometry aligns with where relevant content actually
 appears in a given task, which the content-blind synthetic cannot predict.
 
-These results provide a mechanistic account of the clustering in §4.3.
+These results provide a mechanistic account of the clustering in §5.1.
 SnapKV and PyramidKV share a scattered position geometry that
 interacts strongly and favorably with enrichment (0.27×), explaining
 why they form a tight group well above the remaining methods. Streaming
@@ -1214,14 +1219,14 @@ enrichment effect: same structure, enrichment is the differentiator.
 
 
 \hypertarget{why-compression-quality-appears-better}{%
-\section{6. Why Compression Quality Appears Better Than It Actually Is}\label{why-compression-quality-appears-better}}
+\section{7. Why Compression Quality Appears Better Than It Actually Is}\label{why-compression-quality-appears-better}}
 
 SnapKV and PyramidKV lead \(F_{\text{out}}\) across all retention rates
 (Table~\ref{tab:t4}), and they also lead WTV faithfulness. The aggregate numbers,
 however, conceal three structural effects that distort how well compression
 quality is perceived to generalize.
 
-\textbf{Enrichment and the short-answer advantage} (§6.1).  All post-prefill
+\textbf{Enrichment and the short-answer advantage} (§7.1).  All post-prefill
 eviction methods compute a complete, uncompressed prefill before eviction.
 The retained KV pairs therefore carry representations formed under full-context
 attention, making the compressed cache a higher-quality approximation of the
@@ -1229,14 +1234,14 @@ full model's state.  This enrichment inflates \(F_{\text{out}}\) on short-answer
 tasks where a single correct word dominates the score.  WTV, being
 teacher-forced on the full model's output sequence, is immune.
 
-\textbf{Output-length effects} (§6.2).  The enrichment advantage
+\textbf{Output-length effects} (§7.2).  The enrichment advantage
 is concentrated on short outputs and dilutes on long ones as generated tokens
 accumulate in the KV cache.  Splitting by output length reveals that
 \(F_{\text{out}}\) gaps between methods are largely driven by short-answer
 tasks; on long-form outputs the ranking shifts substantially, and WTV is a
 more reliable guide to faithfulness at any length.
 
-\textbf{Selection blind spot} (§6.3).  Attention-based
+\textbf{Selection blind spot} (§7.3).  Attention-based
 scoring produces a systematic positional bias: across models (Llama, Mistral),
 the retained tokens form a bell curve peaking
 near the middle of the sequence, with near-zero selection from the first 30\% of
@@ -1246,7 +1251,7 @@ summarization, which has no retrieval target to focus attention and suffers the
 largest WTV penalty as a result.
 
 \hypertarget{first-token-advantage}{%
-\subsection{6.1 Enrichment and the Short-Answer Advantage}\label{first-token-advantage}}
+\subsection{7.1 Enrichment and the Short-Answer Advantage}\label{first-token-advantage}}
 
 All post-prefill methods compute a complete, uncompressed prefill before
 eviction. The retained KV pairs therefore carry representations formed
@@ -1259,7 +1264,7 @@ is a genuine quality improvement, not an artifact of evaluation procedure.
 
 That enrichment --- not a structural guarantee about the first token --- is
 what drives the short-answer \(F_{\text{out}}\) advantage is confirmed by
-comparing SnapKV to the recompute-over-gaps variant introduced in §5.2
+comparing SnapKV to the recompute-over-gaps variant introduced in §6.2
 (Table~\ref{tab:rog}): both use identical attention-score selection at
 the same retention budget; only the eviction point differs. The
 recompute-over-gaps variant restricts attention \emph{during} prefill
@@ -1290,7 +1295,7 @@ outputs both methods converge, consistent with enrichment being diluted
 as generated tokens accumulate in the cache.
 
 \hypertarget{output-length-effects}{%
-\subsection{6.2 Output-Length Effects}\label{output-length-effects}}
+\subsection{7.2 Output-Length Effects}\label{output-length-effects}}
 
 Table~\ref{tab:t5} compares all methods by output-length category (Llama, 65\%),
 with Naive as a reference. We set the threshold at 90 words because it
@@ -1380,7 +1385,7 @@ On long-form tasks --- where TPT savings compound --- Naive's long-form
 \(F_{\text{out}}\) (57.6\%) matches or exceeds SnapKV (54.7\%) and
 PyramidKV (55.5\%) at 65\% retention, while delivering a 63\% TTFT reduction
 (Table~\ref{tab:ttft}). SnapKV and PyramidKV lead meaningfully on WTV faithfulness
-(§4.3) and on short-form \(F_{\text{out}}\), but the case for their superiority
+(§5.1) and on short-form \(F_{\text{out}}\), but the case for their superiority
 on long-form generation tasks --- the workloads where compression saves the most
 time --- rests on WTV faithfulness rather than output-text similarity.
 
@@ -1537,7 +1542,7 @@ the preceding bin.
 
 
 \hypertarget{selection-blind-spot}{%
-\subsection{6.3 The Selection Blind Spot}\label{selection-blind-spot}}
+\subsection{7.3 The Selection Blind Spot}\label{selection-blind-spot}}
 
 Attention-based scoring selects the tokens the model attends to most during
 prefill.  This seems like the right signal, yet both the WTV and \(F_{\text{out}}\)
@@ -1672,7 +1677,7 @@ richest; this aligns with what summarization demands, explaining why the advanta
 exists but also why it collapses when per-layer budgets become too small to maintain a
 gradient.
 
-The practical implication is that the 16-task macro average used throughout §4 underweights
+The practical implication is that the 16-task macro average used throughout §§3 and 5 underweights
 the summarization failure. SnapKV's aggregate WTV lead over Naive (0.030 vs.\ 0.139 at 65\%)
 is driven almost entirely by near-zero scores on retrieval and classification tasks; on
 GovReport and MultiNews the gap is modest, and at 35\% retention it disappears entirely. A
@@ -1680,7 +1685,7 @@ deployment whose workload is dominated by long-document summarization should not
 macro WTV ranking to hold.
 
 \hypertarget{inference-performance}{%
-\section{7. Inference Performance}\label{inference-performance}}
+\section{8. Inference Performance}\label{inference-performance}}
 
 Compression is only worthwhile if it makes inference faster. We are theoretically sacrificing 
 some quality of result in exchange for some gain in response time.  Generally there are two 
@@ -1689,7 +1694,7 @@ how long does it take for the full answer.  Here we discuss how the compression 
 affect these and the factors that should be considered when calculating the trade-off between
 speed and quality of result.
 
-\subsection{7.1 Base Model Timing}\label{base-model-timing} 
+\subsection{8.1 Base Model Timing}\label{base-model-timing} 
 
 There are typically two metrics that we use to measure the inference performance: 
 \textbf{time to first token (TTFT)}, the wall-clock time from receiving a prompt to producing 
@@ -1747,7 +1752,7 @@ step. At 65\% retention, mean TPT drops from 67.5 ms/tok (full) to
 methods; at 35\% retention, all compressed methods reach
 \textasciitilde44--48 ms/tok (\textasciitilde29--35\% faster).
 
-\subsection{7.2 Instruct Model Timing at Extreme Budgets}\label{instruct-model-timing}
+\subsection{8.2 Instruct Model Timing at Extreme Budgets}\label{instruct-model-timing}
 
 Table~\ref{tab:instruct-timing} gives mean wall-clock time per example at budgets~256 and~1024 for Llama-3.1-8B-Instruct, split by output-length category (short: full-model reference $\leq$10 words, $n=762$; long: $>$10 words, $n=838$).
 
@@ -1831,7 +1836,7 @@ The short/long gap in WTV is large for all selection methods: SnapKV has WTV
 0.011 on short vs 0.080 on long at 65\% (7× ratio), consistent with enrichment quality being highest at early decode steps.
 PyramidKV leads at 65\% (long 0.061 vs SnapKV 0.080);
 SnapKV leads at 50\%, consistent with PyramidKV's pyramid budget collapsing
-toward uniform allocation as compression tightens (§4.3). Both converge at 35\%.
+toward uniform allocation as compression tightens (§5.1). Both converge at 35\%.
 Streaming WTV is roughly 3× worse on long outputs (0.171) than short (0.051)
 at 65\%, consistent with block-end enrichment contamination accumulating over
 longer generation. Naive WTV is nearly flat across short and long --- truncation
@@ -1968,7 +1973,7 @@ Gap = Short $-$ Long.  Naive bolded to highlight the comparison point.
 
 Table~\ref{tab:t4} (Instruct columns) shows macro-averaged \(F_{\text{out}}\) at absolute token budgets on both instruct models (per-task breakdown in Appendices~C3--C4).
 
-\subsection{7.3 Deployment Implications}\label{deployment-implications}
+\subsection{8.3 Deployment Implications}\label{deployment-implications}
 
 The timing results reveal a fundamental mismatch between where selection methods
 are most accurate and where they actually save time. Post-prefill eviction methods
@@ -1987,11 +1992,11 @@ budget~=~256 on the instruct model, 4.1\,s versus 11.4\,s per example
 (Table~\ref{tab:instruct-timing}) --- but with lower WTV faithfulness than selection
 methods. For long-form generation where TPT savings are largest, SnapKV and
 PyramidKV lead on WTV faithfulness and match Naive on long-form \(F_{\text{out}}\)
-(§6.2): they are the right choice for applications where faithfulness to the full
+(§7.2): they are the right choice for applications where faithfulness to the full
 model's behavior matters.
 
 \hypertarget{conclusion}{%
-\section{8. Conclusion}\label{conclusion}}
+\section{9. Conclusion}\label{conclusion}}
 
 We introduced WTV faithfulness --- entropy-weighted total variation between
 the full and compressed model's per-step token distributions --- as the
@@ -2009,10 +2014,10 @@ with WTV values of 0.025--0.067 at 65--35\% retention vs 0.085--0.174 for
 Streaming and 0.116--0.200 for Naive. The gap is explained by eviction geometry:
 scattered retention interacts favorably with post-prefill value enrichment,
 while block eviction contaminates retained values with expectations about the
-missing prefix (§5). The same pattern holds at instruct budgets: SnapKV leads
+missing prefix (§6). The same pattern holds at instruct budgets: SnapKV leads
 at budgets 256 and 1024 on both Llama and Mistral instruct models.
 
-The mechanism analysis in §5 has broader implications for compression
+The mechanism analysis in §6 has broader implications for compression
 method design. The near-perfect faithfulness of scattered post-prefill
 eviction (WTV 0.028) does not arise simply from retaining the right
 tokens: the same tokens without a full prefill (SnapKV-Select, 0.120)
@@ -2021,7 +2026,7 @@ or with a full prefill but masked enrichment (recompute-over-gaps,
 retention after a full prefill allows each retained KV pair to carry a
 representation that attended over the entire original sequence,
 including tokens immediately evicted afterward. Block eviction methods
-are structurally excluded from this benefit: the gap geometry analysis (§5.3) shows that a single large prefix gap
+are structurally excluded from this benefit: the gap geometry analysis (§6.3) shows that a single large prefix gap
 incurs a 3.6× WTV penalty relative to the gapless case, while both
 scattered and sink-plus-tail geometries produce beneficial enrichment
 (0.27× and 0.55× respectively). The critical factor is not simply how
