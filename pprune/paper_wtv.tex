@@ -368,8 +368,9 @@ aggregates scores via mean-pooling across query heads sharing a KV head.
 
 Ground-truth (GT) accuracy measures whether a compressed model produces outputs
 that match human-written reference answers. Table~\ref{tab:gt-allrates} shows macro-averaged scores
-across all rates on both models.
-Per-task results at 65\% retention appear in Appendix~A.
+across all rates on both models; for the base model columns show the fraction of the KV cache
+retained (35\%, 50\%, 65\%), while for the instruct variants columns show absolute token budgets
+($b$=256 and $b$=1024). Per-task breakdowns for all rates appear in Appendix~A.
 
 \begin{table}[H]
 \centering
