@@ -1201,7 +1201,7 @@ Table~\ref{tab:t2} reveals several non-obvious patterns across the five geometri
   cannot replicate, even at the same token budget.
 \end{itemize}
 
-The synthetic analysis isolates mechanism; task-level WTV variance in §§3 and 5
+The synthetic analysis isolates mechanism; task-level WTV variance in §3 and §5
 reflects how well each geometry aligns with where relevant content actually
 appears in a given task, which the content-blind synthetic cannot predict.
 
@@ -1677,7 +1677,7 @@ richest; this aligns with what summarization demands, explaining why the advanta
 exists but also why it collapses when per-layer budgets become too small to maintain a
 gradient.
 
-The practical implication is that the 16-task macro average used throughout §§3 and 5 underweights
+The practical implication is that the 16-task macro average used throughout §3 and §5 underweights
 the summarization failure. SnapKV's aggregate WTV lead over Naive (0.030 vs.\ 0.139 at 65\%)
 is driven almost entirely by near-zero scores on retrieval and classification tasks; on
 GovReport and MultiNews the gap is modest, and at 35\% retention it disappears entirely. A
