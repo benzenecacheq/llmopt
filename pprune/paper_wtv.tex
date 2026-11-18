@@ -91,38 +91,46 @@ alignment {[}Li et al., 2024{]}, value norms {[}Feng et al., 2025b{]},
 or combinations thereof --- and evicting the rest before or during
 generation.
 
-Current compression methods are substantially less faithful to the
-full-context model than standard benchmarks suggest --- and they fail
-most on long-form generation, precisely where compression provides its
-greatest benefit through reduced decode time. Existing papers report
-near-zero accuracy degradation at 35\% retention on LongBench, a
-result we reproduce. But benchmark accuracy measures task performance,
-not whether the compressed model produces the same output the full model
-would have produced; those are not the same thing.
+Existing papers evaluate these methods on standard benchmarks and report
+near-zero degradation, which has driven widespread deployment.
+This ground-truth benchmark accuracy measurement compares the results to a human-generated output.
+We argue this measurement is the wrong metric: the goal of
+compression should be to faithfully reproduce the same output that the
+original uncompressed prompt generated.
 
-We introduce two faithfulness metrics --- \emph{WTV Faithfulness}, which
-measures token-distribution divergence at every generation step, and
+We introduce two faithfulness metrics --- 
 \emph{Output Faithfulness}, which measures text-level similarity between
-full and compressed model outputs --- and use them to quantify the scale
+full and compressed model outputs 
+and
+\emph{WTV Faithfulness}, which
+measures token-distribution divergence at every generation step, 
+--- and use them to quantify the scale
 of faithfulness loss and identify the structural mechanisms responsible.
 
-At 35\% retention, even the best selection methods diverge from the full
+Based on these metrics, current compression methods are substantially less faithful to the
+full-context model than standard benchmarks suggest and they fail
+most on long-form generation --- precisely where compression provides its
+greatest benefit through reduced decode time. 
+At 35\% retention on LongBench, even the best selection methods diverge from the full
 model on more than 30\% of words while their ground-truth scores remain
-within one point of uncompressed performance. On long-form tasks, where
+within one point of uncompressed performance. 
+
+On short-answer tasks, post-prefill enrichment inflates output faithfulness
+scores: the full-context prefill produces high-quality compressed key-value
+pairs that generate correct short answers; this advantage fades as generated
+tokens accumulate and dilute the enrichment effect.  On long-form tasks, where
 TPT savings compound and compression is most valuable, output similarity
 differences between methods collapse beyond 100 words: intelligent
 selection provides no long-form advantage over truncation or random
-eviction by this measure. On short-answer tasks, post-prefill enrichment inflates output faithfulness
-scores: the full-context prefill produces high-quality compressed key-value
-pairs that generate correct short answers; this advantage fades as generated
-tokens accumulate and dilute the enrichment effect.
+eviction by this measure. 
 
-WTV faithfulness reveals the structural mechanisms behind the loss.
-Scattered-selection methods interact favorably with post-prefill value
-enrichment; StreamingLLM's contiguous recency window contaminates value
-representations with expectations about evicted context that the model
-cannot satisfy at decode time.
-Neither metric is sufficient on its own.
+WTV faithfulness diagnoses these patterns at the level of the model's
+probability distributions, revealing structural causes that word-level
+output comparison alone cannot expose. F_out captures the user-visible
+consequence directly: whether the compressed model produces the same
+words. The two metrics complement each other --- F_out can be inflated
+on short-answer tasks in ways WTV is not, while WTV provides reliable
+method rankings across all conditions.
 
 \end{abstract}
 
