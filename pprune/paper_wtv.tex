@@ -450,12 +450,6 @@ compression substantially changes what the model produces.
 \subsection{4.1 Why Ground-Truth Evaluation Falls
 Short}\label{why-ground-truth-evaluation-falls-short}}
 
-The papers that introduced SnapKV, PyramidKV, and StreamingLLM evaluated
-their methods by running the compressed model on benchmark tasks and
-scoring its outputs against human-labeled reference answers
-{[}Li et al., 2024; Cai et al., 2024; Xiao et al., 2023{]}.
-Practitioners are now deploying these methods based on those results.
-
 The implicit assumption underlying this evaluation --- and the
 deployment decisions that follow from it --- is that a method which
 scores well on the benchmark is a good approximation of the full model.
