@@ -99,10 +99,10 @@ compression should be to faithfully reproduce the same output that the
 original uncompressed prompt generated.
 
 We introduce two faithfulness metrics --- 
-\emph{Output Faithfulness}, which measures text-level similarity between
+\emph{Output Faithfulness} (\(F_{\text{out}}\)), which measures text-level similarity between
 full and compressed model outputs 
 and
-\emph{WTV Faithfulness}, which
+\emph{WTV Faithfulness} (\(F_{\text{WTV}}\)), which
 measures token-distribution divergence at every generation step, 
 --- and use them to quantify the scale
 of faithfulness loss and identify the structural mechanisms responsible.
@@ -121,15 +121,15 @@ pairs that generate correct short answers; this advantage fades as generated
 tokens accumulate and dilute the enrichment effect.  On long-form tasks, where
 TPT savings compound and compression is most valuable, output similarity
 differences between methods collapse beyond 100 words: intelligent
-selection provides no long-form advantage over truncation or random
+selection provides no appreciable long-form advantage over truncation or random
 eviction by this measure. 
 
 WTV faithfulness diagnoses these patterns at the level of the model's
 probability distributions, revealing structural causes that word-level
-output comparison alone cannot expose. F_out captures the user-visible
+output comparison alone cannot expose. \(F_{\text{out}}\) captures the user-visible
 consequence directly: whether the compressed model produces the same
-words. The two metrics complement each other --- F_out can be inflated
-on short-answer tasks in ways WTV is not, while WTV provides reliable
+words. The two metrics complement each other --- \(F_{\text{out}}\) can be inflated
+on short-answer tasks in ways \(F_{\text{WTV}}\) is not, while \(F_{\text{WTV}}\) provides reliable
 method rankings across all conditions.
 
 \end{abstract}
@@ -169,12 +169,6 @@ We make the following contributions:
   distinct failure modes of GT evaluation as a compression metric
   (§4.1).
 \item
-  \textbf{WTV faithfulness metric (\(F_{\text{WTV}}\))}: Entropy-weighted
-  total variation between the full and compressed model's next-token
-  distributions, computed on a shared generation prefix. Suppresses isolated
-  catastrophic divergences to focus on steps where distributional agreement
-  actually matters (§4.2).
-\item
   \textbf{Output faithfulness metric (\(F_{\text{out}}\))}: Word-level
   F1 between the full model's generated output and the compressed
   model's generated output, with no external ground-truth reference.
@@ -183,6 +177,12 @@ We make the following contributions:
   high-quality compressed key-value pairs (§7.1), masking faithfulness
   differences on the tasks where compression is cheapest; and a consistent
   ranking across methods that corroborates the WTV ordering (§4.4, §5.2).
+\item
+  \textbf{WTV faithfulness metric (\(F_{\text{WTV}}\))}: Entropy-weighted
+  total variation between the full and compressed model's next-token
+  distributions, computed on a shared generation prefix. Suppresses isolated
+  catastrophic divergences to focus on steps where distributional agreement
+  actually matters (§4.2).
 \item
   \textbf{Eviction geometry determines faithfulness}:
   Scattered-selection methods (SnapKV, PyramidKV) achieve high WTV
@@ -438,19 +438,10 @@ match Full (23.6) at 65\%, and drop by at most 0.6 points at 35\%. A reader of t
 papers introducing these methods would conclude from these numbers that aggressive
 compression is essentially lossless.
 
-That conclusion is an artifact of what GT measures. Because it scores against external
-reference answers rather than the full model's outputs (§4.1), it cannot distinguish a
-compressed model that closely replicates the full model from one that produces completely
-different text that happens to contain the right answer words. With macro-average GT
-scores around 25\%, two models can post identical scores while getting entirely different
-examples correct --- the compressed model need not overlap at all with the full model to
-match its GT score. 
-
-Scattered-selected methods --- those that distribute token evictions across the entire prompt --- 
-all cluster within 1 point across all rates.
-The true cost of compression is not visible using the ground truth metric.
-On instruct budgets, Naive separates from the rest because
-at extreme compression, prompt truncation destroys exact-match retrieval accuracy. 
+On both models, SnapKV and PyramidKV cluster within one point of full-context
+performance across all retention rates; Naive separates from the rest only at extreme
+instruct budgets. §4 examines why these numbers can appear near-lossless even when
+compression substantially changes what the model produces.
 
 \hypertarget{faithfulness-metrics}{%
 \section{4. Faithfulness Metrics}\label{faithfulness-metrics}}
