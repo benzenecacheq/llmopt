@@ -862,7 +862,6 @@ where a single correct word dominates the score (§7.1). On longer-form tasks, w
 compression would actually reduce generation time, the cost is comparable to or larger
 than the base-model results.
 
-\hypertarget{eviction-geometry-and-faithfulness}{%
 \hypertarget{kl-faithfulness-main-results}{%
 \subsection{5.2 WTV Faithfulness: Main Results}\label{wtv-faithfulness-main-results}}
 Table~\ref{tab:t3} shows mean WTV faithfulness. The per-task breakdown is in Appendix~B.
@@ -924,6 +923,7 @@ block eviction degrades more gracefully than truncation at extreme
 compression.
 
 
+\hypertarget{eviction-geometry-and-faithfulness}{%
 \section{6. Eviction Geometry and Faithfulness}\label{eviction-geometry-and-faithfulness}}
 
 Post-prefill cache eviction introduces structural effects whose impact depends critically
