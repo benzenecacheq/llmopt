@@ -601,11 +601,9 @@ four distinct failure modes as a compression metric.
 \hypertarget{output-faithfulness}{%
 \subsection{4.2 Output Faithfulness}\label{output-faithfulness}}
 
-WTV faithfulness measures how well the compressed model's internal
-distributions match the full model's. A complementary question is: how
-similar is the text the compressed model actually generates?
-
-We define \textbf{Output Faithfulness} (\(F_{\text{out}}\)) as:
+A compressed model is faithful if it produces the same output as the full
+model would have produced. We define \textbf{Output Faithfulness}
+(\(F_{\text{out}}\)) as:
 
 \[
 F_{\text{out}} = \frac{1}{N} \sum_{i=1}^{N}
@@ -646,22 +644,19 @@ model-to-model comparisons. Readers should treat \(F_{\text{out}}\) scores and a
 generated output-based measurement with appropriate skepticism.
 
 
-These limitations are why \(F_{\text{WTV}}\) is the primary distributional metric
-rather than \(F_{\text{out}}\): \(F_{\text{WTV}}\) operates at the distribution
-level at every generation step, is insensitive to output length, and requires no
-string matching.
+These limitations motivate a complementary metric that operates at the distribution
+level rather than on output strings; §4.3 introduces one.
 
 
 \hypertarget{kl-faithfulness}{%
 \subsection{4.3 WTV Faithfulness}\label{wtv-faithfulness}}
 
-We need a metric that addresses ground-truth evaluation's failures. Rather than comparing
-the outputs of the original and compressed models to a human-written reference,
-we need to directly compare the compressed model to the original model to determine
-whether it is faithful to the original.
-
-Compression fidelity is best evaluated by comparing the compressed model's next-token
-distributions directly to the full model's, on a shared generation sequence.
+\(F_{\text{out}}\) measures whether the compressed model produces the same words,
+but it does not reveal whether the model is making the same probabilistic choices
+at each step. Two models can agree on the final output word while diverging sharply
+on the underlying distribution — a distinction that matters for faithfulness in the
+broader sense. Compression fidelity is more fully evaluated by comparing the compressed
+model's next-token distributions directly to the full model's, on a shared generation sequence.
 The uncompressed model generates a response \(y^*\)
 = (\(y^*_1, \ldots, y^*_L\)) from the full context. Both the full model
 and each compressed model are then teacher-forced on this shared token
