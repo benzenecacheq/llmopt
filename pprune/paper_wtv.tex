@@ -601,8 +601,12 @@ four distinct failure modes as a compression metric.
 \hypertarget{output-faithfulness}{%
 \subsection{4.2 Output Faithfulness}\label{output-faithfulness}}
 
-A compressed model is faithful if it produces the same output as the full
-model would have produced. We define \textbf{Output Faithfulness}
+We need a metric that addresses ground-truth evaluation’s failures. Rather than comparing the outputs
+of the original and compressed models to a human-written reference, 
+we need to directly compare the compressed model to
+the original model to determine whether it is faithful to the original.
+
+We define \textbf{Output Faithfulness}
 (\(F_{\text{out}}\)) as:
 
 \[
@@ -786,11 +790,6 @@ total variation distance is bounded in \([0,1]\) at every step, so no spike can
 dominate the mean. WTV's entropy weight \(H(P_t)\) further corrects the primary
 problem by explicitly upweighting the uncertain steps that KL underweights.
 
-The practical consequence is that KL can rank methods differently from
-both WTV and \(F_{\text{out}}\): the positional-displacement spikes that
-SnapKV's gap structure produces inflate KL relative to WTV, and the
-ranking that WTV and \(F_{\text{out}}\) agree on is the more behaviorally
-meaningful one.
 
 
 \hypertarget{faithfulness-results}{%
