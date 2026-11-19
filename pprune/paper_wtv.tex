@@ -35,7 +35,7 @@
 \pgfplotsset{compat=1.18}
 \usepgfplotslibrary{groupplots}
 
-% ── §4.3 F_out word-overlap illustration ─────────────────────────────────────
+% ── §4.2 F_out word-overlap illustration ─────────────────────────────────────
 \definecolor{wov@c}{RGB}{42,130,80}    % shared (green)
 \definecolor{wrf@c}{RGB}{170,100,20}   % ref-only (amber)
 \definecolor{wpr@c}{RGB}{50,88,150}    % pred-only (blue)
@@ -176,13 +176,13 @@ We make the following contributions:
   short-answer \(F_{\text{out}}\) for selection methods by producing
   high-quality compressed key-value pairs (§7.1), masking faithfulness
   differences on the tasks where compression is cheapest; and a consistent
-  ranking across methods that corroborates the WTV ordering (§4.4, §5.2).
+  ranking across methods that corroborates the WTV ordering (§4.4, §5.1).
 \item
   \textbf{WTV faithfulness metric (\(F_{\text{WTV}}\))}: Entropy-weighted
   total variation between the full and compressed model's next-token
   distributions, computed on a shared generation prefix. Suppresses isolated
   catastrophic divergences to focus on steps where distributional agreement
-  actually matters (§4.2).
+  actually matters (§4.3).
 \item
   \textbf{Eviction geometry determines faithfulness}:
   Scattered-selection methods (SnapKV, PyramidKV) achieve high WTV
@@ -450,7 +450,7 @@ compression substantially changes what the model produces.
 \subsection{4.1 Why Ground-Truth Evaluation Falls
 Short}\label{why-ground-truth-evaluation-falls-short}}
 
-The implicit assumption underlying this evaluation --- and the
+The implicit assumption underlying Ground-Truth evaluation --- and the
 deployment decisions that follow from it --- is that a method which
 scores well on the benchmark is a good approximation of the full model.
 This assumption fails for a simple reason: the metric never actually
@@ -458,7 +458,7 @@ compares the compressed model's outputs to the full model's outputs.
 Two methods can score identically while producing completely different
 text, and the metric will never notice. Ground-truth evaluation has
 four distinct failure modes as a compression metric.
-\Needspace{4\baselineskip}
+
 \begin{itemize}
 \item
   \textbf{The scoring functions do not reliably measure correctness.}
@@ -471,6 +471,49 @@ four distinct failure modes as a compression metric.
   (Figure~\ref{fig:fout-f1}, panel b). ROUGE-L penalizes valid
   syntactic reorderings. Both are blind to paraphrase: a semantically
   perfect answer in different words scores zero (panel d).
+
+\item
+  \textbf{A single reference does not cover all correct answers.}
+  For QA and summarization tasks, the reference is one human-written
+  answer or summary. A model that answers correctly but differently ---
+  ``midnight'' instead of ``12\,AM'', ``sent to'' instead of ``exiled
+  to'' --- receives no credit. ``Ground-truth accuracy'' ends up
+  measuring surface similarity to one person's phrasing rather than
+  whether the answer is right.
+
+\item
+  \textbf{Faithful errors are penalized.}
+
+  If the full-context model
+  produces a wrong answer, a compressed model that faithfully reproduces
+  that same wrong answer scores 0 on ground truth. The metric penalizes
+  faithfulness when it produces the wrong answer for the ``right
+  reasons.'' A compression method should not be penalized for being a
+  good approximation.
+
+\item
+  \textbf{Low full-model accuracy amplifies these problems.}
+
+  The base models used here (Llama-3.1-8B and Mistral-7B-v0.3) achieve
+  macro-average GT scores of approximately 25 out of 100 on LongBench.
+  Our own evaluations of the instruction-tuned variants on the same
+  benchmark yield 33.2\% for Llama-3.1-8B-Instruct and 32.8\% for
+  Mistral-7B-Instruct-v0.3 (Appendix~A) --- meaning roughly 67\% of what
+  each instruct model generates does not overlap with the ground-truth
+  reference. For that majority of output, the metric is entirely blind
+  to whether compression changed the model's behavior: the compressed
+  and uncompressed models could produce identical text or completely
+  different text, and the GT score would be the same either way.
+
+  The papers that introduced these methods evaluated instruction-tuned
+  variants and report somewhat higher baselines --- approximately 41--43\%
+  for LLaMA-3-8B-Instruct and Mistral-7B-Instruct-v0.2 in the PyramidKV
+  and SnapKV evaluations {[}Cai et al., 2024; Li et al., 2024{]} --- but
+  the same logic applies: when the full model fails to match the reference
+  on the majority of examples, GT cannot detect compression effects for
+  that majority.
+
+\end{itemize}
 
 \begin{figure}[H]
 \noindent\begin{minipage}{\linewidth}
@@ -554,52 +597,63 @@ four distinct failure modes as a compression metric.
 \label{fig:fout-f1}
 \end{figure}
 
-\item
-  \textbf{A single reference does not cover all correct answers.}
-  For QA and summarization tasks, the reference is one human-written
-  answer or summary. A model that answers correctly but differently ---
-  ``midnight'' instead of ``12\,AM'', ``sent to'' instead of ``exiled
-  to'' --- receives no credit. ``Ground-truth accuracy'' ends up
-  measuring surface similarity to one person's phrasing rather than
-  whether the answer is right.
 
-\item
-  \textbf{Faithful errors are penalized.}
+\hypertarget{output-faithfulness}{%
+\subsection{4.2 Output Faithfulness}\label{output-faithfulness}}
 
-  If the full-context model
-  produces a wrong answer, a compressed model that faithfully reproduces
-  that same wrong answer scores 0 on ground truth. The metric penalizes
-  faithfulness when it produces the wrong answer for the ``right
-  reasons.'' A compression method should not be penalized for being a
-  good approximation.
+WTV faithfulness measures how well the compressed model's internal
+distributions match the full model's. A complementary question is: how
+similar is the text the compressed model actually generates?
 
-\item
-  \textbf{Low full-model accuracy amplifies these problems.}
+We define \textbf{Output Faithfulness} (\(F_{\text{out}}\)) as:
 
-  The base models used here (Llama-3.1-8B and Mistral-7B-v0.3) achieve
-  macro-average GT scores of approximately 25 out of 100 on LongBench.
-  Our own evaluations of the instruction-tuned variants on the same
-  benchmark yield 33.2\% for Llama-3.1-8B-Instruct and 32.8\% for
-  Mistral-7B-Instruct-v0.3 (Appendix~A) --- meaning roughly 67\% of what
-  each instruct model generates does not overlap with the ground-truth
-  reference. For that majority of output, the metric is entirely blind
-  to whether compression changed the model's behavior: the compressed
-  and uncompressed models could produce identical text or completely
-  different text, and the GT score would be the same either way.
+\[
+F_{\text{out}} = \frac{1}{N} \sum_{i=1}^{N}
+  \text{f1}\!\left(\hat{y}^{\,\text{full}}_i,\, \hat{y}^{\,\text{comp}}_i\right)
+\]
 
-  The papers that introduced these methods evaluated instruction-tuned
-  variants and report somewhat higher baselines --- approximately 41--43\%
-  for LLaMA-3-8B-Instruct and Mistral-7B-Instruct-v0.2 in the PyramidKV
-  and SnapKV evaluations {[}Cai et al., 2024; Li et al., 2024{]} --- but
-  the same logic applies: when the full model fails to match the reference
-  on the majority of examples, GT cannot detect compression effects for
-  that majority.
+where f1 is word-level F1 between the full model's prediction and the
+compressed model's prediction on example i. Both predictions are
+generated autoregressively with greedy decoding; no external
+ground-truth reference is used.
 
-\end{itemize}
+Word-level F1 is computed after lowercasing, removing articles (a, an,
+the), and stripping punctuation --- the same normalization used by
+LongBench for extractive QA evaluation. The metric ranges from 0 (no
+word overlap) to 1 (identical output text).
+
+\(F_{\text{out}}\) addresses the failure modes of ground-truth
+evaluation directly: it does not compare to any external reference, so
+faithful errors are not penalized and accidental correctness is not
+rewarded. It also provides partial credit in two cases that binary
+accuracy metrics miss: when both models produce the same wrong answer
+(they are being equally and faithfully wrong), and when one model's
+output partially overlaps the other's (approximation with some drift).
+For a compression method that is a good approximation,
+\(F_{\text{out}}\) should be high regardless of whether the underlying
+outputs are ``correct.''
+
+
+\textbf{Caveat emptor on output-text metrics.}
+
+\nopagebreak
+\(F_{\text{out}}\) is more principled than ground-truth evaluation, but word-level F1
+introduces its own distortions that any output-text measurement
+inherits. Panels (b) and (d) of Figure~\ref{fig:fout-f1} apply directly:
+\(F_{\text{out}}\) is blind to word-order reversals and synonymous paraphrases for
+the same reasons the GT metrics are, since it applies the same normalization to
+model-to-model comparisons. Readers should treat \(F_{\text{out}}\) scores and any
+generated output-based measurement with appropriate skepticism.
+
+
+These limitations are why \(F_{\text{WTV}}\) is the primary distributional metric
+rather than \(F_{\text{out}}\): \(F_{\text{WTV}}\) operates at the distribution
+level at every generation step, is insensitive to output length, and requires no
+string matching.
 
 
 \hypertarget{kl-faithfulness}{%
-\subsection{4.2 WTV Faithfulness}\label{wtv-faithfulness}}
+\subsection{4.3 WTV Faithfulness}\label{wtv-faithfulness}}
 
 We need a metric that addresses ground-truth evaluation's failures. Rather than comparing
 the outputs of the original and compressed models to a human-written reference,
@@ -683,60 +737,6 @@ mass from the correct token to semantically similar alternatives --- invisible t
 both greedy accuracy measures and ground-truth benchmarks --- registers as a
 faithfulness cost in \(F_{\text{WTV}}\).
 
-\hypertarget{output-faithfulness}{%
-\subsection{4.3 Output Faithfulness}\label{output-faithfulness}}
-
-WTV faithfulness measures how well the compressed model's internal
-distributions match the full model's. A complementary question is: how
-similar is the text the compressed model actually generates?
-
-We define \textbf{Output Faithfulness} (\(F_{\text{out}}\)) as:
-
-\[
-F_{\text{out}} = \frac{1}{N} \sum_{i=1}^{N}
-  \text{f1}\!\left(\hat{y}^{\,\text{full}}_i,\, \hat{y}^{\,\text{comp}}_i\right)
-\]
-
-where f1 is word-level F1 between the full model's prediction and the
-compressed model's prediction on example i. Both predictions are
-generated autoregressively with greedy decoding; no external
-ground-truth reference is used.
-
-Word-level F1 is computed after lowercasing, removing articles (a, an,
-the), and stripping punctuation --- the same normalization used by
-LongBench for extractive QA evaluation. The metric ranges from 0 (no
-word overlap) to 1 (identical output text).
-
-\(F_{\text{out}}\) addresses the failure modes of ground-truth
-evaluation directly: it does not compare to any external reference, so
-faithful errors are not penalized and accidental correctness is not
-rewarded. It also provides partial credit in two cases that binary
-accuracy metrics miss: when both models produce the same wrong answer
-(they are being equally and faithfully wrong), and when one model's
-output partially overlaps the other's (approximation with some drift).
-For a compression method that is a good approximation,
-\(F_{\text{out}}\) should be high regardless of whether the underlying
-outputs are ``correct.''
-
-
-\textbf{Caveat emptor on output-text metrics.}
-
-\nopagebreak
-\(F_{\text{out}}\) is more principled than ground-truth evaluation, but word-level F1
-introduces its own distortions that any output-text measurement
-inherits. Panels (b) and (d) of Figure~\ref{fig:fout-f1} apply directly:
-\(F_{\text{out}}\) is blind to word-order reversals and synonymous paraphrases for
-the same reasons the GT metrics are, since it applies the same normalization to
-model-to-model comparisons. Readers should treat \(F_{\text{out}}\) scores and any
-generated output-based measurement with appropriate skepticism.
-
-
-These limitations are why \(F_{\text{WTV}}\) is the primary distributional metric
-rather than \(F_{\text{out}}\): \(F_{\text{WTV}}\) operates at the distribution
-level at every generation step, is insensitive to output length, and requires no
-string matching.
-
-
 \hypertarget{why-these-two-metrics}{%
 \subsection{4.4 Why These Two Metrics?}\label{why-these-two-metrics}}
 
@@ -801,69 +801,8 @@ meaningful one.
 \hypertarget{faithfulness-results}{%
 \section{5. Faithfulness Results}\label{faithfulness-results}}
 
-\hypertarget{kl-faithfulness-main-results}{%
-\subsection{5.1 WTV Faithfulness: Main Results}\label{wtv-faithfulness-main-results}}
-Table~\ref{tab:t3} shows mean WTV faithfulness. The per-task breakdown is in Appendix~B.
-
-\begin{table}[H]
-\centering
-\small
-\captionsetup{justification=centering}
-\caption{Mean WTV faithfulness (\(F_{\text{WTV}}\)) by method, retention rate, and token budget.}
-\label{tab:t3}
-\begin{minipage}[t]{0.49\textwidth}
-\centering
-\textbf{Llama-3.1-8B}\\[0.4em]
-\begin{tabular}{@{}lrrrrr@{}}
-\toprule
-& \multicolumn{3}{c}{Base} & \multicolumn{2}{c}{Instruct}\\
-\cmidrule(lr){2-4}\cmidrule(lr){5-6}
-Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
-\midrule
-Naive      & 0.200 & 0.162 & 0.139 & 0.537 & 0.406\\
-Streaming  & 0.126 & 0.105 & 0.085 & 0.281 & 0.227\\
-SnapKV     & \textbf{0.065} & \textbf{0.046} & 0.030 & \textbf{0.179} & \textbf{0.096}\\
-Pyr        & \textbf{0.065} & 0.064 & \textbf{0.025} & 0.180 & 0.097\\
-Random     & 0.107 & 0.082 & 0.061 & --- & ---\\
-\bottomrule
-\end{tabular}
-\end{minipage}%
-\hfill
-\begin{minipage}[t]{0.49\textwidth}
-\centering
-\textbf{Mistral-7B-v0.3}\\[0.4em]
-\begin{tabular}{@{}lrrrrr@{}}
-\toprule
-& \multicolumn{3}{c}{Base} & \multicolumn{2}{c}{Instruct}\\
-\cmidrule(lr){2-4}\cmidrule(lr){5-6}
-Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
-\midrule
-Naive      & 0.161 & 0.132 & 0.116 & 0.602 & 0.467\\
-Streaming  & 0.174 & 0.153 & 0.132 & 0.363 & 0.307\\
-SnapKV     & \textbf{0.065} & \textbf{0.044} & \textbf{0.027} & \textbf{0.251} & \textbf{0.153}\\
-Pyr        & \textbf{0.065} & 0.074 & 0.028 & 0.259 & 0.159\\
-Random     & 0.156 & 0.120 & 0.088 & --- & ---\\
-\bottomrule
-\end{tabular}
-\end{minipage}
-\par\smallskip
-Lower is better. \textbf{Bold} = best value per column.
-Base = retention rate; Instruct = absolute token budget.
-\end{table}
-
-The finding here is more striking.
-The scattered-selection methods (SnapKV, PyramidKV) are substantially more faithful than
-block eviction (Streaming), truncation (Naive), and random eviction
-at every rate. Among scattered-selection methods, SnapKV leads at most base-model
-configurations, with PyramidKV marginally better at 65\%.
-At instruct budgets, SnapKV continues to lead; Streaming
-narrows substantially relative to Naive as budget tightens, suggesting
-block eviction degrades more gracefully than truncation at extreme
-compression.
-
-
 \hypertarget{output-faithfulness-results}{%
-\subsection{5.2 Output Faithfulness
+\subsection{5.1 Output Faithfulness
 Results}\label{output-faithfulness-results}}
 
 Table~\ref{tab:t4} shows the output faithfulness results (per-task breakdown in Appendix~C).  
@@ -929,6 +868,67 @@ compression would actually reduce generation time, the cost is comparable to or 
 than the base-model results.
 
 \hypertarget{eviction-geometry-and-faithfulness}{%
+\hypertarget{kl-faithfulness-main-results}{%
+\subsection{5.2 WTV Faithfulness: Main Results}\label{wtv-faithfulness-main-results}}
+Table~\ref{tab:t3} shows mean WTV faithfulness. The per-task breakdown is in Appendix~B.
+
+\begin{table}[H]
+\centering
+\small
+\captionsetup{justification=centering}
+\caption{Mean WTV faithfulness (\(F_{\text{WTV}}\)) by method, retention rate, and token budget.}
+\label{tab:t3}
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\textbf{Llama-3.1-8B}\\[0.4em]
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+& \multicolumn{3}{c}{Base} & \multicolumn{2}{c}{Instruct}\\
+\cmidrule(lr){2-4}\cmidrule(lr){5-6}
+Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
+\midrule
+Naive      & 0.200 & 0.162 & 0.139 & 0.537 & 0.406\\
+Streaming  & 0.126 & 0.105 & 0.085 & 0.281 & 0.227\\
+SnapKV     & \textbf{0.065} & \textbf{0.046} & 0.030 & \textbf{0.179} & \textbf{0.096}\\
+Pyr        & \textbf{0.065} & 0.064 & \textbf{0.025} & 0.180 & 0.097\\
+Random     & 0.107 & 0.082 & 0.061 & --- & ---\\
+\bottomrule
+\end{tabular}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\textbf{Mistral-7B-v0.3}\\[0.4em]
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+& \multicolumn{3}{c}{Base} & \multicolumn{2}{c}{Instruct}\\
+\cmidrule(lr){2-4}\cmidrule(lr){5-6}
+Method & 35\% & 50\% & 65\% & $b$=256 & $b$=1024\\
+\midrule
+Naive      & 0.161 & 0.132 & 0.116 & 0.602 & 0.467\\
+Streaming  & 0.174 & 0.153 & 0.132 & 0.363 & 0.307\\
+SnapKV     & \textbf{0.065} & \textbf{0.044} & \textbf{0.027} & \textbf{0.251} & \textbf{0.153}\\
+Pyr        & \textbf{0.065} & 0.074 & 0.028 & 0.259 & 0.159\\
+Random     & 0.156 & 0.120 & 0.088 & --- & ---\\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\par\smallskip
+Lower is better. \textbf{Bold} = best value per column.
+Base = retention rate; Instruct = absolute token budget.
+\end{table}
+
+The finding here is more striking.
+The scattered-selection methods (SnapKV, PyramidKV) are substantially more faithful than
+block eviction (Streaming), truncation (Naive), and random eviction
+at every rate. Among scattered-selection methods, SnapKV leads at most base-model
+configurations, with PyramidKV marginally better at 65\%.
+At instruct budgets, SnapKV continues to lead; Streaming
+narrows substantially relative to Naive as budget tightens, suggesting
+block eviction degrades more gracefully than truncation at extreme
+compression.
+
+
 \section{6. Eviction Geometry and Faithfulness}\label{eviction-geometry-and-faithfulness}}
 
 Post-prefill cache eviction introduces structural effects whose impact depends critically
@@ -1199,7 +1199,7 @@ The synthetic analysis isolates mechanism; task-level WTV variance in §3 and §
 reflects how well each geometry aligns with where relevant content actually
 appears in a given task, which the content-blind synthetic cannot predict.
 
-These results provide a mechanistic account of the clustering in §5.1.
+These results provide a mechanistic account of the clustering in §5.2.
 SnapKV and PyramidKV share a scattered position geometry that
 interacts strongly and favorably with enrichment (0.27×), explaining
 why they form a tight group well above the remaining methods. Streaming
@@ -1379,7 +1379,7 @@ On long-form tasks --- where TPT savings compound --- Naive's long-form
 \(F_{\text{out}}\) (57.6\%) matches or exceeds SnapKV (54.7\%) and
 PyramidKV (55.5\%) at 65\% retention, while delivering a 63\% TTFT reduction
 (Table~\ref{tab:ttft}). SnapKV and PyramidKV lead meaningfully on WTV faithfulness
-(§5.1) and on short-form \(F_{\text{out}}\), but the case for their superiority
+(§5.2) and on short-form \(F_{\text{out}}\), but the case for their superiority
 on long-form generation tasks --- the workloads where compression saves the most
 time --- rests on WTV faithfulness rather than output-text similarity.
 
@@ -1830,7 +1830,7 @@ The short/long gap in WTV is large for all selection methods: SnapKV has WTV
 0.011 on short vs 0.080 on long at 65\% (7× ratio), consistent with enrichment quality being highest at early decode steps.
 PyramidKV leads at 65\% (long 0.061 vs SnapKV 0.080);
 SnapKV leads at 50\%, consistent with PyramidKV's pyramid budget collapsing
-toward uniform allocation as compression tightens (§5.1). Both converge at 35\%.
+toward uniform allocation as compression tightens (§5.2). Both converge at 35\%.
 Streaming WTV is roughly 3× worse on long outputs (0.171) than short (0.051)
 at 65\%, consistent with block-end enrichment contamination accumulating over
 longer generation. Naive WTV is nearly flat across short and long --- truncation
