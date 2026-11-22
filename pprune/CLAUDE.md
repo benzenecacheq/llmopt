@@ -2,9 +2,37 @@
 
 ## Project overview
 
-Two papers split from a single codebase:
+**`paper_wtv.tex`** — **Active submission** (Nov 2026). Title: "Faithfulness over Accuracy:
+Rethinking KV Cache Compression". Replaces `paper_kv_faithfulness.tex` as primary paper.
+Uses WTV (Weighted Total Variation) and F_out as faithfulness metrics instead of KL.
+Compile with XeLaTeX (requires fontspec + unicode-math).
 
-**`paper_kv_faithfulness.tex`** — Primary paper (LaTeX source). KV cache compression faithfulness.
+**Section structure (Nov 2026):**
+- §1 Introduction
+- §2 Background and Related Work
+- §3 Ground-Truth Evaluation: §3.1 Setup, §3.2 Ground-Truth Results
+- §4 Faithfulness Metrics: §4.1 Why GT Falls Short, §4.2 Output Faithfulness (F_out),
+  §4.3 WTV Faithfulness (F_WTV), §4.4 Why These Two Metrics?
+- §5 Faithfulness Results: §5.1 Output Faithfulness Results, §5.2 WTV Faithfulness: Main Results
+- §6 Eviction Geometry and Faithfulness: §6.1 The Mechanism, §6.2 Empirical Evidence,
+  §6.3 Synthetic Gap-Structure Analysis
+- §7 Why Compression Quality Appears Better Than It Actually Is: §7.1 Enrichment and the
+  Short-Answer Advantage, §7.2 Output-Length Effects, §7.3 The Selection Blind Spot
+- §8 Inference Performance: §8.1 Base Model Timing, §8.2 Instruct Model Timing at Extreme
+  Budgets, §8.3 Deployment Implications
+- §9 Conclusion
+- Appendix A: GT Accuracy per task; B: WTV per task; C: F_out per task; D: KL per task
+
+**Key design choices:** F_out appears before WTV in §4 and §5 (more interpretable, more
+prominent in later sections). GT results in §3 precede the metric critique in §4 (reader
+sees evidence before the critique lands). Section cross-references are literal §X.Y in body
+text; \ref{} on sections returns empty — always use hardcoded numbers.
+
+---
+
+Two older papers (kept for reference):
+
+**`paper_kv_faithfulness.tex`** — Prior primary paper (LaTeX source). KV cache compression faithfulness.
 **NOTE (Sep 2026): KL numbers for unrotated methods are under revision** — see "Position-ID bug in
 get_comp_log_probs" below. The "27× KL improvement" finding was an artifact of wrong decode
 positions in TF eval. Corrected 65% reruns are in progress; paper conclusions may change
